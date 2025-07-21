@@ -39,6 +39,18 @@ const upload = multer({
   }
 });
 
+// Helper function to get user ID from request (supports both auth systems)
+function getUserId(req: any): string {
+  if (req.user?.claims?.sub) {
+    // Legacy Replit auth
+    return req.user.claims.sub;
+  } else if (req.user?.id) {
+    // New auth system
+    return req.user.id;
+  }
+  throw new Error("User not authenticated");
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup multiple authentication methods
   await setupMultiAuth(app);
@@ -141,18 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Existing auth routes (with fallback to new auth)
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
-      // Handle both new auth system and legacy Replit auth
-      let userId;
-      if (req.user?.claims?.sub) {
-        // Legacy Replit auth
-        userId = req.user.claims.sub;
-      } else if (req.user?.id) {
-        // New auth system
-        userId = req.user.id;
-      } else {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
+      const userId = getUserId(req);
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -162,7 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Categories routes
-  app.get('/api/categories', isAuthenticated, async (req, res) => {
+  app.get('/api/categories', requireAuth, async (req, res) => {
     try {
       const categories = await storage.getCategories();
       res.json(categories);
@@ -172,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/categories', isAuthenticated, async (req, res) => {
+  app.post('/api/categories', requireAuth, async (req, res) => {
     try {
       const categoryData = insertCategorySchema.parse(req.body);
       const category = await storage.createCategory(categoryData);
@@ -183,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/categories/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/categories/:id', requireAuth, async (req, res) => {
     try {
       const categoryId = parseInt(req.params.id);
       if (isNaN(categoryId)) {
@@ -204,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/categories/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/categories/:id', requireAuth, async (req, res) => {
     try {
       const categoryId = parseInt(req.params.id);
       if (isNaN(categoryId)) {
@@ -220,9 +221,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Smart search endpoint for real-time search
-  app.get('/api/documents/search', isAuthenticated, async (req: any, res) => {
+  app.get('/api/documents/search', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const searchQuery = req.query.q as string;
 
       if (!searchQuery || searchQuery.trim().length === 0) {
@@ -238,9 +239,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Documents routes
-  app.get('/api/documents', isAuthenticated, async (req: any, res) => {
+  app.get('/api/documents', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
       const search = req.query.search as string;
       const expiryFilter = req.query.expiryFilter as 'expired' | 'expiring-soon' | 'this-month' | undefined;
@@ -253,13 +254,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/documents', isAuthenticated, upload.single('file'), async (req: any, res) => {
+  app.post('/api/documents', requireAuth, upload.single('file'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const { categoryId, tags } = req.body;
 
       const documentData = {
@@ -324,9 +325,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Expiry alerts endpoint (must come before parameterized routes)
-  app.get('/api/documents/expiry-alerts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/documents/expiry-alerts', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const expiryData = await storage.getExpiryAlerts(userId);
       res.json(expiryData);
     } catch (error) {
@@ -336,9 +337,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document stats (must come before parameterized routes)
-  app.get('/api/documents/stats', isAuthenticated, async (req: any, res) => {
+  app.get('/api/documents/stats', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const stats = await storage.getDocumentStats(userId);
       res.json(stats);
     } catch (error) {
@@ -347,9 +348,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/documents/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/documents/:id', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       
       if (isNaN(documentId)) {
@@ -369,9 +370,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document preview endpoint
-  app.get('/api/documents/:id/preview', isAuthenticated, async (req: any, res) => {
+  app.get('/api/documents/:id/preview', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       
       if (isNaN(documentId)) {
@@ -437,9 +438,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update document details (name and expiry date)
-  app.patch('/api/documents/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/documents/:id', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       
       if (isNaN(documentId)) {
@@ -473,9 +474,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Trigger OCR processing for a document
-  app.post('/api/documents/:id/ocr', isAuthenticated, async (req: any, res) => {
+  app.post('/api/documents/:id/ocr', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       
       if (isNaN(documentId)) {
@@ -513,9 +514,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/documents/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/documents/:id', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       
       if (isNaN(documentId)) {
@@ -541,9 +542,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Download document
-  app.get('/api/documents/:id/download', isAuthenticated, async (req: any, res) => {
+  app.get('/api/documents/:id/download', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       
       if (isNaN(documentId)) {
@@ -612,7 +613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Initialize default categories
-  app.post('/api/init-categories', isAuthenticated, async (req, res) => {
+  app.post('/api/init-categories', requireAuth, async (req, res) => {
     try {
       const defaultCategories = [
         { name: 'Utilities', icon: 'fas fa-bolt', color: 'blue' },
@@ -642,9 +643,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Document sharing routes
   
   // Share a document
-  app.post('/api/documents/:id/share', isAuthenticated, async (req: any, res) => {
+  app.post('/api/documents/:id/share', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       const { email, permissions = 'view' } = req.body;
       
@@ -672,9 +673,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get document shares
-  app.get('/api/documents/:id/shares', isAuthenticated, async (req: any, res) => {
+  app.get('/api/documents/:id/shares', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       
       if (isNaN(documentId)) {
@@ -693,9 +694,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Unshare a document
-  app.delete('/api/document-shares/:shareId', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/document-shares/:shareId', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const shareId = parseInt(req.params.shareId);
       
       if (isNaN(shareId)) {
@@ -711,9 +712,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get documents shared with me
-  app.get('/api/shared-with-me', isAuthenticated, async (req: any, res) => {
+  app.get('/api/shared-with-me', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const sharedDocuments = await storage.getSharedWithMeDocuments(userId);
       res.json(sharedDocuments);
     } catch (error) {
@@ -725,9 +726,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Email forwarding endpoints
   
   // Get user's forwarding email address
-  app.get('/api/email/forwarding-address', isAuthenticated, async (req: any, res) => {
+  app.get('/api/email/forwarding-address', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const userForwardingAddress = await emailService.getUserForwardingAddress(userId);
       const fallbackAddress = emailService.getForwardingAddress();
       
@@ -744,9 +745,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test email processing (for development) - simulates receiving an email with attachments
-  app.post('/api/email/test', isAuthenticated, async (req: any, res) => {
+  app.post('/api/email/test', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const user = await storage.getUser(userId);
       
       if (!user?.email) {
@@ -798,9 +799,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get email forwarding history
-  app.get('/api/email/history', isAuthenticated, async (req: any, res) => {
+  app.get('/api/email/history', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const emailHistory = await storage.getEmailForwards(userId);
       res.json(emailHistory);
     } catch (error) {
@@ -810,9 +811,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chatbot endpoints
-  app.post('/api/chatbot/ask', isAuthenticated, async (req: any, res) => {
+  app.post('/api/chatbot/ask', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const { question } = req.body;
 
       console.log(`Chatbot request from user ${userId}: "${question}"`);
@@ -838,9 +839,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/chatbot/expiry-summary', isAuthenticated, async (req: any, res) => {
+  app.get('/api/chatbot/expiry-summary', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const summary = await getExpiryAlerts(userId);
       res.json({ summary });
     } catch (error) {
@@ -850,9 +851,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reprocess document with date extraction (for testing existing documents)
-  app.post('/api/documents/:id/reprocess-dates', isAuthenticated, async (req: any, res) => {
+  app.post('/api/documents/:id/reprocess-dates', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       
       if (isNaN(documentId)) {
@@ -884,9 +885,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Expiry reminder routes
-  app.get('/api/expiry-reminders', isAuthenticated, async (req: any, res) => {
+  app.get('/api/expiry-reminders', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const reminders = await storage.getExpiryReminders(userId);
       res.json(reminders);
     } catch (error) {
@@ -895,9 +896,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/expiry-reminders', isAuthenticated, async (req: any, res) => {
+  app.post('/api/expiry-reminders', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const validatedData = insertExpiryReminderSchema.parse(req.body);
       const reminderData = { ...validatedData, userId };
       const reminder = await storage.createExpiryReminder(reminderData);
@@ -908,9 +909,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/expiry-reminders/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/expiry-reminders/:id', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const reminderId = parseInt(req.params.id);
       
       if (isNaN(reminderId)) {
@@ -929,9 +930,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/expiry-reminders/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/expiry-reminders/:id', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const reminderId = parseInt(req.params.id);
       
       if (isNaN(reminderId)) {
@@ -946,9 +947,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/expiry-reminders/:id/complete', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/expiry-reminders/:id/complete', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = getUserId(req);
       const reminderId = parseInt(req.params.id);
       const { isCompleted } = req.body;
       

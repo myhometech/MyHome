@@ -25,6 +25,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     categoryId: "",
     tags: "",
     expiryDate: "",
+    customName: "",
   });
 
   const { data: categories = [] } = useQuery({
@@ -36,7 +37,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     mutationFn: async ({ file, data }: { file: File; data: any }) => {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("name", data.name || file.name);
+      formData.append("name", data.customName || data.name || file.name);
       if (data.categoryId) formData.append("categoryId", data.categoryId);
       if (data.tags) formData.append("tags", JSON.stringify(data.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
       if (data.expiryDate) formData.append("expiryDate", data.expiryDate);
@@ -62,7 +63,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
       onUpload(selectedFiles);
       setSelectedFiles([]);
       setShowUploadDialog(false);
-      setUploadData({ categoryId: "", tags: "", expiryDate: "" });
+      setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -242,6 +243,20 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Custom Document Title */}
+            <div className="space-y-2">
+              <Label htmlFor="customName">Document Title (Optional)</Label>
+              <Input
+                id="customName"
+                placeholder="Enter a custom title for your document"
+                value={uploadData.customName}
+                onChange={(e) => setUploadData(prev => ({ ...prev, customName: e.target.value }))}
+              />
+              <p className="text-xs text-gray-500">
+                Leave blank to use the original filename
+              </p>
             </div>
 
             {/* Category Selection */}

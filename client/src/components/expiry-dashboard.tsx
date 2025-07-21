@@ -23,22 +23,28 @@ interface ExpiryStats {
 
 export function ExpiryDashboard() {
   const { toast } = useToast();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  
   const { data: expiryData, isLoading, error } = useQuery({
     queryKey: ["/api/documents/expiry-alerts"],
     retry: false,
+    enabled: isAuthenticated, // Only run query when user is authenticated
   });
+
+  // Don't show anything if user is not authenticated
+  if (authLoading) {
+    return null; // Auth is still loading
+  }
+  
+  if (!isAuthenticated) {
+    return null; // User is not logged in
+  }
 
   // Handle errors manually since onError is deprecated in v5
   if (error) {
     if (isUnauthorizedError(error as Error)) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
+      // Silently handle auth errors - user is not logged in
+      return null;
     } else {
       console.error("Error loading expiry data:", error);
     }
@@ -62,8 +68,8 @@ export function ExpiryDashboard() {
     );
   }
 
-  // Show error state if needed
-  if (error) {
+  // Show error state if needed (but not for auth errors)
+  if (error && !isUnauthorizedError(error as Error)) {
     return (
       <Card className="mb-6">
         <CardHeader>

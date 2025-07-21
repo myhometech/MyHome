@@ -212,9 +212,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           extractedText, 
           document: updatedDocument 
         });
-      } catch (ocrError) {
+      } catch (ocrError: any) {
         console.error(`OCR failed for document ${documentId}:`, ocrError);
-        res.status(500).json({ message: `OCR processing failed: ${ocrError.message}` });
+        res.status(500).json({ message: `OCR processing failed: ${ocrError?.message || 'Unknown error'}` });
       }
     } catch (error) {
       console.error("Error processing OCR:", error);

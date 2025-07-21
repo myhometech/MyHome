@@ -247,6 +247,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document preview endpoint
+  app.get('/api/documents/:id/preview', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+      
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Check if file exists
+      if (!fs.existsSync(document.filePath)) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      // For images, serve the file directly
+      if (document.mimeType.startsWith('image/')) {
+        res.setHeader('Content-Type', document.mimeType);
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        const fileStream = fs.createReadStream(document.filePath);
+        fileStream.pipe(res);
+        return;
+      }
+
+      // For PDFs, we could generate a thumbnail or serve first page
+      // For now, return a placeholder response
+      res.status(200).json({ 
+        message: "Preview generation not implemented for this file type",
+        mimeType: document.mimeType 
+      });
+    } catch (error) {
+      console.error("Error generating document preview:", error);
+      res.status(500).json({ message: "Failed to generate preview" });
+    }
+  });
+
   // Update document name
   app.patch('/api/documents/:id/name', async (req: any, res) => {
     try {

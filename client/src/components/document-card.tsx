@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
+import { DocumentPreview } from "./document-preview";
 import { isUnauthorizedError } from "@/lib/authUtils";
-// import DocumentModal from "./document-modal";
 
 interface Document {
   id: number;
@@ -393,6 +393,8 @@ export default function DocumentCard({
     }
   };
 
+
+
   return (
     <>
       <Card 
@@ -537,6 +539,16 @@ export default function DocumentCard({
       </Card>
 
       {showModal && (
+        <DocumentPreview
+          document={document}
+          category={category}
+          onClose={() => setShowModal(false)}
+          onDownload={handleDownload}
+        />
+      )}
+
+      {/* Old modal for reference - can be removed */}
+      {false && showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">

@@ -9,6 +9,7 @@ import {
   integer,
   boolean,
 } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -151,7 +152,9 @@ export type InsertExpiryReminder = typeof expiryReminders.$inferInsert;
 export type ExpiryReminder = typeof expiryReminders.$inferSelect;
 
 // Zod schemas for validation
-export const insertExpiryReminderSchema = createInsertSchema(expiryReminders).omit({
+export const insertExpiryReminderSchema = createInsertSchema(expiryReminders, {
+  expiryDate: z.string().transform((str) => new Date(str)),
+}).omit({
   id: true,
   userId: true,
   createdAt: true,

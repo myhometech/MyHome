@@ -4,7 +4,7 @@
 
 HomeDocs is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and Replit authentication.
 
-**Latest Update**: Implemented comprehensive document preview functionality with OCR summarization. When documents are selected, users now see full-screen preview modals with professional layouts, zoom controls for images, PDF preview placeholders, AI-generated summaries with key details (dates, amounts, names), extracted OCR text display, and integrated download functionality. Enhanced search system now works across document names, AI summaries, extracted text, tags, and categories with smart ranking.
+**Latest Update**: Implemented standalone expiry reminder system allowing users to create custom expiry alerts without document attachment. Added "Add Expiry Reminder" button to dashboard with form for title, description, expiry date, and category. Created complete database schema and API endpoints for expiry_reminders table. Fixed date validation issues by implementing string-to-Date transformation in Zod schema. System now combines document-based expiry dates with standalone reminders in unified dashboard view with smart categorization for subscriptions, memberships, licenses, warranties, and contracts.
 
 ## User Preferences
 

@@ -2,15 +2,17 @@
 
 ## Overview
 
-HomeDocs is a full-stack document management application designed for organizing home-related documents like property papers, utility bills, and insurance policies. The application features a React frontend with a Node.js/Express backend, using PostgreSQL for data storage and Replit authentication for user management.
+HomeDocs is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and Replit authentication.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Project Direction: Building iOS version of HomeDocs document management app.
+Essential Features: Phone camera scanning for document digitization, future Google Drive integration planned.
 
 ## System Architecture
 
-### Frontend Architecture
+### Web Frontend Architecture
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite for development and bundling
 - **Routing**: Wouter for client-side routing
@@ -18,10 +20,19 @@ Preferred communication style: Simple, everyday language.
 - **UI Framework**: Radix UI components with Tailwind CSS styling
 - **Component Library**: shadcn/ui for consistent design system
 
+### iOS Native Architecture
+- **Framework**: SwiftUI for iOS 16.0+
+- **Authentication**: Sign in with Apple integration
+- **Document Scanning**: VisionKit with VNDocumentCameraViewController
+- **Text Recognition**: Vision framework with VNRecognizeTextRequest
+- **Storage**: CoreData alternative with local file system + API sync
+- **State Management**: ObservableObject with Combine framework
+- **Offline Support**: Local document storage with background sync
+
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js framework
 - **Language**: TypeScript with ES modules
-- **Authentication**: Replit Auth with OpenID Connect
+- **Authentication**: Replit Auth with OpenID Connect (web) + Apple Sign In (iOS)
 - **Session Management**: Express sessions with PostgreSQL storage
 - **File Uploads**: Multer for handling multipart form data
 - **API Design**: RESTful endpoints with JSON responses

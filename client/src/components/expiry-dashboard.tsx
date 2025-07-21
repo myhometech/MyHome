@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Calendar, Clock, FileText, ChevronRight } from "lucide-react";
+import { AlertTriangle, Calendar, Clock, FileText, ChevronRight, Plus } from "lucide-react";
 import { DocumentPreview } from "./document-preview";
+import { AddExpiryReminderDialog } from "./add-expiry-reminder-dialog";
 
 interface ExpiringDocument {
   id: number;
@@ -176,6 +177,14 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
 
   return (
     <div className="space-y-6 mb-6">
+      {/* Add Reminder Button */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
+          Expiry Alerts
+        </h2>
+        <AddExpiryReminderDialog />
+      </div>
       {/* Critical Alerts with Detailed Descriptions */}
       {hasAlerts && typedExpiryData && (
         <div className="space-y-3">

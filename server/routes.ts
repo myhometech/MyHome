@@ -6,7 +6,7 @@ import { emailService } from "./emailService";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema } from "@shared/schema";
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction } from "./ocrService";
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 
@@ -771,6 +771,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Date reprocessing error:", error);
       res.status(500).json({ message: "Failed to reprocess document dates" });
+    }
+  });
+
+  // Expiry reminder routes
+  app.get('/api/expiry-reminders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reminders = await storage.getExpiryReminders(userId);
+      res.json(reminders);
+    } catch (error) {
+      console.error("Error fetching expiry reminders:", error);
+      res.status(500).json({ message: "Failed to fetch expiry reminders" });
+    }
+  });
+
+  app.post('/api/expiry-reminders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = insertExpiryReminderSchema.parse(req.body);
+      const reminderData = { ...validatedData, userId };
+      const reminder = await storage.createExpiryReminder(reminderData);
+      res.json(reminder);
+    } catch (error) {
+      console.error("Error creating expiry reminder:", error);
+      res.status(500).json({ message: "Failed to create expiry reminder" });
+    }
+  });
+
+  app.patch('/api/expiry-reminders/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reminderId = parseInt(req.params.id);
+      
+      if (isNaN(reminderId)) {
+        return res.status(400).json({ message: "Invalid reminder ID" });
+      }
+      
+      const updatedReminder = await storage.updateExpiryReminder(reminderId, userId, req.body);
+      if (!updatedReminder) {
+        return res.status(404).json({ message: "Reminder not found" });
+      }
+      
+      res.json(updatedReminder);
+    } catch (error) {
+      console.error("Error updating expiry reminder:", error);
+      res.status(500).json({ message: "Failed to update expiry reminder" });
+    }
+  });
+
+  app.delete('/api/expiry-reminders/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reminderId = parseInt(req.params.id);
+      
+      if (isNaN(reminderId)) {
+        return res.status(400).json({ message: "Invalid reminder ID" });
+      }
+      
+      await storage.deleteExpiryReminder(reminderId, userId);
+      res.json({ message: "Reminder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting expiry reminder:", error);
+      res.status(500).json({ message: "Failed to delete expiry reminder" });
+    }
+  });
+
+  app.patch('/api/expiry-reminders/:id/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const reminderId = parseInt(req.params.id);
+      const { isCompleted } = req.body;
+      
+      if (isNaN(reminderId)) {
+        return res.status(400).json({ message: "Invalid reminder ID" });
+      }
+      
+      const updatedReminder = await storage.markReminderCompleted(reminderId, userId, isCompleted);
+      if (!updatedReminder) {
+        return res.status(404).json({ message: "Reminder not found" });
+      }
+      
+      res.json(updatedReminder);
+    } catch (error) {
+      console.error("Error marking reminder as completed:", error);
+      res.status(500).json({ message: "Failed to update reminder status" });
     }
   });
 

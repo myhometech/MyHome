@@ -134,6 +134,30 @@ export const insertEmailForwardSchema = createInsertSchema(emailForwards).omit({
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
+// Standalone expiry reminders (not tied to documents)
+export const expiryReminders = pgTable("expiry_reminders", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  expiryDate: timestamp("expiry_date").notNull(),
+  category: varchar("category"), // e.g., "subscription", "membership", "insurance", "license"
+  isCompleted: boolean("is_completed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type InsertExpiryReminder = typeof expiryReminders.$inferInsert;
+export type ExpiryReminder = typeof expiryReminders.$inferSelect;
+
+// Zod schemas for validation
+export const insertExpiryReminderSchema = createInsertSchema(expiryReminders).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // User forwarding mapping types
 export type InsertUserForwardingMapping = typeof userForwardingMappings.$inferInsert;
 export type UserForwardingMapping = typeof userForwardingMappings.$inferSelect;

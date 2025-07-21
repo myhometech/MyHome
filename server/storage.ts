@@ -5,6 +5,7 @@ import {
   emailForwards,
   userForwardingMappings,
   categories,
+  expiryReminders,
   type User,
   type UpsertUser,
   type Document,
@@ -17,6 +18,8 @@ import {
   type InsertCategory,
   type UserForwardingMapping,
   type InsertUserForwardingMapping,
+  type ExpiryReminder,
+  type InsertExpiryReminder,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
@@ -73,6 +76,13 @@ export interface IStorage {
   
   // Search operations
   searchDocuments(userId: string, query: string): Promise<any[]>;
+
+  // Expiry reminder operations
+  getExpiryReminders(userId: string): Promise<ExpiryReminder[]>;
+  createExpiryReminder(reminder: InsertExpiryReminder): Promise<ExpiryReminder>;
+  updateExpiryReminder(id: number, userId: string, updates: Partial<InsertExpiryReminder>): Promise<ExpiryReminder | undefined>;
+  deleteExpiryReminder(id: number, userId: string): Promise<void>;
+  markReminderCompleted(id: number, userId: string, isCompleted: boolean): Promise<ExpiryReminder | undefined>;
 }
 
 export interface ExpiringDocument {
@@ -364,6 +374,7 @@ export class DatabaseStorage implements IStorage {
         uploadedAt: documents.uploadedAt,
         expiryDate: documents.expiryDate,
         categoryName: categories.name,
+        isReminder: sql<boolean>`false`,
       })
       .from(documents)
       .leftJoin(categories, eq(documents.categoryId, categories.id))
@@ -374,6 +385,38 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(documents.expiryDate);
+
+    // Get standalone expiry reminders
+    const remindersWithExpiry = await db
+      .select({
+        id: expiryReminders.id,
+        userId: expiryReminders.userId,
+        categoryId: sql<number | null>`null`,
+        name: expiryReminders.title,
+        fileName: sql<string>`''`,
+        filePath: sql<string>`''`,
+        fileSize: sql<number>`0`,
+        mimeType: sql<string>`''`,
+        tags: sql<string[] | null>`null`,
+        extractedText: expiryReminders.description,
+        summary: expiryReminders.description,
+        ocrProcessed: sql<boolean>`false`,
+        uploadedAt: expiryReminders.createdAt,
+        expiryDate: expiryReminders.expiryDate,
+        categoryName: expiryReminders.category,
+        isReminder: sql<boolean>`true`,
+      })
+      .from(expiryReminders)
+      .where(
+        and(
+          eq(expiryReminders.userId, userId),
+          eq(expiryReminders.isCompleted, false)
+        )
+      )
+      .orderBy(expiryReminders.expiryDate);
+
+    // Combine documents and reminders
+    const allExpiryItems = [...docsWithExpiry, ...remindersWithExpiry];
 
     const processDocument = (doc: any): ExpiringDocument => {
       const expiryDate = new Date(doc.expiryDate);
@@ -713,6 +756,47 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userForwardingMappings.emailHash, emailHash));
     
     return result[0]?.user;
+  }
+
+  // Expiry reminder operations
+  async getExpiryReminders(userId: string): Promise<ExpiryReminder[]> {
+    return await db
+      .select()
+      .from(expiryReminders)
+      .where(eq(expiryReminders.userId, userId))
+      .orderBy(expiryReminders.expiryDate);
+  }
+
+  async createExpiryReminder(reminder: InsertExpiryReminder): Promise<ExpiryReminder> {
+    const [newReminder] = await db
+      .insert(expiryReminders)
+      .values(reminder)
+      .returning();
+    return newReminder;
+  }
+
+  async updateExpiryReminder(id: number, userId: string, updates: Partial<InsertExpiryReminder>): Promise<ExpiryReminder | undefined> {
+    const [updatedReminder] = await db
+      .update(expiryReminders)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(expiryReminders.id, id), eq(expiryReminders.userId, userId)))
+      .returning();
+    return updatedReminder;
+  }
+
+  async deleteExpiryReminder(id: number, userId: string): Promise<void> {
+    await db
+      .delete(expiryReminders)
+      .where(and(eq(expiryReminders.id, id), eq(expiryReminders.userId, userId)));
+  }
+
+  async markReminderCompleted(id: number, userId: string, isCompleted: boolean): Promise<ExpiryReminder | undefined> {
+    const [updatedReminder] = await db
+      .update(expiryReminders)
+      .set({ isCompleted, updatedAt: new Date() })
+      .where(and(eq(expiryReminders.id, id), eq(expiryReminders.userId, userId)))
+      .returning();
+    return updatedReminder;
   }
 }
 

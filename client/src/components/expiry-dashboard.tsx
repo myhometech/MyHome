@@ -22,7 +22,11 @@ interface ExpiryStats {
   expiringThisMonth: ExpiringDocument[];
 }
 
-export function ExpiryDashboard() {
+interface ExpiryDashboardProps {
+  onExpiryFilterChange?: (filter: 'expired' | 'expiring-soon' | 'this-month' | null) => void;
+}
+
+export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   
@@ -138,7 +142,10 @@ export function ExpiryDashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Expired Documents */}
-          <Card className="border-red-200">
+          <Card 
+            className="border-red-200 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => onExpiryFilterChange?.('expired')}
+          >
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-red-700 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
@@ -152,11 +159,19 @@ export function ExpiryDashboard() {
               <p className="text-xs text-gray-500 mt-1">
                 Documents past expiry
               </p>
+              {(typedExpiryData?.expired?.length || 0) > 0 && (
+                <p className="text-xs text-red-600 mt-2 font-medium">
+                  Click to view →
+                </p>
+              )}
             </CardContent>
           </Card>
 
           {/* Expiring Soon */}
-          <Card className="border-orange-200">
+          <Card 
+            className="border-orange-200 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => onExpiryFilterChange?.('expiring-soon')}
+          >
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-orange-700 flex items-center gap-2">
                 <Clock className="h-4 w-4" />
@@ -170,11 +185,19 @@ export function ExpiryDashboard() {
               <p className="text-xs text-gray-500 mt-1">
                 Within 7 days
               </p>
+              {(typedExpiryData?.expiringSoon?.length || 0) > 0 && (
+                <p className="text-xs text-orange-600 mt-2 font-medium">
+                  Click to view →
+                </p>
+              )}
             </CardContent>
           </Card>
 
           {/* This Month */}
-          <Card className="border-yellow-200">
+          <Card 
+            className="border-yellow-200 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => onExpiryFilterChange?.('this-month')}
+          >
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-yellow-700 flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
@@ -188,6 +211,11 @@ export function ExpiryDashboard() {
               <p className="text-xs text-gray-500 mt-1">
                 Expiring this month
               </p>
+              {(typedExpiryData?.expiringThisMonth?.length || 0) > 0 && (
+                <p className="text-xs text-yellow-600 mt-2 font-medium">
+                  Click to view →
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

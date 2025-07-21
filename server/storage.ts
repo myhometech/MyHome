@@ -29,7 +29,7 @@ export interface IStorage {
   createCategory(category: InsertCategory): Promise<Category>;
   
   // Document operations
-  getDocuments(userId: string, categoryId?: number, search?: string): Promise<Document[]>;
+  getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: 'expired' | 'expiring-soon' | 'this-month'): Promise<Document[]>;
   getDocument(id: number, userId: string): Promise<Document | undefined>;
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: number, userId: string): Promise<void>;
@@ -109,9 +109,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Document operations
-  async getDocuments(userId: string, categoryId?: number, search?: string): Promise<Document[]> {
-    let query = db.select().from(documents).where(eq(documents.userId, userId));
-    
+  async getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: 'expired' | 'expiring-soon' | 'this-month'): Promise<Document[]> {
     const conditions = [eq(documents.userId, userId)];
     
     if (categoryId) {
@@ -122,6 +120,44 @@ export class DatabaseStorage implements IStorage {
       conditions.push(
         sql`(${documents.name} ILIKE ${`%${search}%`} OR ${documents.extractedText} ILIKE ${`%${search}%`})`
       );
+    }
+    
+    // Add expiry filter conditions
+    if (expiryFilter) {
+      const today = new Date();
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(today.getDate() + 7);
+      
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      
+      switch (expiryFilter) {
+        case 'expired':
+          conditions.push(
+            and(
+              isNotNull(documents.expiryDate),
+              sql`${documents.expiryDate} < ${today.toISOString().split('T')[0]}`
+            )
+          );
+          break;
+        case 'expiring-soon':
+          conditions.push(
+            and(
+              isNotNull(documents.expiryDate),
+              sql`${documents.expiryDate} >= ${today.toISOString().split('T')[0]}`,
+              sql`${documents.expiryDate} <= ${sevenDaysFromNow.toISOString().split('T')[0]}`
+            )
+          );
+          break;
+        case 'this-month':
+          conditions.push(
+            and(
+              isNotNull(documents.expiryDate),
+              sql`${documents.expiryDate} >= ${today.toISOString().split('T')[0]}`,
+              sql`${documents.expiryDate} <= ${endOfMonth.toISOString().split('T')[0]}`
+            )
+          );
+          break;
+      }
     }
     
     return await db

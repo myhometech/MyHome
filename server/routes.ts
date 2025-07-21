@@ -98,8 +98,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
       const search = req.query.search as string;
+      const expiryFilter = req.query.expiryFilter as 'expired' | 'expiring-soon' | 'this-month' | undefined;
       
-      const documents = await storage.getDocuments(userId, categoryId, search);
+      const documents = await storage.getDocuments(userId, categoryId, search, expiryFilter);
       res.json(documents);
     } catch (error) {
       console.error("Error fetching documents:", error);

@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, type ExpiringDocument } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { emailService } from "./emailService";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -445,6 +446,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching shared documents:", error);
       res.status(500).json({ message: "Failed to fetch shared documents" });
+    }
+  });
+
+  // Email forwarding endpoints
+  
+  // Get user's forwarding email address
+  app.get('/api/email/forwarding-address', isAuthenticated, async (req: any, res) => {
+    try {
+      const forwardingAddress = emailService.getForwardingAddress();
+      res.json({ 
+        address: forwardingAddress,
+        instructions: `Forward emails with attachments to ${forwardingAddress} and they will be automatically added to your document library.`
+      });
+    } catch (error) {
+      console.error("Error getting forwarding address:", error);
+      res.status(500).json({ message: "Failed to get forwarding address" });
+    }
+  });
+
+  // Test email processing (for development)
+  app.post('/api/email/test', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.email) {
+        return res.status(400).json({ message: "User email not found" });
+      }
+
+      const result = await emailService.testEmailProcessing(user.email);
+      res.json(result);
+    } catch (error) {
+      console.error("Error testing email processing:", error);
+      res.status(500).json({ message: "Failed to test email processing" });
+    }
+  });
+
+  // Process incoming email (webhook endpoint - no auth required)
+  app.post('/api/email/webhook', async (req, res) => {
+    try {
+      const { emailData, userEmail } = req.body;
+      
+      if (!emailData || !userEmail) {
+        return res.status(400).json({ message: "Missing email data or user email" });
+      }
+
+      const result = await emailService.processIncomingEmail(emailData, userEmail);
+      res.json(result);
+    } catch (error) {
+      console.error("Email webhook error:", error);
+      res.status(500).json({ message: "Failed to process email" });
+    }
+  });
+
+  // Get email forwarding history
+  app.get('/api/email/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const emailHistory = await storage.getEmailForwards(userId);
+      res.json(emailHistory);
+    } catch (error) {
+      console.error("Error fetching email history:", error);
+      res.status(500).json({ message: "Failed to fetch email history" });
     }
   });
 

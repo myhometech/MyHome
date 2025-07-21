@@ -2,6 +2,7 @@ import {
   users,
   documents,
   documentShares,
+  emailForwards,
   categories,
   type User,
   type UpsertUser,
@@ -9,6 +10,8 @@ import {
   type InsertDocument,
   type DocumentShare,
   type InsertDocumentShare,
+  type EmailForward,
+  type InsertEmailForward,
   type Category,
   type InsertCategory,
 } from "@shared/schema";
@@ -18,6 +21,7 @@ import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "dri
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   
   // Category operations
@@ -49,6 +53,11 @@ export interface IStorage {
   getDocumentShares(documentId: number, userId: string): Promise<DocumentShare[]>;
   getSharedWithMeDocuments(userId: string): Promise<Document[]>;
   canAccessDocument(documentId: number, userId: string): Promise<boolean>;
+  
+  // Email forwarding operations
+  createEmailForward(emailForward: InsertEmailForward): Promise<EmailForward>;
+  updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined>;
+  getEmailForwards(userId: string): Promise<EmailForward[]>;
 }
 
 export interface ExpiringDocument {
@@ -63,6 +72,11 @@ export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
   }
 
@@ -407,6 +421,32 @@ export class DatabaseStorage implements IStorage {
       );
 
     return !!sharedDocument;
+  }
+
+  // Email forwarding methods
+  async createEmailForward(emailForward: InsertEmailForward): Promise<EmailForward> {
+    const [newEmailForward] = await db
+      .insert(emailForwards)
+      .values(emailForward)
+      .returning();
+    return newEmailForward;
+  }
+
+  async updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined> {
+    const [updatedEmailForward] = await db
+      .update(emailForwards)
+      .set(updates)
+      .where(eq(emailForwards.id, id))
+      .returning();
+    return updatedEmailForward;
+  }
+
+  async getEmailForwards(userId: string): Promise<EmailForward[]> {
+    return await db
+      .select()
+      .from(emailForwards)
+      .where(eq(emailForwards.userId, userId))
+      .orderBy(desc(emailForwards.processedAt));
   }
 }
 

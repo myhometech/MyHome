@@ -73,6 +73,24 @@ export const documentShares = pgTable("document_shares", {
   index("idx_document_shares_shared_with").on(table.sharedWithUserId),
 ]);
 
+// Email processing table for forwarded emails
+export const emailForwards = pgTable("email_forwards", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  fromEmail: varchar("from_email", { length: 255 }).notNull(),
+  subject: text("subject").notNull(),
+  emailBody: text("email_body"),
+  hasAttachments: boolean("has_attachments").default(false),
+  attachmentCount: integer("attachment_count").default(0),
+  processedAt: timestamp("processed_at").defaultNow(),
+  documentsCreated: integer("documents_created").default(0),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending', 'processed', 'failed'
+  errorMessage: text("error_message"),
+}, (table) => [
+  index("idx_email_forwards_user").on(table.userId),
+  index("idx_email_forwards_status").on(table.status),
+]);
+
 // Create schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
@@ -95,6 +113,11 @@ export const insertDocumentShareSchema = createInsertSchema(documentShares).omit
   sharedAt: true,
 });
 
+export const insertEmailForwardSchema = createInsertSchema(emailForwards).omit({
+  id: true,
+  processedAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -104,3 +127,5 @@ export type Document = typeof documents.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type DocumentShare = typeof documentShares.$inferSelect;
 export type InsertDocumentShare = z.infer<typeof insertDocumentShareSchema>;
+export type EmailForward = typeof emailForwards.$inferSelect;
+export type InsertEmailForward = z.infer<typeof insertEmailForwardSchema>;

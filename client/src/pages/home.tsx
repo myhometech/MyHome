@@ -12,6 +12,7 @@ import MobileNav from "@/components/mobile-nav";
 import { ExpiryDashboard } from "@/components/expiry-dashboard";
 import Chatbot from "@/components/chatbot";
 import { Navigation } from "@/components/navigation";
+import { EmailForwarding } from "@/components/email-forwarding";
 import { useState } from "react";
 import { Search, Grid, List, SortAsc, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -117,6 +118,9 @@ export default function Home() {
 
         {/* Upload Zone */}
         <UploadZone onUpload={handleFileUpload} />
+
+        {/* Email Forwarding */}
+        <EmailForwarding />
 
         {/* Stats Grid */}
         <StatsGrid stats={stats} />

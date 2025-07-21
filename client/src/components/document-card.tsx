@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch } from "lucide-react";
+import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import DocumentModal from "./document-modal";
+// import DocumentModal from "./document-modal";
 
 interface Document {
   id: number;
@@ -24,6 +24,7 @@ interface Document {
   extractedText: string | null;
   ocrProcessed: boolean | null;
   uploadedAt: string;
+  expiryDate: string | null;
 }
 
 interface Category {
@@ -355,7 +356,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setShowModal(true)}>
+                <DropdownMenuItem onClick={() => {/* setShowModal(true) */}}>
                   <Eye className="h-4 w-4 mr-2" />
                   View
                 </DropdownMenuItem>
@@ -387,7 +388,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
             </DropdownMenu>
           </div>
           
-          <div onClick={isEditing ? undefined : () => setShowModal(true)}>
+          <div onClick={isEditing ? undefined : () => {/* setShowModal(true) */}}>
             {isEditing ? (
               <div className="mb-2">
                 <Input
@@ -423,6 +424,13 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
               </div>
             )}
             
+            {/* Expiry Date Display */}
+            {document.expiryDate && (
+              <div className="mb-2">
+                <ExpiryBadge expiryDate={document.expiryDate} />
+              </div>
+            )}
+            
             {document.tags && document.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
                 {document.tags.slice(0, 2).map((tag, index) => (
@@ -441,14 +449,65 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
         </CardContent>
       </Card>
 
-      <DocumentModal
+      {/* <DocumentModal
         document={document}
         category={category}
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         onDownload={handleDownload}
         onDelete={handleDelete}
-      />
+      /> */}
     </>
+  );
+}
+
+// Helper component for expiry badge
+function ExpiryBadge({ expiryDate }: { expiryDate: string }) {
+  const getExpiryStatus = (expiryDate: string) => {
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    const diffTime = expiry.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return {
+        text: `Expired ${Math.abs(diffDays)} days ago`,
+        variant: "destructive" as const,
+        icon: <AlertTriangle className="h-3 w-3" />
+      };
+    } else if (diffDays === 0) {
+      return {
+        text: "Expires today",
+        variant: "destructive" as const,
+        icon: <AlertTriangle className="h-3 w-3" />
+      };
+    } else if (diffDays <= 7) {
+      return {
+        text: `Expires in ${diffDays} days`,
+        variant: "secondary" as const,
+        icon: <Clock className="h-3 w-3" />
+      };
+    } else if (diffDays <= 30) {
+      return {
+        text: `Expires in ${diffDays} days`,
+        variant: "outline" as const,
+        icon: <Calendar className="h-3 w-3" />
+      };
+    } else {
+      return {
+        text: `Expires ${expiry.toLocaleDateString()}`,
+        variant: "outline" as const,
+        icon: <Calendar className="h-3 w-3" />
+      };
+    }
+  };
+  
+  const status = getExpiryStatus(expiryDate);
+  
+  return (
+    <Badge variant={status.variant} className="text-xs flex items-center gap-1">
+      {status.icon}
+      {status.text}
+    </Badge>
   );
 }

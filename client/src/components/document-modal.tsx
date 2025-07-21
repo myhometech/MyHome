@@ -16,6 +16,7 @@ interface Document {
   extractedText: string | null;
   ocrProcessed: boolean | null;
   uploadedAt: string;
+  expiryDate: string | null;
 }
 
 interface Category {

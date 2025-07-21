@@ -138,6 +138,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const documentId = parseInt(req.params.id);
       
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+      
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -167,6 +171,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user?.claims?.sub || 'demo-user-1';
       const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
       const { name } = req.body;
 
       if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -190,6 +198,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
       
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
@@ -226,6 +238,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
       
       const document = await storage.getDocument(documentId, userId);
       if (!document) {

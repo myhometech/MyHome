@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
+import Login from "@/pages/login";
+import Register from "@/pages/register";
 import SharedWithMe from "@/pages/shared-with-me";
 import ExpiryDocuments from "@/pages/expiry-documents";
 import Settings from "@/pages/settings";
@@ -17,7 +19,11 @@ function Router() {
   return (
     <Switch>
       {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/" component={Landing} />
+          <Route path="/login" component={Login} />
+          <Route path="/register" component={Register} />
+        </>
       ) : (
         <>
           <Route path="/" component={Home} />

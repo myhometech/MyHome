@@ -2,7 +2,10 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, type ExpiringDocument } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupMultiAuth, requireAuth } from "./multiAuth";
+import { AuthService } from "./authService";
 import { emailService } from "./emailService";
+import passport from "passport";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -37,13 +40,79 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
+  // Setup multiple authentication methods
+  await setupMultiAuth(app);
+  
+  // Keep existing Replit Auth for backwards compatibility
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  // New multi-auth routes
+  app.post('/api/auth/register', async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const { email, password, firstName, lastName } = req.body;
+      
+      // Check if user already exists
+      const existingUser = await AuthService.findUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists with this email" });
+      }
+
+      const user = await AuthService.createEmailUser({
+        email,
+        password,
+        firstName,
+        lastName,
+      });
+
+      res.status(201).json({ 
+        message: "Account created successfully", 
+        userId: user.id 
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  app.post('/api/auth/login', passport.authenticate('local'), (req, res) => {
+    res.json({ message: "Login successful", user: req.user });
+  });
+
+  app.post('/api/auth/logout', (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logout successful" });
+    });
+  });
+
+  app.get('/api/auth/google', passport.authenticate('google', {
+    scope: ['profile', 'email']
+  }));
+
+  app.get('/api/auth/google/callback', 
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    (req, res) => {
+      res.redirect('/');
+    }
+  );
+
+  // Existing auth routes (with fallback to new auth)
+  app.get('/api/auth/user', requireAuth, async (req: any, res) => {
+    try {
+      // Handle both new auth system and legacy Replit auth
+      let userId;
+      if (req.user?.claims?.sub) {
+        // Legacy Replit auth
+        userId = req.user.claims.sub;
+      } else if (req.user?.id) {
+        // New auth system
+        userId = req.user.id;
+      } else {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {

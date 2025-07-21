@@ -127,13 +127,22 @@ export default function Landing() {
               <p className="text-slate-600 mb-6">
                 Join thousands of homeowners who have simplified their document management.
               </p>
-              <Button 
-                onClick={handleLogin} 
-                size="lg" 
-                className="bg-primary hover:bg-blue-700"
-              >
-                Start Managing Your Documents
-              </Button>
+              <div className="flex gap-4 justify-center">
+                <Button 
+                  onClick={() => window.location.href = '/login'} 
+                  size="lg" 
+                  className="bg-primary hover:bg-blue-700"
+                >
+                  Sign In
+                </Button>
+                <Button 
+                  onClick={() => window.location.href = '/register'} 
+                  variant="outline"
+                  size="lg"
+                >
+                  Create Account
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

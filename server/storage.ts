@@ -26,6 +26,7 @@ export interface IStorage {
   getDocument(id: number, userId: string): Promise<Document | undefined>;
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: number, userId: string): Promise<void>;
+  updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined>;
   getDocumentStats(userId: string): Promise<{
     totalDocuments: number;
     totalSize: number;
@@ -89,7 +90,9 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (search) {
-      conditions.push(ilike(documents.name, `%${search}%`));
+      conditions.push(
+        sql`(${documents.name} ILIKE ${`%${search}%`} OR ${documents.extractedText} ILIKE ${`%${search}%`})`
+      );
     }
     
     return await db
@@ -120,6 +123,21 @@ export class DatabaseStorage implements IStorage {
     const [updatedDoc] = await db
       .update(documents)
       .set({ name: newName })
+      .where(
+        and(eq(documents.id, id), eq(documents.userId, userId))
+      )
+      .returning();
+    
+    return updatedDoc;
+  }
+
+  async updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined> {
+    const [updatedDoc] = await db
+      .update(documents)
+      .set({ 
+        extractedText,
+        ocrProcessed: true 
+      })
       .where(
         and(eq(documents.id, id), eq(documents.userId, userId))
       )

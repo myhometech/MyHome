@@ -6,6 +6,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema } from "@shared/schema";
+import { extractTextFromImage, supportsOCR } from "./ocrService";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -108,6 +109,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertDocumentSchema.parse(documentData);
       const document = await storage.createDocument(validatedData);
+
+      // Process OCR for images in the background
+      if (supportsOCR(req.file.mimetype)) {
+        try {
+          const extractedText = await extractTextFromImage(req.file.path);
+          await storage.updateDocumentOCR(document.id, userId, extractedText);
+          console.log(`OCR completed for document ${document.id}`);
+        } catch (ocrError) {
+          console.error(`OCR failed for document ${document.id}:`, ocrError);
+          // Continue without failing the upload
+        }
+      }
+
       res.status(201).json(document);
     } catch (error) {
       console.error("Error uploading document:", error);
@@ -168,6 +182,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating document name:", error);
       res.status(500).json({ message: "Failed to update document name" });
+    }
+  });
+
+  // Trigger OCR processing for a document
+  app.post('/api/documents/:id/ocr', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (!supportsOCR(document.mimeType)) {
+        return res.status(400).json({ message: "Document type does not support OCR" });
+      }
+
+      if (!fs.existsSync(document.filePath)) {
+        return res.status(404).json({ message: "File not found on server" });
+      }
+
+      try {
+        const extractedText = await extractTextFromImage(document.filePath);
+        const updatedDocument = await storage.updateDocumentOCR(documentId, userId, extractedText);
+        res.json({ 
+          success: true, 
+          extractedText, 
+          document: updatedDocument 
+        });
+      } catch (ocrError) {
+        console.error(`OCR failed for document ${documentId}:`, ocrError);
+        res.status(500).json({ message: "OCR processing failed" });
+      }
+    } catch (error) {
+      console.error("Error processing OCR:", error);
+      res.status(500).json({ message: "Failed to process OCR" });
     }
   });
 

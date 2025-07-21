@@ -54,6 +54,8 @@ export const documents = pgTable("documents", {
   mimeType: varchar("mime_type", { length: 100 }).notNull(),
   tags: text("tags").array(),
   expiryDate: timestamp("expiry_date"),
+  extractedText: text("extracted_text"),
+  ocrProcessed: boolean("ocr_processed").default(false),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 

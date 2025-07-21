@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X } from "lucide-react";
+import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import DocumentModal from "./document-modal";
 
@@ -21,6 +21,8 @@ interface Document {
   fileSize: number;
   mimeType: string;
   tags: string[] | null;
+  extractedText: string | null;
+  ocrProcessed: boolean | null;
   uploadedAt: string;
 }
 
@@ -47,11 +49,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
 
   const updateNameMutation = useMutation({
     mutationFn: async ({ id, name }: { id: number; name: string }) => {
-      return await apiRequest(`/api/documents/${id}/name`, {
-        method: "PATCH",
-        body: JSON.stringify({ name }),
-        headers: { "Content-Type": "application/json" },
-      });
+      return await apiRequest(`/api/documents/${id}/name`, "PATCH", { name });
     },
     onSuccess: () => {
       toast({
@@ -114,6 +112,37 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
       toast({
         title: "Delete failed",
         description: "Failed to delete the document. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const ocrMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest(`/api/documents/${id}/ocr`, "POST");
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Text extracted",
+        description: `Successfully extracted ${data.extractedText?.length || 0} characters of text.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "OCR failed",
+        description: "Failed to extract text from the document. Please try again.",
         variant: "destructive",
       });
     },
@@ -185,6 +214,14 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
     }
   };
 
+  const supportsOCR = () => {
+    return ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'].includes(document.mimeType);
+  };
+
+  const handleProcessOCR = () => {
+    ocrMutation.mutate(document.id);
+  };
+
   if (viewMode === "list") {
     return (
       <>
@@ -221,6 +258,14 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                     <span>{formatFileSize(document.fileSize)}</span>
                     <span>•</span>
                     <span>{formatDate(document.uploadedAt)}</span>
+                    {supportsOCR() && document.ocrProcessed && (
+                      <>
+                        <span>•</span>
+                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                          Text Extracted
+                        </Badge>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -260,6 +305,15 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </DropdownMenuItem>
+                    {supportsOCR() && (
+                      <DropdownMenuItem 
+                        onClick={handleProcessOCR}
+                        disabled={ocrMutation.isPending}
+                      >
+                        <FileSearch className="h-4 w-4 mr-2" />
+                        {document.ocrProcessed ? 'Re-extract Text' : 'Extract Text'}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem 
                       onClick={handleDelete}
                       className="text-red-600 focus:text-red-600"
@@ -313,6 +367,15 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                   <Download className="h-4 w-4 mr-2" />
                   Download
                 </DropdownMenuItem>
+                {supportsOCR() && (
+                  <DropdownMenuItem 
+                    onClick={handleProcessOCR}
+                    disabled={ocrMutation.isPending}
+                  >
+                    <FileSearch className="h-4 w-4 mr-2" />
+                    {document.ocrProcessed ? 'Re-extract Text' : 'Extract Text'}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem 
                   onClick={handleDelete}
                   className="text-red-600 focus:text-red-600"
@@ -351,6 +414,14 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
               <span>{formatFileSize(document.fileSize)}</span>
               <span>{formatDate(document.uploadedAt)}</span>
             </div>
+            
+            {supportsOCR() && document.ocrProcessed && (
+              <div className="mb-2">
+                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                  Text Extracted
+                </Badge>
+              </div>
+            )}
             
             {document.tags && document.tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">

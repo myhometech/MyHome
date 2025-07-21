@@ -13,6 +13,8 @@ interface Document {
   fileSize: number;
   mimeType: string;
   tags: string[] | null;
+  extractedText: string | null;
+  ocrProcessed: boolean | null;
   uploadedAt: string;
 }
 
@@ -160,6 +162,18 @@ export default function DocumentModal({
                       {tag}
                     </Badge>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Extracted Text */}
+            {document.ocrProcessed && document.extractedText && (
+              <div>
+                <h4 className="font-medium text-sm text-gray-700 mb-2">Extracted Text</h4>
+                <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {document.extractedText}
+                  </p>
                 </div>
               </div>
             )}

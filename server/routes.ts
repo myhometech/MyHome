@@ -532,7 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test email processing (for development)
+  // Test email processing (for development) - simulates receiving an email with attachments
   app.post('/api/email/test', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -542,8 +542,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User email not found" });
       }
 
-      const result = await emailService.testEmailProcessing(user.email);
-      res.json(result);
+      // Create sample email data to simulate forwarded email
+      const sampleEmailData = {
+        from: user.email || 'test@example.com',
+        subject: 'Sample Document Forward - Insurance Policy',
+        html: '<p>This is a test email with an attached insurance document.</p><p>Please process this document and add it to my HomeDocs library.</p>',
+        text: 'This is a test email with an attached insurance document. Please process this document and add it to my HomeDocs library.',
+        attachments: [
+          {
+            filename: 'insurance-policy.pdf',
+            content: Buffer.from('Sample PDF content for testing email forwarding functionality'),
+            contentType: 'application/pdf'
+          }
+        ]
+      };
+
+      const result = await emailService.processIncomingEmail(sampleEmailData, user.email);
+      res.json({
+        ...result,
+        message: 'Test email processed successfully! Check your documents to see the created document.',
+        note: 'This was a simulated email forward. In production, emails would be processed automatically when forwarded to your unique address.'
+      });
     } catch (error) {
       console.error("Error testing email processing:", error);
       res.status(500).json({ message: "Failed to test email processing" });

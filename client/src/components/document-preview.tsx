@@ -32,9 +32,8 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
-    // Check if this is an image document
+    // For image documents, test if the preview URL is accessible
     if (isImage()) {
-      // Test if the preview URL is accessible
       fetch(getPreviewUrl(), { credentials: 'include' })
         .then(response => {
           if (!response.ok) {
@@ -48,10 +47,8 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
           setIsLoading(false);
         });
     } else {
-      // For non-image files, just stop loading
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 300);
+      // For PDFs and other files, just stop loading immediately
+      setIsLoading(false);
     }
   }, []);
 

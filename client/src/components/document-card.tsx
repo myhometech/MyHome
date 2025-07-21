@@ -386,9 +386,11 @@ export default function DocumentCard({
   }
 
   const handleCardClick = () => {
+    console.log('Card clicked:', { bulkMode, isEditing, showModal });
     if (bulkMode && onToggleSelection) {
       onToggleSelection();
     } else if (!bulkMode && !isEditing) {
+      console.log('Opening modal for document:', document.name);
       setShowModal(true);
     }
   };
@@ -542,7 +544,10 @@ export default function DocumentCard({
         <DocumentPreview
           document={document}
           category={category}
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            console.log('Closing modal');
+            setShowModal(false);
+          }}
           onDownload={handleDownload}
         />
       )}
@@ -570,7 +575,7 @@ export default function DocumentCard({
                 </div>
                 {document.expiryDate && (
                   <div>
-                    <span className="font-medium">Expires:</span> {new Date(document.expiryDate).toLocaleDateString()}
+                    <span className="font-medium">Expires:</span> {document.expiryDate ? new Date(document.expiryDate).toLocaleDateString() : 'Not set'}
                   </div>
                 )}
               </div>

@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Home, Search, Bell, LogOut } from "lucide-react";
+import type { User } from "@shared/schema";
 
 interface HeaderProps {
   searchQuery: string;

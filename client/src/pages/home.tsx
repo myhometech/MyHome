@@ -13,6 +13,7 @@ import { useState } from "react";
 import { Search, Grid, List, SortAsc } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { Category, Document } from "@shared/schema";
 
 export default function Home() {
   const { toast } = useToast();
@@ -67,13 +68,17 @@ export default function Home() {
   });
 
   // Fetch categories
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
     retry: false,
   });
 
   // Fetch stats
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<{
+    totalDocuments: number;
+    totalSize: number;
+    categoryCounts: { categoryId: number; count: number }[];
+  }>({
     queryKey: ["/api/documents/stats"],
     retry: false,
   });
@@ -183,7 +188,7 @@ export default function Home() {
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
                   : "space-y-4"
               }>
-                {documents.map((document) => (
+                {documents.map((document: Document) => (
                   <DocumentCard
                     key={document.id}
                     document={document}

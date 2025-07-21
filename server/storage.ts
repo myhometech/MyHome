@@ -77,7 +77,18 @@ export interface IStorage {
 
 export interface ExpiringDocument {
   id: number;
+  userId: string;
+  categoryId: number | null;
   name: string;
+  fileName: string;
+  filePath: string;
+  fileSize: number;
+  mimeType: string;
+  tags: string[] | null;
+  extractedText: string | null;
+  summary: string | null;
+  ocrProcessed: boolean;
+  uploadedAt: string;
   expiryDate: string;
   categoryName?: string;
   daysUntilExpiry: number;
@@ -335,11 +346,22 @@ export class DatabaseStorage implements IStorage {
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    // Get documents with expiry dates
+    // Get documents with expiry dates - include all fields for document preview
     const docsWithExpiry = await db
       .select({
         id: documents.id,
+        userId: documents.userId,
+        categoryId: documents.categoryId,
         name: documents.name,
+        fileName: documents.fileName,
+        filePath: documents.filePath,
+        fileSize: documents.fileSize,
+        mimeType: documents.mimeType,
+        tags: documents.tags,
+        extractedText: documents.extractedText,
+        summary: documents.summary,
+        ocrProcessed: documents.ocrProcessed,
+        uploadedAt: documents.uploadedAt,
         expiryDate: documents.expiryDate,
         categoryName: categories.name,
       })
@@ -359,7 +381,18 @@ export class DatabaseStorage implements IStorage {
       
       return {
         id: doc.id,
+        userId: doc.userId,
+        categoryId: doc.categoryId,
         name: doc.name,
+        fileName: doc.fileName,
+        filePath: doc.filePath,
+        fileSize: doc.fileSize,
+        mimeType: doc.mimeType,
+        tags: doc.tags,
+        extractedText: doc.extractedText,
+        summary: doc.summary,
+        ocrProcessed: doc.ocrProcessed,
+        uploadedAt: typeof doc.uploadedAt === 'string' ? doc.uploadedAt : doc.uploadedAt.toISOString(),
         expiryDate: typeof doc.expiryDate === 'string' ? doc.expiryDate : doc.expiryDate.toISOString(),
         categoryName: doc.categoryName || undefined,
         daysUntilExpiry,

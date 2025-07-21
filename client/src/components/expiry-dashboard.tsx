@@ -6,11 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Calendar, Clock, FileText } from "lucide-react";
+import { AlertTriangle, Calendar, Clock, FileText, ChevronRight } from "lucide-react";
+import { DocumentPreview } from "./document-preview";
 
 interface ExpiringDocument {
   id: number;
   name: string;
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+  extractedText: string | null;
+  summary: string | null;
+  uploadedAt: string;
   expiryDate: string;
   categoryName?: string;
   daysUntilExpiry: number;
@@ -23,6 +31,7 @@ interface ExpiryStats {
 }
 
 import { useLocation } from "wouter";
+import { useState } from "react";
 
 interface ExpiryDashboardProps {
   onExpiryFilterChange?: (filter: 'expired' | 'expiring-soon' | 'this-month' | null) => void;
@@ -32,6 +41,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [selectedDocument, setSelectedDocument] = useState<ExpiringDocument | null>(null);
   
   const { data: expiryData, isLoading, error } = useQuery({
     queryKey: ["/api/documents/expiry-alerts"],
@@ -103,24 +113,119 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
 
   const hasAlerts = typedExpiryData && (typedExpiryData.expired.length > 0 || typedExpiryData.expiringSoon.length > 0);
 
+  const getExpiryDescription = (document: ExpiringDocument) => {
+    const daysUntil = document.daysUntilExpiry;
+    const docName = document.name;
+    
+    if (daysUntil < 0) {
+      const daysOverdue = Math.abs(daysUntil);
+      if (daysOverdue === 1) {
+        return `${docName} expired yesterday`;
+      } else if (daysOverdue <= 7) {
+        return `${docName} expired ${daysOverdue} days ago`;
+      } else {
+        return `${docName} expired ${Math.floor(daysOverdue / 7)} week${Math.floor(daysOverdue / 7) > 1 ? 's' : ''} ago`;
+      }
+    } else if (daysUntil === 0) {
+      return `${docName} expires today`;
+    } else if (daysUntil === 1) {
+      return `${docName} expires tomorrow`;
+    } else if (daysUntil <= 7) {
+      return `${docName} expires in ${daysUntil} days`;
+    } else {
+      const weeksUntil = Math.floor(daysUntil / 7);
+      return `${docName} expires in ${weeksUntil} week${weeksUntil > 1 ? 's' : ''}`;
+    }
+  };
+
+  const getCategoryInfo = (document: ExpiringDocument) => {
+    // Fetch categories to match with document
+    return document.categoryName || 'Document';
+  };
+
+  const handleDocumentClick = (document: ExpiringDocument) => {
+    setSelectedDocument(document);
+  };
+
+  const handleDownload = (document: ExpiringDocument) => {
+    window.open(`/api/documents/${document.id}/download`, '_blank');
+  };
+
   return (
     <div className="space-y-6 mb-6">
-      {/* Critical Alerts */}
+      {/* Critical Alerts with Detailed Descriptions */}
       {hasAlerts && typedExpiryData && (
-        <Alert className="border-red-200 bg-red-50">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertTitle className="text-red-800">
-            Attention Required
-          </AlertTitle>
-          <AlertDescription className="text-red-700">
-            {typedExpiryData.expired.length > 0 && (
-              <span>{typedExpiryData.expired.length} document(s) have expired. </span>
-            )}
-            {typedExpiryData.expiringSoon.length > 0 && (
-              <span>{typedExpiryData.expiringSoon.length} document(s) expire within 7 days.</span>
-            )}
-          </AlertDescription>
-        </Alert>
+        <div className="space-y-3">
+          {/* Expired Documents */}
+          {typedExpiryData.expired.length > 0 && (
+            <Alert className="border-red-200 bg-red-50">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertTitle className="text-red-800 mb-3">
+                Expired Documents - Immediate Action Required
+              </AlertTitle>
+              <AlertDescription className="text-red-700">
+                <div className="space-y-2">
+                  {typedExpiryData.expired.slice(0, 3).map((doc) => (
+                    <div 
+                      key={doc.id}
+                      onClick={() => handleDocumentClick(doc)}
+                      className="flex items-center justify-between p-2 bg-white bg-opacity-50 rounded hover:bg-opacity-75 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        <span className="font-medium">{getExpiryDescription(doc)}</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  ))}
+                  {typedExpiryData.expired.length > 3 && (
+                    <div 
+                      onClick={() => setLocation('/expiry-documents?filter=expired')}
+                      className="text-sm underline cursor-pointer hover:text-red-900"
+                    >
+                      View all {typedExpiryData.expired.length} expired documents →
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Expiring Soon Documents */}
+          {typedExpiryData.expiringSoon.length > 0 && (
+            <Alert className="border-orange-200 bg-orange-50">
+              <Clock className="h-4 w-4 text-orange-600" />
+              <AlertTitle className="text-orange-800 mb-3">
+                Documents Expiring Soon
+              </AlertTitle>
+              <AlertDescription className="text-orange-700">
+                <div className="space-y-2">
+                  {typedExpiryData.expiringSoon.slice(0, 3).map((doc) => (
+                    <div 
+                      key={doc.id}
+                      onClick={() => handleDocumentClick(doc)}
+                      className="flex items-center justify-between p-2 bg-white bg-opacity-50 rounded hover:bg-opacity-75 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        <span className="font-medium">{getExpiryDescription(doc)}</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  ))}
+                  {typedExpiryData.expiringSoon.length > 3 && (
+                    <div 
+                      onClick={() => setLocation('/expiry-documents?filter=expiring-soon')}
+                      className="text-sm underline cursor-pointer hover:text-orange-900"
+                    >
+                      View all {typedExpiryData.expiringSoon.length} expiring soon →
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       )}
 
       {/* Dashboard Cards */}
@@ -222,6 +327,20 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {selectedDocument && (
+        <DocumentPreview
+          document={selectedDocument}
+          category={{
+            name: getCategoryInfo(selectedDocument),
+            icon: 'fas fa-file-alt',
+            color: 'blue'
+          }}
+          onClose={() => setSelectedDocument(null)}
+          onDownload={() => handleDownload(selectedDocument)}
+        />
       )}
     </div>
   );

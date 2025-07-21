@@ -22,10 +22,17 @@ export default function ExpiryDocuments() {
   }, [location]);
 
   // Fetch categories
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
     retry: false,
   });
+
+  interface Category {
+    id: number;
+    name: string;
+    icon: string;
+    color: string;
+  }
 
   // Fetch filtered documents
   const { data: documents = [], isLoading, error } = useQuery({

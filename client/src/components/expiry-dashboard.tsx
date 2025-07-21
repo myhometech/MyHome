@@ -22,11 +22,14 @@ interface ExpiryStats {
   expiringThisMonth: ExpiringDocument[];
 }
 
+import { useLocation } from "wouter";
+
 interface ExpiryDashboardProps {
   onExpiryFilterChange?: (filter: 'expired' | 'expiring-soon' | 'this-month' | null) => void;
 }
 
 export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   
@@ -144,7 +147,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
           {/* Expired Documents */}
           <Card 
             className="border-red-200 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => onExpiryFilterChange?.('expired')}
+            onClick={() => setLocation('/expiry-documents?filter=expired')}
           >
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-red-700 flex items-center gap-2">
@@ -170,7 +173,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
           {/* Expiring Soon */}
           <Card 
             className="border-orange-200 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => onExpiryFilterChange?.('expiring-soon')}
+            onClick={() => setLocation('/expiry-documents?filter=expiring-soon')}
           >
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-orange-700 flex items-center gap-2">
@@ -196,7 +199,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
           {/* This Month */}
           <Card 
             className="border-yellow-200 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => onExpiryFilterChange?.('this-month')}
+            onClick={() => setLocation('/expiry-documents?filter=this-month')}
           >
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-yellow-700 flex items-center gap-2">

@@ -26,7 +26,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
-  const [expiryFilter, setExpiryFilter] = useState<'expired' | 'expiring-soon' | 'this-month' | null>(null);
+
 
   // Initialize categories on first load
   const initCategoriesMutation = useMutation({
@@ -59,12 +59,11 @@ export default function Home() {
 
   // Fetch documents
   const { data: documents = [], isLoading: documentsLoading } = useQuery({
-    queryKey: ["/api/documents", selectedCategory, searchQuery, expiryFilter],
+    queryKey: ["/api/documents", selectedCategory, searchQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (selectedCategory) params.append("categoryId", selectedCategory.toString());
       if (searchQuery) params.append("search", searchQuery);
-      if (expiryFilter) params.append("expiryFilter", expiryFilter);
       
       const response = await fetch(`/api/documents?${params}`, {
         credentials: "include",
@@ -117,11 +116,7 @@ export default function Home() {
         </div>
 
         {/* Expiry Dashboard */}
-        <ExpiryDashboard onExpiryFilterChange={(filter) => {
-          setExpiryFilter(filter);
-          setSelectedCategory(null); // Clear category filter when using expiry filter
-          setSearchQuery(""); // Clear search when using expiry filter
-        }} />
+        <ExpiryDashboard />
 
         {/* Upload Zone */}
         <UploadZone onUpload={handleFileUpload} />
@@ -132,24 +127,7 @@ export default function Home() {
         {/* Stats Grid */}
         <StatsGrid stats={stats} />
 
-        {/* Active Expiry Filter Indicator */}
-        {expiryFilter && (
-          <div className="mb-4">
-            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <span className="text-sm text-blue-700 dark:text-blue-300">
-                Showing {expiryFilter === 'expired' ? 'expired' : expiryFilter === 'expiring-soon' ? 'expiring soon' : 'this month'} documents
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setExpiryFilter(null)}
-                className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-              >
-                Clear filter
-              </Button>
-            </div>
-          </div>
-        )}
+
 
         {/* Search and Filter Controls */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">

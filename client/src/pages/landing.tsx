@@ -1,11 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Home, FileText, Shield, Search, Camera, Cloud } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Landing() {
-  const handleLogin = () => {
-    window.location.href = "/api/login";
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -17,9 +15,11 @@ export default function Landing() {
               <Home className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-bold text-slate-900">HomeDocs</h1>
             </div>
-            <Button onClick={handleLogin} className="bg-primary hover:bg-blue-700">
-              Sign In
-            </Button>
+            <Link href="/login">
+              <Button className="bg-primary hover:bg-blue-700">
+                Sign In
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
@@ -35,13 +35,14 @@ export default function Landing() {
             Scan, store, and organize all your property-related documents in one secure place. 
             From utility bills to insurance policies, keep everything at your fingertips.
           </p>
-          <Button 
-            onClick={handleLogin} 
-            size="lg" 
-            className="bg-primary hover:bg-blue-700 text-lg px-8 py-3"
-          >
-            Get Started Free
-          </Button>
+          <Link href="/login">
+            <Button 
+              size="lg" 
+              className="bg-primary hover:bg-blue-700 text-lg px-8 py-3"
+            >
+              Get Started Free
+            </Button>
+          </Link>
         </div>
 
         {/* Features Grid */}
@@ -128,20 +129,22 @@ export default function Landing() {
                 Join thousands of homeowners who have simplified their document management.
               </p>
               <div className="flex gap-4 justify-center">
-                <Button 
-                  onClick={() => window.location.href = '/login'} 
-                  size="lg" 
-                  className="bg-primary hover:bg-blue-700"
-                >
-                  Sign In
-                </Button>
-                <Button 
-                  onClick={() => window.location.href = '/register'} 
-                  variant="outline"
-                  size="lg"
-                >
-                  Create Account
-                </Button>
+                <Link href="/login">
+                  <Button 
+                    size="lg" 
+                    className="bg-primary hover:bg-blue-700"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/register">
+                  <Button 
+                    variant="outline"
+                    size="lg"
+                  >
+                    Create Account
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>

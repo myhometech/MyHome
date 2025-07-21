@@ -128,6 +128,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Debug endpoint to check session state
+  app.get('/api/auth/debug', (req: any, res) => {
+    res.json({
+      isAuthenticated: req.isAuthenticated(),
+      session: req.session?.id ? 'exists' : 'missing',
+      user: req.user ? 'exists' : 'missing',
+      sessionData: req.session
+    });
+  });
+
   // Existing auth routes (with fallback to new auth)
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {

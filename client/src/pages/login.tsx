@@ -55,7 +55,7 @@ export default function Login() {
 
       if (response.ok) {
         // Force a page reload to ensure the authentication state is updated
-        window.location.href = '/';
+        window.location.reload();
       } else {
         const errorData = await response.json();
         setError(errorData.message || "Login failed. Please try again.");

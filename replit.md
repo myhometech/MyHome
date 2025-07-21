@@ -4,7 +4,7 @@
 
 HomeDocs is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and Replit authentication.
 
-**Latest Update**: Enhanced OCR text extraction with comprehensive error handling and debugging. Fixed potential file path and MIME type issues that could cause "OCR Failed to extract information" errors.
+**Latest Update**: Implemented phone camera scanning functionality with CameraScanner component. Users can now scan documents directly with their device camera for digitization. Fixed all expiry dashboard syntax errors and enhanced document management with proper authentication and error handling.
 
 ## User Preferences
 

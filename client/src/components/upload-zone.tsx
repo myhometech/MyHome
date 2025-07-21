@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CloudUpload, Camera, Plus, X, Upload } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useQuery } from "@tanstack/react-query";
+import { CameraScanner } from "./camera-scanner";
 
 interface UploadZoneProps {
   onUpload: (files: File[]) => void;
@@ -20,6 +21,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadData, setUploadData] = useState({
     categoryId: "",
@@ -129,12 +131,14 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     handleFileSelect(files);
   };
 
-  const handleCameraCapture = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.setAttribute('capture', 'environment');
-      fileInputRef.current.setAttribute('accept', 'image/*');
-      fileInputRef.current.click();
-    }
+  const handleCameraCapture = (file: File) => {
+    setSelectedFiles([file]);
+    setShowUploadDialog(true);
+    setShowCameraScanner(false);
+  };
+
+  const openCameraScanner = () => {
+    setShowCameraScanner(true);
   };
 
   const handleFileUpload = () => {
@@ -194,11 +198,11 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 </Button>
                 <Button 
                   variant="outline"
-                  onClick={handleCameraCapture}
+                  onClick={openCameraScanner}
                   className="border-primary text-primary hover:bg-blue-50"
                 >
                   <Camera className="h-4 w-4 mr-2" />
-                  Take Photo
+                  Scan Document
                 </Button>
               </div>
               <p className="text-xs text-gray-500 mt-4">
@@ -328,6 +332,13 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Camera Scanner */}
+      <CameraScanner
+        isOpen={showCameraScanner}
+        onClose={() => setShowCameraScanner(false)}
+        onCapture={handleCameraCapture}
+      />
     </>
   );
 }

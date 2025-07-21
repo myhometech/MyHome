@@ -133,6 +133,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Expiry alerts endpoint (must come before parameterized routes)
+  app.get('/api/documents/expiry-alerts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const expiryData = await storage.getExpiryAlerts(userId);
+      res.json(expiryData);
+    } catch (error) {
+      console.error("Error fetching expiry alerts:", error);
+      res.status(500).json({ message: "Failed to fetch expiry alerts" });
+    }
+  });
+
+  // Document stats (must come before parameterized routes)
+  app.get('/api/documents/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getDocumentStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching document stats:", error);
+      res.status(500).json({ message: "Failed to fetch document stats" });
+    }
+  });
+
   app.get('/api/documents/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -151,18 +175,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching document:", error);
       res.status(500).json({ message: "Failed to fetch document" });
-    }
-  });
-
-  // Expiry alerts endpoint
-  app.get('/api/documents/expiry-alerts', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const expiryData = await storage.getExpiryAlerts(userId);
-      res.json(expiryData);
-    } catch (error) {
-      console.error("Error fetching expiry alerts:", error);
-      res.status(500).json({ message: "Failed to fetch expiry alerts" });
     }
   });
 
@@ -267,6 +279,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const documentId = parseInt(req.params.id);
       
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+      
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -283,17 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Document stats
-  app.get('/api/documents/stats', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const stats = await storage.getDocumentStats(userId);
-      res.json(stats);
-    } catch (error) {
-      console.error("Error fetching document stats:", error);
-      res.status(500).json({ message: "Failed to fetch document stats" });
-    }
-  });
+
 
   // Initialize default categories
   app.post('/api/init-categories', isAuthenticated, async (req, res) => {

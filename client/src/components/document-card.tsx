@@ -48,6 +48,8 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
 
   const category = categories.find(c => c.id === document.categoryId);
 
+
+
   const updateNameMutation = useMutation({
     mutationFn: async ({ id, name }: { id: number; name: string }) => {
       return await apiRequest(`/api/documents/${id}/name`, "PATCH", { name });
@@ -329,14 +331,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
           </CardContent>
         </Card>
 
-        <DocumentModal
-          document={document}
-          category={category}
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          onDownload={handleDownload}
-          onDelete={handleDelete}
-        />
+
       </>
     );
   }
@@ -356,7 +351,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => {/* setShowModal(true) */}}>
+                <DropdownMenuItem onClick={() => setShowModal(true)}>
                   <Eye className="h-4 w-4 mr-2" />
                   View
                 </DropdownMenuItem>
@@ -388,7 +383,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
             </DropdownMenu>
           </div>
           
-          <div onClick={isEditing ? undefined : () => {/* setShowModal(true) */}}>
+          <div onClick={isEditing ? undefined : () => setShowModal(true)}>
             {isEditing ? (
               <div className="mb-2">
                 <Input
@@ -449,14 +444,54 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
         </CardContent>
       </Card>
 
-      {/* <DocumentModal
-        document={document}
-        category={category}
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        onDownload={handleDownload}
-        onDelete={handleDelete}
-      /> */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">{document.name}</h2>
+              <Button variant="ghost" size="sm" onClick={() => setShowModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Category:</span> {category?.name || "Uncategorized"}
+                </div>
+                <div>
+                  <span className="font-medium">File Size:</span> {formatFileSize(document.fileSize)}
+                </div>
+                <div>
+                  <span className="font-medium">Uploaded:</span> {formatDate(document.uploadedAt)}
+                </div>
+                {document.expiryDate && (
+                  <div>
+                    <span className="font-medium">Expires:</span> {new Date(document.expiryDate).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+              {document.extractedText && (
+                <div>
+                  <h3 className="font-medium mb-2">Extracted Text:</h3>
+                  <div className="bg-gray-50 p-3 rounded text-sm max-h-40 overflow-y-auto">
+                    {document.extractedText}
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button onClick={handleDownload} size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+                <Button onClick={handleDelete} variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

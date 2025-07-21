@@ -208,7 +208,7 @@ export class DatabaseStorage implements IStorage {
       return {
         id: doc.id,
         name: doc.name,
-        expiryDate: doc.expiryDate.toISOString(),
+        expiryDate: typeof doc.expiryDate === 'string' ? doc.expiryDate : doc.expiryDate.toISOString(),
         categoryName: doc.categoryName || undefined,
         daysUntilExpiry,
       };

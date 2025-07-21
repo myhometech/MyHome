@@ -115,26 +115,49 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
 
   const getExpiryDescription = (document: ExpiringDocument) => {
     const daysUntil = document.daysUntilExpiry;
-    const docName = document.name;
+    
+    // Try to extract document type from name or summary for more descriptive text
+    const getDocumentType = (doc: ExpiringDocument) => {
+      const name = doc.name.toLowerCase();
+      const summary = doc.summary?.toLowerCase() || '';
+      
+      if (name.includes('insurance') || summary.includes('insurance')) return 'Insurance Policy';
+      if (name.includes('bill') || name.includes('invoice') || summary.includes('bill')) return 'Bill';
+      if (name.includes('contract') || summary.includes('contract')) return 'Contract';
+      if (name.includes('license') || summary.includes('license')) return 'License';
+      if (name.includes('warranty') || summary.includes('warranty')) return 'Warranty';
+      if (name.includes('subscription') || summary.includes('subscription')) return 'Subscription';
+      if (name.includes('membership') || summary.includes('membership')) return 'Membership';
+      if (name.includes('policy') || summary.includes('policy')) return 'Policy';
+      
+      return doc.name; // fallback to document name
+    };
+    
+    const docType = getDocumentType(document);
     
     if (daysUntil < 0) {
       const daysOverdue = Math.abs(daysUntil);
       if (daysOverdue === 1) {
-        return `${docName} expired yesterday`;
+        return `${docType} expired yesterday`;
       } else if (daysOverdue <= 7) {
-        return `${docName} expired ${daysOverdue} days ago`;
+        return `${docType} expired ${daysOverdue} days ago`;
+      } else if (daysOverdue <= 30) {
+        return `${docType} expired ${Math.floor(daysOverdue / 7)} week${Math.floor(daysOverdue / 7) > 1 ? 's' : ''} ago`;
       } else {
-        return `${docName} expired ${Math.floor(daysOverdue / 7)} week${Math.floor(daysOverdue / 7) > 1 ? 's' : ''} ago`;
+        return `${docType} expired ${Math.floor(daysOverdue / 30)} month${Math.floor(daysOverdue / 30) > 1 ? 's' : ''} ago`;
       }
     } else if (daysUntil === 0) {
-      return `${docName} expires today`;
+      return `${docType} expires today`;
     } else if (daysUntil === 1) {
-      return `${docName} expires tomorrow`;
+      return `${docType} expires tomorrow`;
     } else if (daysUntil <= 7) {
-      return `${docName} expires in ${daysUntil} days`;
-    } else {
+      return `${docType} expires in ${daysUntil} days`;
+    } else if (daysUntil <= 30) {
       const weeksUntil = Math.floor(daysUntil / 7);
-      return `${docName} expires in ${weeksUntil} week${weeksUntil > 1 ? 's' : ''}`;
+      return `${docType} expires in ${weeksUntil} week${weeksUntil > 1 ? 's' : ''}`;
+    } else {
+      const monthsUntil = Math.floor(daysUntil / 30);
+      return `${docType} expires in ${monthsUntil} month${monthsUntil > 1 ? 's' : ''}`;
     }
   };
 

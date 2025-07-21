@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import fs from "fs";
+import { extractExpiryDatesFromText } from "./dateExtractionService";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -154,4 +155,47 @@ export async function processDocumentOCRAndSummary(filePath: string, fileName: s
 
 export function supportsOCR(mimeType: string): boolean {
   return isImageFile(mimeType) || isPDFFile(mimeType);
+}
+
+export async function processDocumentWithDateExtraction(
+  documentId: number,
+  documentName: string,
+  filePath: string,
+  mimeType: string,
+  storage: any
+): Promise<void> {
+  try {
+    // Extract text first
+    const extractedText = await extractTextFromImage(filePath, mimeType);
+    
+    // Generate summary
+    const summaryResult = await generateDocumentSummary(extractedText, documentName);
+    
+    // Extract dates from the text
+    const extractedDates = await extractExpiryDatesFromText(documentName, extractedText);
+    
+    // Update document with OCR and summary
+    await storage.updateDocumentOCRAndSummary(documentId, "system", extractedText, summaryResult);
+    
+    // If we found expiry dates, update the document with the most relevant one
+    if (extractedDates.length > 0) {
+      // Sort by confidence and take the highest confidence expiry date
+      const bestDate = extractedDates
+        .filter(d => ['expiry', 'expires', 'due', 'renewal', 'valid_until'].includes(d.type))
+        .sort((a, b) => b.confidence - a.confidence)[0];
+      
+      if (bestDate) {
+        const expiryDate = bestDate.date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        await storage.updateDocument(documentId, "system", { 
+          expiryDate,
+          name: documentName // Keep existing name
+        });
+        console.log(`Auto-detected expiry date for ${documentName}: ${expiryDate} (${bestDate.context})`);
+      }
+    }
+    
+  } catch (error) {
+    console.error(`Error processing document with date extraction:`, error);
+    throw error;
+  }
 }

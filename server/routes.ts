@@ -7,7 +7,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema } from "@shared/schema";
-import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary } from "./ocrService";
+import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction } from "./ocrService";
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
@@ -167,19 +167,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertDocumentSchema.parse(documentData);
       const document = await storage.createDocument(validatedData);
 
-      // Process OCR and generate summary in the background
+      // Process OCR, generate summary, and extract dates in the background
       if (supportsOCR(req.file.mimetype)) {
         try {
-          const { extractedText, summary } = await processDocumentOCRAndSummary(
+          await processDocumentWithDateExtraction(
+            document.id,
+            req.file.originalname,
             req.file.path, 
-            req.file.originalname, 
-            req.file.mimetype
+            req.file.mimetype,
+            storage
           );
-          await storage.updateDocumentOCRAndSummary(document.id, userId, extractedText, summary);
-          console.log(`OCR and summary completed for document ${document.id}`);
+          console.log(`OCR, summary, and date extraction completed for document ${document.id}`);
         } catch (ocrError) {
-          console.error(`OCR and summary failed for document ${document.id}:`, ocrError);
-          // Continue without failing the upload
+          console.error(`OCR and date extraction failed for document ${document.id}:`, ocrError);
+          // Fallback to basic OCR without date extraction
+          try {
+            const { extractedText, summary } = await processDocumentOCRAndSummary(
+              req.file.path, 
+              req.file.originalname, 
+              req.file.mimetype
+            );
+            await storage.updateDocumentOCRAndSummary(document.id, userId, extractedText, summary);
+            console.log(`Fallback OCR completed for document ${document.id}`);
+          } catch (fallbackError) {
+            console.error(`Fallback OCR also failed for document ${document.id}:`, fallbackError);
+          }
         }
       } else {
         // Generate summary for non-OCR files based on filename
@@ -725,6 +737,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Expiry summary error:", error);
       res.status(500).json({ message: "Failed to get expiry summary" });
+    }
+  });
+
+  // Reprocess document with date extraction (for testing existing documents)
+  app.post('/api/documents/:id/reprocess-dates', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+      
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Reprocess the document with date extraction
+      if (supportsOCR(document.mimeType)) {
+        await processDocumentWithDateExtraction(
+          document.id,
+          document.fileName,
+          document.filePath,
+          document.mimeType,
+          storage
+        );
+        res.json({ message: "Document reprocessed with date extraction successfully" });
+      } else {
+        res.status(400).json({ message: "Document type does not support OCR processing" });
+      }
+    } catch (error) {
+      console.error("Date reprocessing error:", error);
+      res.status(500).json({ message: "Failed to reprocess document dates" });
     }
   });
 

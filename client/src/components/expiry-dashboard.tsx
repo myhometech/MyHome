@@ -91,17 +91,15 @@ export function ExpiryDashboard() {
   // Type guard for expiry data
   const typedExpiryData = expiryData as ExpiryStats | undefined;
 
-  // Hide dashboard if no expiry data
-  if (!typedExpiryData || (typedExpiryData.expired.length === 0 && typedExpiryData.expiringSoon.length === 0 && typedExpiryData.expiringThisMonth.length === 0)) {
-    return null;
-  }
+  // Always show dashboard, even with empty data
+  const hasAnyExpiryData = typedExpiryData && (typedExpiryData.expired.length > 0 || typedExpiryData.expiringSoon.length > 0 || typedExpiryData.expiringThisMonth.length > 0);
 
-  const hasAlerts = typedExpiryData.expired.length > 0 || typedExpiryData.expiringSoon.length > 0;
+  const hasAlerts = typedExpiryData && (typedExpiryData.expired.length > 0 || typedExpiryData.expiringSoon.length > 0);
 
   return (
     <div className="space-y-6 mb-6">
       {/* Critical Alerts */}
-      {hasAlerts && (
+      {hasAlerts && typedExpiryData && (
         <Alert className="border-red-200 bg-red-50">
           <AlertTriangle className="h-4 w-4 text-red-600" />
           <AlertTitle className="text-red-800">
@@ -119,154 +117,81 @@ export function ExpiryDashboard() {
       )}
 
       {/* Dashboard Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Expired Documents */}
-        <Card className="border-red-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-red-700 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Expired
+      {!hasAnyExpiryData ? (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Document Expiry Dashboard
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {typedExpiryData.expired.length}
+            <div className="text-center py-6">
+              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Expiry Dates Set</h3>
+              <p className="text-gray-500">
+                Add expiry dates to your documents to track important deadlines and get alerts when they're due for renewal.
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Documents past expiry
-            </p>
           </CardContent>
         </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Expired Documents */}
+          <Card className="border-red-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-red-700 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Expired
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {typedExpiryData?.expired?.length || 0}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Documents past expiry
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* Expiring Soon */}
-        <Card className="border-orange-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-orange-700 flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Expiring Soon
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
-              {typedExpiryData.expiringSoon.length}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Within 7 days
-            </p>
-          </CardContent>
-        </Card>
+          {/* Expiring Soon */}
+          <Card className="border-orange-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-orange-700 flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Expiring Soon
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">
+                {typedExpiryData?.expiringSoon?.length || 0}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Within 7 days
+              </p>
+            </CardContent>
+          </Card>
 
-        {/* This Month */}
-        <Card className="border-yellow-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-yellow-700 flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              This Month
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {typedExpiryData.expiringThisMonth.length}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Expiring this month
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Lists */}
-      {(typedExpiryData.expired.length > 0 || typedExpiryData.expiringSoon.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Expired Documents List */}
-          {typedExpiryData.expired.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-red-700 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Expired Documents
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {typedExpiryData.expired.map((doc: ExpiringDocument) => (
-                    <ExpiryDocumentItem key={doc.id} document={doc} variant="expired" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Expiring Soon List */}
-          {typedExpiryData.expiringSoon.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-orange-700 flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Expiring Soon
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {typedExpiryData.expiringSoon.map((doc: ExpiringDocument) => (
-                    <ExpiryDocumentItem key={doc.id} document={doc} variant="warning" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* This Month */}
+          <Card className="border-yellow-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-yellow-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                This Month
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">
+                {typedExpiryData?.expiringThisMonth?.length || 0}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Expiring this month
+              </p>
+            </CardContent>
+          </Card>
         </div>
       )}
-    </div>
-  );
-}
-
-interface ExpiryDocumentItemProps {
-  document: ExpiringDocument;
-  variant: "expired" | "warning" | "info";
-}
-
-function ExpiryDocumentItem({ document, variant }: ExpiryDocumentItemProps) {
-  const getBadgeVariant = () => {
-    switch (variant) {
-      case "expired":
-        return "destructive";
-      case "warning":
-        return "secondary";
-      case "info":
-        return "outline";
-    }
-  };
-
-  const getStatusText = () => {
-    if (document.daysUntilExpiry < 0) {
-      return `Expired ${Math.abs(document.daysUntilExpiry)} days ago`;
-    } else if (document.daysUntilExpiry === 0) {
-      return "Expires today";
-    } else {
-      return `Expires in ${document.daysUntilExpiry} days`;
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-between p-3 rounded-lg border bg-white">
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="font-medium truncate">{document.name}</p>
-          {document.categoryName && (
-            <p className="text-sm text-gray-500">{document.categoryName}</p>
-          )}
-          <p className="text-xs text-gray-500">
-            Expires: {new Date(document.expiryDate).toLocaleDateString()}
-          </p>
-        </div>
-      </div>
-      <div className="flex flex-col items-end gap-1">
-        <Badge variant={getBadgeVariant()} className="text-xs">
-          {getStatusText()}
-        </Badge>
-      </div>
     </div>
   );
 }

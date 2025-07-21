@@ -32,10 +32,12 @@ export function Navigation() {
   return (
     <nav className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
-        <div className="flex items-center space-x-1">
-          <FileText className="h-6 w-6 text-blue-600" />
-          <span className="text-xl font-bold text-gray-900">HomeDocs</span>
-        </div>
+        <Link href="/">
+          <div className="flex items-center space-x-1 cursor-pointer hover:opacity-80 transition-opacity">
+            <FileText className="h-6 w-6 text-blue-600" />
+            <span className="text-xl font-bold text-gray-900">HomeDocs</span>
+          </div>
+        </Link>
         
         <div className="flex items-center space-x-1">
           {navigationItems.map((item) => (

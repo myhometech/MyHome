@@ -41,10 +41,12 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Home className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold text-slate-900">HomeDocs</h1>
-            </div>
+            <Link href="/">
+              <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <Home className="h-6 w-6 text-primary" />
+                <h1 className="text-xl font-bold text-slate-900">HomeDocs</h1>
+              </div>
+            </Link>
           </div>
           
           {/* Search Bar - Hidden on mobile */}

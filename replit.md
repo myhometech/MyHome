@@ -4,7 +4,7 @@
 
 HomeDocs is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and Replit authentication.
 
-**Latest Update**: Implemented comprehensive email forwarding functionality. Users can now forward emails with attachments to a dedicated email address, and the system automatically extracts attachments and email content, stores them as documents with intelligent categorization, and provides confirmation emails. Added complete backend processing, database schema, API endpoints, and user interface for managing email forwards.
+**Latest Update**: Added user settings organization and improved navigation. Created dedicated Settings page accessible via user dropdown menu, moved email forwarding functionality to settings for better organization, and made HomeDocs logo clickable to return to homepage. Enhanced user experience with clear settings sections including profile information, email forwarding, notifications, security, and help options.
 
 ## User Preferences
 

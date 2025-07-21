@@ -10,8 +10,9 @@ import CategoryFilter from "@/components/category-filter";
 import DocumentCard from "@/components/document-card";
 import MobileNav from "@/components/mobile-nav";
 import { ExpiryDashboard } from "@/components/expiry-dashboard";
+import Chatbot from "@/components/chatbot";
 import { useState } from "react";
-import { Search, Grid, List, SortAsc } from "lucide-react";
+import { Search, Grid, List, SortAsc, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Category, Document } from "@shared/schema";
@@ -21,6 +22,7 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
 
   // Initialize categories on first load
   const initCategoriesMutation = useMutation({
@@ -207,6 +209,18 @@ export default function Home() {
       </main>
 
       <MobileNav />
+
+      {/* Floating Chatbot Button */}
+      <Button
+        onClick={() => setIsChatbotOpen(true)}
+        className="fixed bottom-20 md:bottom-6 right-6 rounded-full w-14 h-14 shadow-lg bg-primary hover:bg-blue-700 z-40"
+        size="icon"
+      >
+        <MessageCircle className="h-6 w-6" />
+      </Button>
+
+      {/* Chatbot Modal */}
+      <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
     </div>
   );
 }

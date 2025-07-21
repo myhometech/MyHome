@@ -7,6 +7,7 @@ import path from "path";
 import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema } from "@shared/schema";
 import { extractTextFromImage, supportsOCR } from "./ocrService";
+import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -304,6 +305,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error initializing categories:", error);
       res.status(500).json({ message: "Failed to initialize categories" });
+    }
+  });
+
+  // Chatbot endpoints
+  app.post('/api/chatbot/ask', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { question } = req.body;
+
+      if (!question || typeof question !== 'string' || question.trim().length === 0) {
+        return res.status(400).json({ message: "Question is required" });
+      }
+
+      const response = await answerDocumentQuestion(userId, question.trim());
+      res.json(response);
+    } catch (error) {
+      console.error("Chatbot error:", error);
+      res.status(500).json({ message: "Failed to process your question" });
+    }
+  });
+
+  app.get('/api/chatbot/expiry-summary', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const summary = await getExpiryAlerts(userId);
+      res.json({ summary });
+    } catch (error) {
+      console.error("Expiry summary error:", error);
+      res.status(500).json({ message: "Failed to get expiry summary" });
     }
   });
 

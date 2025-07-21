@@ -14,10 +14,13 @@ import Chatbot from "@/components/chatbot";
 import { Navigation } from "@/components/navigation";
 import { EmailForwarding } from "@/components/email-forwarding";
 import { useState } from "react";
-import { Grid, List, SortAsc, MessageCircle, Search } from "lucide-react";
+import { Grid, List, SortAsc, MessageCircle, Search, CheckSquare, Square, Trash2, FolderOpen, Share2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SmartSearch } from "@/components/smart-search";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { ShareDocumentDialog } from "@/components/share-document-dialog";
 import type { Category, Document } from "@shared/schema";
 
 export default function Home() {
@@ -26,6 +29,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
 
 
   // Initialize categories on first load
@@ -53,9 +58,131 @@ export default function Home() {
     },
   });
 
+  // Bulk operations mutations
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (documentIds: number[]) => {
+      await Promise.all(
+        documentIds.map(id => fetch(`/api/documents/${id}`, {
+          method: "DELETE",
+          credentials: "include",
+        }))
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/expiry-alerts"] });
+      setSelectedDocuments(new Set());
+      setBulkMode(false);
+      toast({
+        title: "Documents deleted",
+        description: `Successfully deleted ${selectedDocuments.size} documents.`,
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Failed to delete documents",
+        description: error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkMoveCategoryMutation = useMutation({
+    mutationFn: async ({ documentIds, categoryId }: { documentIds: number[]; categoryId: number | null }) => {
+      await Promise.all(
+        documentIds.map(id => 
+          fetch(`/api/documents/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ categoryId })
+          })
+        )
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/stats"] });
+      setSelectedDocuments(new Set());
+      setBulkMode(false);
+      toast({
+        title: "Documents moved",
+        description: `Successfully moved ${selectedDocuments.size} documents.`,
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Failed to move documents",
+        description: error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive",
+      });
+    },
+  });
+
   useEffect(() => {
     initCategoriesMutation.mutate();
   }, []);
+
+  // Bulk operation handlers
+  const toggleBulkMode = () => {
+    setBulkMode(!bulkMode);
+    setSelectedDocuments(new Set());
+  };
+
+  const toggleDocumentSelection = (documentId: number) => {
+    const newSelection = new Set(selectedDocuments);
+    if (newSelection.has(documentId)) {
+      newSelection.delete(documentId);
+    } else {
+      newSelection.add(documentId);
+    }
+    setSelectedDocuments(newSelection);
+  };
+
+  const selectAllDocuments = () => {
+    const allIds = new Set<number>(documents.map((doc: Document) => doc.id));
+    setSelectedDocuments(allIds);
+  };
+
+  const deselectAllDocuments = () => {
+    setSelectedDocuments(new Set());
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedDocuments.size === 0) return;
+    bulkDeleteMutation.mutate(Array.from(selectedDocuments));
+  };
+
+  const handleBulkMoveCategory = (categoryId: number | null) => {
+    if (selectedDocuments.size === 0) return;
+    bulkMoveCategoryMutation.mutate({
+      documentIds: Array.from(selectedDocuments),
+      categoryId
+    });
+  };
 
   // Fetch documents
   const { data: documents = [], isLoading: documentsLoading } = useQuery({
@@ -157,6 +284,14 @@ export default function Home() {
               <h2 className="text-lg font-semibold">Recent Documents</h2>
               <div className="flex items-center space-x-2">
                 <Button
+                  variant={bulkMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={toggleBulkMode}
+                >
+                  {bulkMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
+                  {bulkMode ? "Cancel" : "Select"}
+                </Button>
+                <Button
                   variant={viewMode === "grid" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setViewMode("grid")}
@@ -175,6 +310,99 @@ export default function Home() {
                 </Button>
               </div>
             </div>
+            
+            {/* Bulk Operations Bar */}
+            {bulkMode && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-blue-900">
+                      {selectedDocuments.size} document{selectedDocuments.size !== 1 ? 's' : ''} selected
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={selectAllDocuments}
+                        disabled={documents.length === 0}
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={deselectAllDocuments}
+                        disabled={selectedDocuments.size === 0}
+                      >
+                        Deselect All
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {selectedDocuments.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      {/* Move to Category */}
+                      <Select onValueChange={(value) => handleBulkMoveCategory(value === "uncategorized" ? null : parseInt(value))}>
+                        <SelectTrigger className="w-40">
+                          <FolderOpen className="h-4 w-4 mr-2" />
+                          <SelectValue placeholder="Move to..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="uncategorized">
+                            <div className="flex items-center gap-2">
+                              <Square className="h-4 w-4 text-gray-400" />
+                              Uncategorized
+                            </div>
+                          </SelectItem>
+                          {categories.map((category: Category) => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              <div className="flex items-center gap-2">
+                                <i className={`${category.icon} text-${category.color}-500`}></i>
+                                {category.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {/* Share Multiple */}
+                      <Button variant="outline" size="sm" disabled>
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share (Coming Soon)
+                      </Button>
+
+                      {/* Delete Multiple */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Documents</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete {selectedDocuments.size} document{selectedDocuments.size !== 1 ? 's' : ''}? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleBulkDelete}
+                              className="bg-red-600 hover:bg-red-700"
+                              disabled={bulkDeleteMutation.isPending}
+                            >
+                              {bulkDeleteMutation.isPending ? "Deleting..." : "Delete"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="p-6">
@@ -224,6 +452,9 @@ export default function Home() {
                     document={document}
                     categories={categories}
                     viewMode={viewMode}
+                    bulkMode={bulkMode}
+                    isSelected={selectedDocuments.has(document.id)}
+                    onToggleSelection={() => toggleDocumentSelection(document.id)}
                     onUpdate={() => {
                       // Refresh queries when documents are updated
                       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });

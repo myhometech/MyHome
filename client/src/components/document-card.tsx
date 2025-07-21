@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock } from "lucide-react";
+import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { isUnauthorizedError } from "@/lib/authUtils";
 // import DocumentModal from "./document-modal";
@@ -39,10 +39,21 @@ interface DocumentCardProps {
   document: Document;
   categories?: Category[];
   viewMode?: "grid" | "list";
+  bulkMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: () => void;
   onUpdate?: () => void;
 }
 
-export default function DocumentCard({ document, categories = [], viewMode = "grid", onUpdate }: DocumentCardProps) {
+export default function DocumentCard({ 
+  document, 
+  categories = [], 
+  viewMode = "grid", 
+  bulkMode = false,
+  isSelected = false,
+  onToggleSelection,
+  onUpdate 
+}: DocumentCardProps) {
   const { toast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -373,21 +384,48 @@ export default function DocumentCard({ document, categories = [], viewMode = "gr
     );
   }
 
+  const handleCardClick = () => {
+    if (bulkMode && onToggleSelection) {
+      onToggleSelection();
+    } else if (!bulkMode && !isEditing) {
+      setShowModal(true);
+    }
+  };
+
   return (
     <>
-      <Card className="border border-gray-200 hover:shadow-md transition-shadow cursor-pointer">
+      <Card 
+        className={`border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${
+          bulkMode && isSelected ? "ring-2 ring-blue-500 bg-blue-50" : ""
+        }`}
+        onClick={handleCardClick}
+      >
         <CardContent className="p-4">
           <div className="flex items-start justify-between mb-3">
+            {/* Bulk Selection Checkbox */}
+            {bulkMode && (
+              <div className="flex items-center mr-3">
+                <div className="w-5 h-5 flex items-center justify-center">
+                  {isSelected ? (
+                    <CheckSquare className="h-5 w-5 text-blue-600" />
+                  ) : (
+                    <Square className="h-5 w-5 text-gray-400" />
+                  )}
+                </div>
+              </div>
+            )}
+            
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getFileIconColor()}`}>
               {getFileIcon()}
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+            {!bulkMode && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setShowModal(true)}>
                   <Eye className="h-4 w-4 mr-2" />
                   View
@@ -417,8 +455,9 @@ export default function DocumentCard({ document, categories = [], viewMode = "gr
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
           
           <div onClick={isEditing ? undefined : () => setShowModal(true)}>

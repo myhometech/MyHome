@@ -225,6 +225,11 @@ export default function Home() {
                     document={document}
                     categories={categories}
                     viewMode={viewMode}
+                    onUpdate={() => {
+                      // Refresh queries when documents are updated
+                      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+                      queryClient.invalidateQueries({ queryKey: ["/api/documents/expiry-alerts"] });
+                    }}
                   />
                 ))}
               </div>

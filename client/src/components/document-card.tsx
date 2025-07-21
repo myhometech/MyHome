@@ -37,18 +37,19 @@ interface Category {
 
 interface DocumentCardProps {
   document: Document;
-  categories: Category[];
-  viewMode: "grid" | "list";
+  categories?: Category[];
+  viewMode?: "grid" | "list";
+  onUpdate?: () => void;
 }
 
-export default function DocumentCard({ document, categories, viewMode }: DocumentCardProps) {
+export default function DocumentCard({ document, categories = [], viewMode = "grid", onUpdate }: DocumentCardProps) {
   const { toast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
   const [editExpiryDate, setEditExpiryDate] = useState(document.expiryDate || "");
 
-  const category = categories.find(c => c.id === document.categoryId);
+  const category = categories?.find(c => c.id === document.categoryId);
 
 
 
@@ -68,6 +69,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/documents/expiry-alerts"] });
       setIsEditing(false);
+      onUpdate?.();
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {

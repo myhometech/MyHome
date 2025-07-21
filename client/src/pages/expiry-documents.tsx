@@ -14,6 +14,23 @@ export default function ExpiryDocuments() {
   const [location, setLocation] = useLocation();
   const [expiryFilter, setExpiryFilter] = useState<'expired' | 'expiring-soon' | 'this-month' | null>(null);
 
+  // Handle errors manually since onError is deprecated in v5
+  useEffect(() => {
+    if (error) {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+    }
+  }, [error, toast]);
+
   // Extract filter from URL params
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -21,8 +38,14 @@ export default function ExpiryDocuments() {
     setExpiryFilter(filter);
   }, [location]);
 
+  // Fetch categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/categories"],
+    retry: false,
+  });
+
   // Fetch filtered documents
-  const { data: documents = [], isLoading } = useQuery({
+  const { data: documents = [], isLoading, error } = useQuery({
     queryKey: ["/api/documents", null, null, expiryFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -36,19 +59,6 @@ export default function ExpiryDocuments() {
     },
     retry: false,
     enabled: !!expiryFilter,
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-    },
   });
 
   const getFilterTitle = () => {
@@ -181,10 +191,12 @@ export default function ExpiryDocuments() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {documents.map((document: Document) => (
+                {documents.map((document: any) => (
                   <DocumentCard
                     key={document.id}
                     document={document}
+                    categories={categories}
+                    viewMode="grid"
                     onUpdate={() => {
                       // Refresh the documents list when a document is updated
                       window.location.reload();

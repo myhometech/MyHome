@@ -14,23 +14,6 @@ export default function ExpiryDocuments() {
   const [location, setLocation] = useLocation();
   const [expiryFilter, setExpiryFilter] = useState<'expired' | 'expiring-soon' | 'this-month' | null>(null);
 
-  // Handle errors manually since onError is deprecated in v5
-  useEffect(() => {
-    if (error) {
-      if (isUnauthorizedError(error as Error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-    }
-  }, [error, toast]);
-
   // Extract filter from URL params
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -60,6 +43,23 @@ export default function ExpiryDocuments() {
     retry: false,
     enabled: !!expiryFilter,
   });
+
+  // Handle errors manually since onError is deprecated in v5
+  useEffect(() => {
+    if (error) {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+    }
+  }, [error, toast]);
 
   const getFilterTitle = () => {
     switch (expiryFilter) {

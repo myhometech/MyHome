@@ -1,3 +1,6 @@
+/* Font Awesome support for existing icons */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -92,6 +95,3 @@
     background-color: hsl(var(--accent-green));
   }
 }
-
-/* Font Awesome support for existing icons */
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');

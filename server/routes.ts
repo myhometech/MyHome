@@ -64,9 +64,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName,
       });
 
-      res.status(201).json({ 
-        message: "Account created successfully", 
-        userId: user.id 
+      // Automatically log in the user after successful registration
+      req.logIn(user, (err) => {
+        if (err) {
+          console.error("Auto-login error:", err);
+          return res.status(201).json({ 
+            message: "Account created successfully. Please log in.", 
+            userId: user.id 
+          });
+        }
+
+        const { passwordHash, verificationToken, resetPasswordToken, ...safeUser } = user;
+        res.status(201).json({ 
+          message: "Account created successfully", 
+          user: safeUser,
+          autoLoggedIn: true
+        });
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -74,8 +87,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/login', passport.authenticate('local'), (req, res) => {
-    res.json({ message: "Login successful", user: req.user });
+  app.post('/api/auth/login', (req, res, next) => {
+    passport.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+      }
+      
+      req.logIn(user, (err) => {
+        if (err) {
+          return next(err);
+        }
+        
+        // Don't return sensitive data like password hash
+        const { passwordHash, verificationToken, resetPasswordToken, ...safeUser } = user;
+        res.json({ message: "Login successful", user: safeUser });
+      });
+    })(req, res, next);
   });
 
   app.post('/api/auth/logout', (req, res) => {

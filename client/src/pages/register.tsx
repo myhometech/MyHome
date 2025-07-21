@@ -77,10 +77,18 @@ export default function Register() {
       const responseData = await response.json();
 
       if (response.ok) {
-        setSuccess("Account created successfully! Please check your email to verify your account.");
-        form.reset();
-        // Redirect to login after 3 seconds
-        setTimeout(() => setLocation("/login"), 3000);
+        if (responseData.autoLoggedIn) {
+          setSuccess("Account created successfully! Redirecting to your dashboard...");
+          // Auto-logged in, redirect to home
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
+        } else {
+          setSuccess("Account created successfully! Redirecting to login page...");
+          form.reset();
+          // Redirect to login after 2 seconds
+          setTimeout(() => setLocation("/login"), 2000);
+        }
       } else {
         setError(responseData.message || "Registration failed. Please try again.");
       }

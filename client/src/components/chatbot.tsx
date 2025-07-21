@@ -52,6 +52,7 @@ export default function Chatbot({ isOpen, onClose }: ChatbotProps) {
       setMessages(prev => [...prev, assistantMessage]);
     },
     onError: (error) => {
+      console.error("Chatbot error:", error);
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -63,9 +64,10 @@ export default function Chatbot({ isOpen, onClose }: ChatbotProps) {
         }, 500);
         return;
       }
+      const errorMessage = error instanceof Error ? error.message : "Please try again later.";
       toast({
         title: "Failed to get answer",
-        description: "Please try again later.",
+        description: errorMessage,
         variant: "destructive",
       });
     },

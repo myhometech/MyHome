@@ -1,16 +1,19 @@
 import {
   users,
   documents,
+  documentShares,
   categories,
   type User,
   type UpsertUser,
   type Document,
   type InsertDocument,
+  type DocumentShare,
+  type InsertDocumentShare,
   type Category,
   type InsertCategory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -39,6 +42,13 @@ export interface IStorage {
     expiringSoon: ExpiringDocument[];
     expiringThisMonth: ExpiringDocument[];
   }>;
+  
+  // Document sharing operations
+  shareDocument(documentId: number, sharedByUserId: string, sharedWithEmail: string, permissions: 'view' | 'edit'): Promise<DocumentShare>;
+  unshareDocument(shareId: number, userId: string): Promise<void>;
+  getDocumentShares(documentId: number, userId: string): Promise<DocumentShare[]>;
+  getSharedWithMeDocuments(userId: string): Promise<Document[]>;
+  canAccessDocument(documentId: number, userId: string): Promise<boolean>;
 }
 
 export interface ExpiringDocument {
@@ -263,6 +273,140 @@ export class DatabaseStorage implements IStorage {
     });
 
     return { expired, expiringSoon, expiringThisMonth };
+  }
+
+  // Document sharing methods
+  async shareDocument(documentId: number, sharedByUserId: string, sharedWithEmail: string, permissions: 'view' | 'edit' = 'view'): Promise<DocumentShare> {
+    // Check if document exists and belongs to the user
+    const document = await this.getDocument(documentId, sharedByUserId);
+    if (!document) {
+      throw new Error("Document not found or access denied");
+    }
+
+    // Check if already shared with this email
+    const existingShare = await db
+      .select()
+      .from(documentShares)
+      .where(
+        and(
+          eq(documentShares.documentId, documentId),
+          eq(documentShares.sharedWithEmail, sharedWithEmail)
+        )
+      );
+
+    if (existingShare.length > 0) {
+      throw new Error("Document is already shared with this email");
+    }
+
+    // Find user by email if they exist
+    const [sharedWithUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, sharedWithEmail));
+
+    const [newShare] = await db
+      .insert(documentShares)
+      .values({
+        documentId,
+        sharedByUserId,
+        sharedWithEmail,
+        sharedWithUserId: sharedWithUser?.id || null,
+        permissions,
+      })
+      .returning();
+
+    return newShare;
+  }
+
+  async unshareDocument(shareId: number, userId: string): Promise<void> {
+    // Only allow the document owner to unshare
+    await db
+      .delete(documentShares)
+      .where(
+        and(
+          eq(documentShares.id, shareId),
+          eq(documentShares.sharedByUserId, userId)
+        )
+      );
+  }
+
+  async getDocumentShares(documentId: number, userId: string): Promise<DocumentShare[]> {
+    // Only allow document owner to see shares
+    const document = await this.getDocument(documentId, userId);
+    if (!document) {
+      throw new Error("Document not found or access denied");
+    }
+
+    return await db
+      .select()
+      .from(documentShares)
+      .where(eq(documentShares.documentId, documentId))
+      .orderBy(desc(documentShares.sharedAt));
+  }
+
+  async getSharedWithMeDocuments(userId: string): Promise<Document[]> {
+    // Get user's email to find documents shared with them
+    const user = await this.getUser(userId);
+    if (!user?.email) {
+      return [];
+    }
+
+    const sharedDocuments = await db
+      .select({
+        id: documents.id,
+        userId: documents.userId,
+        categoryId: documents.categoryId,
+        name: documents.name,
+        fileName: documents.fileName,
+        filePath: documents.filePath,
+        fileSize: documents.fileSize,
+        mimeType: documents.mimeType,
+        tags: documents.tags,
+        expiryDate: documents.expiryDate,
+        extractedText: documents.extractedText,
+        ocrProcessed: documents.ocrProcessed,
+        uploadedAt: documents.uploadedAt,
+      })
+      .from(documents)
+      .innerJoin(documentShares, eq(documents.id, documentShares.documentId))
+      .where(
+        or(
+          eq(documentShares.sharedWithEmail, user.email),
+          eq(documentShares.sharedWithUserId, userId)
+        )
+      )
+      .orderBy(desc(documents.uploadedAt));
+
+    return sharedDocuments;
+  }
+
+  async canAccessDocument(documentId: number, userId: string): Promise<boolean> {
+    // Check if user owns the document
+    const ownedDocument = await this.getDocument(documentId, userId);
+    if (ownedDocument) {
+      return true;
+    }
+
+    // Check if document is shared with user
+    const user = await this.getUser(userId);
+    if (!user?.email) {
+      return false;
+    }
+
+    const [sharedDocument] = await db
+      .select()
+      .from(documentShares)
+      .where(
+        and(
+          eq(documentShares.documentId, documentId),
+          or(
+            eq(documentShares.sharedWithEmail, user.email),
+            eq(documentShares.sharedWithUserId, userId)
+          )
+        )
+      );
+
+    return !!sharedDocument;
   }
 }
 

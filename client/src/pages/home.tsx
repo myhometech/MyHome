@@ -11,6 +11,7 @@ import DocumentCard from "@/components/document-card";
 import MobileNav from "@/components/mobile-nav";
 import { ExpiryDashboard } from "@/components/expiry-dashboard";
 import Chatbot from "@/components/chatbot";
+import { Navigation } from "@/components/navigation";
 import { useState } from "react";
 import { Search, Grid, List, SortAsc, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-surface">
+      <Navigation />
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">

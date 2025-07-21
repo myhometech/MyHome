@@ -365,6 +365,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document sharing routes
+  
+  // Share a document
+  app.post('/api/documents/:id/share', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      const { email, permissions = 'view' } = req.body;
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ message: "Valid email address is required" });
+      }
+      
+      if (permissions && !['view', 'edit'].includes(permissions)) {
+        return res.status(400).json({ message: "Permissions must be 'view' or 'edit'" });
+      }
+      
+      const share = await storage.shareDocument(documentId, userId, email, permissions);
+      res.json(share);
+    } catch (error: any) {
+      console.error("Error sharing document:", error);
+      if (error?.message?.includes("already shared") || error?.message?.includes("not found")) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to share document" });
+    }
+  });
+
+  // Get document shares
+  app.get('/api/documents/:id/shares', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+      
+      const shares = await storage.getDocumentShares(documentId, userId);
+      res.json(shares);
+    } catch (error: any) {
+      console.error("Error fetching document shares:", error);
+      if (error?.message?.includes("not found")) {
+        return res.status(404).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to fetch document shares" });
+    }
+  });
+
+  // Unshare a document
+  app.delete('/api/document-shares/:shareId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const shareId = parseInt(req.params.shareId);
+      
+      if (isNaN(shareId)) {
+        return res.status(400).json({ message: "Invalid share ID" });
+      }
+      
+      await storage.unshareDocument(shareId, userId);
+      res.json({ message: "Document unshared successfully" });
+    } catch (error) {
+      console.error("Error unsharing document:", error);
+      res.status(500).json({ message: "Failed to unshare document" });
+    }
+  });
+
+  // Get documents shared with me
+  app.get('/api/shared-with-me', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sharedDocuments = await storage.getSharedWithMeDocuments(userId);
+      res.json(sharedDocuments);
+    } catch (error) {
+      console.error("Error fetching shared documents:", error);
+      res.status(500).json({ message: "Failed to fetch shared documents" });
+    }
+  });
+
   // Chatbot endpoints
   app.post('/api/chatbot/ask', isAuthenticated, async (req: any, res) => {
     try {

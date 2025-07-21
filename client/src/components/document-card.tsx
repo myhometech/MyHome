@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock } from "lucide-react";
+import { ShareDocumentDialog } from "./share-document-dialog";
 import { isUnauthorizedError } from "@/lib/authUtils";
 // import DocumentModal from "./document-modal";
 
@@ -341,6 +342,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </DropdownMenuItem>
+                    <ShareDocumentDialog documentId={document.id} documentName={document.name} />
                     {supportsOCR() && (
                       <DropdownMenuItem 
                         onClick={handleProcessOCR}
@@ -396,6 +398,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                   <Download className="h-4 w-4 mr-2" />
                   Download
                 </DropdownMenuItem>
+                <ShareDocumentDialog documentId={document.id} documentName={document.name} />
                 {supportsOCR() && (
                   <DropdownMenuItem 
                     onClick={handleProcessOCR}

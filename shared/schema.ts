@@ -59,6 +59,20 @@ export const documents = pgTable("documents", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 
+// Document sharing table
+export const documentShares = pgTable("document_shares", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  sharedByUserId: varchar("shared_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sharedWithEmail: varchar("shared_with_email", { length: 255 }).notNull(),
+  sharedWithUserId: varchar("shared_with_user_id").references(() => users.id, { onDelete: "cascade" }),
+  permissions: varchar("permissions", { length: 20 }).notNull().default("view"), // 'view' or 'edit'
+  sharedAt: timestamp("shared_at").defaultNow(),
+}, (table) => [
+  index("idx_document_shares_document").on(table.documentId),
+  index("idx_document_shares_shared_with").on(table.sharedWithUserId),
+]);
+
 // Create schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
@@ -76,6 +90,11 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
   uploadedAt: true,
 });
 
+export const insertDocumentShareSchema = createInsertSchema(documentShares).omit({
+  id: true,
+  sharedAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -83,3 +102,5 @@ export type Category = typeof categories.$inferSelect;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Document = typeof documents.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+export type DocumentShare = typeof documentShares.$inferSelect;
+export type InsertDocumentShare = z.infer<typeof insertDocumentShareSchema>;

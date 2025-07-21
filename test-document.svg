@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="600" height="400" fill="white" stroke="black" stroke-width="2"/>
+  
+  <!-- Header -->
+  <text x="300" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="black">
+    HOME INSURANCE POLICY
+  </text>
+  
+  <!-- Policy Details -->
+  <text x="50" y="80" font-family="Arial, sans-serif" font-size="16" fill="black">
+    Policy Number: HI-2024-001234
+  </text>
+  
+  <text x="50" y="110" font-family="Arial, sans-serif" font-size="16" fill="black">
+    Property Address: 123 Main Street, Springfield, IL 62701
+  </text>
+  
+  <text x="50" y="140" font-family="Arial, sans-serif" font-size="16" fill="black">
+    Policy Holder: John A. Smith
+  </text>
+  
+  <text x="50" y="170" font-family="Arial, sans-serif" font-size="16" fill="black">
+    Coverage Amount: $350,000
+  </text>
+  
+  <text x="50" y="200" font-family="Arial, sans-serif" font-size="16" fill="black">
+    Policy Period: January 1, 2024 - December 31, 2024
+  </text>
+  
+  <text x="50" y="230" font-family="Arial, sans-serif" font-size="16" fill="black">
+    Expiry Date: December 31, 2024
+  </text>
+  
+  <!-- Coverage Details -->
+  <text x="50" y="280" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="black">
+    Coverage Details:
+  </text>
+  
+  <text x="70" y="310" font-family="Arial, sans-serif" font-size="14" fill="black">
+    • Dwelling Coverage: $300,000
+  </text>
+  
+  <text x="70" y="330" font-family="Arial, sans-serif" font-size="14" fill="black">
+    • Personal Property: $50,000
+  </text>
+  
+  <text x="70" y="350" font-family="Arial, sans-serif" font-size="14" fill="black">
+    • Liability Protection: $100,000
+  </text>
+  
+  <text x="70" y="370" font-family="Arial, sans-serif" font-size="14" fill="black">
+    • Deductible: $1,000
+  </text>
+</svg>

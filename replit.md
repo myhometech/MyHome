@@ -4,7 +4,7 @@
 
 HomeDocs is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and Replit authentication.
 
-**Latest Update**: Successfully implemented multiple authentication methods for production deployment. Added email/password registration and login with secure bcrypt hashing, Google OAuth integration, and session management with PostgreSQL storage. Fixed authentication workflow loops by properly handling sessions and cookies. System now supports production-ready authentication without Replit dependency, including professional login/register pages, secure password handling, and backwards compatibility with existing auth systems.
+**Latest Update**: Simplified authentication system to use only email/password authentication. Removed all complex OAuth integrations (Google, Replit) and kept only simple, secure email/password authentication with bcrypt hashing and PostgreSQL session storage. Updated database schema to remove unnecessary authentication columns and enforced proper user data isolation with userId constraints on all user-specific tables.
 
 ## User Preferences
 
@@ -51,10 +51,11 @@ Essential Features: Phone camera scanning for document digitization, future Goog
   - Documents table for file metadata and storage
 
 ### Authentication System
-- **Provider**: Replit Auth with OIDC integration
-- **Session Storage**: PostgreSQL-backed sessions
+- **Provider**: Simple email/password authentication only
+- **Password Security**: bcrypt hashing with salt rounds
+- **Session Storage**: PostgreSQL-backed sessions with express-session
 - **Authorization**: Route-level authentication middleware
-- **User Management**: Automatic user creation and profile updates
+- **User Management**: Manual registration and login system
 
 ### File Management
 - **Storage**: Local filesystem with configurable upload directory

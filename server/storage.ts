@@ -7,7 +7,7 @@ import {
   categories,
   expiryReminders,
   type User,
-  type UpsertUser,
+  type InsertUser,
   type Document,
   type InsertDocument,
   type DocumentShare,
@@ -25,10 +25,10 @@ import { db } from "./db";
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations (mandatory for Replit Auth)
+  // User operations (email/password auth only)
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  createUser(user: InsertUser): Promise<User>;
   
   // Category operations
   getCategories(userId?: string): Promise<Category[]>;
@@ -117,35 +117,12 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    try {
-      const [user] = await db
-        .insert(users)
-        .values(userData)
-        .onConflictDoUpdate({
-          target: users.id,
-          set: {
-            ...userData,
-            updatedAt: new Date(),
-          },
-        })
-        .returning();
-      return user;
-    } catch (error: any) {
-      // If we get a unique constraint violation on email, try to update by email instead
-      if (error.code === '23505' && error.constraint === 'users_email_unique') {
-        const [user] = await db
-          .update(users)
-          .set({
-            ...userData,
-            updatedAt: new Date(),
-          })
-          .where(eq(users.email, userData.email))
-          .returning();
-        return user;
-      }
-      throw error;
-    }
+  async createUser(userData: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .returning();
+    return user;
   }
 
   // Category operations

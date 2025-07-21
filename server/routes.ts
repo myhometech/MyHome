@@ -1,15 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, type ExpiringDocument } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
-import { setupMultiAuth, requireAuth } from "./multiAuth";
+import { setupSimpleAuth, requireAuth } from "./simpleAuth";
 import { AuthService } from "./authService";
-import { emailService } from "./emailService";
-import passport from "passport";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, loginSchema, registerSchema } from "@shared/schema";
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction } from "./ocrService";
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
@@ -40,59 +37,38 @@ const upload = multer({
   }
 });
 
-// Helper function to get user ID from request (supports both auth systems)
+// Helper function to get user ID from request
 function getUserId(req: any): string {
-  if (req.user?.claims?.sub) {
-    // Legacy Replit auth
-    return req.user.claims.sub;
-  } else if (req.user?.id) {
-    // New auth system
+  if (req.user?.id) {
     return req.user.id;
   }
   throw new Error("User not authenticated");
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup multiple authentication methods
-  await setupMultiAuth(app);
-  
-  // Keep existing Replit Auth for backwards compatibility
-  await setupAuth(app);
+  // Setup simple authentication
+  setupSimpleAuth(app);
 
-  // New multi-auth routes
-  app.post('/api/auth/register', async (req, res) => {
+  // Authentication routes
+  app.post('/api/auth/register', async (req: any, res) => {
     try {
-      const { email, password, firstName, lastName } = req.body;
+      const data = registerSchema.parse(req.body);
       
       // Check if user already exists
-      const existingUser = await AuthService.findUserByEmail(email);
+      const existingUser = await AuthService.findUserByEmail(data.email);
       if (existingUser) {
         return res.status(400).json({ message: "User already exists with this email" });
       }
 
-      const user = await AuthService.createEmailUser({
-        email,
-        password,
-        firstName,
-        lastName,
-      });
-
-      // Automatically log in the user after successful registration
-      req.logIn(user, (err) => {
-        if (err) {
-          console.error("Auto-login error:", err);
-          return res.status(201).json({ 
-            message: "Account created successfully. Please log in.", 
-            userId: user.id 
-          });
-        }
-
-        const { passwordHash, verificationToken, resetPasswordToken, ...safeUser } = user;
-        res.status(201).json({ 
-          message: "Account created successfully", 
-          user: safeUser,
-          autoLoggedIn: true
-        });
+      const user = await AuthService.createEmailUser(data);
+      
+      // Store user in session
+      req.session.user = user;
+      
+      const { passwordHash, ...safeUser } = user;
+      res.status(201).json({ 
+        message: "Account created successfully", 
+        user: safeUser 
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -100,58 +76,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/login', (req, res, next) => {
-    passport.authenticate('local', (err: any, user: any, info: any) => {
-      if (err) {
-        return next(err);
-      }
+  app.post('/api/auth/login', async (req: any, res) => {
+    try {
+      const data = loginSchema.parse(req.body);
+      
+      const user = await AuthService.authenticateEmailUser(data.email, data.password);
       if (!user) {
-        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid email or password" });
       }
       
-      req.logIn(user, (err) => {
-        if (err) {
-          return next(err);
-        }
-        
-        // Don't return sensitive data like password hash
-        const { passwordHash, verificationToken, resetPasswordToken, ...safeUser } = user;
-        res.json({ message: "Login successful", user: safeUser });
+      // Store user in session
+      req.session.user = user;
+      
+      const { passwordHash, ...safeUser } = user;
+      res.json({ 
+        message: "Login successful", 
+        user: safeUser 
       });
-    })(req, res, next);
-  });
-
-  app.post('/api/auth/logout', (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Logout failed" });
-      }
-      res.json({ message: "Logout successful" });
-    });
-  });
-
-  app.get('/api/auth/google', passport.authenticate('google', {
-    scope: ['profile', 'email']
-  }));
-
-  app.get('/api/auth/google/callback', 
-    passport.authenticate('google', { failureRedirect: '/login' }),
-    (req, res) => {
-      res.redirect('/');
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
     }
-  );
-
-  // Debug endpoint to check session state
-  app.get('/api/auth/debug', (req: any, res) => {
-    res.json({
-      isAuthenticated: req.isAuthenticated(),
-      session: req.session?.id ? 'exists' : 'missing',
-      user: req.user ? 'exists' : 'missing',
-      sessionData: req.session
-    });
   });
 
-  // Existing auth routes (with fallback to new auth)
+  app.post('/api/auth/logout', async (req: any, res) => {
+    try {
+      req.session.destroy((err: any) => {
+        if (err) {
+          return res.status(500).json({ message: "Logout failed" });
+        }
+        res.json({ message: "Logout successful" });
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ message: "Logout failed" });
+    }
+  });
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);

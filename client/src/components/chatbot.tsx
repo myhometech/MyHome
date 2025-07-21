@@ -40,7 +40,8 @@ export default function Chatbot({ isOpen, onClose }: ChatbotProps) {
 
   const askMutation = useMutation({
     mutationFn: async (question: string) => {
-      return await apiRequest("/api/chatbot/ask", "POST", { question });
+      const response = await apiRequest("POST", "/api/chatbot/ask", { question });
+      return await response.json();
     },
     onSuccess: (data: any) => {
       const assistantMessage: ChatMessage = {
@@ -75,7 +76,8 @@ export default function Chatbot({ isOpen, onClose }: ChatbotProps) {
 
   const expirySummaryMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/chatbot/expiry-summary", "GET");
+      const response = await apiRequest("GET", "/api/chatbot/expiry-summary");
+      return await response.json();
     },
     onSuccess: (data: any) => {
       const assistantMessage: ChatMessage = {

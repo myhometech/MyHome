@@ -53,6 +53,7 @@ export const documents = pgTable("documents", {
   fileSize: integer("file_size").notNull(),
   mimeType: varchar("mime_type", { length: 100 }).notNull(),
   tags: text("tags").array(),
+  expiryDate: timestamp("expiry_date"),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 

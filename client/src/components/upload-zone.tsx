@@ -24,6 +24,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   const [uploadData, setUploadData] = useState({
     categoryId: "",
     tags: "",
+    expiryDate: "",
   });
 
   const { data: categories = [] } = useQuery({
@@ -38,6 +39,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
       formData.append("name", data.name || file.name);
       if (data.categoryId) formData.append("categoryId", data.categoryId);
       if (data.tags) formData.append("tags", JSON.stringify(data.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
+      if (data.expiryDate) formData.append("expiryDate", data.expiryDate);
 
       const response = await fetch("/api/documents", {
         method: "POST",
@@ -60,7 +62,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
       onUpload(selectedFiles);
       setSelectedFiles([]);
       setShowUploadDialog(false);
-      setUploadData({ categoryId: "", tags: "" });
+      setUploadData({ categoryId: "", tags: "", expiryDate: "" });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -267,6 +269,17 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 placeholder="Enter tags separated by commas"
                 value={uploadData.tags}
                 onChange={(e) => setUploadData(prev => ({ ...prev, tags: e.target.value }))}
+              />
+            </div>
+
+            {/* Expiry Date */}
+            <div className="space-y-2">
+              <Label htmlFor="expiryDate">Expiry Date (Optional)</Label>
+              <Input
+                id="expiryDate"
+                type="date"
+                value={uploadData.expiryDate}
+                onChange={(e) => setUploadData(prev => ({ ...prev, expiryDate: e.target.value }))}
               />
             </div>
 

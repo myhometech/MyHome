@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, type ExpiringDocument } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import multer from "multer";
 import path from "path";
@@ -132,6 +132,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching document:", error);
       res.status(500).json({ message: "Failed to fetch document" });
+    }
+  });
+
+  // Expiry alerts endpoint (use demo user for development)
+  app.get('/api/documents/expiry-alerts', async (req: any, res) => {
+    try {
+      // For development, use demo user if not authenticated
+      const userId = req.user?.claims?.sub || 'demo-user-1';
+      const expiryData = await storage.getExpiryAlerts(userId);
+      res.json(expiryData);
+    } catch (error) {
+      console.error("Error fetching expiry alerts:", error);
+      res.status(500).json({ message: "Failed to fetch expiry alerts" });
     }
   });
 

@@ -10,7 +10,7 @@ import {
   type InsertCategory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, and, inArray } from "drizzle-orm";
+import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -31,6 +31,19 @@ export interface IStorage {
     totalSize: number;
     categoryCounts: { categoryId: number; count: number }[];
   }>;
+  getExpiryAlerts(userId: string): Promise<{
+    expired: ExpiringDocument[];
+    expiringSoon: ExpiringDocument[];
+    expiringThisMonth: ExpiringDocument[];
+  }>;
+}
+
+export interface ExpiringDocument {
+  id: number;
+  name: string;
+  expiryDate: string;
+  categoryName?: string;
+  daysUntilExpiry: number;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -129,6 +142,68 @@ export class DatabaseStorage implements IStorage {
     }, [] as { categoryId: number; count: number }[]);
 
     return { totalDocuments, totalSize, categoryCounts };
+  }
+
+  async getExpiryAlerts(userId: string): Promise<{
+    expired: ExpiringDocument[];
+    expiringSoon: ExpiringDocument[];
+    expiringThisMonth: ExpiringDocument[];
+  }> {
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // Get documents with expiry dates
+    const docsWithExpiry = await db
+      .select({
+        id: documents.id,
+        name: documents.name,
+        expiryDate: documents.expiryDate,
+        categoryName: categories.name,
+      })
+      .from(documents)
+      .leftJoin(categories, eq(documents.categoryId, categories.id))
+      .where(
+        and(
+          eq(documents.userId, userId),
+          isNotNull(documents.expiryDate)
+        )
+      )
+      .orderBy(documents.expiryDate);
+
+    const processDocument = (doc: any): ExpiringDocument => {
+      const expiryDate = new Date(doc.expiryDate);
+      const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return {
+        id: doc.id,
+        name: doc.name,
+        expiryDate: doc.expiryDate.toISOString(),
+        categoryName: doc.categoryName || undefined,
+        daysUntilExpiry,
+      };
+    };
+
+    const expired: ExpiringDocument[] = [];
+    const expiringSoon: ExpiringDocument[] = [];
+    const expiringThisMonth: ExpiringDocument[] = [];
+
+    docsWithExpiry.forEach(doc => {
+      if (doc.expiryDate) {
+        const processed = processDocument(doc);
+        const expiryDate = new Date(doc.expiryDate);
+
+        if (expiryDate < now) {
+          expired.push(processed);
+        } else if (expiryDate <= sevenDaysFromNow) {
+          expiringSoon.push(processed);
+        } else if (expiryDate <= thirtyDaysFromNow) {
+          expiringThisMonth.push(processed);
+        }
+      }
+    });
+
+    return { expired, expiringSoon, expiringThisMonth };
   }
 }
 

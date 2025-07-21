@@ -41,6 +41,8 @@ export interface IStorage {
   updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined>;
   updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null }): Promise<Document | undefined>;
   updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined>;
+  updateDocumentOCRAndSummary(id: number, userId: string, extractedText: string, summary: string): Promise<Document | undefined>;
+  updateDocumentSummary(id: number, userId: string, summary: string): Promise<Document | undefined>;
   getDocumentStats(userId: string): Promise<{
     totalDocuments: number;
     totalSize: number;
@@ -165,7 +167,7 @@ export class DatabaseStorage implements IStorage {
           conditions.push(
             and(
               isNotNull(documents.expiryDate),
-              sql`${documents.expiryDate} < ${today.toISOString().split('T')[0]}`
+              lte(documents.expiryDate, today)
             )
           );
           break;
@@ -173,8 +175,8 @@ export class DatabaseStorage implements IStorage {
           conditions.push(
             and(
               isNotNull(documents.expiryDate),
-              sql`${documents.expiryDate} >= ${today.toISOString().split('T')[0]}`,
-              sql`${documents.expiryDate} <= ${sevenDaysFromNow.toISOString().split('T')[0]}`
+              gte(documents.expiryDate, today),
+              lte(documents.expiryDate, sevenDaysFromNow)
             )
           );
           break;
@@ -182,8 +184,8 @@ export class DatabaseStorage implements IStorage {
           conditions.push(
             and(
               isNotNull(documents.expiryDate),
-              sql`${documents.expiryDate} >= ${today.toISOString().split('T')[0]}`,
-              sql`${documents.expiryDate} <= ${endOfMonth.toISOString().split('T')[0]}`
+              gte(documents.expiryDate, today),
+              lte(documents.expiryDate, endOfMonth)
             )
           );
           break;
@@ -260,6 +262,34 @@ export class DatabaseStorage implements IStorage {
         extractedText,
         ocrProcessed: true 
       })
+      .where(
+        and(eq(documents.id, id), eq(documents.userId, userId))
+      )
+      .returning();
+    
+    return updatedDoc;
+  }
+
+  async updateDocumentOCRAndSummary(id: number, userId: string, extractedText: string, summary: string): Promise<Document | undefined> {
+    const [updatedDoc] = await db
+      .update(documents)
+      .set({ 
+        extractedText,
+        summary,
+        ocrProcessed: true 
+      })
+      .where(
+        and(eq(documents.id, id), eq(documents.userId, userId))
+      )
+      .returning();
+    
+    return updatedDoc;
+  }
+
+  async updateDocumentSummary(id: number, userId: string, summary: string): Promise<Document | undefined> {
+    const [updatedDoc] = await db
+      .update(documents)
+      .set({ summary })
       .where(
         and(eq(documents.id, id), eq(documents.userId, userId))
       )
@@ -535,6 +565,7 @@ export class DatabaseStorage implements IStorage {
           ilike(documents.name, `%${term}%`),
           ilike(documents.fileName, `%${term}%`),
           ilike(documents.extractedText, `%${term}%`),
+          ilike(documents.summary, `%${term}%`),
           sql`${documents.tags}::text ILIKE ${'%' + term + '%'}`
         )
       );
@@ -553,6 +584,7 @@ export class DatabaseStorage implements IStorage {
         tags: documents.tags,
         expiryDate: documents.expiryDate,
         extractedText: documents.extractedText,
+        summary: documents.summary,
         ocrProcessed: documents.ocrProcessed,
         uploadedAt: documents.uploadedAt,
         categoryName: categories.name,
@@ -573,6 +605,7 @@ export class DatabaseStorage implements IStorage {
       const lowerName = doc.name.toLowerCase();
       const lowerFileName = doc.fileName.toLowerCase();
       const lowerExtractedText = (doc.extractedText || '').toLowerCase();
+      const lowerSummary = (doc.summary || '').toLowerCase();
       const tagsText = (doc.tags || []).join(' ').toLowerCase();
       const categoryName = (doc.categoryName || '').toLowerCase();
       
@@ -586,6 +619,18 @@ export class DatabaseStorage implements IStorage {
         matchType = 'category';
       } else if (searchTerms.some(term => tagsText.includes(term))) {
         matchType = 'tag';
+      } else if (searchTerms.some(term => lowerSummary.includes(term))) {
+        matchType = 'summary';
+        // Create snippet from summary
+        const matchingTerm = searchTerms.find(term => lowerSummary.includes(term));
+        if (matchingTerm && doc.summary) {
+          const index = lowerSummary.indexOf(matchingTerm);
+          const start = Math.max(0, index - 50);
+          const end = Math.min(doc.summary.length, index + matchingTerm.length + 50);
+          snippet = doc.summary.substring(start, end);
+          if (start > 0) snippet = '...' + snippet;
+          if (end < doc.summary.length) snippet = snippet + '...';
+        }
       } else if (searchTerms.some(term => lowerExtractedText.includes(term))) {
         matchType = 'content';
         // Create snippet from extracted text
@@ -604,7 +649,7 @@ export class DatabaseStorage implements IStorage {
         ...doc,
         categoryName: doc.categoryName,
         matchType,
-        snippet: snippet || (doc.extractedText ? doc.extractedText.substring(0, 100) + '...' : ''),
+        snippet: snippet || (doc.summary ? doc.summary.substring(0, 150) + '...' : (doc.extractedText ? doc.extractedText.substring(0, 100) + '...' : '')),
       };
     });
   }

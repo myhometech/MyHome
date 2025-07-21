@@ -23,6 +23,7 @@ interface Document {
   mimeType: string;
   tags: string[] | null;
   extractedText: string | null;
+  summary: string | null;
   ocrProcessed: boolean | null;
   uploadedAt: string;
   expiryDate: string | null;

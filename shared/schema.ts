@@ -55,6 +55,7 @@ export const documents = pgTable("documents", {
   tags: text("tags").array(),
   expiryDate: timestamp("expiry_date"),
   extractedText: text("extracted_text"),
+  summary: text("summary"),
   ocrProcessed: boolean("ocr_processed").default(false),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });

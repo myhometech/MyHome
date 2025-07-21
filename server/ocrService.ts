@@ -74,6 +74,84 @@ export function isPDFFile(mimeType: string): boolean {
   return mimeType === 'application/pdf';
 }
 
+export async function generateDocumentSummary(extractedText: string, fileName: string): Promise<string> {
+  try {
+    console.log(`Generating summary for document: ${fileName}`);
+    
+    if (!extractedText || extractedText.trim() === '' || extractedText.trim() === 'No text detected') {
+      return `Document: ${fileName}. No text content available for summarization.`;
+    }
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert at analyzing and summarizing documents. Create concise, searchable summaries that capture the key information, entities, dates, amounts, and context that someone might search for later. Focus on actionable details and important facts."
+        },
+        {
+          role: "user",
+          content: `Please create a comprehensive but concise summary of this document that will be used for search purposes. Include key details like dates, amounts, names, addresses, document type, and main purpose. 
+
+Document content:
+${extractedText.substring(0, 4000)} // Limit to avoid token limits
+
+Document filename: ${fileName}
+
+Respond with JSON in this exact format: { "summary": "your summary here" }`
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 500,
+    });
+
+    const result = JSON.parse(response.choices[0]?.message?.content || '{"summary": ""}');
+    const summary = result.summary || `Document: ${fileName}. Content extracted but summary generation failed.`;
+    
+    console.log(`Summary generated successfully for ${fileName}, length: ${summary.length} characters`);
+    return summary;
+  } catch (error: any) {
+    console.error("Summary generation failed:", error);
+    console.error("Error details:", {
+      message: error?.message || 'Unknown error',
+      fileName,
+      textLength: extractedText?.length || 0
+    });
+    
+    // Return a basic summary as fallback
+    return `Document: ${fileName}. Text extracted but automatic summarization failed. Contains ${extractedText?.length || 0} characters of content.`;
+  }
+}
+
+export async function processDocumentOCRAndSummary(filePath: string, fileName: string, mimeType?: string): Promise<{extractedText: string, summary: string}> {
+  try {
+    console.log(`Processing OCR and summary for: ${fileName}`);
+    
+    let extractedText = '';
+    
+    // Extract text if it's an image
+    if (isImageFile(mimeType || '')) {
+      extractedText = await extractTextFromImage(filePath, mimeType);
+    } else {
+      extractedText = 'No text detected';
+    }
+    
+    // Generate summary based on extracted text and filename
+    const summary = await generateDocumentSummary(extractedText, fileName);
+    
+    return {
+      extractedText,
+      summary
+    };
+  } catch (error: any) {
+    console.error("OCR and summary processing failed:", error);
+    return {
+      extractedText: 'OCR processing failed',
+      summary: `Document: ${fileName}. Automatic processing failed.`
+    };
+  }
+}
+
 export function supportsOCR(mimeType: string): boolean {
   return isImageFile(mimeType) || isPDFFile(mimeType);
 }

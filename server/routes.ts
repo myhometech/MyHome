@@ -7,7 +7,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema } from "@shared/schema";
-import { extractTextFromImage, supportsOCR } from "./ocrService";
+import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary } from "./ocrService";
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
@@ -167,15 +167,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertDocumentSchema.parse(documentData);
       const document = await storage.createDocument(validatedData);
 
-      // Process OCR for images in the background
+      // Process OCR and generate summary in the background
       if (supportsOCR(req.file.mimetype)) {
         try {
-          const extractedText = await extractTextFromImage(req.file.path, req.file.mimetype);
-          await storage.updateDocumentOCR(document.id, userId, extractedText);
-          console.log(`OCR completed for document ${document.id}`);
+          const { extractedText, summary } = await processDocumentOCRAndSummary(
+            req.file.path, 
+            req.file.originalname, 
+            req.file.mimetype
+          );
+          await storage.updateDocumentOCRAndSummary(document.id, userId, extractedText, summary);
+          console.log(`OCR and summary completed for document ${document.id}`);
         } catch (ocrError) {
-          console.error(`OCR failed for document ${document.id}:`, ocrError);
+          console.error(`OCR and summary failed for document ${document.id}:`, ocrError);
           // Continue without failing the upload
+        }
+      } else {
+        // Generate summary for non-OCR files based on filename
+        try {
+          const summary = `Document: ${req.file.originalname}. File type: ${req.file.mimetype}. Uploaded on ${new Date().toLocaleDateString()}.`;
+          await storage.updateDocumentSummary(document.id, userId, summary);
+          console.log(`Summary generated for non-OCR document ${document.id}`);
+        } catch (summaryError) {
+          console.error(`Summary generation failed for document ${document.id}:`, summaryError);
         }
       }
 

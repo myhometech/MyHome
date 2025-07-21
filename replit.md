@@ -4,7 +4,7 @@
 
 HomeDocs is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and Replit authentication.
 
-**Latest Update**: Implemented standalone expiry reminder system allowing users to create custom expiry alerts without document attachment. Added "Add Expiry Reminder" button to dashboard with form for title, description, expiry date, and category. Created complete database schema and API endpoints for expiry_reminders table. Fixed date validation issues by implementing string-to-Date transformation in Zod schema. System now combines document-based expiry dates with standalone reminders in unified dashboard view with smart categorization for subscriptions, memberships, licenses, warranties, and contracts.
+**Latest Update**: Successfully implemented multiple authentication methods for production deployment. Added email/password registration and login with secure bcrypt hashing, Google OAuth integration, and session management with PostgreSQL storage. Fixed authentication workflow loops by properly handling sessions and cookies. System now supports production-ready authentication without Replit dependency, including professional login/register pages, secure password handling, and backwards compatibility with existing auth systems.
 
 ## User Preferences
 
@@ -127,8 +127,14 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 - **Required Variables**:
   - `DATABASE_URL`: PostgreSQL connection string
   - `SESSION_SECRET`: Session encryption key
-  - `REPL_ID`: Replit environment identifier
-  - `ISSUER_URL`: OIDC issuer endpoint
+  - `GOOGLE_CLIENT_ID`: Google OAuth client ID
+  - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+  - `OPENAI_API_KEY`: OpenAI API key for OCR and AI features
+- **Optional Variables**:
+  - `REPL_ID`: Replit environment identifier (for legacy auth)
+  - `ISSUER_URL`: OIDC issuer endpoint (for legacy auth)
+  - `SENDGRID_API_KEY`: Email service for notifications
+  - `PERPLEXITY_API_KEY`: Enhanced AI document analysis
 
 ### Scaling Considerations
 - Database migrations via Drizzle Kit

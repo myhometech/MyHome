@@ -58,6 +58,9 @@ export interface IStorage {
   createEmailForward(emailForward: InsertEmailForward): Promise<EmailForward>;
   updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined>;
   getEmailForwards(userId: string): Promise<EmailForward[]>;
+  
+  // Search operations
+  searchDocuments(userId: string, query: string): Promise<any[]>;
 }
 
 export interface ExpiringDocument {
@@ -447,6 +450,97 @@ export class DatabaseStorage implements IStorage {
       .from(emailForwards)
       .where(eq(emailForwards.userId, userId))
       .orderBy(desc(emailForwards.processedAt));
+  }
+
+  // Smart search implementation
+  async searchDocuments(userId: string, query: string): Promise<any[]> {
+    const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 1);
+    
+    if (searchTerms.length === 0) {
+      return [];
+    }
+
+    // Build dynamic search conditions
+    const searchConditions: any[] = [];
+    
+    for (const term of searchTerms) {
+      searchConditions.push(
+        or(
+          ilike(documents.name, `%${term}%`),
+          ilike(documents.fileName, `%${term}%`),
+          ilike(documents.extractedText, `%${term}%`),
+          sql`${documents.tags}::text ILIKE ${'%' + term + '%'}`
+        )
+      );
+    }
+
+    const results = await db
+      .select({
+        id: documents.id,
+        userId: documents.userId,
+        categoryId: documents.categoryId,
+        name: documents.name,
+        fileName: documents.fileName,
+        filePath: documents.filePath,
+        fileSize: documents.fileSize,
+        mimeType: documents.mimeType,
+        tags: documents.tags,
+        expiryDate: documents.expiryDate,
+        extractedText: documents.extractedText,
+        ocrProcessed: documents.ocrProcessed,
+        uploadedAt: documents.uploadedAt,
+        categoryName: categories.name,
+      })
+      .from(documents)
+      .leftJoin(categories, eq(documents.categoryId, categories.id))
+      .where(
+        and(
+          eq(documents.userId, userId),
+          or(...searchConditions)
+        )
+      )
+      .orderBy(desc(documents.uploadedAt))
+      .limit(20);
+
+    // Enhance results with match information and snippets
+    return results.map(doc => {
+      const lowerName = doc.name.toLowerCase();
+      const lowerFileName = doc.fileName.toLowerCase();
+      const lowerExtractedText = (doc.extractedText || '').toLowerCase();
+      const tagsText = (doc.tags || []).join(' ').toLowerCase();
+      const categoryName = (doc.categoryName || '').toLowerCase();
+      
+      let matchType = 'name';
+      let snippet = '';
+
+      // Determine primary match type
+      if (searchTerms.some(term => lowerName.includes(term))) {
+        matchType = 'name';
+      } else if (searchTerms.some(term => categoryName.includes(term))) {
+        matchType = 'category';
+      } else if (searchTerms.some(term => tagsText.includes(term))) {
+        matchType = 'tag';
+      } else if (searchTerms.some(term => lowerExtractedText.includes(term))) {
+        matchType = 'content';
+        // Create snippet from extracted text
+        const matchingTerm = searchTerms.find(term => lowerExtractedText.includes(term));
+        if (matchingTerm && doc.extractedText) {
+          const index = lowerExtractedText.indexOf(matchingTerm);
+          const start = Math.max(0, index - 50);
+          const end = Math.min(doc.extractedText.length, index + matchingTerm.length + 50);
+          snippet = doc.extractedText.substring(start, end);
+          if (start > 0) snippet = '...' + snippet;
+          if (end < doc.extractedText.length) snippet = snippet + '...';
+        }
+      }
+
+      return {
+        ...doc,
+        categoryName: doc.categoryName,
+        matchType,
+        snippet: snippet || (doc.extractedText ? doc.extractedText.substring(0, 100) + '...' : ''),
+      };
+    });
   }
 }
 

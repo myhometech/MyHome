@@ -74,6 +74,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Smart search endpoint for real-time search
+  app.get('/api/documents/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const searchQuery = req.query.q as string;
+
+      if (!searchQuery || searchQuery.trim().length === 0) {
+        return res.json([]);
+      }
+
+      const searchResults = await storage.searchDocuments(userId, searchQuery.trim());
+      res.json(searchResults);
+    } catch (error) {
+      console.error("Error searching documents:", error);
+      res.status(500).json({ message: "Failed to search documents" });
+    }
+  });
+
   // Documents routes
   app.get('/api/documents', isAuthenticated, async (req: any, res) => {
     try {

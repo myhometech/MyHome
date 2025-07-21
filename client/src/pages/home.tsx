@@ -14,9 +14,10 @@ import Chatbot from "@/components/chatbot";
 import { Navigation } from "@/components/navigation";
 import { EmailForwarding } from "@/components/email-forwarding";
 import { useState } from "react";
-import { Search, Grid, List, SortAsc, MessageCircle } from "lucide-react";
+import { Grid, List, SortAsc, MessageCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SmartSearch } from "@/components/smart-search";
 import type { Category, Document } from "@shared/schema";
 
 export default function Home() {
@@ -107,7 +108,7 @@ export default function Home() {
               type="text"
               placeholder="Search documents..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -124,6 +125,21 @@ export default function Home() {
 
         {/* Stats Grid */}
         <StatsGrid stats={stats} />
+
+        {/* Search and Filter Controls */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <SmartSearch
+              onSearchChange={setSearchQuery}
+              onDocumentSelect={(document) => {
+                // Optionally open document modal or navigate to document
+                console.log('Selected document:', document);
+              }}
+              placeholder="Search documents by name, content, or tags..."
+              className="w-full"
+            />
+          </div>
+        </div>
 
         {/* Category Filter */}
         <CategoryFilter

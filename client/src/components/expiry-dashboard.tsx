@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { isUnauthorizedError } from "@/lib/authUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,9 +22,27 @@ interface ExpiryStats {
 }
 
 export function ExpiryDashboard() {
-  const { data: expiryData, isLoading } = useQuery<ExpiryStats>({
+  const { toast } = useToast();
+  const { data: expiryData, isLoading, error } = useQuery({
     queryKey: ["/api/documents/expiry-alerts"],
+    retry: false,
   });
+
+  // Handle errors manually since onError is deprecated in v5
+  if (error) {
+    if (isUnauthorizedError(error as Error)) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+    } else {
+      console.error("Error loading expiry data:", error);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -42,11 +62,34 @@ export function ExpiryDashboard() {
     );
   }
 
-  if (!expiryData || (expiryData.expired.length === 0 && expiryData.expiringSoon.length === 0 && expiryData.expiringThisMonth.length === 0)) {
+  // Show error state if needed
+  if (error) {
+    return (
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-600">
+            <AlertTriangle className="h-5 w-5" />
+            Error Loading Expiry Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-600">
+            Unable to load document expiry information. Please try refreshing the page.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Type guard for expiry data
+  const typedExpiryData = expiryData as ExpiryStats | undefined;
+
+  // Hide dashboard if no expiry data
+  if (!typedExpiryData || (typedExpiryData.expired.length === 0 && typedExpiryData.expiringSoon.length === 0 && typedExpiryData.expiringThisMonth.length === 0)) {
     return null;
   }
 
-  const hasAlerts = expiryData.expired.length > 0 || expiryData.expiringSoon.length > 0;
+  const hasAlerts = typedExpiryData.expired.length > 0 || typedExpiryData.expiringSoon.length > 0;
 
   return (
     <div className="space-y-6 mb-6">
@@ -58,11 +101,11 @@ export function ExpiryDashboard() {
             Attention Required
           </AlertTitle>
           <AlertDescription className="text-red-700">
-            {expiryData.expired.length > 0 && (
-              <span>{expiryData.expired.length} document(s) have expired. </span>
+            {typedExpiryData.expired.length > 0 && (
+              <span>{typedExpiryData.expired.length} document(s) have expired. </span>
             )}
-            {expiryData.expiringSoon.length > 0 && (
-              <span>{expiryData.expiringSoon.length} document(s) expire within 7 days.</span>
+            {typedExpiryData.expiringSoon.length > 0 && (
+              <span>{typedExpiryData.expiringSoon.length} document(s) expire within 7 days.</span>
             )}
           </AlertDescription>
         </Alert>
@@ -80,7 +123,7 @@ export function ExpiryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {expiryData.expired.length}
+              {typedExpiryData.expired.length}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               Documents past expiry
@@ -98,7 +141,7 @@ export function ExpiryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
-              {expiryData.expiringSoon.length}
+              {typedExpiryData.expiringSoon.length}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               Within 7 days
@@ -116,7 +159,7 @@ export function ExpiryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {expiryData.expiringThisMonth.length}
+              {typedExpiryData.expiringThisMonth.length}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               Expiring this month
@@ -126,10 +169,10 @@ export function ExpiryDashboard() {
       </div>
 
       {/* Detailed Lists */}
-      {(expiryData.expired.length > 0 || expiryData.expiringSoon.length > 0) && (
+      {(typedExpiryData.expired.length > 0 || typedExpiryData.expiringSoon.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Expired Documents List */}
-          {expiryData.expired.length > 0 && (
+          {typedExpiryData.expired.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-red-700 flex items-center gap-2">
@@ -139,7 +182,7 @@ export function ExpiryDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {expiryData.expired.map((doc) => (
+                  {typedExpiryData.expired.map((doc: ExpiringDocument) => (
                     <ExpiryDocumentItem key={doc.id} document={doc} variant="expired" />
                   ))}
                 </div>
@@ -148,7 +191,7 @@ export function ExpiryDashboard() {
           )}
 
           {/* Expiring Soon List */}
-          {expiryData.expiringSoon.length > 0 && (
+          {typedExpiryData.expiringSoon.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-orange-700 flex items-center gap-2">
@@ -158,7 +201,7 @@ export function ExpiryDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {expiryData.expiringSoon.map((doc) => (
+                  {typedExpiryData.expiringSoon.map((doc: ExpiringDocument) => (
                     <ExpiryDocumentItem key={doc.id} document={doc} variant="warning" />
                   ))}
                 </div>

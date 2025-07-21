@@ -150,11 +150,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Expiry alerts endpoint (use demo user for development)
-  app.get('/api/documents/expiry-alerts', async (req: any, res) => {
+  // Expiry alerts endpoint
+  app.get('/api/documents/expiry-alerts', isAuthenticated, async (req: any, res) => {
     try {
-      // For development, use demo user if not authenticated
-      const userId = req.user?.claims?.sub || 'demo-user-1';
+      const userId = req.user.claims.sub;
       const expiryData = await storage.getExpiryAlerts(userId);
       res.json(expiryData);
     } catch (error) {

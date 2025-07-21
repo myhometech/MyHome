@@ -1,0 +1,135 @@
+import {
+  users,
+  documents,
+  categories,
+  type User,
+  type UpsertUser,
+  type Document,
+  type InsertDocument,
+  type Category,
+  type InsertCategory,
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, ilike, and, inArray } from "drizzle-orm";
+
+export interface IStorage {
+  // User operations (mandatory for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  
+  // Category operations
+  getCategories(): Promise<Category[]>;
+  createCategory(category: InsertCategory): Promise<Category>;
+  
+  // Document operations
+  getDocuments(userId: string, categoryId?: number, search?: string): Promise<Document[]>;
+  getDocument(id: number, userId: string): Promise<Document | undefined>;
+  createDocument(document: InsertDocument): Promise<Document>;
+  deleteDocument(id: number, userId: string): Promise<void>;
+  getDocumentStats(userId: string): Promise<{
+    totalDocuments: number;
+    totalSize: number;
+    categoryCounts: { categoryId: number; count: number }[];
+  }>;
+}
+
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  // Category operations
+  async getCategories(): Promise<Category[]> {
+    return await db.select().from(categories).orderBy(categories.name);
+  }
+
+  async createCategory(category: InsertCategory): Promise<Category> {
+    const [newCategory] = await db.insert(categories).values(category).returning();
+    return newCategory;
+  }
+
+  // Document operations
+  async getDocuments(userId: string, categoryId?: number, search?: string): Promise<Document[]> {
+    let query = db.select().from(documents).where(eq(documents.userId, userId));
+    
+    const conditions = [eq(documents.userId, userId)];
+    
+    if (categoryId) {
+      conditions.push(eq(documents.categoryId, categoryId));
+    }
+    
+    if (search) {
+      conditions.push(ilike(documents.name, `%${search}%`));
+    }
+    
+    return await db
+      .select()
+      .from(documents)
+      .where(and(...conditions))
+      .orderBy(desc(documents.uploadedAt));
+  }
+
+  async getDocument(id: number, userId: string): Promise<Document | undefined> {
+    const [document] = await db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, id), eq(documents.userId, userId)));
+    return document;
+  }
+
+  async createDocument(document: InsertDocument): Promise<Document> {
+    const [newDocument] = await db.insert(documents).values(document).returning();
+    return newDocument;
+  }
+
+  async deleteDocument(id: number, userId: string): Promise<void> {
+    await db.delete(documents).where(and(eq(documents.id, id), eq(documents.userId, userId)));
+  }
+
+  async getDocumentStats(userId: string): Promise<{
+    totalDocuments: number;
+    totalSize: number;
+    categoryCounts: { categoryId: number; count: number }[];
+  }> {
+    const userDocs = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.userId, userId));
+
+    const totalDocuments = userDocs.length;
+    const totalSize = userDocs.reduce((sum, doc) => sum + doc.fileSize, 0);
+    
+    const categoryCounts = userDocs.reduce((acc, doc) => {
+      if (doc.categoryId) {
+        const existing = acc.find(c => c.categoryId === doc.categoryId);
+        if (existing) {
+          existing.count++;
+        } else {
+          acc.push({ categoryId: doc.categoryId, count: 1 });
+        }
+      }
+      return acc;
+    }, [] as { categoryId: number; count: number }[]);
+
+    return { totalDocuments, totalSize, categoryCounts };
+  }
+}
+
+export const storage = new DatabaseStorage();

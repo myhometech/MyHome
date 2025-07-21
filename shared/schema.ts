@@ -8,6 +8,7 @@ import {
   serial,
   integer,
   boolean,
+  unique,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -46,10 +47,15 @@ export const users = pgTable("users", {
 // Document categories
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
-  name: varchar("name", { length: 50 }).notNull().unique(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 50 }).notNull(),
   icon: varchar("icon", { length: 50 }).notNull(),
   color: varchar("color", { length: 20 }).notNull(),
-});
+}, (table) => [
+  index("idx_categories_user").on(table.userId),
+  // Unique constraint per user
+  unique("unique_category_per_user").on(table.userId, table.name),
+]);
 
 // Documents table
 export const documents = pgTable("documents", {

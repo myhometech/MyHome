@@ -164,9 +164,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Categories routes
-  app.get('/api/categories', requireAuth, async (req, res) => {
+  app.get('/api/categories', requireAuth, async (req: any, res) => {
     try {
-      const categories = await storage.getCategories();
+      const userId = getUserId(req);
+      const categories = await storage.getCategories(userId);
       res.json(categories);
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -174,10 +175,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/categories', requireAuth, async (req, res) => {
+  app.post('/api/categories', requireAuth, async (req: any, res) => {
     try {
+      const userId = getUserId(req);
       const categoryData = insertCategorySchema.parse(req.body);
-      const category = await storage.createCategory(categoryData);
+      const categoryWithUser = { ...categoryData, userId };
+      const category = await storage.createCategory(categoryWithUser);
       res.status(201).json(category);
     } catch (error) {
       console.error("Error creating category:", error);
@@ -185,15 +188,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/categories/:id', requireAuth, async (req, res) => {
+  app.patch('/api/categories/:id', requireAuth, async (req: any, res) => {
     try {
+      const userId = getUserId(req);
       const categoryId = parseInt(req.params.id);
       if (isNaN(categoryId)) {
         return res.status(400).json({ message: "Invalid category ID" });
       }
 
       const updates = insertCategorySchema.partial().parse(req.body);
-      const updatedCategory = await storage.updateCategory(categoryId, updates);
+      const updatedCategory = await storage.updateCategory(categoryId, userId, updates);
       
       if (!updatedCategory) {
         return res.status(404).json({ message: "Category not found" });
@@ -206,14 +210,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/categories/:id', requireAuth, async (req, res) => {
+  app.delete('/api/categories/:id', requireAuth, async (req: any, res) => {
     try {
+      const userId = getUserId(req);
       const categoryId = parseInt(req.params.id);
       if (isNaN(categoryId)) {
         return res.status(400).json({ message: "Invalid category ID" });
       }
 
-      await storage.deleteCategory(categoryId);
+      await storage.deleteCategory(categoryId, userId);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting category:", error);
@@ -680,21 +685,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Initialize default categories
-  app.post('/api/init-categories', requireAuth, async (req, res) => {
+  app.post('/api/init-categories', requireAuth, async (req: any, res) => {
     try {
+      const userId = getUserId(req);
       const defaultCategories = [
-        { name: 'Utilities', icon: 'fas fa-bolt', color: 'blue' },
-        { name: 'Insurance', icon: 'fas fa-shield-alt', color: 'green' },
-        { name: 'Taxes', icon: 'fas fa-calculator', color: 'purple' },
-        { name: 'Maintenance', icon: 'fas fa-tools', color: 'orange' },
-        { name: 'Legal', icon: 'fas fa-file-contract', color: 'teal' },
-        { name: 'Warranty', icon: 'fas fa-certificate', color: 'indigo' },
-        { name: 'Receipts', icon: 'fas fa-receipt', color: 'yellow' },
-        { name: 'Other', icon: 'fas fa-folder', color: 'gray' },
+        { name: 'Utilities', icon: 'fas fa-bolt', color: 'blue', userId },
+        { name: 'Insurance', icon: 'fas fa-shield-alt', color: 'green', userId },
+        { name: 'Taxes', icon: 'fas fa-calculator', color: 'purple', userId },
+        { name: 'Maintenance', icon: 'fas fa-tools', color: 'orange', userId },
+        { name: 'Legal', icon: 'fas fa-file-contract', color: 'teal', userId },
+        { name: 'Warranty', icon: 'fas fa-certificate', color: 'indigo', userId },
+        { name: 'Receipts', icon: 'fas fa-receipt', color: 'yellow', userId },
+        { name: 'Other', icon: 'fas fa-folder', color: 'gray', userId },
       ];
 
-      const categories = await storage.getCategories();
-      if (categories.length === 0) {
+      const userCategories = await storage.getCategories(userId);
+      if (userCategories.length === 0) {
         for (const category of defaultCategories) {
           await storage.createCategory(category);
         }

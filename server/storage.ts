@@ -31,10 +31,10 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   
   // Category operations
-  getCategories(): Promise<Category[]>;
+  getCategories(userId?: string): Promise<Category[]>;
   createCategory(category: InsertCategory): Promise<Category>;
-  updateCategory(id: number, updates: Partial<InsertCategory>): Promise<Category | undefined>;
-  deleteCategory(id: number): Promise<void>;
+  updateCategory(id: number, userId: string, updates: Partial<InsertCategory>): Promise<Category | undefined>;
+  deleteCategory(id: number, userId: string): Promise<void>;
   
   // Document operations
   getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: 'expired' | 'expiring-soon' | 'this-month'): Promise<Document[]>;
@@ -149,7 +149,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Category operations
-  async getCategories(): Promise<Category[]> {
+  async getCategories(userId?: string): Promise<Category[]> {
+    if (userId) {
+      return await db.select().from(categories).where(eq(categories.userId, userId)).orderBy(categories.name);
+    }
     return await db.select().from(categories).orderBy(categories.name);
   }
 
@@ -158,24 +161,24 @@ export class DatabaseStorage implements IStorage {
     return newCategory;
   }
 
-  async updateCategory(id: number, updates: Partial<InsertCategory>): Promise<Category | undefined> {
+  async updateCategory(id: number, userId: string, updates: Partial<InsertCategory>): Promise<Category | undefined> {
     const [updatedCategory] = await db
       .update(categories)
       .set(updates)
-      .where(eq(categories.id, id))
+      .where(and(eq(categories.id, id), eq(categories.userId, userId)))
       .returning();
     return updatedCategory;
   }
 
-  async deleteCategory(id: number): Promise<void> {
-    // First, set all documents with this category to null (uncategorized)
+  async deleteCategory(id: number, userId: string): Promise<void> {
+    // First, set all user's documents with this category to null (uncategorized)
     await db
       .update(documents)
       .set({ categoryId: null })
-      .where(eq(documents.categoryId, id));
+      .where(and(eq(documents.categoryId, id), eq(documents.userId, userId)));
     
-    // Then delete the category
-    await db.delete(categories).where(eq(categories.id, id));
+    // Then delete the category (only if owned by user)
+    await db.delete(categories).where(and(eq(categories.id, id), eq(categories.userId, userId)));
   }
 
   // Document operations

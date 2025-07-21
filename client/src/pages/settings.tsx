@@ -5,6 +5,7 @@ import { Navigation } from "@/components/navigation";
 import Header from "@/components/header";
 import MobileNav from "@/components/mobile-nav";
 import { EmailForwarding } from "@/components/email-forwarding";
+import CategoryManagement from "@/components/category-management";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +115,9 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Category Management Section */}
+          <CategoryManagement />
 
           {/* Email Forwarding Section */}
           <EmailForwarding />

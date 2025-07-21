@@ -30,6 +30,8 @@ export interface IStorage {
   // Category operations
   getCategories(): Promise<Category[]>;
   createCategory(category: InsertCategory): Promise<Category>;
+  updateCategory(id: number, updates: Partial<InsertCategory>): Promise<Category | undefined>;
+  deleteCategory(id: number): Promise<void>;
   
   // Document operations
   getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: 'expired' | 'expiring-soon' | 'this-month'): Promise<Document[]>;
@@ -114,6 +116,26 @@ export class DatabaseStorage implements IStorage {
   async createCategory(category: InsertCategory): Promise<Category> {
     const [newCategory] = await db.insert(categories).values(category).returning();
     return newCategory;
+  }
+
+  async updateCategory(id: number, updates: Partial<InsertCategory>): Promise<Category | undefined> {
+    const [updatedCategory] = await db
+      .update(categories)
+      .set(updates)
+      .where(eq(categories.id, id))
+      .returning();
+    return updatedCategory;
+  }
+
+  async deleteCategory(id: number): Promise<void> {
+    // First, set all documents with this category to null (uncategorized)
+    await db
+      .update(documents)
+      .set({ categoryId: null })
+      .where(eq(documents.categoryId, id));
+    
+    // Then delete the category
+    await db.delete(categories).where(eq(categories.id, id));
   }
 
   // Document operations

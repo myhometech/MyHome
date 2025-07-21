@@ -73,6 +73,17 @@ export const documentShares = pgTable("document_shares", {
   index("idx_document_shares_shared_with").on(table.sharedWithUserId),
 ]);
 
+// User email forwarding mappings
+export const userForwardingMappings = pgTable("user_forwarding_mappings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  emailHash: varchar("email_hash", { length: 10 }).notNull().unique(),
+  forwardingAddress: varchar("forwarding_address", { length: 255 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_user_forwarding_hash").on(table.emailHash),
+]);
+
 // Email processing table for forwarded emails
 export const emailForwards = pgTable("email_forwards", {
   id: serial("id").primaryKey(),
@@ -121,6 +132,10 @@ export const insertEmailForwardSchema = createInsertSchema(emailForwards).omit({
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+// User forwarding mapping types
+export type InsertUserForwardingMapping = typeof userForwardingMappings.$inferInsert;
+export type UserForwardingMapping = typeof userForwardingMappings.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Document = typeof documents.$inferSelect;

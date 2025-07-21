@@ -3,6 +3,7 @@ import {
   documents,
   documentShares,
   emailForwards,
+  userForwardingMappings,
   categories,
   type User,
   type UpsertUser,
@@ -14,6 +15,8 @@ import {
   type InsertEmailForward,
   type Category,
   type InsertCategory,
+  type UserForwardingMapping,
+  type InsertUserForwardingMapping,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
@@ -58,6 +61,11 @@ export interface IStorage {
   createEmailForward(emailForward: InsertEmailForward): Promise<EmailForward>;
   updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined>;
   getEmailForwards(userId: string): Promise<EmailForward[]>;
+  
+  // User forwarding mapping operations
+  getUserForwardingMapping(userId: string): Promise<UserForwardingMapping | undefined>;
+  createUserForwardingMapping(mapping: InsertUserForwardingMapping): Promise<UserForwardingMapping>;
+  getUserByForwardingHash(emailHash: string): Promise<User | undefined>;
   
   // Search operations
   searchDocuments(userId: string, query: string): Promise<any[]>;
@@ -577,6 +585,33 @@ export class DatabaseStorage implements IStorage {
         snippet: snippet || (doc.extractedText ? doc.extractedText.substring(0, 100) + '...' : ''),
       };
     });
+  }
+
+  // User forwarding mapping operations
+  async getUserForwardingMapping(userId: string): Promise<UserForwardingMapping | undefined> {
+    const [mapping] = await db
+      .select()
+      .from(userForwardingMappings)
+      .where(eq(userForwardingMappings.userId, userId));
+    return mapping;
+  }
+
+  async createUserForwardingMapping(mapping: InsertUserForwardingMapping): Promise<UserForwardingMapping> {
+    const [newMapping] = await db
+      .insert(userForwardingMappings)
+      .values(mapping)
+      .returning();
+    return newMapping;
+  }
+
+  async getUserByForwardingHash(emailHash: string): Promise<User | undefined> {
+    const result = await db
+      .select({ user: users })
+      .from(userForwardingMappings)
+      .innerJoin(users, eq(userForwardingMappings.userId, users.id))
+      .where(eq(userForwardingMappings.emailHash, emailHash));
+    
+    return result[0]?.user;
   }
 }
 

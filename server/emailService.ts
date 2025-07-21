@@ -319,7 +319,7 @@ export class EmailService {
             <p>You can now view and manage these documents in your HomeDocs dashboard.</p>
             
             <p style="color: #6b7280; font-size: 14px;">
-              To forward more documents, simply send them to: ${this.forwardingAddress}
+              To forward more documents, simply send them to your personal forwarding address.
             </p>
           </div>
         `,
@@ -333,7 +333,57 @@ export class EmailService {
   }
 
   /**
-   * Get the forwarding email address for this user
+   * Get a user-specific forwarding email address where they can send documents
+   */
+  async getUserForwardingAddress(userId: string): Promise<string> {
+    // Check if user already has a forwarding mapping
+    let mapping = await storage.getUserForwardingMapping(userId);
+    
+    if (!mapping) {
+      // Create a new mapping for this user
+      const userHash = Buffer.from(userId).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toLowerCase();
+      const forwardingAddress = `docs-${userHash}@homedocs.example.com`;
+      
+      mapping = await storage.createUserForwardingMapping({
+        userId,
+        emailHash: userHash,
+        forwardingAddress,
+      });
+    }
+    
+    return mapping.forwardingAddress;
+  }
+
+  /**
+   * Parse incoming email address to extract user ID
+   */
+  async parseUserFromEmail(toAddress: string): Promise<string | null> {
+    const match = toAddress.match(/^docs-([a-z0-9]{8})@homedocs\.example\.com$/);
+    if (!match) return null;
+    
+    try {
+      const userHash = match[1];
+      return await this.reverseUserHash(userHash);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Reverse lookup user hash to user ID using the database
+   */
+  private async reverseUserHash(hash: string): Promise<string | null> {
+    try {
+      const user = await storage.getUserByForwardingHash(hash);
+      return user?.id || null;
+    } catch (error) {
+      console.error('Error reversing user hash:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get the forwarding email address for this user (legacy method)
    */
   getForwardingAddress(): string {
     return this.forwardingAddress;

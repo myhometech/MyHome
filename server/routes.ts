@@ -516,10 +516,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's forwarding email address
   app.get('/api/email/forwarding-address', isAuthenticated, async (req: any, res) => {
     try {
-      const forwardingAddress = emailService.getForwardingAddress();
+      const userId = req.user.claims.sub;
+      const userForwardingAddress = await emailService.getUserForwardingAddress(userId);
+      const fallbackAddress = emailService.getForwardingAddress();
+      
       res.json({ 
-        address: forwardingAddress,
-        instructions: `Forward emails with attachments to ${forwardingAddress} and they will be automatically added to your document library.`
+        address: userForwardingAddress,
+        fallbackAddress: fallbackAddress,
+        instructions: `Forward emails with attachments to ${userForwardingAddress} and they will be automatically added to your document library. This email address is unique to your account.`,
+        note: "Each user has their own unique forwarding address to ensure documents are correctly assigned to your account."
       });
     } catch (error) {
       console.error("Error getting forwarding address:", error);

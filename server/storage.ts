@@ -179,7 +179,7 @@ export class DatabaseStorage implements IStorage {
             and(
               isNotNull(documents.expiryDate),
               lte(documents.expiryDate, today)
-            )
+            )!
           );
           break;
         case 'expiring-soon':
@@ -188,7 +188,7 @@ export class DatabaseStorage implements IStorage {
               isNotNull(documents.expiryDate),
               gte(documents.expiryDate, today),
               lte(documents.expiryDate, sevenDaysFromNow)
-            )
+            )!
           );
           break;
         case 'this-month':
@@ -197,7 +197,7 @@ export class DatabaseStorage implements IStorage {
               isNotNull(documents.expiryDate),
               gte(documents.expiryDate, today),
               lte(documents.expiryDate, endOfMonth)
-            )
+            )!
           );
           break;
       }
@@ -510,6 +510,7 @@ export class DatabaseStorage implements IStorage {
         tags: documents.tags,
         expiryDate: documents.expiryDate,
         extractedText: documents.extractedText,
+        summary: documents.summary,
         ocrProcessed: documents.ocrProcessed,
         uploadedAt: documents.uploadedAt,
       })

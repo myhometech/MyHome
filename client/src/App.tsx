@@ -9,6 +9,7 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import SharedWithMe from "@/pages/shared-with-me";
 import ExpiryDocuments from "@/pages/expiry-documents";
+import Settings from "@/pages/settings";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -22,6 +23,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/shared-with-me" component={SharedWithMe} />
           <Route path="/expiry-documents" component={ExpiryDocuments} />
+          <Route path="/settings" component={Settings} />
         </>
       )}
       <Route component={NotFound} />

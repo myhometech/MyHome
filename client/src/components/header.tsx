@@ -2,8 +2,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Home, Search, Bell, LogOut } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Home, Search, Bell, LogOut, Settings } from "lucide-react";
+import { Link } from "wouter";
 import type { User } from "@shared/schema";
 
 interface HeaderProps {
@@ -23,16 +24,16 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
       return `${firstName[0]}${lastName[0]}`.toUpperCase();
     }
     if (firstName) return firstName[0].toUpperCase();
-    if (user?.email) return user.email[0].toUpperCase();
+    if ((user as any)?.email) return (user as any).email[0].toUpperCase();
     return "U";
   };
 
   const getDisplayName = () => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName} ${user.lastName}`;
+    if ((user as any)?.firstName && (user as any)?.lastName) {
+      return `${(user as any).firstName} ${(user as any).lastName}`;
     }
-    if (user?.firstName) return user.firstName;
-    return user?.email || "User";
+    if ((user as any)?.firstName) return (user as any).firstName;
+    return (user as any)?.email || "User";
   };
 
   return (
@@ -70,9 +71,9 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2 p-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.profileImageUrl} alt="Profile" />
+                    <AvatarImage src={(user as any)?.profileImageUrl} alt="Profile" />
                     <AvatarFallback className="text-sm">
-                      {getInitials(user?.firstName, user?.lastName)}
+                      {getInitials((user as any)?.firstName, (user as any)?.lastName)}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium hidden sm:block">
@@ -81,6 +82,13 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <Link href="/settings">
+                  <DropdownMenuItem>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out

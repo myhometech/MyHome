@@ -121,8 +121,7 @@ export default function Home() {
         {/* Upload Zone */}
         <UploadZone onUpload={handleFileUpload} />
 
-        {/* Email Forwarding */}
-        <EmailForwarding />
+
 
         {/* Stats Grid */}
         <StatsGrid stats={stats} />

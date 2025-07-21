@@ -148,6 +148,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update document name
+  app.patch('/api/documents/:id/name', async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || 'demo-user-1';
+      const documentId = parseInt(req.params.id);
+      const { name } = req.body;
+
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ message: "Document name is required" });
+      }
+
+      const updatedDocument = await storage.updateDocumentName(documentId, userId, name.trim());
+      if (!updatedDocument) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      res.json(updatedDocument);
+    } catch (error) {
+      console.error("Error updating document name:", error);
+      res.status(500).json({ message: "Failed to update document name" });
+    }
+  });
+
   app.delete('/api/documents/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

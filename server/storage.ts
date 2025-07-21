@@ -116,6 +116,18 @@ export class DatabaseStorage implements IStorage {
     await db.delete(documents).where(and(eq(documents.id, id), eq(documents.userId, userId)));
   }
 
+  async updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined> {
+    const [updatedDoc] = await db
+      .update(documents)
+      .set({ name: newName })
+      .where(
+        and(eq(documents.id, id), eq(documents.userId, userId))
+      )
+      .returning();
+    
+    return updatedDoc;
+  }
+
   async getDocumentStats(userId: string): Promise<{
     totalDocuments: number;
     totalSize: number;

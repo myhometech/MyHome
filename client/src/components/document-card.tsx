@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Image, MoreHorizontal, Download, Trash2, Eye } from "lucide-react";
+import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import DocumentModal from "./document-modal";
 
@@ -39,8 +40,48 @@ interface DocumentCardProps {
 export default function DocumentCard({ document, categories, viewMode }: DocumentCardProps) {
   const { toast } = useToast();
   const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(document.name);
 
   const category = categories.find(c => c.id === document.categoryId);
+
+  const updateNameMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+      return await apiRequest(`/api/documents/${id}/name`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Document renamed",
+        description: "The document name has been updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      setIsEditing(false);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Rename failed",
+        description: "Failed to rename the document. Please try again.",
+        variant: "destructive",
+      });
+      setEditName(document.name);
+      setIsEditing(false);
+    },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -118,18 +159,62 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
     }
   };
 
+  const handleStartEdit = () => {
+    setIsEditing(true);
+    setEditName(document.name);
+  };
+
+  const handleSaveEdit = () => {
+    if (editName.trim() && editName.trim() !== document.name) {
+      updateNameMutation.mutate({ id: document.id, name: editName.trim() });
+    } else {
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditName(document.name);
+    setIsEditing(false);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
   if (viewMode === "list") {
     return (
       <>
         <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4 flex-1" onClick={() => setShowModal(true)}>
+              <div className="flex items-center space-x-4 flex-1" onClick={isEditing ? undefined : () => setShowModal(true)}>
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getFileIconColor()}`}>
                   {getFileIcon()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate">{document.name}</h3>
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        className="text-sm h-7"
+                        autoFocus
+                      />
+                      <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={updateNameMutation.isPending} className="h-7 w-7 p-0">
+                        <Check className="h-3 w-3" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateNameMutation.isPending} className="h-7 w-7 p-0">
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <h3 className="font-medium text-sm truncate">{document.name}</h3>
+                  )}
                   <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
                     <span>{category?.name || "Uncategorized"}</span>
                     <span>•</span>
@@ -166,6 +251,10 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                     <DropdownMenuItem onClick={() => setShowModal(true)}>
                       <Eye className="h-4 w-4 mr-2" />
                       View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleStartEdit}>
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Rename
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleDownload}>
                       <Download className="h-4 w-4 mr-2" />
@@ -216,6 +305,10 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                   <Eye className="h-4 w-4 mr-2" />
                   View
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleStartEdit}>
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Rename
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownload}>
                   <Download className="h-4 w-4 mr-2" />
                   Download
@@ -231,8 +324,28 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
             </DropdownMenu>
           </div>
           
-          <div onClick={() => setShowModal(true)}>
-            <h3 className="font-medium text-sm mb-1 truncate">{document.name}</h3>
+          <div onClick={isEditing ? undefined : () => setShowModal(true)}>
+            {isEditing ? (
+              <div className="mb-2">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  className="text-sm h-7 mb-2"
+                  autoFocus
+                />
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={updateNameMutation.isPending} className="h-6 w-6 p-0">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateNameMutation.isPending} className="h-6 w-6 p-0">
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <h3 className="font-medium text-sm mb-1 truncate">{document.name}</h3>
+            )}
             <p className="text-xs text-gray-500 mb-2">{category?.name || "Uncategorized"}</p>
             <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
               <span>{formatFileSize(document.fileSize)}</span>

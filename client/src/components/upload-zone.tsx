@@ -28,7 +28,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     customName: "",
   });
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
     retry: false,
   });

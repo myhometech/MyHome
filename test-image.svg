@@ -1,0 +1,16 @@
+<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#f8f9fa"/>
+  <rect x="50" y="50" width="300" height="200" fill="#e9ecef" stroke="#dee2e6" stroke-width="2" rx="8"/>
+  <text x="200" y="120" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#495057">
+    Test Document
+  </text>
+  <text x="200" y="160" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#6c757d">
+    Sample Image for Preview Testing
+  </text>
+  <text x="200" y="190" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#6c757d">
+    Date: July 21, 2025
+  </text>
+  <text x="200" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#6c757d">
+    Amount: $1,234.56
+  </text>
+</svg>

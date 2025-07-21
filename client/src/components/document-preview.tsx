@@ -32,12 +32,27 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
-    // Simulate loading time for preview generation
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
+    // Check if this is an image document
+    if (isImage()) {
+      // Test if the preview URL is accessible
+      fetch(getPreviewUrl(), { credentials: 'include' })
+        .then(response => {
+          if (!response.ok) {
+            setError(`Failed to load preview: ${response.status} ${response.statusText}`);
+          }
+          setIsLoading(false);
+        })
+        .catch(err => {
+          console.error('Preview load error:', err);
+          setError(`Network error: ${err.message}`);
+          setIsLoading(false);
+        });
+    } else {
+      // For non-image files, just stop loading
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
+    }
   }, []);
 
   const formatFileSize = (bytes: number): string => {
@@ -122,7 +137,11 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
               alt={document.name}
               className="max-w-full h-auto rounded shadow-sm"
               style={{ transform: `scale(${zoom})` }}
-              onError={() => setError('Failed to load image preview')}
+              onLoad={() => console.log('Image loaded successfully')}
+              onError={(e) => {
+                console.error('Image load error:', e);
+                setError('Failed to load image preview');
+              }}
             />
           </div>
         </div>
@@ -131,16 +150,33 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
 
     if (isPDF()) {
       return (
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <FileText className="w-5 h-5 text-red-600" />
-            <span className="font-medium">PDF Document</span>
+        <div className="bg-gray-50 rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between p-2 bg-gray-100">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-red-600" />
+              <span className="text-sm text-gray-600">PDF Document</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                PDF
+              </Badge>
+            </div>
           </div>
-          <div className="bg-white rounded border-2 border-dashed border-gray-300 h-96 flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <FileText className="w-16 h-16 mx-auto mb-2 text-gray-400" />
-              <p className="font-medium">PDF Preview</p>
-              <p className="text-sm">Click download to view the full document</p>
+          <div className="p-4">
+            <div className="bg-white rounded border-2 border-dashed border-gray-300 h-96 flex items-center justify-center">
+              <div className="text-center text-gray-500 max-w-xs">
+                <FileText className="w-20 h-20 mx-auto mb-4 text-red-400" />
+                <p className="font-medium text-lg mb-2">PDF Preview</p>
+                <p className="text-sm text-gray-600 mb-4">
+                  PDF preview is not yet supported. Use the download button to view the full document.
+                </p>
+                {onDownload && (
+                  <Button onClick={onDownload} variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>

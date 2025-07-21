@@ -4,7 +4,7 @@
 
 HomeDocs is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and Replit authentication.
 
-**Latest Update**: Added user settings organization and improved navigation. Created dedicated Settings page accessible via user dropdown menu, moved email forwarding functionality to settings for better organization, and made HomeDocs logo clickable to return to homepage. Enhanced user experience with clear settings sections including profile information, email forwarding, notifications, security, and help options.
+**Latest Update**: Implemented comprehensive document preview functionality with OCR summarization. When documents are selected, users now see full-screen preview modals with professional layouts, zoom controls for images, PDF preview placeholders, AI-generated summaries with key details (dates, amounts, names), extracted OCR text display, and integrated download functionality. Enhanced search system now works across document names, AI summaries, extracted text, tags, and categories with smart ranking.
 
 ## User Preferences
 

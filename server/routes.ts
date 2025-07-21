@@ -604,15 +604,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { question } = req.body;
 
+      console.log(`Chatbot request from user ${userId}: "${question}"`);
+
       if (!question || typeof question !== 'string' || question.trim().length === 0) {
         return res.status(400).json({ message: "Question is required" });
       }
 
+      // Check if OpenAI API key is available
+      if (!process.env.OPENAI_API_KEY) {
+        console.error("OpenAI API key not found in environment variables");
+        return res.status(500).json({ message: "AI service is not configured. Please contact support." });
+      }
+
       const response = await answerDocumentQuestion(userId, question.trim());
+      console.log(`Chatbot response for user ${userId}: success`);
       res.json(response);
     } catch (error) {
       console.error("Chatbot error:", error);
-      res.status(500).json({ message: "Failed to process your question" });
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to process your question" 
+      });
     }
   });
 

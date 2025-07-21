@@ -103,6 +103,20 @@ export async function answerDocumentQuestion(
 
   } catch (error) {
     console.error("Chatbot error:", error);
+    
+    // Check if it's an OpenAI API error
+    if (error instanceof Error) {
+      if (error.message.includes('API key')) {
+        throw new Error("OpenAI API key is not configured properly. Please check your API key settings.");
+      }
+      if (error.message.includes('rate limit')) {
+        throw new Error("API rate limit exceeded. Please try again in a few moments.");
+      }
+      if (error.message.includes('insufficient_quota')) {
+        throw new Error("OpenAI API quota exceeded. Please check your OpenAI account billing.");
+      }
+    }
+    
     throw new Error("Failed to process your question. Please try again.");
   }
 }

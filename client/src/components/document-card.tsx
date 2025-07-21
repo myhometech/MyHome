@@ -53,10 +53,11 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
 
   const updateDocumentMutation = useMutation({
     mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {
-      return await apiRequest(`/api/documents/${id}`, "PATCH", { 
+      const response = await apiRequest("PATCH", `/api/documents/${id}`, { 
         name, 
         expiryDate: expiryDate || null 
       });
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -128,7 +129,8 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
 
   const ocrMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/documents/${id}/ocr`, "POST");
+      const response = await apiRequest("POST", `/api/documents/${id}/ocr`);
+      return await response.json();
     },
     onSuccess: (data: any) => {
       toast({

@@ -61,7 +61,7 @@ export default function Chatbot({ isOpen, onClose }: ChatbotProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -95,7 +95,7 @@ export default function Chatbot({ isOpen, onClose }: ChatbotProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }

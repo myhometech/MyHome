@@ -57,7 +57,7 @@ export function ShareDocumentDialog({ documentId, documentName }: ShareDocumentD
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -89,7 +89,7 @@ export function ShareDocumentDialog({ documentId, documentName }: ShareDocumentD
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }

@@ -45,7 +45,8 @@ export interface IStorage {
   updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null }): Promise<Document | undefined>;
   updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined>;
   updateDocumentOCRAndSummary(id: number, userId: string, extractedText: string, summary: string): Promise<Document | undefined>;
-  updateDocumentSummary(id: number, userId: string, summary: string): Promise<Document | undefined>;
+  updateDocumentSummary(id: number, userId: string, summary: string): Promise<void>;
+  updateDocumentTags(id: number, userId: string, tags: string[]): Promise<void>;
   getDocumentStats(userId: string): Promise<{
     totalDocuments: number;
     totalSize: number;
@@ -323,16 +324,18 @@ export class DatabaseStorage implements IStorage {
     return updatedDoc;
   }
 
-  async updateDocumentSummary(id: number, userId: string, summary: string): Promise<Document | undefined> {
-    const [updatedDoc] = await db
+  async updateDocumentSummary(id: number, userId: string, summary: string): Promise<void> {
+    await db
       .update(documents)
       .set({ summary })
-      .where(
-        and(eq(documents.id, id), eq(documents.userId, userId))
-      )
-      .returning();
-    
-    return updatedDoc;
+      .where(and(eq(documents.id, id), eq(documents.userId, userId)));
+  }
+
+  async updateDocumentTags(id: number, userId: string, tags: string[]): Promise<void> {
+    await db
+      .update(documents)
+      .set({ tags })
+      .where(and(eq(documents.id, id), eq(documents.userId, userId)));
   }
 
   async getDocumentStats(userId: string): Promise<{

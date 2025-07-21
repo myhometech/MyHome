@@ -12,6 +12,7 @@ import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema } from "@shared/schema";
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction } from "./ocrService";
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
+import { tagSuggestionService } from "./tagSuggestionService";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -277,7 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertDocumentSchema.parse(documentData);
       const document = await storage.createDocument(validatedData);
 
-      // Process OCR, generate summary, and extract dates in the background
+      // Process OCR, generate summary, extract dates, and suggest tags in the background
       if (supportsOCR(req.file.mimetype)) {
         try {
           await processDocumentWithDateExtraction(
@@ -287,7 +288,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             req.file.mimetype,
             storage
           );
-          console.log(`OCR, summary, and date extraction completed for document ${document.id}`);
+          
+          // Get the updated document with extracted text for tag suggestions
+          const updatedDocument = await storage.getDocument(document.id, userId);
+          if (updatedDocument?.extractedText) {
+            // Generate tag suggestions based on extracted content
+            const tagSuggestions = await tagSuggestionService.suggestTags(
+              req.file.originalname,
+              updatedDocument.extractedText,
+              req.file.mimetype,
+              documentData.tags
+            );
+            
+            // Add suggested tags to existing tags (if any)
+            const combinedTags = [...documentData.tags];
+            tagSuggestions.suggestedTags.forEach(suggestion => {
+              if (suggestion.confidence >= 0.7 && !combinedTags.includes(suggestion.tag)) {
+                combinedTags.push(suggestion.tag);
+              }
+            });
+            
+            // Update document with suggested tags
+            if (combinedTags.length > documentData.tags.length) {
+              await storage.updateDocumentTags(document.id, userId, combinedTags);
+            }
+          }
+          
+          console.log(`OCR, summary, date extraction, and tag suggestion completed for document ${document.id}`);
         } catch (ocrError) {
           console.error(`OCR and date extraction failed for document ${document.id}:`, ocrError);
           // Fallback to basic OCR without date extraction
@@ -298,19 +325,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
               req.file.mimetype
             );
             await storage.updateDocumentOCRAndSummary(document.id, userId, extractedText, summary);
-            console.log(`Fallback OCR completed for document ${document.id}`);
+            
+            // Generate tag suggestions for fallback OCR
+            const tagSuggestions = await tagSuggestionService.suggestTags(
+              req.file.originalname,
+              extractedText,
+              req.file.mimetype,
+              documentData.tags
+            );
+            
+            const combinedTags = [...documentData.tags];
+            tagSuggestions.suggestedTags.forEach(suggestion => {
+              if (suggestion.confidence >= 0.7 && !combinedTags.includes(suggestion.tag)) {
+                combinedTags.push(suggestion.tag);
+              }
+            });
+            
+            if (combinedTags.length > documentData.tags.length) {
+              await storage.updateDocumentTags(document.id, userId, combinedTags);
+            }
+            
+            console.log(`Fallback OCR with tag suggestions completed for document ${document.id}`);
           } catch (fallbackError) {
             console.error(`Fallback OCR also failed for document ${document.id}:`, fallbackError);
           }
         }
       } else {
-        // Generate summary for non-OCR files based on filename
+        // Generate summary and tag suggestions for non-OCR files based on filename
         try {
           const summary = `Document: ${req.file.originalname}. File type: ${req.file.mimetype}. Uploaded on ${new Date().toLocaleDateString()}.`;
           await storage.updateDocumentSummary(document.id, userId, summary);
-          console.log(`Summary generated for non-OCR document ${document.id}`);
+          
+          // Generate tag suggestions based on filename only
+          const tagSuggestions = await tagSuggestionService.suggestTags(
+            req.file.originalname,
+            undefined,
+            req.file.mimetype,
+            documentData.tags
+          );
+          
+          const combinedTags = [...documentData.tags];
+          tagSuggestions.suggestedTags.forEach(suggestion => {
+            if (suggestion.confidence >= 0.6 && !combinedTags.includes(suggestion.tag)) {
+              combinedTags.push(suggestion.tag);
+            }
+          });
+          
+          if (combinedTags.length > documentData.tags.length) {
+            await storage.updateDocumentTags(document.id, userId, combinedTags);
+          }
+          
+          console.log(`Summary and tag suggestions generated for non-OCR document ${document.id}`);
         } catch (summaryError) {
-          console.error(`Summary generation failed for document ${document.id}:`, summaryError);
+          console.error(`Summary and tag generation failed for document ${document.id}:`, summaryError);
         }
       }
 
@@ -906,6 +973,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating expiry reminder:", error);
       res.status(500).json({ message: "Failed to create expiry reminder" });
+    }
+  });
+
+  // Tag suggestion endpoints
+  app.post('/api/documents/:id/suggest-tags', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      const suggestions = await tagSuggestionService.suggestTags(
+        document.fileName,
+        document.extractedText || undefined,
+        document.mimeType,
+        document.tags || []
+      );
+
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error suggesting tags:", error);
+      res.status(500).json({ message: "Failed to suggest tags" });
+    }
+  });
+
+  app.post('/api/documents/analyze-tags', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Get all user documents with tags
+      const userDocuments = await storage.getDocuments(userId);
+      const documentsWithTags = userDocuments
+        .filter(doc => doc.tags && doc.tags.length > 0)
+        .map(doc => ({
+          documentName: doc.name,
+          tags: doc.tags || []
+        }));
+
+      if (documentsWithTags.length === 0) {
+        return res.json({
+          duplicateTags: [],
+          missingCommonTags: [],
+          tagHierarchy: {}
+        });
+      }
+
+      const analysis = await tagSuggestionService.analyzeTagConsistency(documentsWithTags);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing tags:", error);
+      res.status(500).json({ message: "Failed to analyze tags" });
+    }
+  });
+
+  app.post('/api/documents/batch-suggest-tags', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { documentIds } = req.body;
+
+      if (!Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.status(400).json({ message: "Document IDs are required" });
+      }
+
+      // Get documents
+      const documentsData = [];
+      for (const id of documentIds) {
+        const doc = await storage.getDocument(id, userId);
+        if (doc) {
+          documentsData.push({
+            id: doc.id,
+            fileName: doc.fileName,
+            extractedText: doc.extractedText || undefined,
+            mimeType: doc.mimeType,
+            existingTags: doc.tags || []
+          });
+        }
+      }
+
+      const suggestions = await tagSuggestionService.suggestTagsForBatch(documentsData);
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error batch suggesting tags:", error);
+      res.status(500).json({ message: "Failed to suggest tags for batch" });
+    }
+  });
+
+  // Update document tags
+  app.patch('/api/documents/:id/tags', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+      const { tags } = req.body;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      if (!Array.isArray(tags)) {
+        return res.status(400).json({ message: "Tags must be an array" });
+      }
+
+      await storage.updateDocumentTags(documentId, userId, tags);
+      res.json({ message: "Tags updated successfully", tags });
+    } catch (error) {
+      console.error("Error updating document tags:", error);
+      res.status(500).json({ message: "Failed to update document tags" });
     }
   });
 

@@ -1,7 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Share, Trash2, FileText, Image, X } from "lucide-react";
+import { SmartTagSuggestions } from "@/components/smart-tag-suggestions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface Document {
   id: number;
@@ -43,6 +47,8 @@ export default function DocumentModal({
   onDownload, 
   onDelete 
 }: DocumentModalProps) {
+  const [currentTags, setCurrentTags] = useState(document.tags || []);
+  const queryClient = useQueryClient();
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
     const k = 1024;
@@ -153,19 +159,40 @@ export default function DocumentModal({
               </div>
             </div>
 
-            {/* Tags */}
-            {document.tags && document.tags.length > 0 && (
-              <div>
-                <h4 className="font-medium text-sm text-gray-700 mb-2">Tags</h4>
-                <div className="flex flex-wrap gap-2">
-                  {document.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Tags and AI Suggestions */}
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="details">Document Details</TabsTrigger>
+                <TabsTrigger value="smart-tags">Smart Tags</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="details" className="mt-4">
+                {currentTags && currentTags.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-700 mb-2">Current Tags</h4>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {currentTags.map((tag, index) => (
+                        <Badge key={index} variant="secondary">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="smart-tags" className="mt-4">
+                <SmartTagSuggestions
+                  documentId={document.id}
+                  existingTags={currentTags}
+                  onTagsUpdated={(newTags) => {
+                    setCurrentTags(newTags);
+                    // Invalidate relevant queries to refresh data
+                    queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+                  }}
+                />
+              </TabsContent>
+            </Tabs>
 
             {/* Extracted Text */}
             {document.ocrProcessed && document.extractedText && (

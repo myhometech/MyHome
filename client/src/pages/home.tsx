@@ -21,6 +21,7 @@ import { SmartSearch } from "@/components/smart-search";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ShareDocumentDialog } from "@/components/share-document-dialog";
+import { BatchTagManager } from "@/components/batch-tag-manager";
 import type { Category, Document } from "@shared/schema";
 
 export default function Home() {
@@ -364,6 +365,19 @@ export default function Home() {
                           ))}
                         </SelectContent>
                       </Select>
+
+                      {/* Smart Tag Suggestions */}
+                      <BatchTagManager
+                        selectedDocuments={Array.from(selectedDocuments).map(id => {
+                          const doc = documents.find(d => d.id === id);
+                          return { id, name: doc?.name || 'Unknown' };
+                        })}
+                        onComplete={() => {
+                          queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+                          setBulkMode(false);
+                          setSelectedDocuments(new Set());
+                        }}
+                      />
 
                       {/* Share Multiple */}
                       <Button variant="outline" size="sm" disabled>

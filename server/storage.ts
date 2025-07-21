@@ -141,7 +141,12 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (updates.expiryDate !== undefined) {
-      updateData.expiryDate = updates.expiryDate;
+      // Convert string date to Date object, or set to null
+      if (updates.expiryDate === null || updates.expiryDate === '') {
+        updateData.expiryDate = null;
+      } else {
+        updateData.expiryDate = new Date(updates.expiryDate);
+      }
     }
     
     const [updatedDoc] = await db

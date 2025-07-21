@@ -343,8 +343,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
+      // Check if file exists and handle missing files gracefully
       if (!fs.existsSync(document.filePath)) {
-        return res.status(404).json({ message: "File not found on server" });
+        console.error(`File not found: ${document.filePath} for document ${document.id}`);
+        
+        // Try to find the file in uploads directory with original filename
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        const possiblePath = path.join(uploadsDir, document.fileName);
+        
+        // Extract filename from file path if it contains a full path
+        const pathBasename = path.basename(document.filePath);
+        const basenameAttempt = path.join(uploadsDir, pathBasename);
+        
+        if (fs.existsSync(possiblePath)) {
+          console.log(`Found file at alternative path: ${possiblePath}`);
+          res.download(possiblePath, document.fileName);
+          return;
+        }
+        
+        // Try with the basename from the stored path
+        if (fs.existsSync(basenameAttempt)) {
+          console.log(`Found file at basename path: ${basenameAttempt}`);
+          res.download(basenameAttempt, document.fileName);
+          return;
+        }
+        
+        // Check if it's a relative path that needs to be resolved
+        const resolvedPath = path.resolve(document.filePath);
+        if (fs.existsSync(resolvedPath)) {
+          console.log(`Found file at resolved path: ${resolvedPath}`);
+          res.download(resolvedPath, document.fileName);
+          return;
+        }
+        
+        return res.status(404).json({ 
+          message: "File not found on server",
+          debug: {
+            originalPath: document.filePath,
+            tried: [possiblePath, basenameAttempt, resolvedPath],
+            exists: {
+              original: fs.existsSync(document.filePath),
+              uploads: fs.existsSync(possiblePath),
+              resolved: fs.existsSync(resolvedPath)
+            }
+          }
+        });
       }
 
       res.download(document.filePath, document.fileName);

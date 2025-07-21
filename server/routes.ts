@@ -114,7 +114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process OCR for images in the background
       if (supportsOCR(req.file.mimetype)) {
         try {
-          const extractedText = await extractTextFromImage(req.file.path);
+          const extractedText = await extractTextFromImage(req.file.path, req.file.mimetype);
           await storage.updateDocumentOCR(document.id, userId, extractedText);
           console.log(`OCR completed for document ${document.id}`);
         } catch (ocrError) {
@@ -205,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
-        const extractedText = await extractTextFromImage(document.filePath);
+        const extractedText = await extractTextFromImage(document.filePath, document.mimeType);
         const updatedDocument = await storage.updateDocumentOCR(documentId, userId, extractedText);
         res.json({ 
           success: true, 
@@ -214,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } catch (ocrError) {
         console.error(`OCR failed for document ${documentId}:`, ocrError);
-        res.status(500).json({ message: "OCR processing failed" });
+        res.status(500).json({ message: `OCR processing failed: ${ocrError.message}` });
       }
     } catch (error) {
       console.error("Error processing OCR:", error);

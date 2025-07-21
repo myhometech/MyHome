@@ -279,7 +279,7 @@ export default function Home() {
 
         {/* Documents Section */}
         <div className="bg-white rounded-xl border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-3 md:p-6 border-b border-gray-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h2 className="text-lg font-semibold">Recent Documents</h2>
               <div className="flex items-center space-x-2">
@@ -379,7 +379,7 @@ export default function Home() {
                             Delete
                           </Button>
                         </AlertDialogTrigger>
-                        <AlertDialogContent>
+                        <AlertDialogContent className="mx-2 max-w-sm md:max-w-md">
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Documents</AlertDialogTitle>
                             <AlertDialogDescription>
@@ -405,9 +405,9 @@ export default function Home() {
             )}
           </div>
 
-          <div className="p-6">
+          <div className="p-3 md:p-6">
             {documentsLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="border border-gray-200 rounded-lg p-4 animate-pulse">
                     <div className="w-10 h-10 bg-gray-200 rounded-lg mb-3"></div>
@@ -443,8 +443,8 @@ export default function Home() {
             ) : (
               <div className={
                 viewMode === "grid"
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                  : "space-y-4"
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4"
+                  : "space-y-3 md:space-y-4"
               }>
                 {documents.map((document: any) => (
                   <DocumentCard

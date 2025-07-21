@@ -181,17 +181,17 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
           }}
           onDragLeave={() => setIsDragOver(false)}
         >
-          <CardContent className="p-8 text-center">
+          <CardContent className="p-4 md:p-8 text-center">
             <div className="max-w-md mx-auto">
               <CloudUpload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Upload Documents</h3>
               <p className="text-gray-500 text-sm mb-6">
                 Drag and drop files here, or click to select
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col gap-3 justify-center">
                 <Button 
                   onClick={handleFileUpload}
-                  className="bg-primary hover:bg-blue-700"
+                  className="bg-primary hover:bg-blue-700 w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Choose Files
@@ -199,7 +199,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 <Button 
                   variant="outline"
                   onClick={openCameraScanner}
-                  className="border-primary text-primary hover:bg-blue-50"
+                  className="border-primary text-primary hover:bg-blue-50 w-full sm:w-auto"
                 >
                   <Camera className="h-4 w-4 mr-2" />
                   Scan Document
@@ -223,7 +223,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
       />
 
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto mx-2">
           <DialogHeader>
             <DialogTitle>Upload Documents</DialogTitle>
           </DialogHeader>

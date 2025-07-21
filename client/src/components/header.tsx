@@ -63,9 +63,27 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
             </div>
           </div>
 
+          {/* Mobile Search Button */}
+          <div className="flex items-center space-x-2 md:hidden">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="p-2"
+              onClick={() => {
+                const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+                if (searchInput) {
+                  searchInput.focus();
+                  searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+            >
+              <Search className="h-4 w-4 text-gray-500" />
+            </Button>
+          </div>
+
           {/* User Menu */}
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" className="p-2">
+          <div className="flex items-center space-x-2 md:space-x-4">
+            <Button variant="ghost" size="sm" className="p-2 hidden md:flex">
               <Bell className="h-4 w-4 text-gray-500" />
             </Button>
             

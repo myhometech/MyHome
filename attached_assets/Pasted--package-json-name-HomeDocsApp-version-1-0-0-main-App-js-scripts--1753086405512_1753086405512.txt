@@ -1,0 +1,90 @@
+// package.json
+{
+  "name": "HomeDocsApp",
+  "version": "1.0.0",
+  "main": "App.js",
+  "scripts": {
+    "start": "expo start --web",
+    "android": "expo start --android",
+    "ios": "expo start --ios"
+  },
+  "dependencies": {
+    "expo": "~48.0.0",
+    "expo-camera": "~13.2.0",
+    "expo-document-picker": "~11.2.0",
+    "expo-auth-session": "~4.3.0",
+    "firebase": "^9.12.1",
+    "react": "18.2.0",
+    "react-native": "0.71.3",
+    "react-native-crypto": "^2.2.0",
+    "react-navigation": "^4.4.4",
+    "@react-navigation/native": "^6.0.13",
+    "@react-navigation/native-stack": "^6.9.0",
+    "@react-navigation/bottom-tabs": "^6.5.1"
+  }
+}
+
+// App.js
+import React, { useState, useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { initializeApp } from 'firebase/app';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import AuthScreen from './screens/AuthScreen';
+import HomeScreen from './screens/HomeScreen';
+import ScanScreen from './screens/ScanScreen';
+import IntegrationsScreen from './screens/IntegrationsScreen';
+
+// Firebase config (replace with your values)
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+initializeApp(firebaseConfig);
+const auth = getAuth();
+
+const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+function MainTabs() {
+  return (
+    <Tab.Navigator>
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Scan" component={ScanScreen} />
+      <Tab.Screen name="Integrations" component={IntegrationsScreen} />
+    </Tab.Navigator>
+  );
+}
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (usr) => {
+      setUser(usr);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  if (loading) return null;  // or a SplashScreen
+
+  return (
+    <NavigationContainer>
+      {user ? (
+        <MainTabs />
+      ) : (
+        <Stack.Navigator>
+          <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
+        </Stack.Navigator>
+      )}
+    </NavigationContainer>
+  );
+}

@@ -45,21 +45,26 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
+  const [editExpiryDate, setEditExpiryDate] = useState(document.expiryDate || "");
 
   const category = categories.find(c => c.id === document.categoryId);
 
 
 
-  const updateNameMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: number; name: string }) => {
-      return await apiRequest(`/api/documents/${id}/name`, "PATCH", { name });
+  const updateDocumentMutation = useMutation({
+    mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {
+      return await apiRequest(`/api/documents/${id}`, "PATCH", { 
+        name, 
+        expiryDate: expiryDate || null 
+      });
     },
     onSuccess: () => {
       toast({
-        title: "Document renamed",
-        description: "The document name has been updated.",
+        title: "Document updated",
+        description: "The document details have been updated.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/expiry-alerts"] });
       setIsEditing(false);
     },
     onError: (error) => {
@@ -75,11 +80,12 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
         return;
       }
       toast({
-        title: "Rename failed",
-        description: "Failed to rename the document. Please try again.",
+        title: "Update failed",
+        description: "Failed to update the document. Please try again.",
         variant: "destructive",
       });
       setEditName(document.name);
+      setEditExpiryDate(document.expiryDate || "");
       setIsEditing(false);
     },
   });
@@ -194,11 +200,19 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
   const handleStartEdit = () => {
     setIsEditing(true);
     setEditName(document.name);
+    setEditExpiryDate(document.expiryDate || "");
   };
 
   const handleSaveEdit = () => {
-    if (editName.trim() && editName.trim() !== document.name) {
-      updateNameMutation.mutate({ id: document.id, name: editName.trim() });
+    const hasNameChange = editName.trim() !== document.name;
+    const hasExpiryChange = editExpiryDate !== (document.expiryDate || "");
+    
+    if (hasNameChange || hasExpiryChange) {
+      updateDocumentMutation.mutate({ 
+        id: document.id, 
+        name: editName.trim(), 
+        expiryDate: editExpiryDate || null 
+      });
     } else {
       setIsEditing(false);
     }
@@ -206,6 +220,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
 
   const handleCancelEdit = () => {
     setEditName(document.name);
+    setEditExpiryDate(document.expiryDate || "");
     setIsEditing(false);
   };
 
@@ -237,20 +252,36 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                 </div>
                 <div className="flex-1 min-w-0">
                   {isEditing ? (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        className="text-sm h-7"
-                        autoFocus
-                      />
-                      <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={updateNameMutation.isPending} className="h-7 w-7 p-0">
-                        <Check className="h-3 w-3" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateNameMutation.isPending} className="h-7 w-7 p-0">
-                        <X className="h-3 w-3" />
-                      </Button>
+                    <div className="space-y-2 flex-1">
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">Document Name</label>
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={handleKeyPress}
+                          className="text-sm h-7"
+                          autoFocus
+                          placeholder="Enter document name"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">Expiry Date (Optional)</label>
+                        <Input
+                          type="date"
+                          value={editExpiryDate}
+                          onChange={(e) => setEditExpiryDate(e.target.value)}
+                          className="text-sm h-7"
+                          placeholder="Select expiry date"
+                        />
+                      </div>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending} className="h-7 w-7 p-0">
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateDocumentMutation.isPending} className="h-7 w-7 p-0">
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <h3 className="font-medium text-sm truncate">{document.name}</h3>
@@ -302,7 +333,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleStartEdit}>
                       <Edit2 className="h-4 w-4 mr-2" />
-                      Rename
+                      Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleDownload}>
                       <Download className="h-4 w-4 mr-2" />
@@ -357,7 +388,7 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleStartEdit}>
                   <Edit2 className="h-4 w-4 mr-2" />
-                  Rename
+                  Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownload}>
                   <Download className="h-4 w-4 mr-2" />
@@ -385,19 +416,33 @@ export default function DocumentCard({ document, categories, viewMode }: Documen
           
           <div onClick={isEditing ? undefined : () => setShowModal(true)}>
             {isEditing ? (
-              <div className="mb-2">
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  className="text-sm h-7 mb-2"
-                  autoFocus
-                />
+              <div className="mb-2 space-y-2">
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">Document Name</label>
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    className="text-sm h-7"
+                    autoFocus
+                    placeholder="Enter document name"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">Expiry Date (Optional)</label>
+                  <Input
+                    type="date"
+                    value={editExpiryDate}
+                    onChange={(e) => setEditExpiryDate(e.target.value)}
+                    className="text-sm h-7"
+                    placeholder="Select expiry date"
+                  />
+                </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={updateNameMutation.isPending} className="h-6 w-6 p-0">
+                  <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
                     <Check className="h-3 w-3" />
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateNameMutation.isPending} className="h-6 w-6 p-0">
+                  <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
                     <X className="h-3 w-3" />
                   </Button>
                 </div>

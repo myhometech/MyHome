@@ -205,6 +205,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update document details (name and expiry date)
+  app.patch('/api/documents/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+      
+      const { name, expiryDate } = req.body;
+
+      if (name && (typeof name !== 'string' || name.trim().length === 0)) {
+        return res.status(400).json({ message: "Document name must be a non-empty string" });
+      }
+
+      if (expiryDate && expiryDate !== null && typeof expiryDate !== 'string') {
+        return res.status(400).json({ message: "Expiry date must be a valid date string or null" });
+      }
+
+      const updatedDocument = await storage.updateDocument(documentId, userId, {
+        name: name ? name.trim() : undefined,
+        expiryDate: expiryDate === '' ? null : expiryDate
+      });
+      
+      if (!updatedDocument) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      res.json(updatedDocument);
+    } catch (error) {
+      console.error("Error updating document:", error);
+      res.status(500).json({ message: "Failed to update document" });
+    }
+  });
+
   // Trigger OCR processing for a document
   app.post('/api/documents/:id/ocr', isAuthenticated, async (req: any, res) => {
     try {

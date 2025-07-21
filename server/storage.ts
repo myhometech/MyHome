@@ -26,6 +26,8 @@ export interface IStorage {
   getDocument(id: number, userId: string): Promise<Document | undefined>;
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: number, userId: string): Promise<void>;
+  updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined>;
+  updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null }): Promise<Document | undefined>;
   updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined>;
   getDocumentStats(userId: string): Promise<{
     totalDocuments: number;
@@ -123,6 +125,28 @@ export class DatabaseStorage implements IStorage {
     const [updatedDoc] = await db
       .update(documents)
       .set({ name: newName })
+      .where(
+        and(eq(documents.id, id), eq(documents.userId, userId))
+      )
+      .returning();
+    
+    return updatedDoc;
+  }
+
+  async updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null }): Promise<Document | undefined> {
+    const updateData: any = {};
+    
+    if (updates.name !== undefined) {
+      updateData.name = updates.name;
+    }
+    
+    if (updates.expiryDate !== undefined) {
+      updateData.expiryDate = updates.expiryDate;
+    }
+    
+    const [updatedDoc] = await db
+      .update(documents)
+      .set(updateData)
       .where(
         and(eq(documents.id, id), eq(documents.userId, userId))
       )

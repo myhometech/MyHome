@@ -194,7 +194,7 @@ export default function Home() {
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
                   : "space-y-4"
               }>
-                {documents.map((document: Document) => (
+                {documents.map((document: any) => (
                   <DocumentCard
                     key={document.id}
                     document={document}

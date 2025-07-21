@@ -758,23 +758,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Email forwarding endpoints
   
-  // Get user's forwarding email address
+  // Get user's forwarding email address - DISABLED (emailService removed)
   app.get('/api/email/forwarding-address', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const userForwardingAddress = await emailService.getUserForwardingAddress(userId);
-      const fallbackAddress = emailService.getForwardingAddress();
-      
-      res.json({ 
-        address: userForwardingAddress,
-        fallbackAddress: fallbackAddress,
-        instructions: `Forward emails with attachments to ${userForwardingAddress} and they will be automatically added to your document library. This email address is unique to your account.`,
-        note: "Each user has their own unique forwarding address to ensure documents are correctly assigned to your account."
-      });
-    } catch (error) {
-      console.error("Error getting forwarding address:", error);
-      res.status(500).json({ message: "Failed to get forwarding address" });
-    }
+    res.status(503).json({ message: "Email forwarding feature is temporarily unavailable" });
   });
 
   // Test email processing (for development) - simulates receiving an email with attachments
@@ -802,12 +788,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ]
       };
 
-      const result = await emailService.processIncomingEmail(sampleEmailData, user.email);
-      res.json({
-        ...result,
-        message: 'Test email processed successfully! Check your documents to see the created document.',
-        note: 'This was a simulated email forward. In production, emails would be processed automatically when forwarded to your unique address.'
-      });
+      // const result = await emailService.processIncomingEmail(sampleEmailData, user.email);
+      res.status(503).json({ message: "Email processing feature is temporarily unavailable" });
     } catch (error) {
       console.error("Error testing email processing:", error);
       res.status(500).json({ message: "Failed to test email processing" });
@@ -823,8 +805,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Missing email data or user email" });
       }
 
-      const result = await emailService.processIncomingEmail(emailData, userEmail);
-      res.json(result);
+      // const result = await emailService.processIncomingEmail(emailData, userEmail);
+      res.status(503).json({ message: "Email processing feature is temporarily unavailable" });
     } catch (error) {
       console.error("Email webhook error:", error);
       res.status(500).json({ message: "Failed to process email" });

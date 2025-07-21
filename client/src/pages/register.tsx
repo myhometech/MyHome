@@ -99,9 +99,7 @@ export default function Register() {
     }
   };
 
-  const handleGoogleLogin = () => {
-    window.location.href = "/api/auth/google";
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
@@ -124,28 +122,6 @@ export default function Register() {
               <AlertDescription>{success}</AlertDescription>
             </Alert>
           )}
-
-          {/* Google Login */}
-          <Button 
-            onClick={handleGoogleLogin}
-            variant="outline" 
-            className="w-full"
-            type="button"
-          >
-            <Mail className="w-4 h-4 mr-2" />
-            Continue with Google
-          </Button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or create account with email
-              </span>
-            </div>
-          </div>
 
           {/* Email/Password Registration */}
           <Form {...form}>

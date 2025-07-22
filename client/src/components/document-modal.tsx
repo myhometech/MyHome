@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Share, Trash2, FileText, Image, X } from "lucide-react";
 import { SmartTagSuggestions } from "@/components/smart-tag-suggestions";
+import OCRSummaryPreview from "@/components/ocr-summary-preview";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -18,6 +19,7 @@ interface Document {
   mimeType: string;
   tags: string[] | null;
   extractedText: string | null;
+  summary: string | null;
   ocrProcessed: boolean | null;
   uploadedAt: string;
   expiryDate: string | null;
@@ -159,6 +161,9 @@ export default function DocumentModal({
               </div>
             </div>
 
+            {/* OCR Summary and Insights */}
+            <OCRSummaryPreview document={document} className="mb-6" />
+
             {/* Tags and AI Suggestions */}
             <Tabs defaultValue="details" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
@@ -193,18 +198,6 @@ export default function DocumentModal({
                 />
               </TabsContent>
             </Tabs>
-
-            {/* Extracted Text */}
-            {document.ocrProcessed && document.extractedText && (
-              <div>
-                <h4 className="font-medium text-sm text-gray-700 mb-2">Extracted Text</h4>
-                <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                    {document.extractedText}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Actions */}

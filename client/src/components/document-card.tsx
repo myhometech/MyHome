@@ -575,7 +575,7 @@ export default function DocumentCard({
                 </div>
                 {document.expiryDate && (
                   <div>
-                    <span className="font-medium">Expires:</span> {document.expiryDate ? new Date(document.expiryDate).toLocaleDateString() : 'Not set'}
+                    <span className="font-medium">Expires:</span> {new Date(document.expiryDate).toLocaleDateString()}
                   </div>
                 )}
               </div>

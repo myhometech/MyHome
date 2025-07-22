@@ -1,6 +1,4 @@
-import OpenAI from "openai";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Date extraction service using basic pattern matching (no external API required)
 
 export interface ExtractedDate {
   date: Date;
@@ -13,78 +11,83 @@ export async function extractExpiryDatesFromText(
   documentName: string,
   extractedText: string
 ): Promise<ExtractedDate[]> {
-  if (!extractedText || !process.env.OPENAI_API_KEY) {
+  if (!extractedText) {
     return [];
   }
 
   try {
     console.log(`Extracting expiry dates from document: ${documentName}`);
     
-    const prompt = `
-    Analyze the following document text and extract any expiry, due, or renewal dates.
-    Document name: ${documentName}
-    
-    Look for dates related to:
-    - Policy expiry dates
-    - Insurance renewal dates  
-    - Bill due dates
-    - Service expiry dates
-    - Contract end dates
-    - License expiry dates
-    - Warranty expiry dates
-    - Valid until dates
+    // Use regex patterns to find dates
+    const datePatterns = [
+      // MM/DD/YYYY or MM-DD-YYYY
+      /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/g,
+      // DD/MM/YYYY or DD-MM-YYYY  
+      /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/g,
+      // Month DD, YYYY
+      /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})\b/gi,
+      // DD Month YYYY
+      /\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/gi
+    ];
 
-    For each date found, determine:
-    1. The actual date (in ISO format YYYY-MM-DD)
-    2. The type of date (expiry, due, renewal, valid_until, expires)
-    3. The context (what is expiring/due)
-    4. Confidence score (0-1)
+    const expiryKeywords = [
+      'expires', 'expiry', 'expiration', 'due', 'renewal', 'valid until', 'valid through'
+    ];
 
-    Return a JSON array with this structure:
-    [
-      {
-        "date": "2025-03-15",
-        "type": "expiry",
-        "context": "Car Insurance Policy",
-        "confidence": 0.9
+    const dates: ExtractedDate[] = [];
+    const lines = extractedText.split('\n');
+
+    lines.forEach(line => {
+      const lowerLine = line.toLowerCase();
+      
+      // Check if line contains expiry-related keywords
+      const hasExpiryKeyword = expiryKeywords.some(keyword => lowerLine.includes(keyword));
+      
+      if (hasExpiryKeyword) {
+        datePatterns.forEach(pattern => {
+          let match;
+          while ((match = pattern.exec(line)) !== null) {
+            try {
+              let date: Date;
+              let type: ExtractedDate['type'] = 'expires';
+              
+              if (match[0].includes('/') || match[0].includes('-')) {
+                // Parse MM/DD/YYYY format
+                const month = parseInt(match[1]) - 1;
+                const day = parseInt(match[2]);
+                const year = parseInt(match[3]);
+                date = new Date(year, month, day);
+              } else {
+                // Parse text dates
+                date = new Date(match[0]);
+              }
+              
+              // Determine type based on context
+              if (lowerLine.includes('due')) type = 'due';
+              else if (lowerLine.includes('renewal')) type = 'renewal';
+              else if (lowerLine.includes('valid until') || lowerLine.includes('valid through')) type = 'valid_until';
+              
+              // Only include future dates or recent past dates
+              const now = new Date();
+              const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+              
+              if (date > oneYearAgo && !isNaN(date.getTime())) {
+                dates.push({
+                  date,
+                  type,
+                  context: line.trim(),
+                  confidence: 0.7
+                });
+              }
+            } catch (error) {
+              // Skip invalid dates
+            }
+          }
+        });
       }
-    ]
-
-    Only return dates that are clearly future dates or recent past dates (within 1 year).
-    
-    Document text:
-    ${extractedText}
-    `;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert at extracting dates from documents. Be precise and only extract dates with high confidence. Return valid JSON only."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.1,
     });
 
-    const result = response.choices[0]?.message?.content;
-    if (!result) return [];
-
-    const parsed = JSON.parse(result);
-    const dates = parsed.dates || parsed || [];
-    
     return dates
-      .map((item: any) => ({
-        date: new Date(item.date),
-        type: item.type,
-        context: item.context,
-        confidence: item.confidence
-      }))
       .filter((item: ExtractedDate) => 
         item.date && 
         !isNaN(item.date.getTime()) && 

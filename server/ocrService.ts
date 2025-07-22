@@ -1,12 +1,6 @@
-import OpenAI from "openai";
 import fs from "fs";
-import FormData from 'form-data';
-import fetch from 'node-fetch';
 import { createWorker } from 'tesseract.js';
 import { extractExpiryDatesFromText } from "./dateExtractionService";
-
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Free OCR using Tesseract.js
 async function extractTextWithTesseract(filePath: string): Promise<string> {
@@ -32,132 +26,23 @@ async function extractTextWithTesseract(filePath: string): Promise<string> {
   }
 }
 
-// OCR.Space API (free tier: 25,000 requests/month)
-async function extractTextWithOCRSpace(filePath: string): Promise<string> {
-  try {
-    const form = new FormData();
-    form.append('file', fs.createReadStream(filePath));
-    form.append('apikey', process.env.OCR_SPACE_API_KEY);
-    form.append('language', 'eng');
-    form.append('detectOrientation', 'true');
-    form.append('scale', 'true');
-    form.append('OCREngine', '2'); // Use OCR Engine 2 for better accuracy
-    
-    const response = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body: form
-    });
-    
-    const result = await response.json() as any;
-    
-    if (!result.IsErroredOnProcessing && result.ParsedResults && result.ParsedResults.length > 0) {
-      const extractedText = result.ParsedResults[0].ParsedText;
-      return extractedText && extractedText.trim() !== '' ? extractedText.trim() : 'No text detected';
-    } else {
-      throw new Error(result.ErrorMessage || 'OCR.Space processing failed');
-    }
-  } catch (error: any) {
-    console.error('OCR.Space API failed:', error);
-    throw new Error(`OCR.Space API failed: ${error.message}`);
-  }
-}
+
 
 export async function extractTextFromImage(filePath: string, mimeType?: string): Promise<string> {
   try {
-    console.log(`Starting OCR for file: ${filePath}`);
+    console.log(`Starting Tesseract OCR for file: ${filePath}`);
     
     // Check if file exists
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
     }
 
-    // Try free OCR methods first (Tesseract.js), then fallback to paid services
-    try {
-      console.log('Attempting free OCR with Tesseract.js...');
-      const tesseractText = await extractTextWithTesseract(filePath);
-      if (tesseractText && tesseractText.trim() !== '' && tesseractText !== 'No text detected') {
-        console.log(`Tesseract OCR successful, extracted ${tesseractText.length} characters`);
-        return tesseractText;
-      }
-    } catch (tesseractError: any) {
-      console.warn('Tesseract OCR failed, trying other methods:', tesseractError.message);
-    }
-
-    // Try OCR.Space API if available
-    if (process.env.OCR_SPACE_API_KEY) {
-      try {
-        console.log('Attempting OCR with OCR.Space API...');
-        const ocrSpaceText = await extractTextWithOCRSpace(filePath);
-        if (ocrSpaceText && ocrSpaceText.trim() !== '' && ocrSpaceText !== 'No text detected') {
-          console.log(`OCR.Space successful, extracted ${ocrSpaceText.length} characters`);
-          return ocrSpaceText;
-        }
-      } catch (ocrSpaceError: any) {
-        console.warn('OCR.Space failed, trying OpenAI:', ocrSpaceError.message);
-      }
-    }
-
-    // Check if we have a valid OpenAI API key before processing
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.trim() === '') {
-      console.log('No OpenAI API key configured, OCR processing unavailable');
-      return 'OCR requires API key configuration (Tesseract failed)';
-    }
-
-    // Read the image file and convert to base64
-    const imageBuffer = fs.readFileSync(filePath);
-    const base64Image = imageBuffer.toString('base64');
-    
-    console.log(`File read successfully, size: ${imageBuffer.length} bytes`);
-
-    // Determine the correct MIME type for the data URL
-    let dataUrlMimeType = 'image/jpeg'; // default
-    if (mimeType) {
-      if (mimeType === 'image/png') dataUrlMimeType = 'image/png';
-      else if (mimeType === 'image/webp') dataUrlMimeType = 'image/webp';
-      else if (mimeType === 'image/jpg') dataUrlMimeType = 'image/jpeg';
-    }
-    
-    console.log(`Using MIME type: ${dataUrlMimeType}`);
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extract all text from this document image. Return only the extracted text, preserving line breaks and formatting as much as possible. If no text is found, return 'No text detected'."
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${dataUrlMimeType};base64,${base64Image}`
-              }
-            }
-          ],
-        },
-      ],
-      max_tokens: 2000,
-    });
-
-    const extractedText = response.choices[0]?.message?.content || 'No text detected';
-    console.log(`OCR completed successfully, extracted ${extractedText.length} characters`);
-    return extractedText.trim();
+    // Use Tesseract.js for OCR
+    const extractedText = await extractTextWithTesseract(filePath);
+    console.log(`Tesseract OCR completed, extracted ${extractedText.length} characters`);
+    return extractedText;
   } catch (error: any) {
-    console.error("OCR extraction failed:", error);
-    console.error("Error details:", {
-      message: error?.message || 'Unknown error',
-      stack: error?.stack,
-      filePath,
-      mimeType
-    });
-    
-    // Provide more helpful error message for quota issues
-    if (error?.status === 429) {
-      throw new Error(`OCR failed due to OpenAI quota limits. Please check your OpenAI billing and usage: ${error?.message || 'Unknown error'}`);
-    }
-    
+    console.error("Tesseract OCR extraction failed:", error);
     throw new Error(`Failed to extract text from image: ${error?.message || 'Unknown error'}`);
   }
 }
@@ -172,61 +57,31 @@ export function isPDFFile(mimeType: string): boolean {
 
 export async function generateDocumentSummary(extractedText: string, fileName: string): Promise<string> {
   try {
-    console.log(`Generating summary for document: ${fileName}`);
+    console.log(`Generating basic summary for document: ${fileName}`);
     
     if (!extractedText || extractedText.trim() === '' || extractedText.trim() === 'No text detected') {
       return `Document: ${fileName}. No text content available for summarization.`;
     }
 
-    // Check if we have a valid API key before making the request
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.trim() === '') {
-      console.log('No OpenAI API key configured, skipping AI summarization');
-      return `Document: ${fileName}. Contains ${extractedText.length} characters of extracted text. AI summarization requires OpenAI API key.`;
-    }
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert at analyzing and summarizing documents. Create concise, searchable summaries that capture the key information, entities, dates, amounts, and context that someone might search for later. Focus on actionable details and important facts."
-        },
-        {
-          role: "user",
-          content: `Please create a comprehensive but concise summary of this document that will be used for search purposes. Include key details like dates, amounts, names, addresses, document type, and main purpose. 
-
-Document content:
-${extractedText.substring(0, 4000)} // Limit to avoid token limits
-
-Document filename: ${fileName}
-
-Respond with JSON in this exact format: { "summary": "your summary here" }`
-        }
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 500,
-    });
-
-    const result = JSON.parse(response.choices[0]?.message?.content || '{"summary": ""}');
-    const summary = result.summary || `Document: ${fileName}. Content extracted but summary generation failed.`;
+    // Create a basic summary from extracted text
+    const lines = extractedText.split('\n').filter(line => line.trim() !== '');
+    const firstFewLines = lines.slice(0, 3).join(' ').substring(0, 200);
     
-    console.log(`Summary generated successfully for ${fileName}, length: ${summary.length} characters`);
-    return summary;
+    // Try to identify document type based on common keywords
+    const lowerText = extractedText.toLowerCase();
+    let docType = 'Document';
+    
+    if (lowerText.includes('invoice') || lowerText.includes('bill')) docType = 'Invoice/Bill';
+    else if (lowerText.includes('receipt')) docType = 'Receipt';
+    else if (lowerText.includes('insurance') || lowerText.includes('policy')) docType = 'Insurance Document';
+    else if (lowerText.includes('contract') || lowerText.includes('agreement')) docType = 'Contract';
+    else if (lowerText.includes('mortgage') || lowerText.includes('loan')) docType = 'Financial Document';
+    else if (lowerText.includes('medical') || lowerText.includes('health')) docType = 'Medical Document';
+    
+    return `${docType}: ${fileName}. Content preview: ${firstFewLines}${firstFewLines.length >= 200 ? '...' : ''}`;
   } catch (error: any) {
     console.error("Summary generation failed:", error);
-    console.error("Error details:", {
-      message: error?.message || 'Unknown error',
-      fileName,
-      textLength: extractedText?.length || 0
-    });
-    
-    // Provide more helpful error message for quota issues
-    if (error?.status === 429) {
-      return `Document: ${fileName}. Text extracted successfully (${extractedText?.length || 0} characters) but AI summarization failed due to OpenAI quota limits. Please check your OpenAI billing and usage.`;
-    }
-    
-    // Return a basic summary as fallback for other errors
-    return `Document: ${fileName}. Text extracted (${extractedText?.length || 0} characters) but automatic summarization failed. Error: ${error?.message || 'Unknown error'}`;
+    return `Document: ${fileName}. Summary generation failed.`;
   }
 }
 

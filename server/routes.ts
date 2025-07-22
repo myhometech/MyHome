@@ -924,24 +924,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: 'Tesseract.js',
             type: 'free',
             status: 'available',
-            description: 'Open-source OCR, no API key required'
-          },
-          {
-            name: 'OCR.Space',
-            type: 'free_tier',
-            status: process.env.OCR_SPACE_API_KEY ? 'configured' : 'not_configured',
-            description: '25,000 free requests/month',
-            free_tier: '25,000 requests/month'
-          },
-          {
-            name: 'OpenAI Vision',
-            type: 'paid',
-            status: process.env.OPENAI_API_KEY ? 'configured' : 'not_configured',
-            description: 'High-accuracy OCR with AI analysis'
+            description: 'Open-source OCR, no API key required',
+            primary: true
           }
         ],
-        priority_order: ['Tesseract.js', 'OCR.Space', 'OpenAI'],
-        supported_formats: ['image/jpeg', 'image/png', 'image/webp']
+        primary_method: 'Tesseract.js',
+        supported_formats: ['image/jpeg', 'image/png', 'image/webp'],
+        features: {
+          cost: 'completely free',
+          languages: 'English',
+          accuracy: 'good for printed text',
+          no_api_key_required: true
+        }
       };
       
       res.json(config);

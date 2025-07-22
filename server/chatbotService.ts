@@ -1,8 +1,6 @@
-import OpenAI from "openai";
 import { storage } from "./storage";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Chatbot service using basic text search (no external API required)
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -48,48 +46,11 @@ export async function answerDocumentQuestion(
       uploadedAt: doc.uploadedAt
     }));
 
-    // Find relevant documents using semantic search via OpenAI
-    const relevantDocs = await findRelevantDocuments(documentContext, question);
+    // Find relevant documents using basic text search
+    const relevantDocs = findRelevantDocumentsBasic(documentContext, question);
 
-    // Generate answer using OpenAI
-    const systemPrompt = `You are a helpful document assistant for a homeowner's document management system. 
-    You have access to extracted text from their uploaded documents including insurance policies, receipts, warranties, tax documents, and other property-related papers.
-    
-    Your role is to:
-    1. Answer questions about document contents accurately
-    2. Help track expiry dates and deadlines
-    3. Find specific information across multiple documents
-    4. Summarize document details when requested
-    5. Alert about upcoming expirations
-    
-    Always be specific about which documents you're referencing and cite the document names.
-    If you cannot find relevant information, clearly state that.
-    For expiry-related questions, always mention the current date context.
-    
-    Current date: ${new Date().toLocaleDateString()}`;
-
-    const userPrompt = `Question: ${question}
-
-    Available documents and their content:
-    ${relevantDocs.map(doc => `
-    Document: ${doc.name}
-    Expiry Date: ${doc.expiryDate || 'Not specified'}
-    Content: ${doc.extractedText.substring(0, 1000)}...
-    `).join('\n')}
-    
-    Please answer the question based on the document contents above.`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      max_tokens: 1000,
-      temperature: 0.3
-    });
-
-    const answer = response.choices[0]?.message?.content || "I couldn't generate an answer to your question.";
+    // Generate a basic answer using text search
+    const answer = generateBasicAnswer(question, relevantDocs);
 
     return {
       answer,
@@ -103,25 +64,11 @@ export async function answerDocumentQuestion(
 
   } catch (error) {
     console.error("Chatbot error:", error);
-    
-    // Check if it's an OpenAI API error
-    if (error instanceof Error) {
-      if (error.message.includes('API key')) {
-        throw new Error("OpenAI API key is not configured properly. Please check your API key settings.");
-      }
-      if (error.message.includes('rate limit')) {
-        throw new Error("API rate limit exceeded. Please try again in a few moments.");
-      }
-      if (error.message.includes('insufficient_quota')) {
-        throw new Error("OpenAI API quota exceeded. Please check your OpenAI account billing.");
-      }
-    }
-    
     throw new Error("Failed to process your question. Please try again.");
   }
 }
 
-async function findRelevantDocuments(documents: any[], question: string): Promise<any[]> {
+function findRelevantDocumentsBasic(documents: any[], question: string): any[] {
   // Simple relevance scoring based on keyword matching and semantic similarity
   const questionLower = question.toLowerCase();
   const keywords = questionLower.split(' ').filter(word => word.length > 2);
@@ -154,6 +101,50 @@ async function findRelevantDocuments(documents: any[], question: string): Promis
     .filter(doc => doc.relevanceScore > 0)
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, 3);
+}
+
+function generateBasicAnswer(question: string, relevantDocs: any[]): string {
+  if (relevantDocs.length === 0) {
+    return "I couldn't find any relevant documents to answer your question. Please try rephrasing your question or upload more documents.";
+  }
+
+  const questionLower = question.toLowerCase();
+  
+  // Handle specific question types
+  if (questionLower.includes('expir') || questionLower.includes('due') || questionLower.includes('renew')) {
+    const docsWithExpiry = relevantDocs.filter(doc => doc.expiryDate);
+    if (docsWithExpiry.length > 0) {
+      let answer = "Based on your documents, here are the expiry dates I found:\n\n";
+      docsWithExpiry.forEach(doc => {
+        const expiryDate = new Date(doc.expiryDate).toLocaleDateString();
+        answer += `• ${doc.name}: Expires on ${expiryDate}\n`;
+      });
+      return answer;
+    }
+  }
+  
+  if (questionLower.includes('insurance') || questionLower.includes('policy')) {
+    const insuranceDocs = relevantDocs.filter(doc => 
+      doc.extractedText.toLowerCase().includes('insurance') || 
+      doc.extractedText.toLowerCase().includes('policy')
+    );
+    if (insuranceDocs.length > 0) {
+      let answer = "I found these insurance-related documents:\n\n";
+      insuranceDocs.forEach(doc => {
+        answer += `• ${doc.name}\n`;
+      });
+      return answer;
+    }
+  }
+  
+  // Generic answer with document references
+  let answer = `I found ${relevantDocs.length} relevant document(s) for your question:\n\n`;
+  relevantDocs.forEach(doc => {
+    answer += `• ${doc.name}\n`;
+  });
+  answer += "\nPlease be more specific about what you'd like to know about these documents.";
+  
+  return answer;
 }
 
 export async function getExpiryAlerts(userId: string): Promise<string> {

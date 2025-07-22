@@ -42,16 +42,24 @@ export class AuthService {
 
   // Authenticate user with email/password
   static async authenticateEmailUser(email: string, password: string): Promise<User | null> {
+    console.log('🔍 Auth attempt for email:', email.toLowerCase());
+    
     const [user] = await db
       .select()
       .from(users)
       .where(eq(users.email, email.toLowerCase()));
 
     if (!user || !user.passwordHash) {
+      console.log('❌ User not found or no password hash for:', email);
       return null;
     }
 
+    console.log('✅ User found:', user.id, user.email, 'Role:', user.role);
+    console.log('🔑 Password hash exists:', !!user.passwordHash);
+    
     const isValidPassword = await this.verifyPassword(password, user.passwordHash);
+    console.log('🔐 Password valid:', isValidPassword);
+    
     return isValidPassword ? user : null;
   }
 

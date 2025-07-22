@@ -144,7 +144,7 @@ export class EmailService {
       writeFileSync(filePath, attachment.content);
 
       // Determine category based on filename and content type
-      const categoryId = await this.getCategoryForFile(attachment.filename, attachment.contentType);
+      const categoryId = await this.getCategoryForFile(attachment.filename, attachment.contentType, userId);
 
       // Create document record
       const documentData: InsertDocument = {
@@ -226,7 +226,7 @@ export class EmailService {
       writeFileSync(filePath, pdfBuffer);
 
       // Determine category (default to 'Other' or create 'Email' category)
-      const categoryId = await this.getCategoryForFile('email.pdf', 'application/pdf');
+      const categoryId = await this.getCategoryForFile('email.pdf', 'application/pdf', userId);
 
       // Create document record
       const documentData: InsertDocument = {
@@ -254,9 +254,12 @@ export class EmailService {
   /**
    * Determine appropriate category for file
    */
-  private async getCategoryForFile(filename: string, mimeType: string): Promise<number | null> {
+  private async getCategoryForFile(filename: string, mimeType: string, userId?: string): Promise<number | null> {
     try {
-      const categories = await storage.getCategories();
+      // If userId is provided, get user's categories, otherwise return null (default)
+      if (!userId) return null;
+      
+      const categories = await storage.getCategories(userId);
       const lowerFilename = filename.toLowerCase();
       const lowerMimeType = mimeType.toLowerCase();
 

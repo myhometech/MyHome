@@ -1,9 +1,66 @@
 import OpenAI from "openai";
 import fs from "fs";
+import FormData from 'form-data';
+import fetch from 'node-fetch';
+import { createWorker } from 'tesseract.js';
 import { extractExpiryDatesFromText } from "./dateExtractionService";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Free OCR using Tesseract.js
+async function extractTextWithTesseract(filePath: string): Promise<string> {
+  try {
+    console.log('Initializing Tesseract worker...');
+    const worker = await createWorker('eng');
+    
+    try {
+      console.log(`Processing image with Tesseract: ${filePath}`);
+      const { data: { text } } = await worker.recognize(filePath);
+      
+      if (!text || text.trim() === '') {
+        return 'No text detected';
+      }
+      
+      return text.trim();
+    } finally {
+      await worker.terminate();
+    }
+  } catch (error: any) {
+    console.error('Tesseract OCR failed:', error);
+    throw new Error(`Tesseract OCR failed: ${error.message}`);
+  }
+}
+
+// OCR.Space API (free tier: 25,000 requests/month)
+async function extractTextWithOCRSpace(filePath: string): Promise<string> {
+  try {
+    const form = new FormData();
+    form.append('file', fs.createReadStream(filePath));
+    form.append('apikey', process.env.OCR_SPACE_API_KEY);
+    form.append('language', 'eng');
+    form.append('detectOrientation', 'true');
+    form.append('scale', 'true');
+    form.append('OCREngine', '2'); // Use OCR Engine 2 for better accuracy
+    
+    const response = await fetch('https://api.ocr.space/parse/image', {
+      method: 'POST',
+      body: form
+    });
+    
+    const result = await response.json() as any;
+    
+    if (!result.IsErroredOnProcessing && result.ParsedResults && result.ParsedResults.length > 0) {
+      const extractedText = result.ParsedResults[0].ParsedText;
+      return extractedText && extractedText.trim() !== '' ? extractedText.trim() : 'No text detected';
+    } else {
+      throw new Error(result.ErrorMessage || 'OCR.Space processing failed');
+    }
+  } catch (error: any) {
+    console.error('OCR.Space API failed:', error);
+    throw new Error(`OCR.Space API failed: ${error.message}`);
+  }
+}
 
 export async function extractTextFromImage(filePath: string, mimeType?: string): Promise<string> {
   try {
@@ -14,10 +71,36 @@ export async function extractTextFromImage(filePath: string, mimeType?: string):
       throw new Error(`File not found: ${filePath}`);
     }
 
-    // Check if we have a valid API key before processing
+    // Try free OCR methods first (Tesseract.js), then fallback to paid services
+    try {
+      console.log('Attempting free OCR with Tesseract.js...');
+      const tesseractText = await extractTextWithTesseract(filePath);
+      if (tesseractText && tesseractText.trim() !== '' && tesseractText !== 'No text detected') {
+        console.log(`Tesseract OCR successful, extracted ${tesseractText.length} characters`);
+        return tesseractText;
+      }
+    } catch (tesseractError: any) {
+      console.warn('Tesseract OCR failed, trying other methods:', tesseractError.message);
+    }
+
+    // Try OCR.Space API if available
+    if (process.env.OCR_SPACE_API_KEY) {
+      try {
+        console.log('Attempting OCR with OCR.Space API...');
+        const ocrSpaceText = await extractTextWithOCRSpace(filePath);
+        if (ocrSpaceText && ocrSpaceText.trim() !== '' && ocrSpaceText !== 'No text detected') {
+          console.log(`OCR.Space successful, extracted ${ocrSpaceText.length} characters`);
+          return ocrSpaceText;
+        }
+      } catch (ocrSpaceError: any) {
+        console.warn('OCR.Space failed, trying OpenAI:', ocrSpaceError.message);
+      }
+    }
+
+    // Check if we have a valid OpenAI API key before processing
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.trim() === '') {
-      console.log('No OpenAI API key configured, skipping OCR processing');
-      return 'OCR requires OpenAI API key configuration';
+      console.log('No OpenAI API key configured, OCR processing unavailable');
+      return 'OCR requires API key configuration (Tesseract failed)';
     }
 
     // Read the image file and convert to base64

@@ -914,6 +914,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to process email" });
     }
   });
+  
+  // OCR configuration and status endpoint
+  app.get('/api/ocr/config', async (req, res) => {
+    try {
+      const config = {
+        available_methods: [
+          {
+            name: 'Tesseract.js',
+            type: 'free',
+            status: 'available',
+            description: 'Open-source OCR, no API key required'
+          },
+          {
+            name: 'OCR.Space',
+            type: 'free_tier',
+            status: process.env.OCR_SPACE_API_KEY ? 'configured' : 'not_configured',
+            description: '25,000 free requests/month',
+            free_tier: '25,000 requests/month'
+          },
+          {
+            name: 'OpenAI Vision',
+            type: 'paid',
+            status: process.env.OPENAI_API_KEY ? 'configured' : 'not_configured',
+            description: 'High-accuracy OCR with AI analysis'
+          }
+        ],
+        priority_order: ['Tesseract.js', 'OCR.Space', 'OpenAI'],
+        supported_formats: ['image/jpeg', 'image/png', 'image/webp']
+      };
+      
+      res.json(config);
+    } catch (error) {
+      console.error("Error getting OCR config:", error);
+      res.status(500).json({ message: "Failed to get OCR configuration" });
+    }
+  });
 
   // Get email forwarding history
   app.get('/api/email/history', requireAuth, async (req: any, res) => {

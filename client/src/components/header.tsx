@@ -15,8 +15,19 @@ interface HeaderProps {
 export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const { user } = useAuth();
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (response.ok) {
+        window.location.href = "/";
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      window.location.href = "/api/logout"; // Fallback to GET route
+    }
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {

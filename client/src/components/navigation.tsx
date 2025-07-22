@@ -62,7 +62,20 @@ export function Navigation() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => window.location.href = "/api/logout"}
+          onClick={async () => {
+            try {
+              const response = await fetch("/api/auth/logout", {
+                method: "POST",
+                credentials: "include",
+              });
+              if (response.ok) {
+                window.location.href = "/";
+              }
+            } catch (error) {
+              console.error("Logout error:", error);
+              window.location.href = "/api/logout"; // Fallback to GET route
+            }
+          }}
           className="text-gray-600 hover:text-gray-900"
         >
           <LogOut className="h-4 w-4 mr-2" />

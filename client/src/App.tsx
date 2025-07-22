@@ -45,6 +45,9 @@ function Router() {
           <Route path="/settings">
             {() => { window.location.href = "/login"; return null; }}
           </Route>
+          <Route path="/admin">
+            {() => { window.location.href = "/login"; return null; }}
+          </Route>
         </>
       ) : (
         <>

@@ -119,6 +119,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Support both GET and POST for logout (for convenience)
+  app.get('/api/logout', async (req: any, res) => {
+    try {
+      req.session.destroy((err: any) => {
+        if (err) {
+          return res.status(500).json({ message: "Logout failed" });
+        }
+        res.redirect('/');
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ message: "Logout failed" });
+    }
+  });
+
   app.post('/api/auth/logout', async (req: any, res) => {
     try {
       req.session.destroy((err: any) => {

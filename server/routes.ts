@@ -7,7 +7,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, loginSchema, registerSchema } from "@shared/schema";
-import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction } from "./ocrService";
+import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
 
@@ -290,7 +290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const document = await storage.createDocument(validatedData);
 
       // Process OCR, generate summary, extract dates, and suggest tags in the background
-      if (supportsOCR(req.file.mimetype)) {
+      if (supportsOCR(req.file.mimetype) || isPDFFile(req.file.mimetype)) {
         try {
           await processDocumentWithDateExtraction(
             document.id,

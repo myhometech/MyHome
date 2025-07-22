@@ -94,6 +94,10 @@ export async function processDocumentOCRAndSummary(filePath: string, fileName: s
     // Extract text if it's an image
     if (isImageFile(mimeType || '')) {
       extractedText = await extractTextFromImage(filePath, mimeType);
+    } else if (isPDFFile(mimeType || '')) {
+      // For PDFs, we'll provide a basic summary without OCR for now
+      console.log(`PDF file detected: ${fileName}. Skipping OCR extraction.`);
+      extractedText = 'PDF document - text extraction not currently supported';
     } else {
       extractedText = 'No text detected';
     }
@@ -115,7 +119,9 @@ export async function processDocumentOCRAndSummary(filePath: string, fileName: s
 }
 
 export function supportsOCR(mimeType: string): boolean {
-  return isImageFile(mimeType) || isPDFFile(mimeType);
+  // Currently only image files support OCR extraction
+  // PDFs are accepted but don't use OCR processing
+  return isImageFile(mimeType);
 }
 
 export async function processDocumentWithDateExtraction(

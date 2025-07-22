@@ -9,6 +9,7 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import ForgotPassword from "@/pages/forgot-password";
 import SharedWithMe from "@/pages/shared-with-me";
 import ExpiryDocuments from "@/pages/expiry-documents";
 import Settings from "@/pages/settings";
@@ -32,6 +33,7 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
+          <Route path="/forgot-password" component={ForgotPassword} />
           {/* Redirect protected routes to login */}
           <Route path="/shared-with-me">
             {() => { window.location.href = "/login"; return null; }}
@@ -54,6 +56,9 @@ function Router() {
             {() => { window.location.href = "/"; return null; }}
           </Route>
           <Route path="/register">
+            {() => { window.location.href = "/"; return null; }}
+          </Route>
+          <Route path="/forgot-password">
             {() => { window.location.href = "/"; return null; }}
           </Route>
         </>

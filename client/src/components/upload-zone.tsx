@@ -149,6 +149,15 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     }
   };
 
+  const handleCameraUpload = () => {
+    if (fileInputRef.current) {
+      // For mobile devices, use camera capture via file input as fallback
+      fileInputRef.current.setAttribute('capture', 'environment');
+      fileInputRef.current.setAttribute('accept', 'image/*');
+      fileInputRef.current.click();
+    }
+  };
+
   const handleUpload = async () => {
     for (const file of selectedFiles) {
       await uploadMutation.mutateAsync({ 
@@ -196,14 +205,24 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                   <Plus className="h-4 w-4 mr-2" />
                   Choose Files
                 </Button>
-                <Button 
-                  variant="outline"
-                  onClick={openCameraScanner}
-                  className="border-primary text-primary hover:bg-blue-50 w-full sm:w-auto"
-                >
-                  <Camera className="h-4 w-4 mr-2" />
-                  Scan Document
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button 
+                    variant="outline"
+                    onClick={openCameraScanner}
+                    className="border-primary text-primary hover:bg-blue-50 w-full sm:w-auto"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Camera Scanner
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={handleCameraUpload}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50 w-full sm:w-auto"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Quick Photo
+                  </Button>
+                </div>
               </div>
               <p className="text-xs text-gray-500 mt-4">
                 Supports PDF, JPG, PNG up to 10MB

@@ -23,26 +23,71 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
     try {
       setError(null);
       
-      // Request camera access with high resolution for document scanning
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment', // Use back camera on mobile
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera not supported on this device/browser');
+      }
+      
+      // Try different camera configurations for better iPhone compatibility
+      let stream: MediaStream;
+      
+      try {
+        // First try with back camera (environment)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { exact: 'environment' },
+            width: { ideal: 1920, max: 1920 },
+            height: { ideal: 1080, max: 1080 }
+          }
+        });
+      } catch (backCameraError) {
+        console.log('Back camera not available, trying any camera:', backCameraError);
+        
+        try {
+          // Fallback to any available camera
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'environment', // Prefer back camera but don't require
+              width: { ideal: 1280, max: 1920 },
+              height: { ideal: 720, max: 1080 }
+            }
+          });
+        } catch (anyLameraError) {
+          console.log('Any camera failed, trying basic constraints:', anyLameraError);
+          
+          // Final fallback with minimal constraints
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true
+          });
         }
-      });
+      }
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setIsStreaming(true);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Camera access error:', err);
-      setError('Unable to access camera. Please ensure camera permissions are granted.');
+      
+      let errorMessage = 'Unable to access camera.';
+      
+      if (err.name === 'NotAllowedError') {
+        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = 'No camera found on this device.';
+      } else if (err.name === 'NotSupportedError') {
+        errorMessage = 'Camera not supported on this browser.';
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = 'Camera is being used by another application.';
+      } else if (err.message.includes('not supported')) {
+        errorMessage = 'Camera not supported on this device/browser.';
+      }
+      
+      setError(errorMessage);
       toast({
         title: "Camera Error",
-        description: "Unable to access camera. Please check permissions.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -152,7 +197,9 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
                     autoPlay
                     playsInline
                     muted
+                    webkit-playsinline="true"
                     className="w-full h-auto rounded-lg"
+                    style={{ maxHeight: '70vh' }}
                   />
                   {/* Document frame overlay */}
                   <div className="absolute inset-4 border-2 border-white/50 rounded-lg pointer-events-none">
@@ -170,6 +217,9 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
                   <div className="text-center">
                     <Camera className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600 mb-4">Ready to scan documents with your camera</p>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Note: Camera requires HTTPS and permission access
+                    </p>
                     <Button onClick={startCamera}>
                       <Camera className="h-4 w-4 mr-2" />
                       Start Camera

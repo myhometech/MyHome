@@ -14,6 +14,12 @@ export async function extractTextFromImage(filePath: string, mimeType?: string):
       throw new Error(`File not found: ${filePath}`);
     }
 
+    // Check if we have a valid API key before processing
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.trim() === '') {
+      console.log('No OpenAI API key configured, skipping OCR processing');
+      return 'OCR requires OpenAI API key configuration';
+    }
+
     // Read the image file and convert to base64
     const imageBuffer = fs.readFileSync(filePath);
     const base64Image = imageBuffer.toString('base64');
@@ -63,6 +69,12 @@ export async function extractTextFromImage(filePath: string, mimeType?: string):
       filePath,
       mimeType
     });
+    
+    // Provide more helpful error message for quota issues
+    if (error?.status === 429) {
+      throw new Error(`OCR failed due to OpenAI quota limits. Please check your OpenAI billing and usage: ${error?.message || 'Unknown error'}`);
+    }
+    
     throw new Error(`Failed to extract text from image: ${error?.message || 'Unknown error'}`);
   }
 }
@@ -81,6 +93,12 @@ export async function generateDocumentSummary(extractedText: string, fileName: s
     
     if (!extractedText || extractedText.trim() === '' || extractedText.trim() === 'No text detected') {
       return `Document: ${fileName}. No text content available for summarization.`;
+    }
+
+    // Check if we have a valid API key before making the request
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.trim() === '') {
+      console.log('No OpenAI API key configured, skipping AI summarization');
+      return `Document: ${fileName}. Contains ${extractedText.length} characters of extracted text. AI summarization requires OpenAI API key.`;
     }
 
     const response = await openai.chat.completions.create({
@@ -119,8 +137,13 @@ Respond with JSON in this exact format: { "summary": "your summary here" }`
       textLength: extractedText?.length || 0
     });
     
-    // Return a basic summary as fallback
-    return `Document: ${fileName}. Text extracted but automatic summarization failed. Contains ${extractedText?.length || 0} characters of content.`;
+    // Provide more helpful error message for quota issues
+    if (error?.status === 429) {
+      return `Document: ${fileName}. Text extracted successfully (${extractedText?.length || 0} characters) but AI summarization failed due to OpenAI quota limits. Please check your OpenAI billing and usage.`;
+    }
+    
+    // Return a basic summary as fallback for other errors
+    return `Document: ${fileName}. Text extracted (${extractedText?.length || 0} characters) but automatic summarization failed. Error: ${error?.message || 'Unknown error'}`;
   }
 }
 

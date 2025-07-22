@@ -102,6 +102,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid email or password" });
       }
       
+      // Update last login timestamp
+      await storage.updateUserLastLogin(user.id);
+      
       // Store user in session
       req.session.user = user;
       
@@ -661,6 +664,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+
+  // Admin middleware
+  const requireAdmin = (req: any, res: any, next: any) => {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    next();
+  };
+
+  // Admin routes
+  app.get('/api/admin/stats', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const stats = await storage.getAdminStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+
+  app.get('/api/admin/users', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const users = await storage.getAllUsersWithStats();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.get('/api/admin/activities', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const activities = await storage.getSystemActivities();
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+      res.status(500).json({ message: "Failed to fetch activities" });
+    }
+  });
 
   // Initialize default categories
   app.post('/api/init-categories', requireAuth, async (req: any, res) => {

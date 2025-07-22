@@ -795,6 +795,143 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedReminder;
   }
+
+  // Admin functions
+  async updateUserLastLogin(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async getAdminStats(): Promise<{
+    totalUsers: number;
+    activeUsers: number;
+    totalDocuments: number;
+    totalStorageBytes: number;
+    uploadsThisMonth: number;
+    newUsersThisMonth: number;
+  }> {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const allUsers = await db.select().from(users);
+    const allDocuments = await db.select().from(documents);
+    
+    const totalUsers = allUsers.length;
+    const activeUsers = allUsers.filter(u => u.isActive).length;
+    const totalDocuments = allDocuments.length;
+    const totalStorageBytes = allDocuments.reduce((sum, doc) => sum + doc.fileSize, 0);
+    
+    const uploadsThisMonth = allDocuments.filter(doc => 
+      doc.uploadedAt && new Date(doc.uploadedAt) >= firstDayOfMonth
+    ).length;
+    
+    const newUsersThisMonth = allUsers.filter(user => 
+      user.createdAt && new Date(user.createdAt) >= firstDayOfMonth
+    ).length;
+
+    return {
+      totalUsers,
+      activeUsers,
+      totalDocuments,
+      totalStorageBytes,
+      uploadsThisMonth,
+      newUsersThisMonth,
+    };
+  }
+
+  async getAllUsersWithStats(): Promise<Array<{
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    role: string;
+    isActive: boolean;
+    documentCount: number;
+    storageUsed: number;
+    lastLoginAt: Date | null;
+    createdAt: Date | null;
+  }>> {
+    const allUsers = await db.select().from(users);
+    const allDocuments = await db.select().from(documents);
+    
+    return allUsers.map(user => {
+      const userDocs = allDocuments.filter(doc => doc.userId === user.id);
+      const documentCount = userDocs.length;
+      const storageUsed = userDocs.reduce((sum, doc) => sum + doc.fileSize, 0);
+      
+      return {
+        ...user,
+        documentCount,
+        storageUsed,
+      };
+    });
+  }
+
+  async getSystemActivities(): Promise<Array<{
+    id: number;
+    type: 'user_registered' | 'document_uploaded' | 'user_login';
+    description: string;
+    userId: string;
+    userEmail: string;
+    timestamp: Date;
+  }>> {
+    const recentUsers = await db.select().from(users)
+      .orderBy(desc(users.createdAt))
+      .limit(10);
+    
+    const recentDocuments = await db.select({
+      id: documents.id,
+      name: documents.name,
+      userId: documents.userId,
+      uploadedAt: documents.uploadedAt,
+    }).from(documents)
+      .orderBy(desc(documents.uploadedAt))
+      .limit(20);
+
+    const activities: Array<{
+      id: number;
+      type: 'user_registered' | 'document_uploaded' | 'user_login';
+      description: string;
+      userId: string;
+      userEmail: string;
+      timestamp: Date;
+    }> = [];
+
+    // Add user registrations
+    recentUsers.forEach((user, index) => {
+      if (user.createdAt) {
+        activities.push({
+          id: index + 1000,
+          type: 'user_registered',
+          description: `New user registered`,
+          userId: user.id,
+          userEmail: user.email,
+          timestamp: user.createdAt,
+        });
+      }
+    });
+
+    // Add document uploads
+    for (const doc of recentDocuments) {
+      if (doc.uploadedAt) {
+        const user = recentUsers.find(u => u.id === doc.userId);
+        if (user) {
+          activities.push({
+            id: doc.id + 2000,
+            type: 'document_uploaded',
+            description: `Uploaded document: ${doc.name}`,
+            userId: doc.userId,
+            userEmail: user.email,
+            timestamp: doc.uploadedAt,
+          });
+        }
+      }
+    }
+
+    return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 20);
+  }
 }
 
 export const storage = new DatabaseStorage();

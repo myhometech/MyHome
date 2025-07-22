@@ -13,6 +13,7 @@ import ForgotPassword from "@/pages/forgot-password";
 import SharedWithMe from "@/pages/shared-with-me";
 import ExpiryDocuments from "@/pages/expiry-documents";
 import Settings from "@/pages/settings";
+import AdminDashboard from "@/pages/admin";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -51,6 +52,7 @@ function Router() {
           <Route path="/shared-with-me" component={SharedWithMe} />
           <Route path="/expiry-documents" component={ExpiryDocuments} />
           <Route path="/settings" component={Settings} />
+          <Route path="/admin" component={AdminDashboard} />
           {/* Redirect auth routes to home for logged in users */}
           <Route path="/login">
             {() => { window.location.href = "/"; return null; }}

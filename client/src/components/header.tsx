@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Home, Search, Bell, LogOut, Settings } from "lucide-react";
+import { Home, Search, Bell, LogOut, Settings, Shield } from "lucide-react";
 import { Link } from "wouter";
 import type { User } from "@shared/schema";
 
@@ -108,6 +108,17 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                     Settings
                   </DropdownMenuItem>
                 </Link>
+                {(user as any)?.role === 'admin' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <Link href="/admin">
+                      <DropdownMenuItem>
+                        <Shield className="h-4 w-4 mr-2" />
+                        Admin Dashboard
+                      </DropdownMenuItem>
+                    </Link>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="h-4 w-4 mr-2" />

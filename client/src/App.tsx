@@ -14,6 +14,7 @@ import SharedWithMe from "@/pages/shared-with-me";
 import ExpiryDocuments from "@/pages/expiry-documents";
 import Settings from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
+import Pricing from "@/pages/pricing";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -36,6 +37,7 @@ function Router() {
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
           <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/pricing" component={Pricing} />
           {/* Redirect protected routes to login */}
           <Route path="/shared-with-me">
             {() => { setLocation("/login"); return null; }}
@@ -57,6 +59,7 @@ function Router() {
           <Route path="/expiry-documents" component={ExpiryDocuments} />
           <Route path="/settings" component={Settings} />
           <Route path="/admin" component={AdminDashboard} />
+          <Route path="/pricing" component={Pricing} />
           {/* Redirect auth routes to home for logged in users */}
           <Route path="/login">
             {() => { setLocation("/"); return null; }}

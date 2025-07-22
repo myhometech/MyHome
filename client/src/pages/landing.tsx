@@ -15,11 +15,18 @@ export default function Landing() {
               <Home className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-bold text-slate-900">MyHome</h1>
             </div>
-            <Link href="/login">
-              <Button className="bg-primary hover:bg-blue-700">
-                Sign In
-              </Button>
-            </Link>
+            <div className="flex items-center space-x-4">
+              <Link href="/pricing">
+                <Button variant="ghost" className="text-slate-700 hover:text-primary">
+                  Pricing
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button className="bg-primary hover:bg-blue-700">
+                  Sign In
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -35,14 +42,28 @@ export default function Landing() {
             Scan, store, and organize all your property-related documents in one secure place. 
             From utility bills to insurance policies, keep everything at your fingertips.
           </p>
-          <Link href="/login">
-            <Button 
-              size="lg" 
-              className="bg-primary hover:bg-blue-700 text-lg px-8 py-3"
-            >
-              Get Started Free
-            </Button>
-          </Link>
+          <div className="flex gap-4 justify-center mb-4">
+            <Link href="/register">
+              <Button 
+                size="lg" 
+                className="bg-primary hover:bg-blue-700 text-lg px-8 py-3"
+              >
+                Get Started Free
+              </Button>
+            </Link>
+            <Link href="/pricing">
+              <Button 
+                variant="outline"
+                size="lg" 
+                className="text-lg px-8 py-3"
+              >
+                See Pricing
+              </Button>
+            </Link>
+          </div>
+          <p className="text-slate-500">
+            Free plan available • No credit card required
+          </p>
         </div>
 
         {/* Features Grid */}
@@ -129,22 +150,27 @@ export default function Landing() {
                 Join thousands of homeowners who have simplified their document management.
               </p>
               <div className="flex gap-4 justify-center">
-                <Link href="/login">
+                <Link href="/register">
                   <Button 
                     size="lg" 
                     className="bg-primary hover:bg-blue-700"
                   >
-                    Sign In
+                    Start Free
                   </Button>
                 </Link>
-                <Link href="/register">
+                <Link href="/pricing">
                   <Button 
                     variant="outline"
                     size="lg"
                   >
-                    Create Account
+                    View Pricing
                   </Button>
                 </Link>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-slate-500">
+                  Free forever • No credit card required • Upgrade anytime
+                </p>
               </div>
             </CardContent>
           </Card>

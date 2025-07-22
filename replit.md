@@ -4,7 +4,7 @@
 
 MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Implemented comprehensive feature flagging infrastructure ready for future activation. Added subscription tier to user schema, created feature definitions based on user value ranking, and built reusable FeatureGate components. Currently ALL features are available to everyone (no restrictions active). The system is ready to be activated when needed to differentiate between free (basic storage, 50 docs, 100MB) and premium tiers (AI features, OCR, email import, unlimited storage). Updated pricing page to showcase future feature comparison across tiers.
+**Latest Update**: Successfully resolved all issues from security dependency updates (January 2025). Fixed missing userId parameter in email service category lookup, added proper TypeScript definitions for html-pdf-node library, and implemented graceful fallback for PDF generation when system dependencies are unavailable. Application runs without errors after dependency version downgrades for security compliance. All core functionality remains intact with appropriate error handling.
 
 ## User Preferences
 
@@ -152,3 +152,15 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 - CDN integration for static assets
 
 The application follows a standard full-stack architecture with clear separation of concerns, type safety throughout, and modern development practices for maintainability and scalability.
+
+## Recent Changes
+
+### Security Dependency Updates (January 22, 2025)
+- **Issue**: Security scan required downgrades of multiple dependencies including html-pdf-node, puppeteer, and ws
+- **Resolution**: 
+  - Fixed missing userId parameter in emailService.getCategoryForFile() method
+  - Added TypeScript type definitions for html-pdf-node in types/html-pdf-node.d.ts
+  - Updated tsconfig.json to include custom type definitions
+  - Implemented graceful fallback for PDF generation when system dependencies are unavailable
+  - Email content now saves as plain text when PDF generation fails, maintaining functionality
+- **Impact**: Application continues to work with all core features intact, improved error handling

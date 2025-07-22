@@ -209,14 +209,52 @@ export class EmailService {
         </html>
       `;
 
-      // Generate PDF
-      const pdfBuffer = await htmlPdf.generatePdf({ content: fullHtml }, { 
-        format: 'A4',
-        printBackground: true 
-      });
+      // Ensure uploads directory exists
+      const uploadsDir = join(process.cwd(), 'uploads');
+      if (!existsSync(uploadsDir)) {
+        mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Determine category (default to 'Other' or create 'Email' category)  
+      const categoryId = await this.getCategoryForFile('email.pdf', 'application/pdf', userId);
+
+      // Generate PDF with fallback handling
+      let pdfBuffer: Buffer;
+      try {
+        pdfBuffer = await htmlPdf.generatePdf({ content: fullHtml }, { 
+          format: 'A4',
+          printBackground: true 
+        });
+      } catch (pdfError: any) {
+        console.warn('PDF generation failed, creating text fallback:', pdfError.message);
+        // Fallback: create a simple text representation instead of PDF
+        const textContent = `Email Document\n\nFrom: ${emailData.from}\nSubject: ${emailData.subject}\nProcessed: ${new Date().toLocaleString()}\n\nContent:\n${emailData.text || 'HTML email content (PDF generation unavailable)'}`;
+        pdfBuffer = Buffer.from(textContent, 'utf8');
+        
+        // Update filename to reflect text format
+        const fileName = `email-${nanoid()}.txt`;
+        const filePath = join(uploadsDir, fileName);
+        writeFileSync(filePath, pdfBuffer);
+
+        // Create document record for text file
+        const documentData: InsertDocument = {
+          userId,
+          categoryId,
+          name: `Email: ${emailData.subject} (Text)`,
+          fileName,
+          filePath,
+          fileSize: pdfBuffer.length,
+          mimeType: 'text/plain',
+          tags: ['email-content', 'forwarded', 'text-fallback'],
+          extractedText: textContent,
+          ocrProcessed: true,
+        };
+
+        await storage.createDocument(documentData);
+        return true;
+      }
 
       // Save PDF file
-      const uploadsDir = join(process.cwd(), 'uploads');
       if (!existsSync(uploadsDir)) {
         mkdirSync(uploadsDir, { recursive: true });
       }
@@ -224,9 +262,6 @@ export class EmailService {
       const fileName = `email-${nanoid()}.pdf`;
       const filePath = join(uploadsDir, fileName);
       writeFileSync(filePath, pdfBuffer);
-
-      // Determine category (default to 'Other' or create 'Email' category)
-      const categoryId = await this.getCategoryForFile('email.pdf', 'application/pdf', userId);
 
       // Create document record
       const documentData: InsertDocument = {

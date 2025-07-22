@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X } from "lucide-react";
+import { Check, X, Home } from "lucide-react";
 import { Link } from "wouter";
 
 const pricingTiers = [
@@ -53,27 +53,52 @@ const pricingTiers = [
 
 export default function Pricing() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-16">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-2">
+              <Home className="h-8 w-8 text-primary" />
+              <h1 className="text-2xl font-bold text-slate-900">MyHome</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link href="/">
+                <Button variant="ghost" className="text-slate-700 hover:text-primary">
+                  Home
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button className="bg-primary hover:bg-blue-700">
+                  Sign In
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        {/* Hero Section */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            Choose Your Plan
+          <h1 className="text-4xl md:text-6xl font-bold text-slate-900 mb-6">
+            Choose Your
+            <span className="text-primary block">Perfect Plan</span>
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Start organizing your documents today. Upgrade anytime to unlock powerful features.
+          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+            Start organizing your documents today. Upgrade anytime to unlock powerful features and advanced AI capabilities.
           </p>
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-12">
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-20">
           {pricingTiers.map((tier, index) => (
             <Card 
               key={tier.name} 
-              className={`relative ${tier.popular ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}`}
+              className={`relative bg-white/70 backdrop-blur-sm border-gray-200 hover:shadow-lg transition-shadow ${tier.popular ? 'ring-2 ring-primary' : ''}`}
             >
               {tier.popular && (
-                <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white">
+                <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-primary text-white">
                   Most Popular
                 </Badge>
               )}
@@ -81,10 +106,10 @@ export default function Pricing() {
               <CardHeader className="text-center pb-8">
                 <CardTitle className="text-2xl font-bold">{tier.name}</CardTitle>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                  <span className="text-4xl font-bold text-slate-900">
                     {tier.price}
                   </span>
-                  <span className="text-gray-600 dark:text-gray-400 ml-2">
+                  <span className="text-slate-600 ml-2">
                     {tier.period}
                   </span>
                 </div>
@@ -104,8 +129,8 @@ export default function Pricing() {
                       )}
                       <span className={`text-sm ${
                         feature.included 
-                          ? 'text-gray-900 dark:text-white' 
-                          : 'text-gray-500 dark:text-gray-400'
+                          ? 'text-slate-900' 
+                          : 'text-slate-500'
                       }`}>
                         {feature.name}
                       </span>
@@ -131,53 +156,53 @@ export default function Pricing() {
 
         {/* FAQ Section */}
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-8">
+          <h2 className="text-2xl font-bold text-center text-slate-900 mb-8">
             Frequently Asked Questions
           </h2>
           
           <div className="space-y-6">
-            <Card>
+            <Card className="bg-white/70 backdrop-blur-sm border-gray-200">
               <CardHeader>
-                <CardTitle className="text-lg">Can I upgrade or downgrade at any time?</CardTitle>
+                <CardTitle className="text-lg text-slate-900">Can I upgrade or downgrade at any time?</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-slate-600">
                   Yes! You can upgrade to Pro at any time to unlock advanced features. If you downgrade from Pro to Free, 
                   your existing documents will be preserved, but some advanced features will be limited.
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-white/70 backdrop-blur-sm border-gray-200">
               <CardHeader>
-                <CardTitle className="text-lg">What happens to my documents if I cancel?</CardTitle>
+                <CardTitle className="text-lg text-slate-900">What happens to my documents if I cancel?</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-slate-600">
                   Your documents are always safe. If you cancel your Pro subscription, your account will revert to the Free plan. 
                   You can still access all your documents, though some advanced features will be disabled.
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-white/70 backdrop-blur-sm border-gray-200">
               <CardHeader>
-                <CardTitle className="text-lg">Is my data secure?</CardTitle>
+                <CardTitle className="text-lg text-slate-900">Is my data secure?</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-slate-600">
                   Absolutely. We use industry-standard encryption to protect your documents both in transit and at rest. 
                   Your documents are stored securely and are only accessible by you.
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-white/70 backdrop-blur-sm border-gray-200">
               <CardHeader>
-                <CardTitle className="text-lg">Do you offer refunds?</CardTitle>
+                <CardTitle className="text-lg text-slate-900">Do you offer refunds?</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-slate-600">
                   We offer a 30-day money-back guarantee for Pro subscriptions. If you're not satisfied, 
                   contact our support team for a full refund within 30 days of your purchase.
                 </p>
@@ -187,18 +212,38 @@ export default function Pricing() {
         </div>
 
         {/* CTA Section */}
-        <div className="text-center mt-16">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Ready to get organized?
-          </h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Join thousands of users who trust MyHome to keep their documents organized and secure.
-          </p>
-          <Link href="/register">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-              Start Free Today
-            </Button>
-          </Link>
+        <div className="mt-20 text-center">
+          <Card className="bg-white/70 backdrop-blur-sm border-gray-200 max-w-2xl mx-auto">
+            <CardContent className="p-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-4">Ready to Get Organized?</h2>
+              <p className="text-slate-600 mb-6">
+                Join thousands of homeowners who trust MyHome to keep their documents organized and secure.
+              </p>
+              <div className="flex gap-4 justify-center">
+                <Link href="/register">
+                  <Button 
+                    size="lg" 
+                    className="bg-primary hover:bg-blue-700"
+                  >
+                    Start Free
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button 
+                    variant="outline"
+                    size="lg"
+                  >
+                    Sign In
+                  </Button>
+                </Link>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-slate-500">
+                  Free forever • No credit card required • Upgrade anytime
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

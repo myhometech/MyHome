@@ -61,15 +61,12 @@ export default function Login() {
         // Invalidate queries instead of clearing to maintain state
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         
-        // Small delay to ensure auth state updates
-        setTimeout(() => {
-          // For admin users, redirect to admin page
-          if (responseData.user.role === 'admin') {
-            window.location.href = "/admin";
-          } else {
-            window.location.href = "/";
-          }
-        }, 100);
+        // Use React Router for navigation to maintain state
+        if (responseData.user.role === 'admin') {
+          setLocation("/admin");
+        } else {
+          setLocation("/");
+        }
       } else {
         const errorData = await response.json();
         console.error("Login failed:", errorData);

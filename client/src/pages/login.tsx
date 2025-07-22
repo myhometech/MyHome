@@ -45,6 +45,7 @@ export default function Login() {
     setError(null);
 
     try {
+      console.log("Starting login process with:", { email: data.email });
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -54,12 +55,26 @@ export default function Login() {
         body: JSON.stringify(data),
       });
 
+      console.log("Login response status:", response.status);
+      console.log("Login response headers:", [...response.headers.entries()]);
+
       if (response.ok) {
         const responseData = await response.json();
         console.log("Login successful:", responseData.user);
         
         // Set the user data directly in cache to ensure immediate update
         queryClient.setQueryData(["/api/auth/user"], responseData.user);
+        
+        // Test if the session is working immediately
+        const testAuth = await fetch("/api/auth/user", {
+          credentials: "include"
+        });
+        console.log("Immediate auth test status:", testAuth.status);
+        
+        if (testAuth.ok) {
+          const testUser = await testAuth.json();
+          console.log("Immediate auth test user:", testUser);
+        }
         
         // Navigate immediately with the cached user data
         if (responseData.user.role === 'admin') {
@@ -75,6 +90,7 @@ export default function Login() {
         setError(errorData.message || "Login failed. Please try again.");
       }
     } catch (error) {
+      console.error("Login error:", error);
       setError("Network error. Please check your connection and try again.");
     } finally {
       setIsLoading(false);

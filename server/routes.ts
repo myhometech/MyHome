@@ -159,6 +159,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
+      console.log("Auth check request headers:", Object.keys(req.headers));
+      console.log("Session ID:", req.sessionID);
+      console.log("Session data keys:", Object.keys(req.session || {}));
+      console.log("User from session:", req.session?.user?.email);
+      
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
       res.json(user);

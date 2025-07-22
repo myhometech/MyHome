@@ -36,10 +36,18 @@ export function setupSimpleAuth(app: Express) {
 }
 
 export const requireAuth: RequestHandler = (req: any, res, next) => {
+  console.log("requireAuth middleware called");
+  console.log("Session exists:", !!req.session);
+  console.log("Session user:", req.session?.user?.email || "none");
+  console.log("Session ID:", req.sessionID);
+  console.log("Cookie header:", req.headers.cookie);
+  
   if (!req.session?.user) {
+    console.log("Authentication failed - no session user");
     return res.status(401).json({ message: "Authentication required" });
   }
   
+  console.log("Authentication successful for user:", req.session.user.email);
   req.user = req.session.user;
   next();
 };

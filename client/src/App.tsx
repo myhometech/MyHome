@@ -41,16 +41,16 @@ function Router() {
           <Route path="/forgot-password" component={ForgotPassword} />
           {/* Redirect protected routes to login */}
           <Route path="/shared-with-me">
-            {() => { setLocation("/login"); return null; }}
+            {() => { console.log("Redirecting /shared-with-me to /login because not authenticated"); setLocation("/login"); return null; }}
           </Route>
           <Route path="/expiry-documents">
-            {() => { setLocation("/login"); return null; }}
+            {() => { console.log("Redirecting /expiry-documents to /login because not authenticated"); setLocation("/login"); return null; }}
           </Route>
           <Route path="/settings">
-            {() => { setLocation("/login"); return null; }}
+            {() => { console.log("Redirecting /settings to /login because not authenticated"); setLocation("/login"); return null; }}
           </Route>
           <Route path="/admin">
-            {() => { setLocation("/login"); return null; }}
+            {() => { console.log("Redirecting /admin to /login because not authenticated"); setLocation("/login"); return null; }}
           </Route>
         </>
       ) : (
@@ -62,13 +62,13 @@ function Router() {
           <Route path="/admin" component={AdminDashboard} />
           {/* Redirect auth routes to home for logged in users */}
           <Route path="/login">
-            {() => { setLocation("/"); return null; }}
+            {() => { console.log("Redirecting /login to / because authenticated"); setLocation("/"); return null; }}
           </Route>
           <Route path="/register">
-            {() => { setLocation("/"); return null; }}
+            {() => { console.log("Redirecting /register to / because authenticated"); setLocation("/"); return null; }}
           </Route>
           <Route path="/forgot-password">
-            {() => { setLocation("/"); return null; }}
+            {() => { console.log("Redirecting /forgot-password to / because authenticated"); setLocation("/"); return null; }}
           </Route>
         </>
       )}

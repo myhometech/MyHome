@@ -16,13 +16,32 @@ import Settings from "@/pages/settings";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
+      {!isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
+          {/* Redirect protected routes to login */}
+          <Route path="/shared-with-me">
+            {() => { window.location.href = "/login"; return null; }}
+          </Route>
+          <Route path="/expiry-documents">
+            {() => { window.location.href = "/login"; return null; }}
+          </Route>
+          <Route path="/settings">
+            {() => { window.location.href = "/login"; return null; }}
+          </Route>
         </>
       ) : (
         <>
@@ -30,6 +49,13 @@ function Router() {
           <Route path="/shared-with-me" component={SharedWithMe} />
           <Route path="/expiry-documents" component={ExpiryDocuments} />
           <Route path="/settings" component={Settings} />
+          {/* Redirect auth routes to home for logged in users */}
+          <Route path="/login">
+            {() => { window.location.href = "/"; return null; }}
+          </Route>
+          <Route path="/register">
+            {() => { window.location.href = "/"; return null; }}
+          </Route>
         </>
       )}
       <Route component={NotFound} />

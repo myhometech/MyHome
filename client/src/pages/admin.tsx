@@ -41,6 +41,15 @@ interface SystemActivity {
   timestamp: string;
 }
 
+interface UserWithRole {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+  isActive: boolean;
+}
+
 export default function AdminDashboard() {
   const { toast } = useToast();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -61,13 +70,6 @@ export default function AdminDashboard() {
       }, 2000);
     }
     */
-        description: "You need admin privileges to access this page.",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 2000);
-    }
   }, [userWithRole, authLoading, isAuthenticated, toast]);
 
   const { data: adminStats, isLoading: statsLoading } = useQuery<AdminStats>({
@@ -107,6 +109,7 @@ export default function AdminDashboard() {
       </div>
     );
   }
+  */
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';

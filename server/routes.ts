@@ -1203,7 +1203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ email: 'simontaylor66@googlemail.com', password: 'password123' })
+                    body: JSON.stringify({ email: 'admin@test.com', password: 'test123' })
                 });
                 const data = await response.json();
                 result.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';

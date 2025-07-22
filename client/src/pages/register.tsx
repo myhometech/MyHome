@@ -17,6 +17,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { queryClient } from "@/lib/queryClient";
 
 const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -79,6 +80,8 @@ export default function Register() {
       if (response.ok) {
         if (responseData.autoLoggedIn) {
           setSuccess("Account created successfully! Redirecting to your dashboard...");
+          // Invalidate auth cache to refresh user state
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           // Auto-logged in, redirect to home
           setTimeout(() => {
             window.location.href = '/';

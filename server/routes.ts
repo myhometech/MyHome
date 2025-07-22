@@ -85,7 +85,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { passwordHash, ...safeUser } = user;
       res.status(201).json({ 
         message: "Account created successfully", 
-        user: safeUser 
+        user: safeUser,
+        autoLoggedIn: true
       });
     } catch (error) {
       console.error("Registration error:", error);

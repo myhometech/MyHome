@@ -54,10 +54,17 @@ export default function Login() {
       });
 
       if (response.ok) {
-        // Force a page reload to ensure the authentication state is updated
-        window.location.reload();
+        const responseData = await response.json();
+        console.log("Login successful:", responseData.user);
+        
+        // Clear any cached authentication state and redirect to home
+        // Use setTimeout to ensure response completes before redirect
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 100);
       } else {
         const errorData = await response.json();
+        console.error("Login failed:", errorData);
         setError(errorData.message || "Login failed. Please try again.");
       }
     } catch (error) {

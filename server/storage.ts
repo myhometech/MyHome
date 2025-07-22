@@ -31,7 +31,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   
   // Category operations
-  getCategories(userId?: string): Promise<Category[]>;
+  getCategories(userId: string): Promise<Category[]>;
   createCategory(category: InsertCategory): Promise<Category>;
   updateCategory(id: number, userId: string, updates: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: number, userId: string): Promise<void>;
@@ -67,7 +67,7 @@ export interface IStorage {
   
   // Email forwarding operations
   createEmailForward(emailForward: InsertEmailForward): Promise<EmailForward>;
-  updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined>;
+  updateEmailForward(id: number, userId: string, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined>;
   getEmailForwards(userId: string): Promise<EmailForward[]>;
   
   // User forwarding mapping operations
@@ -126,11 +126,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Category operations
-  async getCategories(userId?: string): Promise<Category[]> {
-    if (userId) {
-      return await db.select().from(categories).where(eq(categories.userId, userId)).orderBy(categories.name);
-    }
-    return await db.select().from(categories).orderBy(categories.name);
+  async getCategories(userId: string): Promise<Category[]> {
+    return await db.select().from(categories).where(eq(categories.userId, userId)).orderBy(categories.name);
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
@@ -445,7 +442,8 @@ export class DatabaseStorage implements IStorage {
     const expiringSoon: ExpiringDocument[] = [];
     const expiringThisMonth: ExpiringDocument[] = [];
 
-    docsWithExpiry.forEach(doc => {
+    // Process both documents and reminders
+    allExpiryItems.forEach(doc => {
       if (doc.expiryDate) {
         const processed = processDocument(doc);
         const expiryDate = new Date(doc.expiryDate);
@@ -607,11 +605,11 @@ export class DatabaseStorage implements IStorage {
     return newEmailForward;
   }
 
-  async updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined> {
+  async updateEmailForward(id: number, userId: string, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined> {
     const [updatedEmailForward] = await db
       .update(emailForwards)
       .set(updates)
-      .where(eq(emailForwards.id, id))
+      .where(and(eq(emailForwards.id, id), eq(emailForwards.userId, userId)))
       .returning();
     return updatedEmailForward;
   }

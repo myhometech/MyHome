@@ -158,7 +158,7 @@ export type RegisterData = z.infer<typeof registerSchema>;
 // Standalone expiry reminders (not tied to documents)
 export const expiryReminders = pgTable("expiry_reminders", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title").notNull(),
   description: text("description"),
   expiryDate: timestamp("expiry_date").notNull(),
@@ -166,7 +166,9 @@ export const expiryReminders = pgTable("expiry_reminders", {
   isCompleted: boolean("is_completed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_expiry_reminders_user").on(table.userId),
+]);
 
 export type InsertExpiryReminder = typeof expiryReminders.$inferInsert;
 export type ExpiryReminder = typeof expiryReminders.$inferSelect;

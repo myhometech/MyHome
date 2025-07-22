@@ -1,8 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Home } from "lucide-react";
+import { Check, X, Home, Crown, Lock, Zap, Shield, Users, Robot } from "lucide-react";
 import { Link } from "wouter";
+import { useFeatures } from "@/hooks/useFeatures";
+import { getFeaturesForTier, getFeaturesByCategory, FEATURES } from "@shared/features";
 
 const pricingTiers = [
   {
@@ -10,44 +12,30 @@ const pricingTiers = [
     price: "$0",
     period: "forever",
     description: "Perfect for getting started with document organization",
+    icon: Home,
     popular: false,
-    features: [
-      { name: "Store up to 100 documents", included: true },
-      { name: "Basic document categories", included: true },
-      { name: "Simple search functionality", included: true },
-      { name: "Document upload & organization", included: true },
-      { name: "Basic OCR text extraction", included: true },
-      { name: "Web access only", included: true },
-      { name: "Advanced OCR with AI summaries", included: false },
-      { name: "Expiry date tracking & alerts", included: false },
-      { name: "Document sharing", included: false },
-      { name: "AI-powered document chat", included: false },
-      { name: "Bulk operations", included: false },
-      { name: "Priority support", included: false },
-      { name: "API access", included: false }
-    ]
+    tier: 'free' as const,
+    limits: {
+      documents: "50 documents",
+      storage: "100MB storage", 
+      categories: "8 predefined categories",
+      features: "Basic features only"
+    }
   },
   {
-    name: "Pro",
-    price: "$9.99",
+    name: "Premium",
+    price: "$9.99", 
     period: "per month",
-    description: "Advanced features for power users and professionals",
+    description: "Advanced features for power users and families",
+    icon: Crown,
     popular: true,
-    features: [
-      { name: "Unlimited document storage", included: true },
-      { name: "Advanced document categories & tags", included: true },
-      { name: "Powerful search with filters", included: true },
-      { name: "Document upload & organization", included: true },
-      { name: "Advanced OCR with AI summaries", included: true },
-      { name: "Web access + mobile app", included: true },
-      { name: "Expiry date tracking & alerts", included: true },
-      { name: "Document sharing with permissions", included: true },
-      { name: "AI-powered document chat", included: true },
-      { name: "Bulk operations & batch processing", included: true },
-      { name: "Priority email support", included: true },
-      { name: "API access for integrations", included: true },
-      { name: "Export to multiple formats", included: true }
-    ]
+    tier: 'premium' as const,
+    limits: {
+      documents: "Unlimited documents",
+      storage: "10GB storage",
+      categories: "Custom categories + tags",
+      features: "All premium features"
+    }
   }
 ];
 

@@ -13,6 +13,8 @@ import { ExpiryDashboard } from "@/components/expiry-dashboard";
 import Chatbot from "@/components/chatbot";
 import { Navigation } from "@/components/navigation";
 import { EmailForwarding } from "@/components/email-forwarding";
+import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
+import { useFeatures } from "@/hooks/useFeatures";
 import { useState } from "react";
 import { Grid, List, SortAsc, MessageCircle, Search, CheckSquare, Square, Trash2, FolderOpen, Share2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ import type { Category, Document } from "@shared/schema";
 
 export default function Home() {
   const { toast } = useToast();
+  const { checkFeature, limits } = useFeatures();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");

@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   passwordHash: varchar("password_hash").notNull(),
   role: varchar("role", { length: 20 }).default("user").notNull(), // 'user' or 'admin'
+  subscriptionTier: varchar("subscription_tier", { length: 20 }).default("free").notNull(), // 'free' or 'premium'
   isActive: boolean("is_active").default(true).notNull(),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),

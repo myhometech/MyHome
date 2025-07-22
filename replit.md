@@ -4,7 +4,7 @@
 
 MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Successfully resolved admin authentication issues that were preventing access to admin dashboard. Fixed password hashing inconsistencies and verified complete authentication flow works correctly. Admin login now functions properly with session persistence and correct role-based routing to admin dashboard. Database reset with clean schema and working admin credentials (admin@test.com).
+**Latest Update**: Successfully resolved admin authentication and login redirect issues. Fixed UI problem where users were accidentally clicking "Forgot password?" link instead of "Sign In" button. Improved login form layout and positioning to make Sign In button more prominent. Admin authentication now works perfectly with proper session handling and role-based routing to admin dashboard. Admin credentials: admin@test.com/test123.
 
 ## User Preferences
 

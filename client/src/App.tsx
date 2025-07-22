@@ -18,9 +18,6 @@ import AdminDashboard from "@/pages/admin";
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [, setLocation] = useLocation();
-  
-  // Debug logging
-  console.log("Auth state:", { isAuthenticated, isLoading, userRole: (user as any)?.role });
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -41,16 +38,16 @@ function Router() {
           <Route path="/forgot-password" component={ForgotPassword} />
           {/* Redirect protected routes to login */}
           <Route path="/shared-with-me">
-            {() => { console.log("Redirecting /shared-with-me to /login because not authenticated"); setLocation("/login"); return null; }}
+            {() => { setLocation("/login"); return null; }}
           </Route>
           <Route path="/expiry-documents">
-            {() => { console.log("Redirecting /expiry-documents to /login because not authenticated"); setLocation("/login"); return null; }}
+            {() => { setLocation("/login"); return null; }}
           </Route>
           <Route path="/settings">
-            {() => { console.log("Redirecting /settings to /login because not authenticated"); setLocation("/login"); return null; }}
+            {() => { setLocation("/login"); return null; }}
           </Route>
           <Route path="/admin">
-            {() => { console.log("Redirecting /admin to /login because not authenticated"); setLocation("/login"); return null; }}
+            {() => { setLocation("/login"); return null; }}
           </Route>
         </>
       ) : (
@@ -62,13 +59,13 @@ function Router() {
           <Route path="/admin" component={AdminDashboard} />
           {/* Redirect auth routes to home for logged in users */}
           <Route path="/login">
-            {() => { console.log("Redirecting /login to / because authenticated"); setLocation("/"); return null; }}
+            {() => { setLocation("/"); return null; }}
           </Route>
           <Route path="/register">
-            {() => { console.log("Redirecting /register to / because authenticated"); setLocation("/"); return null; }}
+            {() => { setLocation("/"); return null; }}
           </Route>
           <Route path="/forgot-password">
-            {() => { console.log("Redirecting /forgot-password to / because authenticated"); setLocation("/"); return null; }}
+            {() => { setLocation("/"); return null; }}
           </Route>
         </>
       )}

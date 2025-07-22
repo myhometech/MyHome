@@ -41,13 +41,10 @@ export default function Login() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    console.log("=== LOGIN FORM SUBMITTED ===");
-    console.log("Form data:", data);
     setIsLoading(true);
     setError(null);
 
     try {
-      console.log("Starting login process with:", { email: data.email });
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -57,48 +54,23 @@ export default function Login() {
         body: JSON.stringify(data),
       });
 
-      console.log("Login response status:", response.status);
-      console.log("Login response headers:", Object.fromEntries(response.headers));
-      console.log("Set-Cookie header:", response.headers.get('set-cookie'));
-
       if (response.ok) {
         const responseData = await response.json();
-        console.log("Login successful:", responseData.user);
         
         // Set the user data directly in cache to ensure immediate update
         queryClient.setQueryData(["/api/auth/user"], responseData.user);
         
-        // Wait a moment for cookie to be set, then test session
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        const testAuth = await fetch("/api/auth/user", {
-          credentials: "include"
-        });
-        console.log("Immediate auth test status:", testAuth.status);
-        console.log("Browser cookies:", document.cookie);
-        
-        if (testAuth.ok) {
-          const testUser = await testAuth.json();
-          console.log("Immediate auth test user:", testUser);
-        } else {
-          console.log("Auth test failed, response:", await testAuth.text());
-        }
-        
-        // Navigate immediately with the cached user data
+        // Navigate to appropriate dashboard
         if (responseData.user.role === 'admin') {
-          console.log("Redirecting to admin dashboard");
           setLocation("/admin");
         } else {
-          console.log("Redirecting to home");
           setLocation("/");
         }
       } else {
         const errorData = await response.json();
-        console.error("Login failed:", errorData);
         setError(errorData.message || "Login failed. Please try again.");
       }
     } catch (error) {
-      console.error("Login error:", error);
       setError("Network error. Please check your connection and try again.");
     } finally {
       setIsLoading(false);

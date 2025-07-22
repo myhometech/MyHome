@@ -56,7 +56,8 @@ export default function Login() {
       });
 
       console.log("Login response status:", response.status);
-      console.log("Login response headers:", [...response.headers.entries()]);
+      console.log("Login response headers:", Object.fromEntries(response.headers));
+      console.log("Set-Cookie header:", response.headers.get('set-cookie'));
 
       if (response.ok) {
         const responseData = await response.json();
@@ -65,15 +66,20 @@ export default function Login() {
         // Set the user data directly in cache to ensure immediate update
         queryClient.setQueryData(["/api/auth/user"], responseData.user);
         
-        // Test if the session is working immediately
+        // Wait a moment for cookie to be set, then test session
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const testAuth = await fetch("/api/auth/user", {
           credentials: "include"
         });
         console.log("Immediate auth test status:", testAuth.status);
+        console.log("Browser cookies:", document.cookie);
         
         if (testAuth.ok) {
           const testUser = await testAuth.json();
           console.log("Immediate auth test user:", testUser);
+        } else {
+          console.log("Auth test failed, response:", await testAuth.text());
         }
         
         // Navigate immediately with the cached user data

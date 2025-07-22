@@ -41,6 +41,8 @@ export default function Login() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    console.log("=== LOGIN FORM SUBMITTED ===");
+    console.log("Form data:", data);
     setIsLoading(true);
     setError(null);
 
@@ -180,17 +182,17 @@ export default function Login() {
                 )}
               />
 
-              <div className="text-right">
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Signing in..." : "Sign In"}
+              </Button>
+
+              <div className="text-center">
                 <Link href="/forgot-password">
-                  <Button variant="link" className="px-0 text-sm">
+                  <Button variant="link" className="px-0 text-xs text-muted-foreground">
                     Forgot your password?
                   </Button>
                 </Link>
               </div>
-
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign In"}
-              </Button>
             </form>
           </Form>
 

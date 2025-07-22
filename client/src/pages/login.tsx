@@ -58,14 +58,14 @@ export default function Login() {
         const responseData = await response.json();
         console.log("Login successful:", responseData.user);
         
-        // Clear React Query cache to force re-authentication
+        // Clear all cached queries and reload the page
         queryClient.clear();
         
-        // Invalidate auth query specifically
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-        
-        // Force a complete page reload to ensure clean state
-        window.location.replace("/");
+        // Small delay to ensure session is fully established
+        setTimeout(() => {
+          // Force full page reload to pick up session
+          window.location.replace("/?auth=success");
+        }, 300);
       } else {
         const errorData = await response.json();
         console.error("Login failed:", errorData);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,11 +58,14 @@ export default function Login() {
         const responseData = await response.json();
         console.log("Login successful:", responseData.user);
         
-        // Clear any cached authentication state and redirect to home
-        // Use setTimeout to ensure response completes before redirect
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 100);
+        // Clear React Query cache to force re-authentication
+        queryClient.clear();
+        
+        // Invalidate auth query specifically
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        
+        // Force a complete page reload to ensure clean state
+        window.location.replace("/");
       } else {
         const errorData = await response.json();
         console.error("Login failed:", errorData);

@@ -16,7 +16,10 @@ import Settings from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  
+  // Debug logging
+  console.log("Auth state:", { isAuthenticated, isLoading, userRole: (user as any)?.role });
 
   // Show loading state while checking authentication
   if (isLoading) {

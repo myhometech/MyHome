@@ -58,15 +58,18 @@ export default function Login() {
         const responseData = await response.json();
         console.log("Login successful:", responseData.user);
         
-        // Clear all cached queries and reload the page
-        queryClient.clear();
+        // Invalidate queries instead of clearing to maintain state
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         
-        // For admin users, redirect to admin page immediately
-        if (responseData.user.role === 'admin') {
-          window.location.href = "/admin";
-        } else {
-          window.location.href = "/";
-        }
+        // Small delay to ensure auth state updates
+        setTimeout(() => {
+          // For admin users, redirect to admin page
+          if (responseData.user.role === 'admin') {
+            window.location.href = "/admin";
+          } else {
+            window.location.href = "/";
+          }
+        }, 100);
       } else {
         const errorData = await response.json();
         console.error("Login failed:", errorData);

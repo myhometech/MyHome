@@ -23,7 +23,7 @@ function Router() {
 
   // Temporary admin bypass - check URL for admin access
   const currentPath = window.location.pathname;
-  if (currentPath === "/admin") {
+  if (currentPath === "/admin" && (!isLoading && isAuthenticated)) {
     return <AdminDashboard />;
   }
 

@@ -58,8 +58,8 @@ export default function Login() {
         const responseData = await response.json();
         console.log("Login successful:", responseData.user);
         
-        // Invalidate queries instead of clearing to maintain state
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        // Set the user data directly in cache to ensure immediate update
+        queryClient.setQueryData(["/api/auth/user"], responseData.user);
         
         // Use React Router for navigation to maintain state
         if (responseData.user.role === 'admin') {

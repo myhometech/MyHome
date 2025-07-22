@@ -67,7 +67,7 @@ export interface IStorage {
   
   // Email forwarding operations
   createEmailForward(emailForward: InsertEmailForward): Promise<EmailForward>;
-  updateEmailForward(id: number, userId: string, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined>;
+  updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined>;
   getEmailForwards(userId: string): Promise<EmailForward[]>;
   
   // User forwarding mapping operations
@@ -605,11 +605,11 @@ export class DatabaseStorage implements IStorage {
     return newEmailForward;
   }
 
-  async updateEmailForward(id: number, userId: string, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined> {
+  async updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined> {
     const [updatedEmailForward] = await db
       .update(emailForwards)
       .set(updates)
-      .where(and(eq(emailForwards.id, id), eq(emailForwards.userId, userId)))
+      .where(eq(emailForwards.id, id))
       .returning();
     return updatedEmailForward;
   }

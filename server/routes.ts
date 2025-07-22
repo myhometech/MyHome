@@ -847,9 +847,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Email forwarding endpoints
   
-  // Get user's forwarding email address - DISABLED (emailService removed)
+  // Get user's forwarding email address
   app.get('/api/email/forwarding-address', requireAuth, async (req: any, res) => {
-    res.status(503).json({ message: "Email forwarding feature is temporarily unavailable" });
+    try {
+      const userId = getUserId(req);
+      const EmailService = (await import('./emailService')).EmailService;
+      const emailService = new EmailService();
+      const forwardingAddress = await emailService.getUserForwardingAddress(userId);
+      res.json({ forwardingAddress });
+    } catch (error) {
+      console.error("Error getting forwarding address:", error);
+      res.status(500).json({ message: "Failed to get forwarding address" });
+    }
   });
 
   // Test email processing (for development) - simulates receiving an email with attachments
@@ -877,8 +886,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ]
       };
 
-      // const result = await emailService.processIncomingEmail(sampleEmailData, user.email);
-      res.status(503).json({ message: "Email processing feature is temporarily unavailable" });
+      const EmailService = (await import('./emailService')).EmailService;
+      const emailService = new EmailService();
+      const result = await emailService.processIncomingEmail(sampleEmailData, user.email);
+      res.json(result);
     } catch (error) {
       console.error("Error testing email processing:", error);
       res.status(500).json({ message: "Failed to test email processing" });
@@ -894,8 +905,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Missing email data or user email" });
       }
 
-      // const result = await emailService.processIncomingEmail(emailData, userEmail);
-      res.status(503).json({ message: "Email processing feature is temporarily unavailable" });
+      const EmailService = (await import('./emailService')).EmailService;
+      const emailService = new EmailService();
+      const result = await emailService.processIncomingEmail(emailData, userEmail);
+      res.json(result);
     } catch (error) {
       console.error("Email webhook error:", error);
       res.status(500).json({ message: "Failed to process email" });

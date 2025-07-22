@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ShareDocumentDialog } from "@/components/share-document-dialog";
 import { BatchTagManager } from "@/components/batch-tag-manager";
 import type { Category, Document } from "@shared/schema";
+import DocumentHealthScore from "@/components/document-health-score";
 
 export default function Home() {
   const { toast } = useToast();
@@ -251,8 +252,15 @@ export default function Home() {
 
 
 
-        {/* Stats Grid */}
-        <StatsGrid stats={stats} />
+        {/* Health Score and Stats Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-1">
+            <DocumentHealthScore />
+          </div>
+          <div className="lg:col-span-2">
+            <StatsGrid stats={stats} />
+          </div>
+        </div>
 
 
 
@@ -369,7 +377,7 @@ export default function Home() {
                       {/* Smart Tag Suggestions */}
                       <BatchTagManager
                         selectedDocuments={Array.from(selectedDocuments).map(id => {
-                          const doc = documents.find(d => d.id === id);
+                          const doc = documents.find((d: Document) => d.id === id);
                           return { id, name: doc?.name || 'Unknown' };
                         })}
                         onComplete={() => {

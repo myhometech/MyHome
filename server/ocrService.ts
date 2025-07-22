@@ -1,6 +1,6 @@
 import fs from "fs";
 import { createWorker } from 'tesseract.js';
-import { extractExpiryDatesFromText } from "./dateExtractionService";
+import { extractExpiryDatesFromText, type ExtractedDate } from "./dateExtractionService";
 
 // Free OCR using Tesseract.js
 async function extractTextWithTesseract(filePath: string): Promise<string> {
@@ -132,14 +132,27 @@ export async function processDocumentWithDateExtraction(
   storage: any
 ): Promise<void> {
   try {
-    // Extract text first
-    const extractedText = await extractTextFromImage(filePath, mimeType);
+    let extractedText = '';
+    
+    // Extract text based on file type
+    if (isImageFile(mimeType)) {
+      extractedText = await extractTextFromImage(filePath, mimeType);
+    } else if (isPDFFile(mimeType)) {
+      // For PDFs, we'll provide a basic summary without OCR for now
+      console.log(`PDF file detected: ${documentName}. Skipping OCR extraction.`);
+      extractedText = 'PDF document - text extraction not currently supported';
+    } else {
+      extractedText = 'No text detected';
+    }
     
     // Generate summary
     const summaryResult = await generateDocumentSummary(extractedText, documentName);
     
-    // Extract dates from the text
-    const extractedDates = await extractExpiryDatesFromText(documentName, extractedText);
+    // Extract dates from the text (only for image files with actual extracted text)
+    let extractedDates: ExtractedDate[] = [];
+    if (isImageFile(mimeType) && extractedText && extractedText !== 'No text detected') {
+      extractedDates = await extractExpiryDatesFromText(documentName, extractedText);
+    }
     
     // Update document with OCR and summary
     await storage.updateDocumentOCRAndSummary(documentId, "system", extractedText, summaryResult);

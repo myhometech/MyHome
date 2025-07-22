@@ -61,11 +61,12 @@ export default function Login() {
         // Clear all cached queries and reload the page
         queryClient.clear();
         
-        // Small delay to ensure session is fully established
-        setTimeout(() => {
-          // Force full page reload to pick up session
-          window.location.replace("/?auth=success");
-        }, 300);
+        // Redirect directly to admin dashboard for admin users
+        if (responseData.user.role === 'admin') {
+          window.location.replace("/admin");
+        } else {
+          window.location.replace("/");
+        }
       } else {
         const errorData = await response.json();
         console.error("Login failed:", errorData);

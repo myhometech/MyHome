@@ -15,6 +15,7 @@ import ExpiryDocuments from "@/pages/expiry-documents";
 import Settings from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
 import Pricing from "@/pages/pricing";
+import EmailImport from "@/pages/email-import";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -51,6 +52,9 @@ function Router() {
           <Route path="/admin">
             {() => { setLocation("/login"); return null; }}
           </Route>
+          <Route path="/email-import">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
         </>
       ) : (
         <>
@@ -60,6 +64,7 @@ function Router() {
           <Route path="/settings" component={Settings} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/pricing" component={Pricing} />
+          <Route path="/email-import" component={EmailImport} />
           {/* Redirect auth routes to home for logged in users */}
           <Route path="/login">
             {() => { setLocation("/"); return null; }}

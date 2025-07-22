@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Home, Crown, Lock, Zap, Shield, Users, Robot } from "lucide-react";
+import { Check, X, Home, Crown, Lock, Zap, Shield, Users, Bot } from "lucide-react";
 import { Link } from "wouter";
 import { useFeatures } from "@/hooks/useFeatures";
 import { getFeaturesForTier, getFeaturesByCategory, FEATURES } from "@shared/features";
@@ -39,7 +39,23 @@ const pricingTiers = [
   }
 ];
 
+const categoryIcons = {
+  core: Shield,
+  advanced: Zap,
+  ai: Bot,
+  automation: Zap,
+  collaboration: Users
+};
+
 export default function Pricing() {
+  const { userTier, isPremium } = useFeatures();
+  
+  const coreFeatures = getFeaturesByCategory('free', 'core');
+  const advancedFeatures = getFeaturesByCategory('premium', 'advanced');
+  const aiFeatures = getFeaturesByCategory('premium', 'ai');
+  const automationFeatures = getFeaturesByCategory('premium', 'automation');
+  const collaborationFeatures = getFeaturesByCategory('premium', 'collaboration');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -49,6 +65,12 @@ export default function Pricing() {
             <div className="flex items-center space-x-2">
               <Home className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-bold text-slate-900">MyHome</h1>
+              {isPremium && (
+                <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white">
+                  <Crown className="h-3 w-3 mr-1" />
+                  Premium
+                </Badge>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/">
@@ -107,23 +129,23 @@ export default function Pricing() {
               </CardHeader>
 
               <CardContent>
-                <div className="space-y-4 mb-8">
-                  {tier.features.map((feature, featureIndex) => (
-                    <div key={featureIndex} className="flex items-center gap-3">
-                      {feature.included ? (
-                        <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                      ) : (
-                        <X className="h-5 w-5 text-gray-400 flex-shrink-0" />
-                      )}
-                      <span className={`text-sm ${
-                        feature.included 
-                          ? 'text-slate-900' 
-                          : 'text-slate-500'
-                      }`}>
-                        {feature.name}
-                      </span>
-                    </div>
-                  ))}
+                {/* Limits */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <h4 className="font-semibold text-sm text-gray-700 mb-3">Plan Limits</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex justify-between">
+                      <span>Documents:</span>
+                      <span className="font-medium">{tier.limits.documents}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Storage:</span>
+                      <span className="font-medium">{tier.limits.storage}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Categories:</span>
+                      <span className="font-medium">{tier.limits.categories}</span>
+                    </li>
+                  </ul>
                 </div>
 
                 {tier.name === "Free" ? (

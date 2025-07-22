@@ -45,17 +45,17 @@ export default function EmailImport() {
   });
 
   // Get email history
-  const { data: emailHistory = [], isLoading: isLoadingHistory } = useQuery({
+  const { data: emailHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ['/api/email/history'],
   });
 
   // Test email processing
   const testEmailMutation = useMutation({
-    mutationFn: () => apiRequest('/api/email/test', { method: 'POST' }),
-    onSuccess: (data) => {
+    mutationFn: () => apiRequest('/api/email/test', 'POST'),
+    onSuccess: (data: any) => {
       toast({
         title: "Test Email Processed",
-        description: `Successfully created ${data.documentsCreated} document(s)`,
+        description: `Successfully created ${data.documentsCreated || 0} document(s)`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/email/history'] });
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
@@ -150,14 +150,14 @@ export default function EmailImport() {
           ) : (
             <div className="flex gap-2">
               <Input
-                value={forwardingData?.forwardingAddress || ''}
+                value={(forwardingData as any)?.forwardingAddress || ''}
                 readOnly
                 className="font-mono"
               />
               <Button
                 variant="outline"
-                onClick={() => copyToClipboard(forwardingData?.forwardingAddress || '')}
-                disabled={!forwardingData?.forwardingAddress}
+                onClick={() => copyToClipboard((forwardingData as any)?.forwardingAddress || '')}
+                disabled={!(forwardingData as any)?.forwardingAddress}
               >
                 {copiedToClipboard ? (
                   <CheckCircle className="h-4 w-4" />
@@ -232,7 +232,7 @@ export default function EmailImport() {
                 </div>
               ))}
             </div>
-          ) : emailHistory.length === 0 ? (
+          ) : !emailHistory || (emailHistory as any[]).length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Mail className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>No emails processed yet</p>
@@ -240,7 +240,7 @@ export default function EmailImport() {
             </div>
           ) : (
             <div className="space-y-4">
-              {emailHistory.map((email: EmailForward) => (
+              {(emailHistory as EmailForward[]).map((email: EmailForward) => (
                 <div key={email.id} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

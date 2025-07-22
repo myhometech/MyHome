@@ -4,7 +4,7 @@
 
 MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Successfully resolved admin authentication and login redirect issues. Fixed UI problem where users were accidentally clicking "Forgot password?" link instead of "Sign In" button. Improved login form layout and positioning to make Sign In button more prominent. Admin authentication now works perfectly with proper session handling and role-based routing to admin dashboard. Admin credentials: admin@test.com/test123.
+**Latest Update**: Implemented comprehensive feature flagging system to differentiate between free and premium tiers. Added subscription tier to user schema, created feature definitions based on user value ranking, and built reusable FeatureGate components. Premium features include OCR, AI summarization, email import, expiry management, document sharing, and advanced search. Free tier supports basic document storage (50 docs, 100MB), organization, and simple search. Updated pricing page to showcase feature comparison across tiers.
 
 ## User Preferences
 
@@ -21,6 +21,7 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 - **State Management**: TanStack Query (React Query) for server state
 - **UI Framework**: Radix UI components with Tailwind CSS styling
 - **Component Library**: shadcn/ui for consistent design system
+- **Feature Management**: Subscription-based feature flagging system with FeatureGate components
 
 ### iOS Native Architecture
 - **Framework**: SwiftUI for iOS 16.0+
@@ -56,6 +57,13 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 - **Session Storage**: PostgreSQL-backed sessions with express-session
 - **Authorization**: Route-level authentication middleware
 - **User Management**: Manual registration and login system
+- **Subscription Tiers**: Free and Premium tiers with feature access control
+
+### Feature Flagging System
+- **Tiers**: Free (basic features) and Premium (advanced + AI features)
+- **Components**: FeatureGate, PremiumFeature, FeatureLimitAlert components
+- **Limits**: Free tier: 50 documents, 100MB storage; Premium: unlimited
+- **Categories**: Core (free), Advanced, AI, Automation, Collaboration (premium)
 
 ### File Management
 - **Storage**: Local filesystem with configurable upload directory

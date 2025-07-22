@@ -23,7 +23,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ShareDocumentDialog } from "@/components/share-document-dialog";
 import { BatchTagManager } from "@/components/batch-tag-manager";
 import type { Category, Document } from "@shared/schema";
-import DocumentHealthScore from "@/components/document-health-score";
 
 export default function Home() {
   const { toast } = useToast();
@@ -252,15 +251,8 @@ export default function Home() {
 
 
 
-        {/* Health Score and Stats Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-1">
-            <DocumentHealthScore />
-          </div>
-          <div className="lg:col-span-2">
-            <StatsGrid stats={stats} />
-          </div>
-        </div>
+        {/* Stats Grid */}
+        <StatsGrid stats={stats} />
 
 
 

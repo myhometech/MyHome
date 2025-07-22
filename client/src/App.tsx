@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,6 +17,7 @@ import AdminDashboard from "@/pages/admin";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const [, setLocation] = useLocation();
   
   // Debug logging
   console.log("Auth state:", { isAuthenticated, isLoading, userRole: (user as any)?.role });
@@ -40,16 +41,16 @@ function Router() {
           <Route path="/forgot-password" component={ForgotPassword} />
           {/* Redirect protected routes to login */}
           <Route path="/shared-with-me">
-            {() => { window.location.href = "/login"; return null; }}
+            {() => { setLocation("/login"); return null; }}
           </Route>
           <Route path="/expiry-documents">
-            {() => { window.location.href = "/login"; return null; }}
+            {() => { setLocation("/login"); return null; }}
           </Route>
           <Route path="/settings">
-            {() => { window.location.href = "/login"; return null; }}
+            {() => { setLocation("/login"); return null; }}
           </Route>
           <Route path="/admin">
-            {() => { window.location.href = "/login"; return null; }}
+            {() => { setLocation("/login"); return null; }}
           </Route>
         </>
       ) : (
@@ -61,13 +62,13 @@ function Router() {
           <Route path="/admin" component={AdminDashboard} />
           {/* Redirect auth routes to home for logged in users */}
           <Route path="/login">
-            {() => { window.location.href = "/"; return null; }}
+            {() => { setLocation("/"); return null; }}
           </Route>
           <Route path="/register">
-            {() => { window.location.href = "/"; return null; }}
+            {() => { setLocation("/"); return null; }}
           </Route>
           <Route path="/forgot-password">
-            {() => { window.location.href = "/"; return null; }}
+            {() => { setLocation("/"); return null; }}
           </Route>
         </>
       )}

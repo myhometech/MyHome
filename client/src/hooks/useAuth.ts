@@ -8,10 +8,13 @@ export function useAuth() {
     retry: false,
   });
 
+  // Debug logging
+  console.log("useAuth hook:", { user, isLoading, error, isAuthenticated: !!user });
+
   return {
     user,
     isLoading,
-    isAuthenticated: !!user && !error,
+    isAuthenticated: !!user,
     error
   };
 }

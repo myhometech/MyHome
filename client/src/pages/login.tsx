@@ -61,10 +61,12 @@ export default function Login() {
         // Set the user data directly in cache to ensure immediate update
         queryClient.setQueryData(["/api/auth/user"], responseData.user);
         
-        // Use React Router for navigation to maintain state
+        // Navigate immediately with the cached user data
         if (responseData.user.role === 'admin') {
+          console.log("Redirecting to admin dashboard");
           setLocation("/admin");
         } else {
+          console.log("Redirecting to home");
           setLocation("/");
         }
       } else {

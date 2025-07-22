@@ -1184,6 +1184,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test admin login route
+  app.get('/test-login', (req, res) => {
+    res.send(`
+<!DOCTYPE html>
+<html>
+<head><title>Admin Login Test</title></head>
+<body>
+    <h2>Direct Admin Login Test</h2>
+    <button onclick="testLogin()">Test Admin Login</button>
+    <button onclick="checkAuth()">Check Auth Status</button>
+    <div id="result"></div>
+    <script>
+        async function testLogin() {
+            const result = document.getElementById('result');
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email: 'simontaylor66@googlemail.com', password: 'password123' })
+                });
+                const data = await response.json();
+                result.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                if (response.ok) setTimeout(checkAuth, 100);
+            } catch (error) { result.innerHTML = 'Error: ' + error.message; }
+        }
+        async function checkAuth() {
+            const result = document.getElementById('result');
+            try {
+                const response = await fetch('/api/auth/user', { credentials: 'include' });
+                const data = await response.json();
+                result.innerHTML += '<br><br>Auth Check:<br><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                if (data.role === 'admin') {
+                    result.innerHTML += '<br><strong>SUCCESS: Admin authenticated! Redirecting...</strong>';
+                    setTimeout(() => window.location.href = '/admin', 1000);
+                }
+            } catch (error) { result.innerHTML += '<br>Auth Error: ' + error.message; }
+        }
+    </script>
+</body>
+</html>`);
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

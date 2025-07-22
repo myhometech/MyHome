@@ -1,4 +1,4 @@
-# HomeDocs iOS App
+# MyHome iOS App
 
 A native iOS document management application for homeowners to scan, organize, and store property-related documents.
 

@@ -1,15 +1,15 @@
-# HomeDocs Application
+# MyHome Application
 
 ## Overview
 
-HomeDocs is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and Replit authentication.
+MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Simplified authentication system to use only email/password authentication. Removed all complex OAuth integrations (Google, Replit) and kept only simple, secure email/password authentication with bcrypt hashing and PostgreSQL session storage. Updated database schema to remove unnecessary authentication columns and enforced proper user data isolation with userId constraints on all user-specific tables.
+**Latest Update**: Changed branding from 'HomeDocs' to 'MyHome' throughout the application. Updated all client-side components, iOS documentation, and project files to reflect the new brand name. Also simplified authentication system to use only email/password authentication with bcrypt hashing and PostgreSQL session storage.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
-Project Direction: Building iOS version of HomeDocs document management app.
+Project Direction: Building iOS version of MyHome document management app.
 Essential Features: Phone camera scanning for document digitization, future Google Drive integration planned.
 
 ## System Architecture

@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct HomeDocsApp: App {
+struct MyHomeApp: App {
     @StateObject private var authService = AuthService()
     @StateObject private var documentViewModel = DocumentViewModel()
     

@@ -1,14 +1,14 @@
-# Complete iOS Project Setup for HomeDocs
+# Complete iOS Project Setup for MyHome
 
 ## Quick Start Instructions
 
 1. **Create New Xcode Project**
    - Open Xcode
    - Choose "App" template
-   - Product Name: `HomeDocs`
+   - Product Name: `MyHome`
    - Interface: SwiftUI
    - Language: Swift
-   - Bundle Identifier: `com.yourname.homedocs`
+   - Bundle Identifier: `com.yourname.myhome`
 
 2. **Add Capabilities**
    - Go to Project Settings → Signing & Capabilities
@@ -18,8 +18,8 @@
    Copy all Swift files below into your Xcode project with this structure:
 
 ```
-HomeDocs/
-├── HomeDocsApp.swift (main app file)
+MyHome/
+├── MyHomeApp.swift (main app file)
 ├── Models/
 │   ├── User.swift
 │   ├── Document.swift
@@ -45,9 +45,9 @@ HomeDocs/
    Add these keys:
 ```xml
 <key>NSCameraUsageDescription</key>
-<string>HomeDocs needs camera access to scan documents</string>
+<string>MyHome needs camera access to scan documents</string>
 <key>NSPhotoLibraryUsageDescription</key>
-<string>HomeDocs needs photo library access to import documents</string>
+<string>MyHome needs photo library access to import documents</string>
 ```
 
 5. **Configure Backend URL**
@@ -58,12 +58,12 @@ private let baseURL = "https://your-actual-backend-url.replit.app"
 
 ## File Contents to Copy
 
-### 1. HomeDocsApp.swift (Main App File)
+### 1. MyHomeApp.swift (Main App File)
 ```swift
 import SwiftUI
 
 @main
-struct HomeDocsApp: App {
+struct MyHomeApp: App {
     @StateObject private var authService = AuthService()
     @StateObject private var documentViewModel = DocumentViewModel()
     

@@ -1,8 +1,8 @@
-# HomeDocs iOS App Setup Guide
+# MyHome iOS App Setup Guide
 
 ## Getting Started
 
-This guide will help you create the native iOS version of HomeDocs using the code structure I've provided.
+This guide will help you create the native iOS version of MyHome using the code structure I've provided.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ This guide will help you create the native iOS version of HomeDocs using the cod
 2. Create a new project
 3. Choose **iOS** → **App**
 4. Configure your project:
-   - Product Name: `HomeDocs`
+   - Product Name: `MyHome`
    - Interface: `SwiftUI`
    - Language: `Swift`
    - Use Core Data: `No` (we'll use our custom storage)
@@ -28,7 +28,7 @@ This guide will help you create the native iOS version of HomeDocs using the cod
 2. **Add to Xcode**: Drag and drop them into your Xcode project
 3. **Create Folder Structure**:
    ```
-   HomeDocs/
+   MyHome/
    ├── App/
    ├── Models/
    ├── Views/

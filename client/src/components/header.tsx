@@ -44,7 +44,7 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
             <Link href="/">
               <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
                 <Home className="h-6 w-6 text-primary" />
-                <h1 className="text-xl font-bold text-slate-900">HomeDocs</h1>
+                <h1 className="text-xl font-bold text-slate-900">MyHome</h1>
               </div>
             </Link>
           </div>

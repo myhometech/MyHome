@@ -107,7 +107,7 @@ export default function Register() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
-            Get started with HomeDocs today
+            Get started with MyHome today
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

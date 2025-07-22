@@ -35,7 +35,7 @@ export function Navigation() {
         <Link href="/">
           <div className="flex items-center space-x-1 cursor-pointer hover:opacity-80 transition-opacity">
             <FileText className="h-6 w-6 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">HomeDocs</span>
+            <span className="text-xl font-bold text-gray-900">MyHome</span>
           </div>
         </Link>
         

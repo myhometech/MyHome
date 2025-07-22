@@ -13,7 +13,7 @@ export default function Landing() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
               <Home className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold text-slate-900">HomeDocs</h1>
+              <h1 className="text-2xl font-bold text-slate-900">MyHome</h1>
             </div>
             <Link href="/login">
               <Button className="bg-primary hover:bg-blue-700">

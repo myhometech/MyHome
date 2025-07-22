@@ -105,13 +105,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update last login timestamp
       await storage.updateUserLastLogin(user.id);
       
-      // Store user in session
+      // Store user in session and save explicitly
       req.session.user = user;
       
-      const { passwordHash, ...safeUser } = user;
-      res.json({ 
-        message: "Login successful", 
-        user: safeUser 
+      // Force session save before responding
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Login failed - session error" });
+        }
+        
+        console.log("Session saved successfully for user:", user.id);
+        const { passwordHash, ...safeUser } = user;
+        res.json({ 
+          message: "Login successful", 
+          user: safeUser 
+        });
       });
     } catch (error) {
       console.error("Login error:", error);

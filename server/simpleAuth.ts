@@ -32,16 +32,7 @@ export function setupSimpleAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
   
-  // Add session debugging middleware
-  app.use((req: any, res, next) => {
-    console.log("Session debug:", {
-      sessionID: req.sessionID,
-      hasUser: !!req.session?.user,
-      userID: req.session?.user?.id,
-      cookies: req.headers.cookie ? "present" : "missing"
-    });
-    next();
-  });
+  // Remove debug middleware
 }
 
 export const requireAuth: RequestHandler = (req: any, res, next) => {

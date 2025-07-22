@@ -4,7 +4,7 @@
 
 MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Implemented comprehensive feature flagging system to differentiate between free and premium tiers. Added subscription tier to user schema, created feature definitions based on user value ranking, and built reusable FeatureGate components. Premium features include OCR, AI summarization, email import, expiry management, document sharing, and advanced search. Free tier supports basic document storage (50 docs, 100MB), organization, and simple search. Updated pricing page to showcase feature comparison across tiers.
+**Latest Update**: Implemented comprehensive feature flagging infrastructure ready for future activation. Added subscription tier to user schema, created feature definitions based on user value ranking, and built reusable FeatureGate components. Currently ALL features are available to everyone (no restrictions active). The system is ready to be activated when needed to differentiate between free (basic storage, 50 docs, 100MB) and premium tiers (AI features, OCR, email import, unlimited storage). Updated pricing page to showcase future feature comparison across tiers.
 
 ## User Preferences
 

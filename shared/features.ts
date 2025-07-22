@@ -145,21 +145,32 @@ export const PREMIUM_TIER_LIMITS = {
 
 // Helper functions
 export function hasFeature(userTier: SubscriptionTier, featureKey: keyof typeof FEATURES): boolean {
-  const feature = FEATURES[featureKey];
-  if (!feature) return false;
+  // TEMPORARY: All features available for now - change when ready to activate feature gating
+  return true;
   
-  if (feature.tier === 'free') return true;
-  return userTier === 'premium';
+  // Original feature gating logic (commented out for later activation):
+  // const feature = FEATURES[featureKey];
+  // if (!feature) return false;
+  // if (feature.tier === 'free') return true;
+  // return userTier === 'premium';
 }
 
 export function getTierLimits(tier: SubscriptionTier) {
-  return tier === 'premium' ? PREMIUM_TIER_LIMITS : FREE_TIER_LIMITS;
+  // TEMPORARY: Return premium limits for everyone for now - change when ready to activate limits
+  return PREMIUM_TIER_LIMITS;
+  
+  // Original tier limits (commented out for later activation):
+  // return tier === 'premium' ? PREMIUM_TIER_LIMITS : FREE_TIER_LIMITS;
 }
 
 export function getFeaturesForTier(tier: SubscriptionTier): FeatureFlag[] {
-  return Object.values(FEATURES).filter(feature => 
-    feature.tier === 'free' || tier === 'premium'
-  );
+  // TEMPORARY: Return all features for now - change when ready to activate feature gating
+  return Object.values(FEATURES);
+  
+  // Original tier filtering (commented out for later activation):
+  // return Object.values(FEATURES).filter(feature => 
+  //   feature.tier === 'free' || tier === 'premium'
+  // );
 }
 
 export function getFeaturesByCategory(tier: SubscriptionTier, category: FeatureFlag['category']): FeatureFlag[] {

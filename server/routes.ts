@@ -244,7 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const userId = getUserId(req);
-      const { categoryId, tags } = req.body;
+      const { categoryId, tags, expiryDate } = req.body;
 
       const documentData = {
         userId,
@@ -255,6 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileSize: req.file.size,
         mimeType: req.file.mimetype,
         tags: tags ? JSON.parse(tags) : [],
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
       };
 
       const validatedData = insertDocumentSchema.parse(documentData);

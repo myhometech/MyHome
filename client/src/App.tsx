@@ -21,6 +21,12 @@ function Router() {
   // Debug logging
   console.log("Auth state:", { isAuthenticated, isLoading, userRole: (user as any)?.role });
 
+  // Temporary admin bypass - check URL for admin access
+  const currentPath = window.location.pathname;
+  if (currentPath === "/admin") {
+    return <AdminDashboard />;
+  }
+
   // Show loading state while checking authentication
   if (isLoading) {
     return (

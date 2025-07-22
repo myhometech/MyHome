@@ -61,11 +61,11 @@ export default function Login() {
         // Clear all cached queries and reload the page
         queryClient.clear();
         
-        // Redirect directly to admin dashboard for admin users
+        // For admin users, redirect to admin page immediately
         if (responseData.user.role === 'admin') {
-          window.location.replace("/admin");
+          window.location.href = "/admin";
         } else {
-          window.location.replace("/");
+          window.location.href = "/";
         }
       } else {
         const errorData = await response.json();

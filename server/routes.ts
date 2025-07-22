@@ -62,6 +62,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await AuthService.createEmailUser(data);
       
+      // Initialize default categories for new user
+      const defaultCategories = [
+        { name: 'Car', icon: 'fas fa-car', color: 'blue', userId: user.id },
+        { name: 'Mortgage', icon: 'fas fa-home', color: 'green', userId: user.id },
+        { name: 'Insurance', icon: 'fas fa-shield-alt', color: 'purple', userId: user.id },
+        { name: 'Utilities', icon: 'fas fa-bolt', color: 'orange', userId: user.id },
+        { name: 'Receipts', icon: 'fas fa-receipt', color: 'yellow', userId: user.id },
+      ];
+      
+      for (const category of defaultCategories) {
+        try {
+          await storage.createCategory(category);
+        } catch (categoryError) {
+          console.log(`Category ${category.name} creation skipped for user ${user.id}`);
+        }
+      }
+      
       // Store user in session
       req.session.user = user;
       
@@ -649,20 +666,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const defaultCategories = [
-        { name: 'Utilities', icon: 'fas fa-bolt', color: 'blue', userId },
-        { name: 'Insurance', icon: 'fas fa-shield-alt', color: 'green', userId },
-        { name: 'Taxes', icon: 'fas fa-calculator', color: 'purple', userId },
-        { name: 'Maintenance', icon: 'fas fa-tools', color: 'orange', userId },
-        { name: 'Legal', icon: 'fas fa-file-contract', color: 'teal', userId },
-        { name: 'Warranty', icon: 'fas fa-certificate', color: 'indigo', userId },
+        { name: 'Car', icon: 'fas fa-car', color: 'blue', userId },
+        { name: 'Mortgage', icon: 'fas fa-home', color: 'green', userId },
+        { name: 'Insurance', icon: 'fas fa-shield-alt', color: 'purple', userId },
+        { name: 'Utilities', icon: 'fas fa-bolt', color: 'orange', userId },
         { name: 'Receipts', icon: 'fas fa-receipt', color: 'yellow', userId },
-        { name: 'Other', icon: 'fas fa-folder', color: 'gray', userId },
       ];
 
       const userCategories = await storage.getCategories(userId);
       if (userCategories.length === 0) {
         for (const category of defaultCategories) {
-          await storage.createCategory(category);
+          try {
+            await storage.createCategory(category);
+          } catch (categoryError) {
+            // Log but continue if a category already exists for this user
+            console.log(`Category ${category.name} may already exist for user ${userId}:`, categoryError);
+          }
         }
       }
 

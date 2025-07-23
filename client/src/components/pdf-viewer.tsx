@@ -15,6 +15,8 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
   const [error, setError] = useState<string | null>(null);
 
   const pdfUrl = `/api/documents/${documentId}/preview`;
+  
+  console.log('PDFViewer rendered for document:', documentId, documentName);
 
   useEffect(() => {
     // Test if PDF is accessible
@@ -149,44 +151,36 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
       </div>
 
       {/* PDF Iframe Container */}
-      <div className="relative bg-white">
-        <div 
-          className="w-full h-96 overflow-auto"
+      <div className="relative bg-white border rounded">
+        <iframe
+          src={pdfUrl}
+          title={`PDF: ${documentName}`}
+          className="w-full h-96 border-0"
           style={{
             transform: `scale(${zoom}) rotate(${rotation}deg)`,
             transformOrigin: 'center center',
           }}
-        >
-          <iframe
-            src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
-            title={`PDF: ${documentName}`}
-            className="w-full h-full border-0"
-            style={{
-              minHeight: rotation % 180 === 0 ? '100%' : '150%',
-              minWidth: rotation % 180 === 0 ? '100%' : '150%',
-            }}
-            onLoad={(e) => {
-              console.log('PDF iframe loaded successfully');
-              // Check if the iframe actually loaded content or an error page
-              try {
-                const iframe = e.target as HTMLIFrameElement;
-                if (iframe.contentDocument) {
-                  const title = iframe.contentDocument.title;
-                  console.log('PDF iframe title:', title);
-                  if (title && title.toLowerCase().includes('error')) {
-                    setError('PDF failed to load in viewer');
-                  }
-                }
-              } catch (err) {
-                // Cross-origin restrictions, but that's normal for PDF display
-                console.log('PDF loaded (cross-origin restrictions normal)');
-              }
-            }}
-            onError={() => {
-              console.error('PDF iframe load error');
-              setError('Failed to display PDF in viewer');
-            }}
-          />
+          onLoad={(e) => {
+            console.log('PDF iframe loaded successfully for:', pdfUrl);
+            const iframe = e.target as HTMLIFrameElement;
+            console.log('PDF iframe element:', iframe);
+          }}
+          onError={(e) => {
+            console.error('PDF iframe load error for:', pdfUrl, e);
+            setError('Failed to display PDF in viewer');
+          }}
+        />
+        
+        {/* Fallback link */}
+        <div className="absolute bottom-2 right-2">
+          <a 
+            href={pdfUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-xs text-blue-600 hover:text-blue-800 bg-white px-2 py-1 rounded border shadow"
+          >
+            Open PDF in new tab
+          </a>
         </div>
       </div>
 

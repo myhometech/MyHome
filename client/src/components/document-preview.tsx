@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { X, Download, FileText, Image as ImageIcon, AlertCircle, Eye, ZoomIn, ZoomOut } from "lucide-react";
+import { SmartPreviewChips } from "./smart-preview-chips";
 
 interface DocumentPreviewProps {
   document: {
@@ -258,6 +259,9 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Smart Preview Chips */}
+              <SmartPreviewChips document={document} />
 
               {/* AI Summary */}
               {document.summary && (

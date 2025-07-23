@@ -155,6 +155,18 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### Smart Document Preview with Intelligent Content Preview Chips (January 23, 2025)
+- **Feature**: Implemented AI-powered content analysis with smart preview chips
+- **Implementation**: 
+  - Created SmartPreviewChips component that analyzes document content using OpenAI
+  - Added contentAnalysisService for server-side AI processing
+  - Extracts key information: dates, amounts, people, locations, contact info, document types, urgency
+  - Shows intelligent badges with confidence levels and relevant icons
+  - Provides fallback local analysis using regex patterns when AI is unavailable
+- **API**: New `/api/documents/analyze-content` endpoint for content analysis
+- **Integration**: Added smart chips to DocumentPreview component above AI summary section
+- **User Experience**: Users now see instant insights about document content without reading full text
+
 ### PDF Preview Section Redesign (January 23, 2025)
 - **Issue**: User found the large PDF preview section confusing as it looked like it should contain an actual PDF preview
 - **Resolution**: 

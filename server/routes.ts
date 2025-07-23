@@ -10,6 +10,7 @@ import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema,
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
+import { contentAnalysisService } from "./contentAnalysisService.js";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -748,6 +749,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     next();
   };
+
+  // Content analysis endpoint
+  app.post('/api/documents/analyze-content', requireAuth, async (req: any, res) => {
+    try {
+      const { documentId, extractedText, summary, fileName, mimeType } = req.body;
+      
+      if (!documentId || (!extractedText && !summary)) {
+        return res.status(400).json({ message: "Document ID and content are required" });
+      }
+
+      const analysis = await contentAnalysisService.analyzeDocumentContent(
+        extractedText,
+        summary,
+        fileName || 'Unknown',
+        mimeType || 'application/octet-stream'
+      );
+
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing document content:", error);
+      res.status(500).json({ message: "Failed to analyze document content" });
+    }
+  });
 
   // Admin routes
   app.get('/api/admin/stats', requireAuth, requireAdmin, async (req: any, res) => {

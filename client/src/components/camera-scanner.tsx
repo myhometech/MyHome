@@ -126,41 +126,190 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
     stopCamera();
   }, [stopCamera]);
 
-  // Document image enhancement function
+  // Document edge detection and cropping function
   const enhanceDocumentImage = (sourceCanvas: HTMLCanvasElement): HTMLCanvasElement => {
     const sourceCtx = sourceCanvas.getContext('2d');
     if (!sourceCtx) return sourceCanvas;
 
-    // Create enhanced canvas
-    const enhancedCanvas = document.createElement('canvas');
-    enhancedCanvas.width = sourceCanvas.width;
-    enhancedCanvas.height = sourceCanvas.height;
-    const enhancedCtx = enhancedCanvas.getContext('2d');
-    if (!enhancedCtx) return sourceCanvas;
+    // Step 1: Detect document boundaries
+    const documentBounds = detectDocumentEdges(sourceCanvas);
+    
+    // Step 2: Crop to document area
+    const croppedCanvas = cropToDocument(sourceCanvas, documentBounds);
+    
+    // Step 3: Enhance the cropped document for OCR
+    const enhancedCanvas = enhanceForOCR(croppedCanvas);
+    
+    return enhancedCanvas;
+  };
 
-    // Get image data for processing
-    const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+  // Detect document edges using edge detection and contour analysis
+  const detectDocumentEdges = (canvas: HTMLCanvasElement): { x: number, y: number, width: number, height: number } => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { x: 0, y: 0, width: canvas.width, height: canvas.height };
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Convert to grayscale for edge detection
+    const grayData = new Uint8Array(width * height);
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+      grayData[i / 4] = gray;
+    }
+
+    // Apply Gaussian blur to reduce noise
+    const blurred = applyGaussianBlur(grayData, width, height);
+    
+    // Apply Sobel edge detection
+    const edges = applySobelEdgeDetection(blurred, width, height);
+    
+    // Find document contours
+    const bounds = findLargestRectangle(edges, width, height);
+    
+    return bounds;
+  };
+
+  // Apply Gaussian blur for noise reduction
+  const applyGaussianBlur = (data: Uint8Array, width: number, height: number): Uint8Array => {
+    const result = new Uint8Array(data.length);
+    const kernel = [1, 2, 1, 2, 4, 2, 1, 2, 1];
+    const kernelSum = 16;
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let sum = 0;
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const idx = (y + ky) * width + (x + kx);
+            const kernelIdx = (ky + 1) * 3 + (kx + 1);
+            sum += data[idx] * kernel[kernelIdx];
+          }
+        }
+        result[y * width + x] = Math.round(sum / kernelSum);
+      }
+    }
+    return result;
+  };
+
+  // Apply Sobel edge detection
+  const applySobelEdgeDetection = (data: Uint8Array, width: number, height: number): Uint8Array => {
+    const result = new Uint8Array(data.length);
+    
+    const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let gx = 0, gy = 0;
+        
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const idx = (y + ky) * width + (x + kx);
+            const kernelIdx = (ky + 1) * 3 + (kx + 1);
+            gx += data[idx] * sobelX[kernelIdx];
+            gy += data[idx] * sobelY[kernelIdx];
+          }
+        }
+        
+        const magnitude = Math.sqrt(gx * gx + gy * gy);
+        result[y * width + x] = Math.min(255, magnitude);
+      }
+    }
+    return result;
+  };
+
+  // Find the largest rectangular contour (document boundary)
+  const findLargestRectangle = (edges: Uint8Array, width: number, height: number): { x: number, y: number, width: number, height: number } => {
+    // Threshold edges
+    const threshold = 50;
+    const binary = edges.map(pixel => pixel > threshold ? 255 : 0);
+
+    // Find document boundaries by detecting strong horizontal and vertical lines
+    let minX = width, maxX = 0, minY = height, maxY = 0;
+    let hasEdges = false;
+
+    // Scan for document edges
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (binary[y * width + x] > 0) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          hasEdges = true;
+        }
+      }
+    }
+
+    // If no clear edges found, use center 80% of image
+    if (!hasEdges || (maxX - minX) < width * 0.3 || (maxY - minY) < height * 0.3) {
+      const margin = 0.1;
+      return {
+        x: Math.floor(width * margin),
+        y: Math.floor(height * margin),
+        width: Math.floor(width * (1 - 2 * margin)),
+        height: Math.floor(height * (1 - 2 * margin))
+      };
+    }
+
+    // Add small margin and ensure bounds are within image
+    const margin = 10;
+    return {
+      x: Math.max(0, minX - margin),
+      y: Math.max(0, minY - margin),
+      width: Math.min(width - (minX - margin), maxX - minX + 2 * margin),
+      height: Math.min(height - (minY - margin), maxY - minY + 2 * margin)
+    };
+  };
+
+  // Crop canvas to document area
+  const cropToDocument = (sourceCanvas: HTMLCanvasElement, bounds: { x: number, y: number, width: number, height: number }): HTMLCanvasElement => {
+    const croppedCanvas = document.createElement('canvas');
+    croppedCanvas.width = bounds.width;
+    croppedCanvas.height = bounds.height;
+    
+    const croppedCtx = croppedCanvas.getContext('2d');
+    if (!croppedCtx) return sourceCanvas;
+
+    // Draw the cropped portion
+    croppedCtx.drawImage(
+      sourceCanvas,
+      bounds.x, bounds.y, bounds.width, bounds.height,
+      0, 0, bounds.width, bounds.height
+    );
+
+    return croppedCanvas;
+  };
+
+  // Enhance cropped document for OCR
+  const enhanceForOCR = (canvas: HTMLCanvasElement): HTMLCanvasElement => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
 
-    // Apply contrast and brightness enhancement for better OCR
-    const contrast = 1.3; // Increase contrast for text clarity
-    const brightness = 15; // Slight brightness increase
+    // Apply contrast and brightness enhancement
+    const contrast = 1.4; // Higher contrast for text clarity
+    const brightness = 20; // Slight brightness increase
 
     for (let i = 0; i < data.length; i += 4) {
       // Apply contrast and brightness to RGB channels
       data[i] = Math.min(255, Math.max(0, contrast * (data[i] - 128) + 128 + brightness));     // Red
       data[i + 1] = Math.min(255, Math.max(0, contrast * (data[i + 1] - 128) + 128 + brightness)); // Green
       data[i + 2] = Math.min(255, Math.max(0, contrast * (data[i + 2] - 128) + 128 + brightness)); // Blue
-      // Alpha channel remains unchanged (data[i + 3])
     }
 
     // Apply the enhanced image data
-    enhancedCtx.putImageData(imageData, 0, 0);
+    ctx.putImageData(imageData, 0, 0);
 
-    // Apply sharpening filter for better text recognition
-    applySharpeningFilter(enhancedCtx, enhancedCanvas.width, enhancedCanvas.height);
+    // Apply sharpening filter
+    applySharpeningFilter(ctx, canvas.width, canvas.height);
 
-    return enhancedCanvas;
+    return canvas;
   };
 
   // Sharpening filter to improve text clarity

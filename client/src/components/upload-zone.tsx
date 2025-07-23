@@ -87,7 +87,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     },
   });
 
-  const handleFileSelect = (files: File[]) => {
+  const handleFileSelect = async (files: File[]) => {
     const validFiles = files.filter(file => {
       const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
       const maxSize = 10 * 1024 * 1024; // 10MB
@@ -114,9 +114,207 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     });
 
     if (validFiles.length > 0) {
-      setSelectedFiles(validFiles);
+      // Process images with document edge detection
+      const processedFiles = await Promise.all(
+        validFiles.map(async (file) => {
+          if (file.type.startsWith('image/')) {
+            return await processImageWithDocumentDetection(file);
+          }
+          return file;
+        })
+      );
+      
+      setSelectedFiles(processedFiles);
       setShowUploadDialog(true);
     }
+  };
+
+  // Process captured image with document detection
+  const processImageWithDocumentDetection = async (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        // Set canvas size to image size
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // Draw original image
+        ctx.drawImage(img, 0, 0);
+
+        // Apply document detection and cropping
+        const enhancedCanvas = enhanceDocumentImage(canvas);
+
+        // Convert back to file
+        enhancedCanvas.toBlob((blob) => {
+          if (blob) {
+            const processedFile = new File([blob], `processed_${file.name}`, { 
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            resolve(processedFile);
+          } else {
+            resolve(file);
+          }
+        }, 'image/jpeg', 0.95);
+      };
+
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // Document enhancement function (same as camera scanner)
+  const enhanceDocumentImage = (sourceCanvas: HTMLCanvasElement): HTMLCanvasElement => {
+    const sourceCtx = sourceCanvas.getContext('2d');
+    if (!sourceCtx) return sourceCanvas;
+
+    // Step 1: Detect document boundaries
+    const documentBounds = detectDocumentEdges(sourceCanvas);
+    
+    // Step 2: Crop to document area
+    const croppedCanvas = cropToDocument(sourceCanvas, documentBounds);
+    
+    // Step 3: Enhance the cropped document for OCR
+    const enhancedCanvas = enhanceForOCR(croppedCanvas);
+    
+    return enhancedCanvas;
+  };
+
+  // Detect document edges using edge detection
+  const detectDocumentEdges = (canvas: HTMLCanvasElement): { x: number, y: number, width: number, height: number } => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { x: 0, y: 0, width: canvas.width, height: canvas.height };
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Convert to grayscale
+    const grayData = new Uint8Array(width * height);
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+      grayData[i / 4] = gray;
+    }
+
+    // Apply edge detection
+    const edges = applySobelEdgeDetection(grayData, width, height);
+    const bounds = findLargestRectangle(edges, width, height);
+    
+    return bounds;
+  };
+
+  // Sobel edge detection
+  const applySobelEdgeDetection = (data: Uint8Array, width: number, height: number): Uint8Array => {
+    const result = new Uint8Array(data.length);
+    const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let gx = 0, gy = 0;
+        
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const idx = (y + ky) * width + (x + kx);
+            const kernelIdx = (ky + 1) * 3 + (kx + 1);
+            gx += data[idx] * sobelX[kernelIdx];
+            gy += data[idx] * sobelY[kernelIdx];
+          }
+        }
+        
+        const magnitude = Math.sqrt(gx * gx + gy * gy);
+        result[y * width + x] = Math.min(255, magnitude);
+      }
+    }
+    return result;
+  };
+
+  // Find largest rectangle contour
+  const findLargestRectangle = (edges: Uint8Array, width: number, height: number): { x: number, y: number, width: number, height: number } => {
+    const threshold = 50;
+    const binary = edges.map(pixel => pixel > threshold ? 255 : 0);
+
+    let minX = width, maxX = 0, minY = height, maxY = 0;
+    let hasEdges = false;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (binary[y * width + x] > 0) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          hasEdges = true;
+        }
+      }
+    }
+
+    // Fallback to center 80% if no clear document edges
+    if (!hasEdges || (maxX - minX) < width * 0.3 || (maxY - minY) < height * 0.3) {
+      const margin = 0.1;
+      return {
+        x: Math.floor(width * margin),
+        y: Math.floor(height * margin),
+        width: Math.floor(width * (1 - 2 * margin)),
+        height: Math.floor(height * (1 - 2 * margin))
+      };
+    }
+
+    const margin = 10;
+    return {
+      x: Math.max(0, minX - margin),
+      y: Math.max(0, minY - margin),
+      width: Math.min(width - (minX - margin), maxX - minX + 2 * margin),
+      height: Math.min(height - (minY - margin), maxY - minY + 2 * margin)
+    };
+  };
+
+  // Crop to document area
+  const cropToDocument = (sourceCanvas: HTMLCanvasElement, bounds: { x: number, y: number, width: number, height: number }): HTMLCanvasElement => {
+    const croppedCanvas = document.createElement('canvas');
+    croppedCanvas.width = bounds.width;
+    croppedCanvas.height = bounds.height;
+    
+    const croppedCtx = croppedCanvas.getContext('2d');
+    if (!croppedCtx) return sourceCanvas;
+
+    croppedCtx.drawImage(
+      sourceCanvas,
+      bounds.x, bounds.y, bounds.width, bounds.height,
+      0, 0, bounds.width, bounds.height
+    );
+
+    return croppedCanvas;
+  };
+
+  // Enhance for OCR
+  const enhanceForOCR = (canvas: HTMLCanvasElement): HTMLCanvasElement => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    const contrast = 1.4;
+    const brightness = 20;
+
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = Math.min(255, Math.max(0, contrast * (data[i] - 128) + 128 + brightness));
+      data[i + 1] = Math.min(255, Math.max(0, contrast * (data[i + 1] - 128) + 128 + brightness));
+      data[i + 2] = Math.min(255, Math.max(0, contrast * (data[i + 2] - 128) + 128 + brightness));
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -229,7 +427,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 
                 {/* Mobile help text */}
                 <p className="text-xs text-gray-400 sm:hidden mt-2">
-                  💡 "Scan with Camera" opens your phone's camera app
+                  📄 Document edges automatically detected and cropped
                 </p>
               </div>
               {/* Mobile help text */}

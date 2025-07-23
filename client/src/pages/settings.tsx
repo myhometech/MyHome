@@ -243,6 +243,19 @@ export default function Settings() {
             </CardContent>
           </Card>
 
+          {/* Subscription & Billing Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Subscription & Billing
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SubscriptionPlans />
+            </CardContent>
+          </Card>
+
           {/* Security Section */}
           <Card>
             <CardHeader>

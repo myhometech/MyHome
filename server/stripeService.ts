@@ -18,7 +18,7 @@ export class StripeService {
    * Create or retrieve Stripe customer for user
    */
   async getOrCreateCustomer(userId: string, email: string, name?: string): Promise<string> {
-    const user = await storage.getUserById(userId);
+    const user = await storage.getUser(userId);
     if (!user) {
       throw new Error('User not found');
     }
@@ -54,7 +54,7 @@ export class StripeService {
     successUrl: string,
     cancelUrl: string
   ): Promise<{ sessionId: string; url: string }> {
-    const user = await storage.getUserById(userId);
+    const user = await storage.getUser(userId);
     if (!user) {
       throw new Error('User not found');
     }
@@ -92,7 +92,7 @@ export class StripeService {
    * Create customer portal session for subscription management
    */
   async createPortalSession(userId: string, returnUrl: string): Promise<{ url: string }> {
-    const user = await storage.getUserById(userId);
+    const user = await storage.getUser(userId);
     if (!user?.stripeCustomerId) {
       throw new Error('No Stripe customer found for user');
     }
@@ -274,7 +274,7 @@ export class StripeService {
     renewalDate?: Date | null;
     portalUrl?: string;
   }> {
-    const user = await storage.getUserById(userId);
+    const user = await storage.getUser(userId);
     if (!user) {
       throw new Error('User not found');
     }

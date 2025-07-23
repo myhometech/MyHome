@@ -432,7 +432,7 @@ ${mapping.forwardingAddress}
    * Generate unique email hash for user that's collision-resistant
    */
   private generateUniqueEmailHash(userId: string): string {
-    const crypto = require('crypto');
+    const crypto = require('node:crypto');
     // Create a hash using user ID, current timestamp, and random salt
     const salt = Date.now().toString();
     const hash = crypto.createHash('sha256').update(userId + salt).digest('hex');

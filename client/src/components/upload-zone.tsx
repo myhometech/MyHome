@@ -238,44 +238,163 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     return result;
   };
 
-  // Find largest rectangle contour
+  // Find largest rectangle contour with improved document detection
   const findLargestRectangle = (edges: Uint8Array, width: number, height: number): { x: number, y: number, width: number, height: number } => {
-    const threshold = 50;
+    const threshold = 30; // Lower threshold for better edge detection
     const binary = edges.map(pixel => pixel > threshold ? 255 : 0);
 
-    let minX = width, maxX = 0, minY = height, maxY = 0;
-    let hasEdges = false;
+    // Apply morphological operations to clean up edges
+    const cleaned = applyMorphologicalOps(binary, width, height);
 
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        if (binary[y * width + x] > 0) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-          hasEdges = true;
+    // Find contours by detecting significant edge density regions
+    const contours = findDocumentContours(cleaned, width, height);
+    
+    if (contours.length > 0) {
+      // Return the largest contour (likely the document)
+      return contours[0];
+    }
+
+    // More aggressive fallback - crop to center 70% instead of 80%
+    const margin = 0.15;
+    return {
+      x: Math.floor(width * margin),
+      y: Math.floor(height * margin),
+      width: Math.floor(width * (1 - 2 * margin)),
+      height: Math.floor(height * (1 - 2 * margin))
+    };
+  };
+
+  // Apply morphological operations to clean up binary edges
+  const applyMorphologicalOps = (binary: Uint8Array, width: number, height: number): Uint8Array => {
+    // Apply closing operation to fill gaps in document edges
+    const structuringElement = [
+      [1, 1, 1],
+      [1, 1, 1],
+      [1, 1, 1]
+    ];
+
+    const result = new Uint8Array(binary.length);
+    
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let hasEdge = false;
+        
+        // Check if any neighbor has an edge
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            if (structuringElement[ky + 1][kx + 1] && binary[(y + ky) * width + (x + kx)] > 0) {
+              hasEdge = true;
+              break;
+            }
+          }
+          if (hasEdge) break;
         }
+        
+        result[y * width + x] = hasEdge ? 255 : 0;
       }
     }
+    
+    return result;
+  };
 
-    // Fallback to center 80% if no clear document edges
-    if (!hasEdges || (maxX - minX) < width * 0.3 || (maxY - minY) < height * 0.3) {
-      const margin = 0.1;
-      return {
-        x: Math.floor(width * margin),
-        y: Math.floor(height * margin),
-        width: Math.floor(width * (1 - 2 * margin)),
-        height: Math.floor(height * (1 - 2 * margin))
-      };
+  // Find document contours by analyzing edge density
+  const findDocumentContours = (binary: Uint8Array, width: number, height: number): Array<{ x: number, y: number, width: number, height: number }> => {
+    const contours: Array<{ x: number, y: number, width: number, height: number }> = [];
+    
+    // Scan for strong horizontal and vertical line segments
+    const horizontalLines = findHorizontalLines(binary, width, height);
+    const verticalLines = findVerticalLines(binary, width, height);
+    
+    // Find rectangles formed by these lines
+    if (horizontalLines.length >= 2 && verticalLines.length >= 2) {
+      const topLine = Math.min(...horizontalLines);
+      const bottomLine = Math.max(...horizontalLines);
+      const leftLine = Math.min(...verticalLines);
+      const rightLine = Math.max(...verticalLines);
+      
+      // Ensure we have a reasonable rectangle
+      const rectWidth = rightLine - leftLine;
+      const rectHeight = bottomLine - topLine;
+      
+      if (rectWidth > width * 0.2 && rectHeight > height * 0.2) {
+        const margin = 5; // Small margin
+        contours.push({
+          x: Math.max(0, leftLine - margin),
+          y: Math.max(0, topLine - margin),
+          width: Math.min(width - leftLine + margin, rectWidth + 2 * margin),
+          height: Math.min(height - topLine + margin, rectHeight + 2 * margin)
+        });
+      }
     }
+    
+    // Sort by area (largest first)
+    contours.sort((a, b) => (b.width * b.height) - (a.width * a.height));
+    
+    return contours;
+  };
 
-    const margin = 10;
-    return {
-      x: Math.max(0, minX - margin),
-      y: Math.max(0, minY - margin),
-      width: Math.min(width - (minX - margin), maxX - minX + 2 * margin),
-      height: Math.min(height - (minY - margin), maxY - minY + 2 * margin)
-    };
+  // Find horizontal line segments that could be document edges
+  const findHorizontalLines = (binary: Uint8Array, width: number, height: number): number[] => {
+    const lines: number[] = [];
+    const minLineLength = width * 0.3; // At least 30% of width
+    
+    for (let y = 0; y < height; y++) {
+      let lineLength = 0;
+      let startX = -1;
+      
+      for (let x = 0; x < width; x++) {
+        if (binary[y * width + x] > 0) {
+          if (startX === -1) startX = x;
+          lineLength++;
+        } else {
+          if (lineLength > minLineLength) {
+            lines.push(y);
+            break;
+          }
+          lineLength = 0;
+          startX = -1;
+        }
+      }
+      
+      // Check if line extends to edge
+      if (lineLength > minLineLength) {
+        lines.push(y);
+      }
+    }
+    
+    return lines;
+  };
+
+  // Find vertical line segments that could be document edges
+  const findVerticalLines = (binary: Uint8Array, width: number, height: number): number[] => {
+    const lines: number[] = [];
+    const minLineLength = height * 0.3; // At least 30% of height
+    
+    for (let x = 0; x < width; x++) {
+      let lineLength = 0;
+      let startY = -1;
+      
+      for (let y = 0; y < height; y++) {
+        if (binary[y * width + x] > 0) {
+          if (startY === -1) startY = y;
+          lineLength++;
+        } else {
+          if (lineLength > minLineLength) {
+            lines.push(x);
+            break;
+          }
+          lineLength = 0;
+          startY = -1;
+        }
+      }
+      
+      // Check if line extends to edge
+      if (lineLength > minLineLength) {
+        lines.push(x);
+      }
+    }
+    
+    return lines;
   };
 
   // Crop to document area
@@ -427,7 +546,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 
                 {/* Mobile help text */}
                 <p className="text-xs text-gray-400 sm:hidden mt-2">
-                  📄 Document edges automatically detected and cropped
+                  📄 Enhanced edge detection with aggressive document cropping
                 </p>
               </div>
               {/* Mobile help text */}

@@ -350,7 +350,14 @@ export default function DocumentCard({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => setShowModal(true)}>
                       <Eye className="h-4 w-4 mr-2" />
-                      View & Edit
+                      View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartEdit();
+                    }}>
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleDownload}>
                       <Download className="h-4 w-4 mr-2" />
@@ -388,7 +395,7 @@ export default function DocumentCard({
   const handleCardClick = () => {
     if (bulkMode && onToggleSelection) {
       onToggleSelection();
-    } else if (!bulkMode) {
+    } else if (!bulkMode && !isEditing) {
       setShowModal(true);
     }
   };
@@ -433,7 +440,10 @@ export default function DocumentCard({
                   <Eye className="h-4 w-4 mr-2" />
                   View
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleStartEdit}>
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartEdit();
+                }}>
                   <Edit2 className="h-4 w-4 mr-2" />
                   Edit
                 </DropdownMenuItem>

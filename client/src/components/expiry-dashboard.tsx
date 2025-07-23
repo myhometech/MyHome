@@ -201,13 +201,20 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
                     <div 
                       key={doc.id}
                       onClick={() => handleDocumentClick(doc)}
-                      className="flex items-center justify-between p-2 bg-white bg-opacity-50 rounded hover:bg-opacity-75 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-3 bg-white bg-opacity-50 rounded hover:bg-opacity-75 cursor-pointer transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        <span className="font-medium">{getDateDescription(doc)}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <FileText className="w-4 h-4" />
+                          <span className="font-medium">{getDateDescription(doc)}</span>
+                        </div>
+                        {doc.summary && (
+                          <div className="text-sm text-red-600 ml-6 opacity-90">
+                            {doc.summary}
+                          </div>
+                        )}
                       </div>
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 flex-shrink-0" />
                     </div>
                   ))}
                   {typedExpiryData.expired.length > 3 && (
@@ -236,13 +243,20 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
                     <div 
                       key={doc.id}
                       onClick={() => handleDocumentClick(doc)}
-                      className="flex items-center justify-between p-2 bg-white bg-opacity-50 rounded hover:bg-opacity-75 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-3 bg-white bg-opacity-50 rounded hover:bg-opacity-75 cursor-pointer transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        <span className="font-medium">{getDateDescription(doc)}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock className="w-4 h-4" />
+                          <span className="font-medium">{getDateDescription(doc)}</span>
+                        </div>
+                        {doc.summary && (
+                          <div className="text-sm text-orange-600 ml-6 opacity-90">
+                            {doc.summary}
+                          </div>
+                        )}
                       </div>
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 flex-shrink-0" />
                     </div>
                   ))}
                   {typedExpiryData.expiringSoon.length > 3 && (

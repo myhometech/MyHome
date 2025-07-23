@@ -155,6 +155,17 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### Enhanced Document Summaries with Payment History Context (January 23, 2025)
+- **Issue**: User requested that documents due soon summaries provide better context including payment history details
+- **Resolution**: 
+  - Enhanced OCR service to extract previous payment amounts and payment history from bills and invoices
+  - Added new helper functions: extractPreviousAmount(), extractPaymentHistory(), extractDueDate(), extractInvoiceNumber()
+  - Improved bill summaries to show "Amount due: £X. Previous: £Y. Last payment: £Z (date)" format
+  - Enhanced invoice summaries with due dates and invoice numbers for better context
+  - Added insurance renewal dates and premium information to policy summaries
+  - Modified expiry dashboard alerts to display enhanced summaries alongside due date notifications
+- **Impact**: Documents due soon now provide comprehensive context with payment history, making alerts more actionable
+
 ### Navigation Consolidation and UI Improvements (January 23, 2025)
 - **Issue**: User requested to combine duplicate MyHome navigation areas and remove shared documents functionality
 - **Resolution**: 

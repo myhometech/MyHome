@@ -4,7 +4,7 @@
 
 MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Implemented comprehensive PDF OCR with intelligent summary generation (January 2025). Enhanced pdf2json integration for reliable PDF text extraction, created smart summarization that identifies document types (bills, invoices, receipts, insurance) and extracts key details like amounts, providers, and billing periods. Summaries are now concise (under 50 characters) and context-aware, replacing verbose content previews with actionable information like "Three mobile bill for Jun 2025 - Account 983539187" and "Peloton membership - £12.99".
+**Latest Update**: Consolidated navigation and editing system improvements (January 2025). Removed duplicate MyHome navigation areas and combined them into single header with integrated search functionality. Eliminated "My Documents" and "Shared with Me" sections as requested. Implemented completely inline document editing - Edit dropdown action now only enables inline editing without modal popups, while View action opens modal for viewing document details. Enhanced PDF OCR with intelligent summary generation including bill amounts extraction.
 
 ## User Preferences
 
@@ -154,6 +154,17 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 The application follows a standard full-stack architecture with clear separation of concerns, type safety throughout, and modern development practices for maintainability and scalability.
 
 ## Recent Changes
+
+### Navigation Consolidation and UI Improvements (January 23, 2025)
+- **Issue**: User requested to combine duplicate MyHome navigation areas and remove shared documents functionality
+- **Resolution**: 
+  - Consolidated Navigation and Header components into single Header component across all pages
+  - Removed "My Documents" and "Shared with Me" navigation sections completely
+  - Integrated search bar into main header for consistent navigation experience
+  - Separated View and Edit actions in document dropdown menus for clearer UX
+  - Implemented fully inline document editing without modal interference
+  - Removed shared-with-me routing and components as no longer needed
+- **Impact**: Cleaner navigation with single MyHome branding, better user experience with inline editing
 
 ### Security Dependency Updates (January 22, 2025)
 - **Issue**: Security scan required downgrades of multiple dependencies including html-pdf-node, puppeteer, and ws

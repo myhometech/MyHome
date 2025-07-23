@@ -10,7 +10,7 @@ import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import ForgotPassword from "@/pages/forgot-password";
-import SharedWithMe from "@/pages/shared-with-me";
+
 import ExpiryDocuments from "@/pages/expiry-documents";
 import Settings from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
@@ -40,9 +40,7 @@ function Router() {
           <Route path="/forgot-password" component={ForgotPassword} />
           <Route path="/pricing" component={Pricing} />
           {/* Redirect protected routes to login */}
-          <Route path="/shared-with-me">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
+
           <Route path="/expiry-documents">
             {() => { setLocation("/login"); return null; }}
           </Route>
@@ -59,7 +57,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
-          <Route path="/shared-with-me" component={SharedWithMe} />
+
           <Route path="/expiry-documents" component={ExpiryDocuments} />
           <Route path="/settings" component={Settings} />
           <Route path="/admin" component={AdminDashboard} />

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Eye, Edit, Mail } from "lucide-react";
 import DocumentCard from "@/components/document-card";
-import { Navigation } from "@/components/navigation";
+import Header from "@/components/header";
 import type { Document } from "@shared/schema";
 
 interface Category {
@@ -25,7 +25,7 @@ export default function SharedWithMe() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navigation />
+        <Header searchQuery="" onSearchChange={() => {}} />
         <main className="container mx-auto py-8 px-4">
           <div className="space-y-6">
             <div className="flex items-center gap-3">
@@ -44,7 +44,7 @@ export default function SharedWithMe() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
+      <Header searchQuery="" onSearchChange={() => {}} />
       <main className="container mx-auto py-8 px-4">
         <div className="space-y-6">
           <div className="flex items-center gap-3">

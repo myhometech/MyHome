@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Navigation } from "@/components/navigation";
 import Header from "@/components/header";
 import MobileNav from "@/components/mobile-nav";
 import { EmailForwarding } from "@/components/email-forwarding";
@@ -59,7 +58,6 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <Navigation />
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">

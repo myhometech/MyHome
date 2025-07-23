@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { Navigation } from "@/components/navigation";
+import Header from "@/components/header";
 import DocumentCard from "@/components/document-card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, AlertTriangle, Clock, Calendar, FileText } from "lucide-react";
@@ -122,7 +122,7 @@ export default function ExpiryDocuments() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <Navigation />
+      <Header searchQuery="" onSearchChange={() => {}} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}

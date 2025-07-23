@@ -11,7 +11,7 @@ import DocumentCard from "@/components/document-card";
 import MobileNav from "@/components/mobile-nav";
 import { ExpiryDashboard } from "@/components/expiry-dashboard";
 import Chatbot from "@/components/chatbot";
-import { Navigation } from "@/components/navigation";
+
 import { EmailForwarding } from "@/components/email-forwarding";
 import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
 import { useFeatures } from "@/hooks/useFeatures";
@@ -228,7 +228,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <Navigation />
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">

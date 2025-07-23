@@ -1,0 +1,49 @@
+I need your assistance in creating the backend required for integrating Stripe into our MyHome platform. Please scope and build the necessary backend components with the following requirements in mind:
+
+🧩 Integration Purpose:
+
+We intend to use Stripe for processing payments related to premium subscriptions (or any other transactional functionality in the future).
+
+📌 Backend Requirements:
+	1.	Stripe Account Setup:
+	•	Ensure that the system can securely store and access our Stripe secret keys using environment variables.
+	2.	Customer Management:
+	•	Create endpoints to:
+	•	Create and retrieve Stripe customer objects.
+	•	Link Stripe customer IDs to our internal user model.
+	3.	Checkout and Subscriptions:
+	•	Implement API endpoints to:
+	•	Initiate a Stripe Checkout Session for subscription plans.
+	•	Handle success/cancel redirects after checkout.
+	•	Optionally support Stripe customer portal for subscription management.
+	4.	Webhooks:
+	•	Set up a secure webhook endpoint to listen for relevant Stripe events:
+	•	checkout.session.completed
+	•	invoice.paid
+	•	invoice.payment_failed
+	•	customer.subscription.updated
+	•	customer.subscription.deleted
+	•	Ensure event verification using Stripe’s signature secret.
+	•	Map events to user records and update their subscription status accordingly.
+	5.	Data Storage:
+	•	Design schema additions (if needed) to track:
+	•	Stripe customer IDs
+	•	Subscription status
+	•	Plan tier
+	•	Renewal date, etc.
+	6.	Security and Compliance:
+	•	Follow Stripe’s best practices for secure integration.
+	•	Ensure sensitive data is never logged or exposed.
+	•	Implement access control to restrict relevant endpoints to authenticated users.
+	7.	Testing and Dev Mode:
+	•	Support both test and live keys.
+	•	Provide mocked endpoints or sandbox setup to test locally.
+
+⚙️ Tech Stack Assumptions:
+
+Please let me know if you need confirmation, but assume we’re working with:
+	•	Node.js/Express (or adjust to our current backend stack)
+	•	PostgreSQL (if database extensions are required)
+	•	Stripe’s official Node SDK
+
+Let me know if anything is unclear or if you’d like a short follow-up meeting to align. Thanks!

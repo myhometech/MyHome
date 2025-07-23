@@ -371,32 +371,88 @@ export class EmailService {
   }
 
   /**
-   * Get a user-specific forwarding email address where they can send documents
+   * Get or create unique forwarding address for user
+   */
+  async getForwardingAddress(userId: string): Promise<{
+    address: string;
+    instructions: string;
+  }> {
+    try {
+      // Check if user already has a forwarding mapping
+      let mapping = await storage.getUserForwardingMapping(userId);
+      
+      if (!mapping) {
+        // Create new mapping with unique hash
+        const emailHash = this.generateUniqueEmailHash(userId);
+        const forwardingAddress = `docs-${emailHash}@${this.getEmailDomain()}`;
+        
+        const mappingData: InsertUserForwardingMapping = {
+          userId,
+          emailHash,
+          forwardingAddress,
+        };
+        
+        mapping = await storage.createUserForwardingMapping(mappingData);
+      }
+
+      return {
+        address: mapping.forwardingAddress,
+        instructions: `
+📧 Your Personal Document Import Email:
+${mapping.forwardingAddress}
+
+✅ Supported Attachments: PDF, JPG, PNG, WEBP (up to 10MB each)
+
+🔄 How It Works:
+1. Forward emails with documents to this address
+2. Attachments automatically saved and organized
+3. Email content converted to searchable PDF
+4. Documents processed with OCR and smart categorization
+
+📱 Perfect for: Bills, receipts, contracts, insurance docs, photos of documents
+
+🔐 Security: This address is unique to your account - keep it private!
+        `.trim(),
+      };
+    } catch (error) {
+      console.error('Error getting forwarding address:', error);
+      throw new Error('Failed to generate forwarding address');
+    }
+  }
+
+  /**
+   * Get a user-specific forwarding email address where they can send documents (legacy)
    */
   async getUserForwardingAddress(userId: string): Promise<string> {
-    // Check if user already has a forwarding mapping
-    let mapping = await storage.getUserForwardingMapping(userId);
-    
-    if (!mapping) {
-      // Create a new mapping for this user
-      const userHash = Buffer.from(userId).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toLowerCase();
-      const forwardingAddress = `docs-${userHash}@homedocs.example.com`;
-      
-      mapping = await storage.createUserForwardingMapping({
-        userId,
-        emailHash: userHash,
-        forwardingAddress,
-      });
-    }
-    
-    return mapping.forwardingAddress;
+    const result = await this.getForwardingAddress(userId);
+    return result.address;
+  }
+
+  /**
+   * Generate unique email hash for user that's collision-resistant
+   */
+  private generateUniqueEmailHash(userId: string): string {
+    const crypto = require('crypto');
+    // Create a hash using user ID, current timestamp, and random salt
+    const salt = Date.now().toString();
+    const hash = crypto.createHash('sha256').update(userId + salt).digest('hex');
+    // Take first 12 characters for better uniqueness while keeping email readable
+    return hash.substring(0, 12).toLowerCase();
+  }
+
+  /**
+   * Get email domain (configurable via environment)
+   */
+  private getEmailDomain(): string {
+    return process.env.EMAIL_DOMAIN || 'homedocs.example.com';
   }
 
   /**
    * Parse incoming email address to extract user ID
    */
   async parseUserFromEmail(toAddress: string): Promise<string | null> {
-    const match = toAddress.match(/^docs-([a-z0-9]{8})@homedocs\.example\.com$/);
+    const domain = this.getEmailDomain();
+    const match = toAddress.match(new RegExp(`^docs-([a-z0-9]{12})@${domain.replace('.', '\\.')}$`));
     if (!match) return null;
     
     try {

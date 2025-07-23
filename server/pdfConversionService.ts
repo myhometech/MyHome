@@ -230,6 +230,238 @@ export class PDFConversionService {
   }
 
   /**
+   * Convert email HTML content to PDF format
+   */
+  async convertEmailToPDF(
+    htmlContent: string, 
+    emailSubject: string, 
+    fromEmail: string, 
+    outputDir: string
+  ): Promise<ConversionResult> {
+    try {
+      console.log(`Converting email to PDF: ${emailSubject}`);
+      
+      // Generate PDF filename
+      const timestamp = Date.now();
+      const pdfFilename = `email_${timestamp}.pdf`;
+      const pdfPath = path.join(outputDir, pdfFilename);
+
+      // Create enhanced HTML template for email PDF
+      const emailTemplate = this.createEmailPDFTemplate(htmlContent, emailSubject, fromEmail);
+      
+      // Generate PDF using Puppeteer
+      await this.generatePDFFromHTML(emailTemplate, pdfPath);
+
+      console.log(`Successfully converted email to PDF: ${pdfPath}`);
+      
+      return {
+        pdfPath,
+        originalImagePath: '',
+        success: true
+      };
+
+    } catch (error: any) {
+      console.error('Email PDF conversion failed:', error);
+      return {
+        pdfPath: '',
+        originalImagePath: '',
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Create HTML template for email PDF generation
+   */
+  private createEmailPDFTemplate(emailContent: string, subject: string, fromEmail: string): string {
+    // Strip basic HTML and preserve structure
+    const cleanContent = this.sanitizeEmailContent(emailContent);
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Email: ${subject}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: white;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .email-container {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 15mm;
+            background: white;
+        }
+        
+        .email-header {
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 8mm;
+            margin-bottom: 8mm;
+        }
+        
+        .email-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 4mm;
+        }
+        
+        .email-meta {
+            background: #f8fafc;
+            padding: 8mm;
+            border-radius: 4mm;
+            margin-bottom: 8mm;
+            border-left: 4px solid #2563eb;
+        }
+        
+        .meta-row {
+            display: flex;
+            margin-bottom: 2mm;
+            font-size: 14px;
+        }
+        
+        .meta-label {
+            font-weight: bold;
+            color: #374151;
+            min-width: 20mm;
+        }
+        
+        .meta-value {
+            color: #6b7280;
+        }
+        
+        .email-content {
+            background: white;
+            padding: 8mm;
+            border: 1px solid #e5e7eb;
+            border-radius: 4mm;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        
+        .email-content h1, .email-content h2, .email-content h3 {
+            color: #1f2937;
+            margin: 6mm 0 4mm 0;
+        }
+        
+        .email-content p {
+            margin-bottom: 4mm;
+        }
+        
+        .email-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 4mm 0;
+        }
+        
+        .email-content th, .email-content td {
+            border: 1px solid #d1d5db;
+            padding: 2mm;
+            text-align: left;
+        }
+        
+        .email-content th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+        }
+        
+        .footer {
+            margin-top: 8mm;
+            text-align: center;
+            font-size: 10px;
+            color: #9ca3af;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 4mm;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            
+            .email-container {
+                padding: 10mm;
+                margin: 0;
+                max-width: none;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="email-header">
+            <h1 class="email-title">📧 Email Document</h1>
+        </div>
+        
+        <div class="email-meta">
+            <div class="meta-row">
+                <span class="meta-label">From:</span>
+                <span class="meta-value">${fromEmail}</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">Subject:</span>
+                <span class="meta-value">${subject}</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">Processed:</span>
+                <span class="meta-value">${new Date().toLocaleString()}</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">Document Type:</span>
+                <span class="meta-value">Email Import</span>
+            </div>
+        </div>
+        
+        <div class="email-content">
+            ${cleanContent}
+        </div>
+        
+        <div class="footer">
+            <p>Generated by MyHome Document Management System</p>
+            <p>Email imported and converted to PDF for document management</p>
+        </div>
+    </div>
+</body>
+</html>`;
+  }
+
+  /**
+   * Sanitize and clean email content for PDF rendering
+   */
+  private sanitizeEmailContent(htmlContent: string): string {
+    if (!htmlContent) return '<p>No content available</p>';
+    
+    // Basic HTML cleaning - remove script tags, clean up formatting
+    let cleaned = htmlContent
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/style\s*=\s*"[^"]*"/gi, '')
+      .replace(/class\s*=\s*"[^"]*"/gi, '')
+      .replace(/id\s*=\s*"[^"]*"/gi, '');
+    
+    // If it's mostly just text, wrap in paragraphs
+    if (!cleaned.includes('<p>') && !cleaned.includes('<div>') && !cleaned.includes('<h')) {
+      cleaned = `<p>${cleaned.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;
+    }
+    
+    return cleaned || '<p>Email content could not be processed</p>';
+  }
+
+  /**
    * Clean up temporary files if needed
    */
   async cleanup(filePaths: string[]): Promise<void> {

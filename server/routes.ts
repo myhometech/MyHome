@@ -968,8 +968,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const EmailService = (await import('./emailService')).EmailService;
       const emailService = new EmailService();
-      const forwardingAddress = await emailService.getUserForwardingAddress(userId);
-      res.json({ forwardingAddress });
+      const forwardingData = await emailService.getForwardingAddress(userId);
+      res.json(forwardingData);
     } catch (error) {
       console.error("Error getting forwarding address:", error);
       res.status(500).json({ message: "Failed to get forwarding address" });

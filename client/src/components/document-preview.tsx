@@ -147,34 +147,24 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
 
     if (isPDF()) {
       return (
-        <div className="bg-gray-50 rounded-lg overflow-hidden">
-          <div className="flex items-center justify-between p-2 bg-gray-100">
+        <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-red-600" />
-              <span className="text-sm text-gray-600">PDF Document</span>
+              <FileText className="w-4 h-4 text-blue-600" />
+              <span className="text-sm text-gray-800 font-medium">{document.fileName}</span>
+              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">PDF</Badge>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                PDF
-              </Badge>
-            </div>
-          </div>
-          <div className="p-4">
-            <div className="bg-white rounded border-2 border-dashed border-gray-300 h-96 flex items-center justify-center">
-              <div className="text-center text-gray-500 max-w-xs">
-                <FileText className="w-20 h-20 mx-auto mb-4 text-red-400" />
-                <p className="font-medium text-lg mb-2">PDF Preview</p>
-                <p className="text-sm text-gray-600 mb-4">
-                  PDF preview is not yet supported. Use the download button to view the full document.
-                </p>
-                {onDownload && (
-                  <Button onClick={onDownload} variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </Button>
-                )}
-              </div>
-            </div>
+            <button
+              onClick={() => {
+                console.log('Opening PDF for document ID:', document.id);
+                const pdfUrl = `/api/documents/${document.id}/preview`;
+                window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+              }}
+              className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+            >
+              <FileText className="w-3 h-3 mr-1" />
+              Open PDF
+            </button>
           </div>
         </div>
       );

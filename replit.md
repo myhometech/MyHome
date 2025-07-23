@@ -4,7 +4,7 @@
 
 MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Successfully resolved all issues from security dependency updates (January 2025). Fixed missing userId parameter in email service category lookup, added proper TypeScript definitions for html-pdf-node library, and implemented graceful fallback for PDF generation when system dependencies are unavailable. Application runs without errors after dependency version downgrades for security compliance. All core functionality remains intact with appropriate error handling.
+**Latest Update**: Implemented comprehensive PDF OCR with intelligent summary generation (January 2025). Enhanced pdf2json integration for reliable PDF text extraction, created smart summarization that identifies document types (bills, invoices, receipts, insurance) and extracts key details like amounts, providers, and billing periods. Summaries are now concise (under 50 characters) and context-aware, replacing verbose content previews with actionable information like "Three mobile bill for Jun 2025 - Account 983539187" and "Peloton membership - £12.99".
 
 ## User Preferences
 

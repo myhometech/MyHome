@@ -208,8 +208,35 @@ function extractProvider(text: string): string {
 }
 
 function extractAmount(text: string): string | null {
-  const amounts = text.match(/£[\d,]+\.?\d*/g) || text.match(/\$[\d,]+\.?\d*/g) || text.match(/€[\d,]+\.?\d*/g);
-  return amounts ? amounts[amounts.length - 1] : null; // Get last amount (likely total)
+  // Look for total amounts first (most important)
+  const totalRegex = /total\s+(?:due|amount|charges?|after\s+vat|bill)?\s*[:\-]?\s*£([\d,]+\.?\d*)/gi;
+  const totalMatch = text.match(totalRegex);
+  if (totalMatch && totalMatch.length > 0) {
+    const amount = totalMatch[totalMatch.length - 1].match(/£([\d,]+\.?\d*)/i);
+    if (amount) return `£${amount[1]}`;
+  }
+  
+  // Look for "total due" or "amount due" patterns
+  const dueRegex = /(?:total\s+due|amount\s+due|balance\s+due)\s+(?:by\s+[\d\/]+\s+)?£([\d,]+\.?\d*)/gi;
+  const dueMatch = text.match(dueRegex);
+  if (dueMatch && dueMatch.length > 0) {
+    const amount = dueMatch[0].match(/£([\d,]+\.?\d*)/i);
+    if (amount) return `£${amount[1]}`;
+  }
+  
+  // Fallback: find all currency amounts and take the largest one (likely the total)
+  const amounts = text.match(/£([\d,]+\.?\d*)/g) || text.match(/\$([\d,]+\.?\d*)/g) || text.match(/€([\d,]+\.?\d*)/g);
+  if (amounts && amounts.length > 0) {
+    // Convert to numbers, find max, return formatted
+    const numericAmounts = amounts.map(a => {
+      const num = parseFloat(a.replace(/[£$€,]/g, ''));
+      return { text: a, value: num };
+    });
+    const maxAmount = numericAmounts.reduce((max, curr) => curr.value > max.value ? curr : max);
+    return maxAmount.text;
+  }
+  
+  return null;
 }
 
 function extractBillingPeriod(text: string): string | null {

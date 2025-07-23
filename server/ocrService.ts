@@ -138,7 +138,16 @@ export async function generateDocumentSummary(extractedText: string, fileName: s
       const provider = extractProvider(text);
       const amount = extractAmount(text);
       const period = extractBillingPeriod(text);
-      summary = `${provider} mobile bill${period ? ` for ${period}` : ''}${amount ? ` - ${amount}` : ''}`;
+      const previousAmount = extractPreviousAmount(text);
+      const paymentHistory = extractPaymentHistory(text);
+      
+      summary = `${provider} mobile bill${period ? ` for ${period}` : ''}${amount ? ` - Amount due: ${amount}` : ''}`;
+      if (previousAmount && previousAmount !== amount) {
+        summary += `. Previous: ${previousAmount}`;
+      }
+      if (paymentHistory) {
+        summary += `. ${paymentHistory}`;
+      }
     }
     
     // Utility bills (gas, electric, water)
@@ -146,28 +155,42 @@ export async function generateDocumentSummary(extractedText: string, fileName: s
       const provider = extractProvider(text);
       const amount = extractAmount(text);
       const period = extractBillingPeriod(text);
-      summary = `${provider} utility bill${period ? ` for ${period}` : ''}${amount ? ` - ${amount}` : ''}`;
+      const previousAmount = extractPreviousAmount(text);
+      const paymentHistory = extractPaymentHistory(text);
+      
+      summary = `${provider} utility bill${period ? ` for ${period}` : ''}${amount ? ` - Amount due: ${amount}` : ''}`;
+      if (previousAmount && previousAmount !== amount) {
+        summary += `. Previous: ${previousAmount}`;
+      }
+      if (paymentHistory) {
+        summary += `. ${paymentHistory}`;
+      }
     }
     
     // Invoices
     else if (text.includes('invoice')) {
       const company = extractCompanyName(text);
       const amount = extractAmount(text);
-      summary = `Invoice from ${company}${amount ? ` - ${amount}` : ''}`;
+      const dueDate = extractDueDate(text);
+      const invoiceNumber = extractInvoiceNumber(text);
+      summary = `Invoice from ${company}${amount ? ` - Amount: ${amount}` : ''}${dueDate ? ` (Due: ${dueDate})` : ''}${invoiceNumber ? ` #${invoiceNumber}` : ''}`;
     }
     
     // Receipts
     else if (text.includes('receipt')) {
       const store = extractStore(text);
       const amount = extractAmount(text);
-      summary = `Receipt from ${store}${amount ? ` - ${amount}` : ''}`;
+      const date = extractReceiptDate(text);
+      summary = `Receipt from ${store}${amount ? ` - ${amount}` : ''}${date ? ` (${date})` : ''}`;
     }
     
     // Insurance documents
     else if (text.includes('insurance') || text.includes('policy')) {
       const type = extractInsuranceType(text);
       const company = extractCompanyName(text);
-      summary = `${type} insurance policy${company ? ` with ${company}` : ''}`;
+      const renewalDate = extractRenewalDate(text);
+      const premium = extractPremium(text);
+      summary = `${type} insurance policy${company ? ` with ${company}` : ''}${premium ? ` - Premium: ${premium}` : ''}${renewalDate ? ` (Renewal: ${renewalDate})` : ''}`;
     }
     
     // Medical documents
@@ -279,6 +302,112 @@ function extractMedicalProvider(text: string): string {
   if (text.includes('hospital')) return 'Hospital';
   if (text.includes('clinic')) return 'Clinic';
   return 'Healthcare provider';
+}
+
+function extractPreviousAmount(text: string): string | null {
+  // Look for patterns like "previous bill £45.00", "last month £50", "last payment £40"
+  const previousRegex = /(?:previous\s+(?:bill|payment|amount)|last\s+(?:bill|payment|month))\s*[:\-]?\s*£([\d,]+\.?\d*)/gi;
+  const match = text.match(previousRegex);
+  if (match && match.length > 0) {
+    const amount = match[0].match(/£([\d,]+\.?\d*)/i);
+    if (amount) return `£${amount[1]}`;
+  }
+  
+  // Look for payment history in statements
+  const paymentRegex = /payment\s+received\s+£([\d,]+\.?\d*)/gi;
+  const paymentMatch = text.match(paymentRegex);
+  if (paymentMatch && paymentMatch.length > 0) {
+    const amount = paymentMatch[paymentMatch.length - 1].match(/£([\d,]+\.?\d*)/i);
+    if (amount) return `£${amount[1]}`;
+  }
+  
+  return null;
+}
+
+function extractPaymentHistory(text: string): string | null {
+  // Look for recent payment information
+  const lines = text.split('\n');
+  
+  // Find payment confirmation patterns
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    
+    // Payment received with date
+    if (lowerLine.includes('payment received') || lowerLine.includes('payment confirmed')) {
+      const dateMatch = line.match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{2,4})/i);
+      const amountMatch = line.match(/£([\d,]+\.?\d*)/);
+      if (dateMatch && amountMatch) {
+        return `Last payment: £${amountMatch[1]} (${dateMatch[0]})`;
+      }
+    }
+    
+    // Direct debit setup
+    if (lowerLine.includes('direct debit') && lowerLine.includes('date')) {
+      const dateMatch = line.match(/(\d{1,2}\/\d{1,2}|\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))/i);
+      if (dateMatch) {
+        return `Direct debit scheduled: ${dateMatch[0]}`;
+      }
+    }
+    
+    // Monthly payment pattern
+    if (lowerLine.includes('monthly') && lowerLine.includes('£')) {
+      const amountMatch = line.match(/£([\d,]+\.?\d*)/);
+      if (amountMatch) {
+        return `Monthly payment: £${amountMatch[1]}`;
+      }
+    }
+  }
+  
+  return null;
+}
+
+function extractDueDate(text: string): string | null {
+  const dueDateRegex = /(?:due\s+date|payment\s+due)\s*[:\-]?\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{2,4})/gi;
+  const match = text.match(dueDateRegex);
+  if (match && match.length > 0) {
+    const dateMatch = match[0].match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{2,4})/i);
+    if (dateMatch) return dateMatch[0];
+  }
+  return null;
+}
+
+function extractInvoiceNumber(text: string): string | null {
+  const invoiceRegex = /(?:invoice\s+(?:no|number)|ref(?:erence)?)\s*[:\-#]?\s*([A-Z0-9\-]+)/gi;
+  const match = text.match(invoiceRegex);
+  if (match && match.length > 0) {
+    const numberMatch = match[0].match(/([A-Z0-9\-]+)$/i);
+    if (numberMatch) return numberMatch[1];
+  }
+  return null;
+}
+
+function extractReceiptDate(text: string): string | null {
+  const lines = text.split('\n');
+  for (const line of lines.slice(0, 10)) { // Check first 10 lines
+    const dateMatch = line.match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{2,4})/i);
+    if (dateMatch) return dateMatch[0];
+  }
+  return null;
+}
+
+function extractRenewalDate(text: string): string | null {
+  const renewalRegex = /(?:renewal\s+date|renews\s+on|expires?\s+on)\s*[:\-]?\s*(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{2,4})/gi;
+  const match = text.match(renewalRegex);
+  if (match && match.length > 0) {
+    const dateMatch = match[0].match(/(\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{2,4})/i);
+    if (dateMatch) return dateMatch[0];
+  }
+  return null;
+}
+
+function extractPremium(text: string): string | null {
+  const premiumRegex = /(?:premium|annual\s+cost|yearly\s+cost)\s*[:\-]?\s*£([\d,]+\.?\d*)/gi;
+  const match = text.match(premiumRegex);
+  if (match && match.length > 0) {
+    const amountMatch = match[0].match(/£([\d,]+\.?\d*)/i);
+    if (amountMatch) return `£${amountMatch[1]}`;
+  }
+  return null;
 }
 
 export async function processDocumentOCRAndSummary(filePath: string, fileName: string, mimeType?: string): Promise<{extractedText: string, summary: string}> {

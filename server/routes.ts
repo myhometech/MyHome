@@ -479,10 +479,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      // For PDFs, we could generate a thumbnail or serve first page
-      // For now, return a placeholder response
+      // For PDFs, serve the file directly for in-browser viewing
+      if (document.mimeType === 'application/pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+        const fileStream = fs.createReadStream(document.filePath);
+        fileStream.pipe(res);
+        return;
+      }
+
+      // For other file types, return not supported
       res.status(200).json({ 
-        message: "Preview generation not implemented for this file type",
+        message: "Preview not supported for this file type",
         mimeType: document.mimeType 
       });
     } catch (error) {

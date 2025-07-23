@@ -146,17 +146,21 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
           }}
         >
           <iframe
-            src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+            src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
             title={`PDF: ${documentName}`}
             className="w-full h-full border-0"
             style={{
               minHeight: rotation % 180 === 0 ? '100%' : '150%',
               minWidth: rotation % 180 === 0 ? '100%' : '150%',
             }}
-            onLoad={() => console.log('PDF loaded successfully')}
+            onLoad={() => {
+              console.log('PDF loaded successfully');
+              setIsLoading(false);
+            }}
             onError={() => {
               console.error('PDF iframe load error');
               setError('Failed to display PDF in viewer');
+              setIsLoading(false);
             }}
           />
         </div>

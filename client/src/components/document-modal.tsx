@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Share, Trash2, FileText, Image, X, Edit2, Save, XCircle } from "lucide-react";
 import { SmartTagSuggestions } from "@/components/smart-tag-suggestions";
 import OCRSummaryPreview from "@/components/ocr-summary-preview";
-import { PDFViewer } from "@/components/pdf-viewer";
+import { PDFJSViewer } from "@/components/pdf-js-viewer";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -203,7 +203,7 @@ export default function DocumentModal({
           {/* Document Preview */}
           <div className="mb-6">
             {document.mimeType === 'application/pdf' ? (
-              <PDFViewer 
+              <PDFJSViewer 
                 documentId={document.id}
                 documentName={document.name}
                 onDownload={onDownload}

@@ -155,6 +155,15 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### PDF Preview Section Redesign (January 23, 2025)
+- **Issue**: User found the large PDF preview section confusing as it looked like it should contain an actual PDF preview
+- **Resolution**: 
+  - Redesigned PDF preview section to be compact and minimal (single row layout)
+  - Reduced visual prominence to focus attention on document details and AI summaries
+  - Maintained "Open PDF" functionality but in a smaller, cleaner format
+  - Removed large placeholder graphics that suggested inline PDF viewing capability
+- **Impact**: Modal now has better visual hierarchy with less confusing PDF preview section
+
 ### Document Modal UI Cleanup - Extracted Text Removal (January 23, 2025)
 - **Issue**: User reported that extracted text in document modals was cluttering the interface
 - **Resolution**: 

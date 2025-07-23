@@ -71,13 +71,13 @@ export default function ExpiryDocuments() {
   const getFilterTitle = () => {
     switch (expiryFilter) {
       case 'expired':
-        return 'Expired Documents';
+        return 'Past Due Documents';
       case 'expiring-soon':
-        return 'Documents Expiring Soon';
+        return 'Documents Due Soon';
       case 'this-month':
-        return 'Documents Expiring This Month';
+        return 'Documents Due This Month';
       default:
-        return 'Expiry Documents';
+        return 'Important Documents';
     }
   };
 
@@ -97,13 +97,13 @@ export default function ExpiryDocuments() {
   const getFilterDescription = () => {
     switch (expiryFilter) {
       case 'expired':
-        return 'These documents have passed their expiry date and may need immediate attention.';
+        return 'These documents have passed their important date and may need immediate attention.';
       case 'expiring-soon':
-        return 'These documents will expire within the next 7 days.';
+        return 'These documents have important dates within the next 7 days.';
       case 'this-month':
-        return 'These documents will expire sometime this month.';
+        return 'These documents have important dates sometime this month.';
       default:
-        return 'Documents filtered by expiry status.';
+        return 'Documents filtered by important date status.';
     }
   };
 
@@ -182,14 +182,14 @@ export default function ExpiryDocuments() {
                   {getFilterIcon()}
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No {expiryFilter === 'expired' ? 'expired' : expiryFilter === 'expiring-soon' ? 'expiring soon' : 'this month'} documents found
+                  No {expiryFilter === 'expired' ? 'past due' : expiryFilter === 'expiring-soon' ? 'due soon' : 'due this month'} documents found
                 </h3>
                 <p className="text-gray-500 mb-6">
                   {expiryFilter === 'expired' 
-                    ? "Great! You don't have any expired documents."
+                    ? "Great! You don't have any past due documents."
                     : expiryFilter === 'expiring-soon'
-                    ? "No documents are expiring within the next 7 days."
-                    : "No documents are expiring this month."
+                    ? "No documents have important dates within the next 7 days."
+                    : "No documents have important dates this month."
                   }
                 </p>
                 <Button onClick={() => setLocation('/')}>

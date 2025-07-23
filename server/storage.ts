@@ -418,6 +418,9 @@ export class DatabaseStorage implements IStorage {
       const expiryDate = new Date(doc.expiryDate);
       const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
+      // Enhanced summary for bills - look for payment history from similar bills
+      const enhancedSummary = this.generateEnhancedExpirySummary(doc, allExpiryItems);
+      
       return {
         id: doc.id,
         userId: doc.userId,
@@ -429,7 +432,7 @@ export class DatabaseStorage implements IStorage {
         mimeType: doc.mimeType,
         tags: doc.tags,
         extractedText: doc.extractedText,
-        summary: doc.summary,
+        summary: enhancedSummary,
         ocrProcessed: doc.ocrProcessed,
         uploadedAt: typeof doc.uploadedAt === 'string' ? doc.uploadedAt : doc.uploadedAt.toISOString(),
         expiryDate: typeof doc.expiryDate === 'string' ? doc.expiryDate : doc.expiryDate.toISOString(),
@@ -459,6 +462,163 @@ export class DatabaseStorage implements IStorage {
     });
 
     return { expired, expiringSoon, expiringThisMonth };
+  }
+
+  private generateEnhancedExpirySummary(currentDoc: any, allDocuments: any[]): string {
+    // Start with the original summary
+    let summary = currentDoc.summary || currentDoc.name;
+    
+    // For bills and recurring documents, enhance with context from similar documents
+    if (this.isBillDocument(currentDoc)) {
+      const similarBills = this.findSimilarBills(currentDoc, allDocuments);
+      const billContext = this.generateBillContext(currentDoc, similarBills);
+      
+      if (billContext) {
+        summary = `${summary} | ${billContext}`;
+      }
+    }
+    
+    // For insurance documents, add policy context
+    if (this.isInsuranceDocument(currentDoc)) {
+      const insuranceContext = this.generateInsuranceContext(currentDoc);
+      if (insuranceContext) {
+        summary = `${summary} | ${insuranceContext}`;
+      }
+    }
+    
+    return summary;
+  }
+
+  private isBillDocument(doc: any): boolean {
+    const text = (doc.extractedText || '').toLowerCase();
+    const name = (doc.name || '').toLowerCase();
+    const summary = (doc.summary || '').toLowerCase();
+    
+    const billKeywords = ['bill', 'invoice', 'statement', 'due', 'account', 'payment', 'charges', 'total due', 'amount due'];
+    const providers = ['three', 'vodafone', 'ee', 'o2', 'british gas', 'eon', 'octopus', 'bulb', 'sse', 'scottish power'];
+    
+    return billKeywords.some(keyword => text.includes(keyword) || name.includes(keyword) || summary.includes(keyword)) ||
+           providers.some(provider => text.includes(provider) || name.includes(provider) || summary.includes(provider));
+  }
+
+  private isInsuranceDocument(doc: any): boolean {
+    const text = (doc.extractedText || '').toLowerCase();
+    const name = (doc.name || '').toLowerCase();
+    
+    return text.includes('insurance') || text.includes('policy') || name.includes('insurance');
+  }
+
+  private findSimilarBills(currentDoc: any, allDocuments: any[]): any[] {
+    const currentText = (currentDoc.extractedText || '').toLowerCase();
+    const currentProvider = this.extractProviderFromDoc(currentDoc);
+    
+    return allDocuments.filter(doc => {
+      if (doc.id === currentDoc.id) return false;
+      
+      const docText = (doc.extractedText || '').toLowerCase();
+      const docProvider = this.extractProviderFromDoc(doc);
+      
+      // Same provider or similar bill content
+      return docProvider === currentProvider || 
+             this.calculateTextSimilarity(currentText, docText) > 0.3;
+    });
+  }
+
+  private extractProviderFromDoc(doc: any): string | null {
+    const text = (doc.extractedText || '').toLowerCase();
+    const providers = ['three', 'vodafone', 'ee', 'o2', 'british gas', 'eon', 'octopus', 'bulb', 'sse', 'scottish power'];
+    
+    return providers.find(provider => text.includes(provider)) || null;
+  }
+
+  private calculateTextSimilarity(text1: string, text2: string): number {
+    const words1 = text1.split(/\s+/).filter(w => w.length > 3);
+    const words2 = text2.split(/\s+/).filter(w => w.length > 3);
+    
+    const commonWords = words1.filter(word => words2.includes(word));
+    return commonWords.length / Math.max(words1.length, words2.length);
+  }
+
+  private generateBillContext(currentDoc: any, similarBills: any[]): string | null {
+    if (similarBills.length === 0) return null;
+    
+    // Find most recent similar bill
+    const recentBill = similarBills
+      .filter(bill => bill.uploadedAt && new Date(bill.uploadedAt) < new Date(currentDoc.uploadedAt || new Date()))
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
+    
+    if (!recentBill) return null;
+    
+    // Extract amount from recent bill
+    const recentAmount = this.extractAmountFromText(recentBill.extractedText || '');
+    const currentAmount = this.extractAmountFromText(currentDoc.extractedText || '');
+    
+    let context = '';
+    if (recentAmount) {
+      const recentDate = new Date(recentBill.uploadedAt);
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const recentMonth = monthNames[recentDate.getMonth()];
+      
+      context = `Last payment: ${recentAmount} (${recentMonth})`;
+      
+      if (currentAmount && recentAmount !== currentAmount) {
+        context += `, New amount: ${currentAmount}`;
+      }
+    }
+    
+    return context || null;
+  }
+
+  private generateInsuranceContext(doc: any): string | null {
+    const text = (doc.extractedText || '').toLowerCase();
+    const expiryDate = new Date(doc.expiryDate);
+    const now = new Date();
+    const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    let type = 'Policy';
+    if (text.includes('car') || text.includes('auto')) type = 'Car insurance';
+    else if (text.includes('home') || text.includes('house')) type = 'Home insurance';
+    else if (text.includes('health')) type = 'Health insurance';
+    
+    if (daysUntilExpiry < 30) {
+      return `${type} renewal required`;
+    }
+    
+    return null;
+  }
+
+  private extractAmountFromText(text: string): string | null {
+    if (!text) return null;
+    
+    // Look for total amounts first (most important)
+    const totalRegex = /total\s+(?:due|amount|charges?|after\s+vat|bill)?\s*[:\-]?\s*£([\d,]+\.?\d*)/gi;
+    const totalMatch = text.match(totalRegex);
+    if (totalMatch && totalMatch.length > 0) {
+      const amount = totalMatch[totalMatch.length - 1].match(/£([\d,]+\.?\d*)/i);
+      if (amount) return `£${amount[1]}`;
+    }
+    
+    // Look for "total due" or "amount due" patterns
+    const dueRegex = /(?:total\s+due|amount\s+due|balance\s+due)\s+(?:by\s+[\d\/]+\s+)?£([\d,]+\.?\d*)/gi;
+    const dueMatch = text.match(dueRegex);
+    if (dueMatch && dueMatch.length > 0) {
+      const amount = dueMatch[0].match(/£([\d,]+\.?\d*)/i);
+      if (amount) return `£${amount[1]}`;
+    }
+    
+    // Fallback: find all currency amounts and take the largest one (likely the total)
+    const amounts = text.match(/£([\d,]+\.?\d*)/g);
+    if (amounts && amounts.length > 0) {
+      // Convert to numbers, find max, return formatted
+      const numericAmounts = amounts.map(a => {
+        const num = parseFloat(a.replace(/[£,]/g, ''));
+        return { text: a, value: num };
+      });
+      const maxAmount = numericAmounts.reduce((max, curr) => curr.value > max.value ? curr : max);
+      return maxAmount.text;
+    }
+    
+    return null;
   }
 
   // Document sharing methods

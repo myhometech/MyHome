@@ -285,21 +285,7 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
               )}
 
               {/* Extracted Text */}
-              {document.extractedText && (
-                <Card>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-3">Extracted Text</h3>
-                    <div className="max-h-48 overflow-y-auto">
-                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {document.extractedText}
-                      </p>
-                    </div>
-                    <Badge variant="secondary" className="mt-2 text-xs">
-                      OCR Extracted
-                    </Badge>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Extracted text hidden to reduce clutter - content is available via AI summary above */}
 
               {/* Quick Actions */}
               <Card>

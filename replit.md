@@ -155,6 +155,16 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### iPhone Camera Scanning Improvements (January 23, 2025)
+- **Issue**: Scan function was not working properly when opening the website on iPhone
+- **Resolution**: 
+  - Improved mobile camera compatibility by prioritizing native camera capture over browser-based scanner
+  - Made "Scan with Camera" the primary option for mobile devices, which uses iPhone's native camera app
+  - Enhanced video element attributes for better iOS Safari compatibility
+  - Added helpful mobile-specific UI hints and reordered buttons for better mobile UX
+  - Updated camera scanner with better fallback messaging for iPhone users
+- **Impact**: iPhone users can now easily scan documents using their device's native camera functionality
+
 ### Smart Document Preview with Intelligent Content Preview Chips (January 23, 2025)
 - **Feature**: Implemented AI-powered content analysis with smart preview chips
 - **Implementation**: 

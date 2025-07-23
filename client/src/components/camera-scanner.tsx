@@ -197,9 +197,14 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
                     autoPlay
                     playsInline
                     muted
-                    webkit-playsinline="true"
+                    controls={false}
                     className="w-full h-auto rounded-lg"
-                    style={{ maxHeight: '70vh' }}
+                    style={{ maxHeight: '70vh', objectFit: 'cover' }}
+                    onLoadedMetadata={() => {
+                      if (videoRef.current) {
+                        videoRef.current.play().catch(console.error);
+                      }
+                    }}
                   />
                   {/* Document frame overlay */}
                   <div className="absolute inset-4 border-2 border-white/50 rounded-lg pointer-events-none">
@@ -218,7 +223,8 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
                     <Camera className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600 mb-4">Ready to scan documents with your camera</p>
                     <p className="text-xs text-gray-500 mb-4">
-                      Note: Camera requires HTTPS and permission access
+                      Note: Camera requires HTTPS and permission access<br/>
+                      On iPhone: Use "Scan with Camera" for better compatibility
                     </p>
                     <Button onClick={startCamera}>
                       <Camera className="h-4 w-4 mr-2" />

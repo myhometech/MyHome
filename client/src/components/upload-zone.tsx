@@ -206,24 +206,37 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                   Choose Files
                 </Button>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button 
-                    variant="outline"
-                    onClick={openCameraScanner}
-                    className="border-primary text-primary hover:bg-blue-50 w-full sm:w-auto"
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Camera Scanner
-                  </Button>
+                  {/* Primary camera button for mobile - works on iPhone */}
                   <Button 
                     variant="outline"
                     onClick={handleCameraUpload}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50 w-full sm:w-auto"
+                    className="border-primary text-primary hover:bg-blue-50 w-full sm:w-auto order-1 sm:order-2"
                   >
                     <Camera className="h-4 w-4 mr-2" />
-                    Quick Photo
+                    📱 Scan with Camera
+                  </Button>
+                  
+                  {/* Advanced scanner for desktop */}
+                  <Button 
+                    variant="outline"
+                    onClick={openCameraScanner}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50 w-full sm:w-auto order-2 sm:order-1"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Advanced Scanner
                   </Button>
                 </div>
+                
+                {/* Mobile help text */}
+                <p className="text-xs text-gray-400 sm:hidden mt-2">
+                  💡 "Scan with Camera" opens your phone's camera app
+                </p>
               </div>
+              {/* Mobile help text */}
+              <p className="text-xs text-gray-400 sm:hidden mt-3">
+                💡 "Scan with Camera" opens your phone's camera app
+              </p>
+              
               <p className="text-xs text-gray-500 mt-4">
                 Supports PDF, JPG, PNG up to 10MB
               </p>

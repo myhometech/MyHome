@@ -200,15 +200,15 @@ export default function DocumentModal({
         </DialogHeader>
         
         <div className="overflow-y-auto flex-1">
-          {/* Document Preview */}
-          <div className="mb-6">
+          {/* Document Preview - Compact PDF Section */}
+          <div className="mb-4">
             {document.mimeType === 'application/pdf' ? (
-              <div className="bg-gray-50 rounded border p-3">
+              <div className="bg-blue-50 border border-blue-200 rounded p-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-red-600" />
-                    <span className="text-sm text-gray-700 font-medium">{document.fileName}</span>
-                    <span className="text-xs text-gray-500">PDF</span>
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-gray-800 font-medium">{document.fileName}</span>
+                    <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">PDF</span>
                   </div>
                   <button
                     onClick={() => {
@@ -216,7 +216,7 @@ export default function DocumentModal({
                       const pdfUrl = `/api/documents/${document.id}/preview`;
                       window.open(pdfUrl, '_blank', 'noopener,noreferrer');
                     }}
-                    className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                   >
                     <FileText className="w-3 h-3 mr-1" />
                     Open PDF

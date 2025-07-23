@@ -218,14 +218,25 @@ export default function DocumentModal({
                       <p className="text-gray-600 text-sm mb-4">PDF Document Ready to View</p>
                     </div>
                     <div className="flex gap-3">
-                      <a 
-                        href={`/api/documents/${document.id}/preview`}
-                        target="_blank" 
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => {
+                          console.log('Opening PDF for document ID:', document.id);
+                          const pdfUrl = `/api/documents/${document.id}/preview`;
+                          window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                        }}
                         className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                       >
                         <FileText className="w-4 h-4 mr-2" />
                         Open PDF
+                      </button>
+                      <a 
+                        href={`/api/documents/${document.id}/download`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download PDF
                       </a>
                       {onDownload && (
                         <button
@@ -233,7 +244,7 @@ export default function DocumentModal({
                           className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
                         >
                           <Download className="w-4 h-4 mr-2" />
-                          Download
+                          Download (Legacy)
                         </button>
                       )}
                     </div>

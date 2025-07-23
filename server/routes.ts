@@ -962,6 +962,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Email forwarding endpoints
   
+  // Import email webhook handlers
+  const { handleSendGridWebhook, handleMailgunWebhook, handleTestEmail, validateWebhookSignature } = await import('./emailWebhook');
+  
+  // Email webhook endpoints for receiving forwarded emails
+  app.post('/api/email/webhook/sendgrid', validateWebhookSignature, handleSendGridWebhook);
+  app.post('/api/email/webhook/mailgun', validateWebhookSignature, handleMailgunWebhook);
+  app.post('/api/email/test', requireAuth, handleTestEmail);
+  
+  // Simple test endpoint to simulate email forwarding without external email service
+  app.post('/api/email/simulate-forward', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Create test email data
+      const testEmailData = {
+        from: req.body.from || 'test@example.com',
+        subject: req.body.subject || 'Test Document Forward',
+        html: req.body.html || '<h1>Test Email</h1><p>This is a test email to verify the document forwarding system is working.</p>',
+        text: req.body.text || 'Test Email\n\nThis is a test email to verify the document forwarding system is working.',
+        attachments: req.body.attachments || []
+      };
+
+      console.log('Processing simulated email forward for user:', user.email);
+      const result = await emailService.processIncomingEmail(testEmailData, user.email);
+      
+      res.json({
+        message: 'Email forwarding simulation completed successfully',
+        forwardingAddress: await emailService.getUserForwardingAddress(userId),
+        result: {
+          success: result.success,
+          documentsCreated: result.documentsCreated,
+          error: result.error
+        }
+      });
+
+    } catch (error) {
+      console.error('Error simulating email forward:', error);
+      res.status(500).json({ 
+        message: 'Failed to simulate email forward',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
   // Get user's forwarding email address
   app.get('/api/email/forwarding-address', requireAuth, async (req: any, res) => {
     try {

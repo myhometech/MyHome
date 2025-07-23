@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Email Forwarding</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Email Forwarding System</h1>
+        <p>This page allows you to test the email forwarding functionality without needing to set up an actual email server.</p>
+        
+        <form id="emailForm">
+            <div class="form-group">
+                <label for="from">From Email:</label>
+                <input type="email" id="from" value="test@example.com" required>
+            </div>
+            
+            <div class="form-group">  
+                <label for="subject">Subject:</label>
+                <input type="text" id="subject" value="Test Document Forward" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="html">Email Content (HTML):</label>
+                <textarea id="html" rows="6" required>
+<h1>Test Email Forward</h1>
+<p>This is a test email that should be converted to a PDF document.</p>
+<p><strong>Invoice Number:</strong> INV-2024-001</p>
+<p><strong>Amount Due:</strong> $150.00</p>
+<p><strong>Due Date:</strong> January 30, 2024</p>
+<p>Please pay by the due date to avoid late fees.</p>
+                </textarea>
+            </div>
+            
+            <button type="submit">Test Email Forward</button>
+        </form>
+        
+        <div id="result"></div>
+        
+        <div class="info" style="margin-top: 30px;">
+            <h3>How Email Forwarding Works:</h3>
+            <ol>
+                <li>Each user gets a unique email address like <code>docs-abc123@docs.replit.app</code></li>
+                <li>When someone forwards an email to this address, it's processed automatically</li>
+                <li>Email content is converted to a PDF document</li>
+                <li>Attachments are saved as separate documents</li>
+                <li>OCR extracts text and AI analyzes content for smart categorization</li>
+            </ol>
+            
+            <p><strong>Current Issue:</strong> The system generates forwarding addresses but cannot receive emails because no email server is configured. This test page simulates the email processing without external email infrastructure.</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="info">Processing email forward...</div>';
+            
+            const formData = {
+                from: document.getElementById('from').value,
+                subject: document.getElementById('subject').value,
+                html: document.getElementById('html').value
+            };
+            
+            try {
+                const response = await fetch('/api/email/simulate-forward', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Email Forward Successful!</h3>
+                            <p><strong>Message:</strong> ${result.message}</p>
+                            <p><strong>Your Forwarding Address:</strong> <code>${result.forwardingAddress}</code></p>
+                            <p><strong>Documents Created:</strong> ${result.result.documentsCreated}</p>
+                            ${result.result.error ? `<p><strong>Note:</strong> ${result.result.error}</p>` : ''}
+                        </div>
+                    `;
+                } else {
+                    throw new Error(result.message || 'Unknown error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error</h3>
+                        <p>${error.message}</p>
+                        <p>Make sure you're logged in and try again.</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

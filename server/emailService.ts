@@ -444,7 +444,9 @@ ${mapping.forwardingAddress}
    * Get email domain (configurable via environment)
    */
   private getEmailDomain(): string {
-    return process.env.EMAIL_DOMAIN || 'homedocs.example.com';
+    // For development/testing, use a subdomain that can be configured
+    // In production, this would be your actual domain with MX records set up
+    return process.env.EMAIL_DOMAIN || 'docs.replit.app';
   }
 
   /**

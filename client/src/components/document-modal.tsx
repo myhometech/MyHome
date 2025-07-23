@@ -258,7 +258,7 @@ export default function DocumentModal({
             </div>
 
             {/* OCR Summary and Insights */}
-            <OCRSummaryPreview document={document} className="mb-6" />
+            <OCRSummaryPreview document={document} className="mb-6" hideExtractedText={true} />
 
             {/* Tags and AI Suggestions */}
             <Tabs defaultValue="details" className="w-full">

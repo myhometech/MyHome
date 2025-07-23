@@ -34,9 +34,10 @@ interface Document {
 interface OCRSummaryPreviewProps {
   document: Document;
   className?: string;
+  hideExtractedText?: boolean;
 }
 
-export default function OCRSummaryPreview({ document, className = "" }: OCRSummaryPreviewProps) {
+export default function OCRSummaryPreview({ document, className = "", hideExtractedText = false }: OCRSummaryPreviewProps) {
   const { toast } = useToast();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     summary: true,
@@ -249,8 +250,8 @@ export default function OCRSummaryPreview({ document, className = "" }: OCRSumma
           </Collapsible>
         )}
 
-        {/* Extracted Text Section */}
-        {document.extractedText && (
+        {/* Extracted Text Section - Hidden in modal to reduce clutter */}
+        {document.extractedText && !hideExtractedText && (
           <Collapsible open={expandedSections.extractedText} onOpenChange={() => toggleSection("extractedText")}>
             <CollapsibleTrigger asChild>
               <Button variant="ghost" className="w-full justify-between p-0 h-auto">

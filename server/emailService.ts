@@ -4,7 +4,7 @@ import { join } from 'path';
 import { nanoid } from 'nanoid';
 import htmlPdf from 'html-pdf-node';
 import { storage } from './storage';
-import type { InsertEmailForward, InsertDocument } from '@shared/schema';
+import type { InsertEmailForward, InsertDocument, InsertUserForwardingMapping } from '@shared/schema';
 
 // Email configuration for receiving forwarded emails
 export class EmailService {
@@ -477,9 +477,9 @@ ${mapping.forwardingAddress}
   }
 
   /**
-   * Get the forwarding email address for this user (legacy method)
+   * Get the forwarding email address for this user (legacy method - returns simple string)
    */
-  getForwardingAddress(): string {
+  getForwardingAddressLegacy(): string {
     return this.forwardingAddress;
   }
 

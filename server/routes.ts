@@ -11,6 +11,7 @@ import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, proces
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
 import { contentAnalysisService } from "./contentAnalysisService.js";
+import { pdfConversionService } from "./pdfConversionService.js";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -287,17 +288,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiryDate: expiryDate ? new Date(expiryDate) : null,
       };
 
-      const validatedData = insertDocumentSchema.parse(documentData);
+      let finalDocumentData = documentData;
+      let finalFilePath = req.file.path;
+      let finalMimeType = req.file.mimetype;
+
+      // Convert scanned images to PDF format
+      if (pdfConversionService.isImageFile(req.file.path) && req.file.originalname.startsWith('processed_')) {
+        console.log(`Converting scanned document image to PDF: ${req.file.originalname}`);
+        
+        try {
+          const conversionResult = await pdfConversionService.convertImageToPDF(
+            req.file.path,
+            uploadsDir
+          );
+
+          if (conversionResult.success) {
+            // Update document data to use PDF file
+            finalFilePath = conversionResult.pdfPath;
+            finalMimeType = 'application/pdf';
+            finalDocumentData = {
+              ...documentData,
+              filePath: finalFilePath,
+              mimeType: finalMimeType,
+              name: documentData.name.replace(/\.(jpg|jpeg|png|webp)$/i, '.pdf'),
+              fileName: documentData.fileName.replace(/\.(jpg|jpeg|png|webp)$/i, '.pdf')
+            };
+
+            // Clean up the original image file
+            setTimeout(() => {
+              pdfConversionService.cleanup([req.file.path]);
+            }, 1000);
+
+            console.log(`Successfully converted scanned document to PDF: ${conversionResult.pdfPath}`);
+          } else {
+            console.warn(`PDF conversion failed: ${conversionResult.error}, keeping original image`);
+          }
+        } catch (conversionError) {
+          console.error('PDF conversion error:', conversionError);
+          // Continue with original image if conversion fails
+        }
+      }
+
+      const validatedData = insertDocumentSchema.parse(finalDocumentData);
       const document = await storage.createDocument(validatedData);
 
       // Process OCR, generate summary, extract dates, and suggest tags in the background
-      if (supportsOCR(req.file.mimetype) || isPDFFile(req.file.mimetype)) {
+      if (supportsOCR(finalMimeType) || isPDFFile(finalMimeType)) {
         try {
           await processDocumentWithDateExtraction(
             document.id,
-            req.file.originalname,
-            req.file.path, 
-            req.file.mimetype,
+            finalDocumentData.fileName,
+            finalFilePath, 
+            finalMimeType,
             userId,
             storage
           );
@@ -307,9 +349,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (updatedDocument?.extractedText) {
             // Generate tag suggestions based on extracted content
             const tagSuggestions = await tagSuggestionService.suggestTags(
-              req.file.originalname,
+              finalDocumentData.fileName,
               updatedDocument.extractedText,
-              req.file.mimetype,
+              finalMimeType,
               documentData.tags
             );
             
@@ -333,15 +375,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Fallback to basic OCR without date extraction
           try {
             const { extractedText, summary } = await processDocumentOCRAndSummary(
-              req.file.path, 
-              req.file.originalname, 
-              req.file.mimetype
+              finalFilePath, 
+              finalDocumentData.fileName, 
+              finalMimeType
             );
             await storage.updateDocumentOCRAndSummary(document.id, userId, extractedText, summary);
             
             // Generate tag suggestions for fallback OCR
             const tagSuggestions = await tagSuggestionService.suggestTags(
-              req.file.originalname,
+              finalDocumentData.fileName,
               extractedText,
               req.file.mimetype,
               documentData.tags

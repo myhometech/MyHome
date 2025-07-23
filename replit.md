@@ -171,7 +171,7 @@ The application follows a standard full-stack architecture with clear separation
   - Confidence scoring based on text quality and processing type
   - Support for both text-based PDFs and scanned document images
   - Intelligent text extraction with common OCR error corrections
-- **Impact**: All document images are now automatically detected, cropped to document boundaries, and enhanced for optimal OCR accuracy
+- **Impact**: All document images are now automatically detected, cropped to document boundaries, enhanced for optimal OCR accuracy, and converted to PDF format for professional storage
 
 ### iPhone Camera Scanning Improvements (January 23, 2025)
 - **Issue**: Scan function was not working properly when opening the website on iPhone

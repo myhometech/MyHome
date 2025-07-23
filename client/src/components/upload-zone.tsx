@@ -546,7 +546,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 
                 {/* Mobile help text */}
                 <p className="text-xs text-gray-400 sm:hidden mt-2">
-                  📄 Enhanced edge detection with aggressive document cropping
+                  📄 Auto edge detection + PDF conversion for scanned documents
                 </p>
               </div>
               {/* Mobile help text */}

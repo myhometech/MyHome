@@ -56,9 +56,88 @@ export default function DocumentCard({
   onUpdate 
 }: DocumentCardProps) {
   const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(document.name);
+  const [editExpiryDate, setEditExpiryDate] = useState(document.expiryDate || "");
   const { toast } = useToast();
 
   const category = categories?.find(c => c.id === document.categoryId);
+
+  const updateDocumentMutation = useMutation({
+    mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {
+      const response = await apiRequest("PATCH", `/api/documents/${id}`, { 
+        name, 
+        expiryDate: expiryDate || null 
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Document updated",
+        description: "The document details have been updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/documents/expiry-alerts"] });
+      setIsEditing(false);
+      onUpdate?.();
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Update failed",
+        description: "Failed to update the document. Please try again.",
+        variant: "destructive",
+      });
+      setEditName(document.name);
+      setEditExpiryDate(document.expiryDate || "");
+      setIsEditing(false);
+    },
+  });
+
+  const handleStartEdit = () => {
+    setIsEditing(true);
+    setEditName(document.name);
+    setEditExpiryDate(document.expiryDate || "");
+  };
+
+  const handleSaveEdit = () => {
+    const hasNameChange = editName.trim() !== document.name;
+    const hasExpiryChange = editExpiryDate !== (document.expiryDate || "");
+    
+    if (hasNameChange || hasExpiryChange) {
+      updateDocumentMutation.mutate({ 
+        id: document.id, 
+        name: editName.trim(), 
+        expiryDate: editExpiryDate || null 
+      });
+    } else {
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditName(document.name);
+    setEditExpiryDate(document.expiryDate || "");
+    setIsEditing(false);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
 
 
 
@@ -352,7 +431,11 @@ export default function DocumentCard({
                 <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setShowModal(true)}>
                   <Eye className="h-4 w-4 mr-2" />
-                  View & Edit
+                  View
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleStartEdit}>
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownload}>
                   <Download className="h-4 w-4 mr-2" />
@@ -380,8 +463,42 @@ export default function DocumentCard({
             )}
           </div>
           
-          <div onClick={() => setShowModal(true)}>
-            <h3 className="font-medium text-sm mb-1 truncate">{document.name}</h3>
+          <div onClick={isEditing ? undefined : () => setShowModal(true)}>
+            {isEditing ? (
+              <div className="mb-2 space-y-2">
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">Document Name</label>
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    className="text-sm h-7"
+                    autoFocus
+                    placeholder="Enter document name"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block">Expiry Date (Optional)</label>
+                  <Input
+                    type="date"
+                    value={editExpiryDate}
+                    onChange={(e) => setEditExpiryDate(e.target.value)}
+                    className="text-sm h-7"
+                    placeholder="Select expiry date"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <h3 className="font-medium text-sm mb-1 truncate">{document.name}</h3>
+            )}
             <p className="text-xs text-gray-500 mb-2">{category?.name || "Uncategorized"}</p>
             <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
               <span>{formatFileSize(document.fileSize)}</span>
@@ -456,7 +573,7 @@ export default function DocumentCard({
                 </div>
                 {document.expiryDate && (
                   <div>
-                    <span className="font-medium">Expires:</span> {new Date(document.expiryDate).toLocaleDateString()}
+                    <span className="font-medium">Expires:</span> {document.expiryDate ? new Date(document.expiryDate).toLocaleDateString() : 'N/A'}
                   </div>
                 )}
               </div>

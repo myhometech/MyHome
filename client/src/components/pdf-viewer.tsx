@@ -18,6 +18,21 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
   
   console.log('PDFViewer rendered for document:', documentId, documentName);
   console.log('PDF URL will be:', pdfUrl);
+  
+  // Test PDF availability on mount
+  useEffect(() => {
+    console.log('Testing PDF availability for:', pdfUrl);
+    fetch(pdfUrl, { credentials: 'include', method: 'HEAD' })
+      .then(response => {
+        console.log('PDF HEAD response:', response.status, response.headers.get('content-type'));
+        if (response.ok && response.headers.get('content-type')?.includes('application/pdf')) {
+          console.log('PDF confirmed available');
+        } else {
+          console.warn('PDF may not be available or not a PDF:', response.status);
+        }
+      })
+      .catch(err => console.error('PDF availability test failed:', err));
+  }, [pdfUrl]);
 
   useEffect(() => {
     // Test if PDF is accessible
@@ -151,48 +166,59 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
         </div>
       </div>
 
-      {/* PDF Iframe Container */}
-      <div className="relative bg-white border rounded">
-        {/* Debug info */}
-        <div className="p-2 bg-yellow-50 border-b text-xs">
-          <strong>Debug:</strong> Loading PDF from {pdfUrl}
-        </div>
-        
-        <iframe
-          src={pdfUrl}
-          title={`PDF: ${documentName}`}
-          className="w-full h-96 border-0"
-          allowFullScreen
-          onLoad={(e) => {
-            console.log('PDF iframe loaded successfully for:', pdfUrl);
-            const iframe = e.target as HTMLIFrameElement;
-            console.log('PDF iframe element:', iframe);
-            console.log('PDF iframe src:', iframe.src);
-            setIsLoading(false);
+      {/* PDF Display Container */}
+      <div className="bg-white border rounded">
+        {/* PDF Embed using object tag (better browser support) */}
+        <object
+          data={pdfUrl}
+          type="application/pdf"
+          className="w-full h-96"
+          style={{
+            transform: `scale(${zoom}) rotate(${rotation}deg)`,
+            transformOrigin: 'center center',
           }}
-          onError={(e) => {
-            console.error('PDF iframe load error for:', pdfUrl, e);
-            setError('Failed to display PDF in viewer');
-          }}
-        />
-        
-        {/* Fallback options */}
-        <div className="absolute bottom-2 right-2 flex gap-2">
-          <a 
-            href={pdfUrl} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-xs text-blue-600 hover:text-blue-800 bg-white px-2 py-1 rounded border shadow"
-          >
-            Open in New Tab
-          </a>
-          <button
-            onClick={() => window.open(pdfUrl, '_blank')}
-            className="text-xs text-green-600 hover:text-green-800 bg-white px-2 py-1 rounded border shadow"
-          >
-            Force Open
-          </button>
-        </div>
+        >
+          {/* Fallback iframe if object doesn't work */}
+          <iframe
+            src={pdfUrl}
+            title={`PDF: ${documentName}`}
+            className="w-full h-96 border-0"
+            onLoad={(e) => {
+              console.log('PDF iframe fallback loaded for:', pdfUrl);
+              setIsLoading(false);
+            }}
+            onError={(e) => {
+              console.error('PDF iframe fallback error for:', pdfUrl, e);
+            }}
+          />
+          
+          {/* Final fallback if neither object nor iframe works */}
+          <div className="flex flex-col items-center justify-center h-96 bg-gray-50 p-8 text-center">
+            <FileText className="w-16 h-16 text-red-400 mb-4" />
+            <h3 className="text-lg font-medium mb-2">PDF Viewer Not Supported</h3>
+            <p className="text-gray-600 mb-6">Your browser doesn't support inline PDF viewing.</p>
+            <div className="flex gap-3">
+              <a 
+                href={pdfUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Open PDF
+              </a>
+              {onDownload && (
+                <button
+                  onClick={onDownload}
+                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </button>
+              )}
+            </div>
+          </div>
+        </object>
       </div>
 
       {/* PDF Info Bar */}

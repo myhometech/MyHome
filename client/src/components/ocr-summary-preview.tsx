@@ -250,6 +250,13 @@ export default function OCRSummaryPreview({ document, className = "", hideExtrac
           </Collapsible>
         )}
 
+        {/* DEBUG: Show when hideExtractedText is true */}
+        {hideExtractedText && (
+          <div className="bg-green-100 border border-green-300 p-3 rounded-lg text-green-800 text-sm">
+            ✓ Extracted text is hidden in modal view to reduce clutter
+          </div>
+        )}
+        
         {/* Extracted Text Section - Hidden in modal to reduce clutter */}
         {document.extractedText && !hideExtractedText && (
           <Collapsible open={expandedSections.extractedText} onOpenChange={() => toggleSection("extractedText")}>

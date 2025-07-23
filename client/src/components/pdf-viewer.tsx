@@ -18,18 +18,30 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
 
   useEffect(() => {
     // Test if PDF is accessible
-    fetch(pdfUrl, { credentials: 'include' })
-      .then(response => {
+    const testPdfAccess = async () => {
+      try {
+        console.log('Testing PDF access for URL:', pdfUrl);
+        const response = await fetch(pdfUrl, { credentials: 'include' });
+        console.log('PDF test response:', response.status, response.statusText);
+        
         if (!response.ok) {
-          setError(`Failed to load PDF: ${response.status} ${response.statusText}`);
+          if (response.status === 401) {
+            setError('Authentication required - please log in again');
+          } else {
+            setError(`Failed to load PDF: ${response.status} ${response.statusText}`);
+          }
+        } else {
+          console.log('PDF access test successful');
         }
-        setIsLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('PDF load error:', err);
-        setError(`Network error: ${err.message}`);
+        setError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      } finally {
         setIsLoading(false);
-      });
+      }
+    };
+
+    testPdfAccess();
   }, [pdfUrl]);
 
   const handleZoomIn = () => {
@@ -153,14 +165,26 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
               minHeight: rotation % 180 === 0 ? '100%' : '150%',
               minWidth: rotation % 180 === 0 ? '100%' : '150%',
             }}
-            onLoad={() => {
-              console.log('PDF loaded successfully');
-              setIsLoading(false);
+            onLoad={(e) => {
+              console.log('PDF iframe loaded successfully');
+              // Check if the iframe actually loaded content or an error page
+              try {
+                const iframe = e.target as HTMLIFrameElement;
+                if (iframe.contentDocument) {
+                  const title = iframe.contentDocument.title;
+                  console.log('PDF iframe title:', title);
+                  if (title && title.toLowerCase().includes('error')) {
+                    setError('PDF failed to load in viewer');
+                  }
+                }
+              } catch (err) {
+                // Cross-origin restrictions, but that's normal for PDF display
+                console.log('PDF loaded (cross-origin restrictions normal)');
+              }
             }}
             onError={() => {
               console.error('PDF iframe load error');
               setError('Failed to display PDF in viewer');
-              setIsLoading(false);
             }}
           />
         </div>

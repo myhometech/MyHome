@@ -289,7 +289,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-red-700 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
-                Expired
+                Due
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -297,7 +297,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
                 {typedExpiryData?.expired?.length || 0}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Documents past expiry
+                Documents past due
               </p>
               {(typedExpiryData?.expired?.length || 0) > 0 && (
                 <p className="text-xs text-red-600 mt-2 font-medium">
@@ -315,7 +315,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-orange-700 flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Expiring Soon
+                Upcoming
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -349,7 +349,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
                 {typedExpiryData?.expiringThisMonth?.length || 0}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Expiring this month
+                Due this month
               </p>
               {(typedExpiryData?.expiringThisMonth?.length || 0) > 0 && (
                 <p className="text-xs text-yellow-600 mt-2 font-medium">

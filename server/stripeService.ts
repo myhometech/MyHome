@@ -1,10 +1,10 @@
 import Stripe from 'stripe';
 import { storage } from './storage';
-import type { InsertStripeWebhook } from '@shared/schema';
+import type { insertStripeWebhookSchema } from '@shared/schema';
 
 // Initialize Stripe with API key (fallback for development)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2020-08-27',
 });
 
 export class StripeService {
@@ -274,7 +274,9 @@ export class StripeService {
     renewalDate?: Date | null;
     portalUrl?: string;
   }> {
+    console.log('Getting subscription status for userId:', userId);
     const user = await storage.getUser(userId);
+    console.log('Found user:', user ? 'Yes' : 'No');
     if (!user) {
       throw new Error('User not found');
     }

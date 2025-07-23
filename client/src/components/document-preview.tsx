@@ -189,10 +189,10 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[98vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${category?.color || 'gray'}-100`}>
               {category?.icon ? (
@@ -219,20 +219,20 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="flex-1 overflow-auto p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Preview Section */}
             <div className="lg:col-span-2">
               {renderPreview()}
             </div>
 
             {/* Document Details Section */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* File Information */}
               <Card>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold mb-3">File Information</h3>
-                  <div className="space-y-2 text-sm">
+                <CardContent className="p-3">
+                  <h3 className="font-semibold mb-2 text-sm">File Information</h3>
+                  <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between">
                       <span className="text-gray-600">File name:</span>
                       <span className="truncate ml-2">{document.fileName}</span>
@@ -262,9 +262,9 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
               {/* AI Summary */}
               {document.summary && (
                 <Card>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-3">AI Summary</h3>
-                    <p className="text-sm text-gray-700 leading-relaxed">
+                  <CardContent className="p-3">
+                    <h3 className="font-semibold mb-2 text-sm">AI Summary</h3>
+                    <p className="text-xs text-gray-700 leading-relaxed">
                       {document.summary}
                     </p>
                     <Badge variant="secondary" className="mt-2 text-xs">
@@ -279,9 +279,9 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
 
               {/* Quick Actions */}
               <Card>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold mb-3">Quick Actions</h3>
-                  <div className="space-y-2">
+                <CardContent className="p-3">
+                  <h3 className="font-semibold mb-2 text-sm">Quick Actions</h3>
+                  <div className="space-y-1.5">
                     <Button 
                       variant="outline" 
                       size="sm" 

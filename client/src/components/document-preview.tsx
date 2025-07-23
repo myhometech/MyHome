@@ -292,9 +292,27 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
                 <CardContent className="p-4">
                   <h3 className="font-semibold mb-3">Quick Actions</h3>
                   <div className="space-y-2">
-                    <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full justify-start"
+                      onClick={() => {
+                        if (isPDF()) {
+                          console.log('Opening PDF for document ID:', document.id);
+                          const pdfUrl = `/api/documents/${document.id}/preview`;
+                          window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                        } else if (isImage()) {
+                          const imageUrl = `/api/documents/${document.id}/preview`;
+                          window.open(imageUrl, '_blank', 'noopener,noreferrer');
+                        } else {
+                          // For other file types, download
+                          const downloadUrl = `/api/documents/${document.id}/download`;
+                          window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                    >
                       <Eye className="w-4 h-4 mr-2" />
-                      View Full Size
+                      {isPDF() ? 'Open PDF' : isImage() ? 'View Full Size' : 'Download File'}
                     </Button>
                     {onDownload && (
                       <Button variant="outline" size="sm" className="w-full justify-start" onClick={onDownload}>

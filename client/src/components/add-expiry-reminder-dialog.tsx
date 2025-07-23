@@ -39,13 +39,13 @@ import { Calendar, Plus } from "lucide-react";
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  expiryDate: z.string().min(1, "Expiry date is required"),
+  expiryDate: z.string().min(1, "Important date is required"),
   category: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-export function AddExpiryReminderDialog({ trigger }: { trigger?: React.ReactNode }) {
+export function AddImportantDateReminderDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();

@@ -58,7 +58,7 @@ export default function DocumentCard({
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
-  const [editExpiryDate, setEditExpiryDate] = useState(document.expiryDate || "");
+  const [editImportantDate, setEditImportantDate] = useState(document.expiryDate || "");
   const { toast } = useToast();
 
   const category = categories?.find(c => c.id === document.categoryId);
@@ -99,7 +99,7 @@ export default function DocumentCard({
         variant: "destructive",
       });
       setEditName(document.name);
-      setEditExpiryDate(document.expiryDate || "");
+      setEditImportantDate(document.expiryDate || "");
       setIsEditing(false);
     },
   });
@@ -107,18 +107,18 @@ export default function DocumentCard({
   const handleStartEdit = () => {
     setIsEditing(true);
     setEditName(document.name);
-    setEditExpiryDate(document.expiryDate || "");
+    setEditImportantDate(document.expiryDate || "");
   };
 
   const handleSaveEdit = () => {
     const hasNameChange = editName.trim() !== document.name;
-    const hasExpiryChange = editExpiryDate !== (document.expiryDate || "");
+    const hasExpiryChange = editImportantDate !== (document.expiryDate || "");
     
     if (hasNameChange || hasExpiryChange) {
       updateDocumentMutation.mutate({ 
         id: document.id, 
         name: editName.trim(), 
-        expiryDate: editExpiryDate || null 
+        expiryDate: editImportantDate || null 
       });
     } else {
       setIsEditing(false);
@@ -127,7 +127,7 @@ export default function DocumentCard({
 
   const handleCancelEdit = () => {
     setEditName(document.name);
-    setEditExpiryDate(document.expiryDate || "");
+    setEditImportantDate(document.expiryDate || "");
     setIsEditing(false);
   };
 
@@ -286,13 +286,13 @@ export default function DocumentCard({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-600 mb-1 block">Expiry Date (Optional)</label>
+                        <label className="text-xs text-gray-600 mb-1 block">Important Date (Optional)</label>
                         <Input
                           type="date"
-                          value={editExpiryDate}
-                          onChange={(e) => setEditExpiryDate(e.target.value)}
+                          value={editImportantDate}
+                          onChange={(e) => setEditImportantDate(e.target.value)}
                           className="text-sm h-7"
-                          placeholder="Select expiry date"
+                          placeholder="Select important date"
                         />
                       </div>
                       <div className="flex gap-1">
@@ -488,13 +488,13 @@ export default function DocumentCard({
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-600 mb-1 block">Expiry Date (Optional)</label>
+                  <label className="text-xs text-gray-600 mb-1 block">Important Date (Optional)</label>
                   <Input
                     type="date"
-                    value={editExpiryDate}
-                    onChange={(e) => setEditExpiryDate(e.target.value)}
+                    value={editImportantDate}
+                    onChange={(e) => setEditImportantDate(e.target.value)}
                     className="text-sm h-7"
-                    placeholder="Select expiry date"
+                    placeholder="Select important date"
                   />
                 </div>
                 <div className="flex gap-1">
@@ -523,7 +523,7 @@ export default function DocumentCard({
               </div>
             )}
             
-            {/* Expiry Date Display */}
+            {/* Important Date Display */}
             {document.expiryDate && (
               <div className="mb-2">
                 <ExpiryBadge expiryDate={document.expiryDate} />
@@ -583,7 +583,7 @@ export default function DocumentCard({
                 </div>
                 {document.expiryDate && (
                   <div>
-                    <span className="font-medium">Expires:</span> {document.expiryDate ? new Date(document.expiryDate).toLocaleDateString() : 'N/A'}
+                    <span className="font-medium">Important Date:</span> {document.expiryDate ? new Date(document.expiryDate).toLocaleDateString() : 'N/A'}
                   </div>
                 )}
               </div>
@@ -613,7 +613,7 @@ export default function DocumentCard({
   );
 }
 
-// Helper component for expiry badge
+// Helper component for important date badge  
 function ExpiryBadge({ expiryDate }: { expiryDate: string }) {
   const getExpiryStatus = (expiryDate: string) => {
     const today = new Date();

@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Calendar, Clock, FileText, ChevronRight, Plus } from "lucide-react";
 import { DocumentPreview } from "./document-preview";
-import { AddExpiryReminderDialog } from "./add-expiry-reminder-dialog";
+import { AddImportantDateReminderDialog } from "./add-expiry-reminder-dialog";
 
 interface ExpiringDocument {
   id: number;
@@ -75,12 +75,12 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Document Expiry Dashboard
+            Important Date Dashboard
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center p-6">
-            <div className="animate-pulse">Loading expiry data...</div>
+            <div className="animate-pulse">Loading important dates...</div>
           </div>
         </CardContent>
       </Card>
@@ -94,12 +94,12 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-red-600">
             <AlertTriangle className="h-5 w-5" />
-            Error Loading Expiry Data
+            Error Loading Important Dates
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600">
-            Unable to load document expiry information. Please try refreshing the page.
+            Unable to load important date information. Please try refreshing the page.
           </p>
         </CardContent>
       </Card>
@@ -114,7 +114,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
 
   const hasAlerts = typedExpiryData && (typedExpiryData.expired.length > 0 || typedExpiryData.expiringSoon.length > 0);
 
-  const getExpiryDescription = (document: ExpiringDocument) => {
+  const getDateDescription = (document: ExpiringDocument) => {
     const daysUntil = document.daysUntilExpiry;
     
     // Try to extract document type from name or summary for more descriptive text
@@ -139,26 +139,26 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
     if (daysUntil < 0) {
       const daysOverdue = Math.abs(daysUntil);
       if (daysOverdue === 1) {
-        return `${docType} expired yesterday`;
+        return `${docType} was due yesterday`;
       } else if (daysOverdue <= 7) {
-        return `${docType} expired ${daysOverdue} days ago`;
+        return `${docType} was due ${daysOverdue} days ago`;
       } else if (daysOverdue <= 30) {
-        return `${docType} expired ${Math.floor(daysOverdue / 7)} week${Math.floor(daysOverdue / 7) > 1 ? 's' : ''} ago`;
+        return `${docType} was due ${Math.floor(daysOverdue / 7)} week${Math.floor(daysOverdue / 7) > 1 ? 's' : ''} ago`;
       } else {
-        return `${docType} expired ${Math.floor(daysOverdue / 30)} month${Math.floor(daysOverdue / 30) > 1 ? 's' : ''} ago`;
+        return `${docType} was due ${Math.floor(daysOverdue / 30)} month${Math.floor(daysOverdue / 30) > 1 ? 's' : ''} ago`;
       }
     } else if (daysUntil === 0) {
-      return `${docType} expires today`;
+      return `${docType} is due today`;
     } else if (daysUntil === 1) {
-      return `${docType} expires tomorrow`;
+      return `${docType} is due tomorrow`;
     } else if (daysUntil <= 7) {
-      return `${docType} expires in ${daysUntil} days`;
+      return `${docType} is due in ${daysUntil} days`;
     } else if (daysUntil <= 30) {
       const weeksUntil = Math.floor(daysUntil / 7);
-      return `${docType} expires in ${weeksUntil} week${weeksUntil > 1 ? 's' : ''}`;
+      return `${docType} is due in ${weeksUntil} week${weeksUntil > 1 ? 's' : ''}`;
     } else {
       const monthsUntil = Math.floor(daysUntil / 30);
-      return `${docType} expires in ${monthsUntil} month${monthsUntil > 1 ? 's' : ''}`;
+      return `${docType} is due in ${monthsUntil} month${monthsUntil > 1 ? 's' : ''}`;
     }
   };
 
@@ -181,9 +181,9 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Calendar className="h-5 w-5" />
-          Expiry Alerts
+          Important Date Alerts
         </h2>
-        <AddExpiryReminderDialog />
+        <AddImportantDateReminderDialog />
       </div>
       {/* Critical Alerts with Detailed Descriptions */}
       {hasAlerts && typedExpiryData && (
@@ -193,7 +193,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
             <Alert className="border-red-200 bg-red-50">
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <AlertTitle className="text-red-800 mb-3">
-                Expired Documents - Immediate Action Required
+                Past Due Documents - Immediate Action Required
               </AlertTitle>
               <AlertDescription className="text-red-700">
                 <div className="space-y-2">
@@ -205,7 +205,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
                     >
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4" />
-                        <span className="font-medium">{getExpiryDescription(doc)}</span>
+                        <span className="font-medium">{getDateDescription(doc)}</span>
                       </div>
                       <ChevronRight className="w-4 h-4" />
                     </div>
@@ -215,7 +215,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
                       onClick={() => setLocation('/expiry-documents?filter=expired')}
                       className="text-sm underline cursor-pointer hover:text-red-900"
                     >
-                      View all {typedExpiryData.expired.length} expired documents →
+                      View all {typedExpiryData.expired.length} past due documents →
                     </div>
                   )}
                 </div>
@@ -228,7 +228,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
             <Alert className="border-orange-200 bg-orange-50">
               <Clock className="h-4 w-4 text-orange-600" />
               <AlertTitle className="text-orange-800 mb-3">
-                Documents Expiring Soon
+                Documents Due Soon
               </AlertTitle>
               <AlertDescription className="text-orange-700">
                 <div className="space-y-2">
@@ -240,7 +240,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
                     >
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4" />
-                        <span className="font-medium">{getExpiryDescription(doc)}</span>
+                        <span className="font-medium">{getDateDescription(doc)}</span>
                       </div>
                       <ChevronRight className="w-4 h-4" />
                     </div>
@@ -250,7 +250,7 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
                       onClick={() => setLocation('/expiry-documents?filter=expiring-soon')}
                       className="text-sm underline cursor-pointer hover:text-orange-900"
                     >
-                      View all {typedExpiryData.expiringSoon.length} expiring soon →
+                      View all {typedExpiryData.expiringSoon.length} due soon →
                     </div>
                   )}
                 </div>
@@ -266,15 +266,15 @@ export function ExpiryDashboard({ onExpiryFilterChange }: ExpiryDashboardProps) 
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Document Expiry Dashboard
+              Important Date Dashboard
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center py-6">
               <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Expiry Dates Set</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Important Dates Set</h3>
               <p className="text-gray-500">
-                Add expiry dates to your documents to track important deadlines and get alerts when they're due for renewal.
+                Add important dates to your documents to track deadlines and get alerts when they're due for renewal.
               </p>
             </div>
           </CardContent>

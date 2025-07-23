@@ -264,6 +264,17 @@ The application follows a standard full-stack architecture with clear separation
   - Smart tagging and organization of imported documents
 - **Impact**: Users can now easily import documents by forwarding emails to their unique address, with everything automatically organized and searchable
 
+### Profile Settings Email Integration (January 23, 2025)
+- **Feature**: Added user's unique email forwarding address to profile settings for easy access
+- **Implementation**:
+  - Enhanced settings page profile section with dedicated "Document Import Email" area
+  - Added copy-to-clipboard functionality for quick email address sharing
+  - Included loading states and error handling for forwarding address retrieval
+  - Added smooth scroll navigation link to detailed email forwarding instructions
+  - Integrated with existing email forwarding API to display real-time address
+- **User Experience**: Users can now quickly access and copy their unique email forwarding address directly from their profile settings
+- **Impact**: Simplified email forwarding setup process with prominent display in user profile area
+
 ### Security Dependency Updates (January 22, 2025)
 - **Issue**: Security scan required downgrades of multiple dependencies including html-pdf-node, puppeteer, and ws
 - **Resolution**: 

@@ -155,6 +155,15 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### Document Modal UI Cleanup - Extracted Text Removal (January 23, 2025)
+- **Issue**: User reported that extracted text in document modals was cluttering the interface
+- **Resolution**: 
+  - Identified that DocumentPreview component (not DocumentModal) was displaying raw extracted text
+  - Removed extracted text section from DocumentPreview component to reduce visual clutter
+  - Kept AI-generated summaries and insights visible as they provide more useful context
+  - Added hideExtractedText prop to OCRSummaryPreview for future modal implementations
+- **Impact**: Document modals now have cleaner interface focusing on actionable insights rather than raw text
+
 ### Enhanced Document Summaries with Payment History Context (January 23, 2025)
 - **Issue**: User requested that documents due soon summaries provide better context including payment history details
 - **Resolution**: 

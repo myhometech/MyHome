@@ -117,11 +117,85 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
     // Draw current video frame to canvas
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to data URL
-    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    // Apply document enhancement for better OCR
+    const enhancedCanvas = enhanceDocumentImage(canvas);
+    
+    // Convert enhanced image to data URL
+    const imageDataUrl = enhancedCanvas.toDataURL('image/jpeg', 0.95);
     setCapturedImage(imageDataUrl);
     stopCamera();
   }, [stopCamera]);
+
+  // Document image enhancement function
+  const enhanceDocumentImage = (sourceCanvas: HTMLCanvasElement): HTMLCanvasElement => {
+    const sourceCtx = sourceCanvas.getContext('2d');
+    if (!sourceCtx) return sourceCanvas;
+
+    // Create enhanced canvas
+    const enhancedCanvas = document.createElement('canvas');
+    enhancedCanvas.width = sourceCanvas.width;
+    enhancedCanvas.height = sourceCanvas.height;
+    const enhancedCtx = enhancedCanvas.getContext('2d');
+    if (!enhancedCtx) return sourceCanvas;
+
+    // Get image data for processing
+    const imageData = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+    const data = imageData.data;
+
+    // Apply contrast and brightness enhancement for better OCR
+    const contrast = 1.3; // Increase contrast for text clarity
+    const brightness = 15; // Slight brightness increase
+
+    for (let i = 0; i < data.length; i += 4) {
+      // Apply contrast and brightness to RGB channels
+      data[i] = Math.min(255, Math.max(0, contrast * (data[i] - 128) + 128 + brightness));     // Red
+      data[i + 1] = Math.min(255, Math.max(0, contrast * (data[i + 1] - 128) + 128 + brightness)); // Green
+      data[i + 2] = Math.min(255, Math.max(0, contrast * (data[i + 2] - 128) + 128 + brightness)); // Blue
+      // Alpha channel remains unchanged (data[i + 3])
+    }
+
+    // Apply the enhanced image data
+    enhancedCtx.putImageData(imageData, 0, 0);
+
+    // Apply sharpening filter for better text recognition
+    applySharpeningFilter(enhancedCtx, enhancedCanvas.width, enhancedCanvas.height);
+
+    return enhancedCanvas;
+  };
+
+  // Sharpening filter to improve text clarity
+  const applySharpeningFilter = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    const originalData = new Uint8ClampedArray(data);
+
+    // Sharpening kernel for text enhancement
+    const kernel = [
+      0, -1, 0,
+      -1, 5, -1,
+      0, -1, 0
+    ];
+
+    // Apply convolution
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        for (let c = 0; c < 3; c++) { // RGB channels only
+          let sum = 0;
+          for (let ky = -1; ky <= 1; ky++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              const idx = ((y + ky) * width + (x + kx)) * 4 + c;
+              const kernelIdx = (ky + 1) * 3 + (kx + 1);
+              sum += originalData[idx] * kernel[kernelIdx];
+            }
+          }
+          const idx = (y * width + x) * 4 + c;
+          data[idx] = Math.min(255, Math.max(0, sum));
+        }
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+  };
 
   const retakePhoto = useCallback(() => {
     setCapturedImage(null);
@@ -206,15 +280,19 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
                       }
                     }}
                   />
-                  {/* Document frame overlay */}
-                  <div className="absolute inset-4 border-2 border-white/50 rounded-lg pointer-events-none">
-                    <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-white"></div>
-                    <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-white"></div>
-                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-white"></div>
-                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-white"></div>
+                  {/* Enhanced document frame overlay for better scanning */}
+                  <div className="absolute inset-4 border-2 border-blue-400/70 rounded-lg pointer-events-none">
+                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-300"></div>
+                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-300"></div>
+                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-300"></div>
+                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-300"></div>
+                    
+                    {/* Center guidelines for document alignment */}
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 border border-blue-300/50 rounded-full"></div>
                   </div>
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded">
-                    Position document within the frame
+                  
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/70 px-4 py-2 rounded-lg">
+                    📄 Position document within frame for best OCR results
                   </div>
                 </div>
               ) : (

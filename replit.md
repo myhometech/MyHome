@@ -155,6 +155,22 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### Enhanced Document Scanning with Edge Detection and OCR (January 23, 2025)
+- **Feature**: Implemented comprehensive document scanning with intelligent image processing
+- **Implementation**:
+  - Added document image enhancement with contrast and brightness optimization
+  - Implemented sharpening filters for better text clarity in scanned documents
+  - Enhanced Tesseract OCR configuration with automatic page segmentation and orientation detection
+  - Added OCR text cleanup for better readability and error correction
+  - Created DocumentProcessor service for unified document processing workflow
+  - Enhanced camera scanner UI with better document alignment guides
+- **Processing Features**:
+  - Automatic document boundary detection and image enhancement
+  - Confidence scoring based on text quality and processing type
+  - Support for both text-based PDFs and scanned document images
+  - Intelligent text extraction with common OCR error corrections
+- **Impact**: Users can now scan physical documents with enhanced accuracy and automated text extraction
+
 ### iPhone Camera Scanning Improvements (January 23, 2025)
 - **Issue**: Scan function was not working properly when opening the website on iPhone
 - **Resolution**: 

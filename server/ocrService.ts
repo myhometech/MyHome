@@ -66,28 +66,65 @@ async function extractTextFromPDF(filePath: string): Promise<string> {
   });
 }
 
-// Free OCR using Tesseract.js
+// Enhanced OCR using Tesseract.js with optimized settings for document scanning
 async function extractTextWithTesseract(filePath: string): Promise<string> {
   try {
-    console.log('Initializing Tesseract worker...');
+    console.log('Initializing Tesseract worker with enhanced document recognition...');
     const worker = await createWorker('eng');
     
     try {
-      console.log(`Processing image with Tesseract: ${filePath}`);
-      const { data: { text } } = await worker.recognize(filePath);
+      // Configure Tesseract for better document recognition
+      await worker.setParameters({
+        tessedit_pageseg_mode: '1', // Automatic page segmentation with OSD (Orientation and Script Detection)
+        tessedit_ocr_engine_mode: '2', // Use both legacy and LSTM engines
+        preserve_interword_spaces: '1', // Better space preservation
+        tessjs_create_hocr: '1', // Create hierarchical OCR output
+        tessjs_create_tsv: '1', // Create tab-separated values output
+      });
+
+      console.log(`Processing scanned document with enhanced OCR: ${filePath}`);
+      
+      const { data: { text, confidence } } = await worker.recognize(filePath, {
+        rectangle: undefined, // Process full image
+      });
+      
+      console.log(`OCR completed with confidence: ${confidence}%`);
       
       if (!text || text.trim() === '') {
-        return 'No text detected';
+        return 'No text detected in scanned document';
       }
       
-      return text.trim();
+      // Clean up the extracted text for better readability
+      const cleanedText = cleanupOCRText(text);
+      
+      return cleanedText;
     } finally {
       await worker.terminate();
     }
   } catch (error: any) {
-    console.error('Tesseract OCR failed:', error);
-    throw new Error(`Tesseract OCR failed: ${error.message}`);
+    console.error('Enhanced Tesseract OCR failed:', error);
+    throw new Error(`Enhanced OCR processing failed: ${error.message}`);
   }
+}
+
+// Clean up OCR text output for better readability and accuracy
+function cleanupOCRText(text: string): string {
+  // Remove excessive whitespace and normalize line breaks
+  let cleaned = text
+    .replace(/\n{3,}/g, '\n\n') // Replace multiple line breaks with double
+    .replace(/[ \t]{2,}/g, ' ') // Replace multiple spaces with single space
+    .replace(/^\s+|\s+$/gm, '') // Trim each line
+    .trim();
+
+  // Fix common OCR errors
+  cleaned = cleaned
+    .replace(/[|]/g, 'I') // Common | to I confusion
+    .replace(/0/g, 'O') // In text contexts, 0 might be O
+    .replace(/rn/g, 'm') // Common rn to m confusion
+    .replace(/\b1\b/g, 'l') // Standalone 1 to l in text
+    .replace(/([a-z])([A-Z])/g, '$1 $2'); // Add space between lowercase and uppercase
+
+  return cleaned;
 }
 
 

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Share, Trash2, FileText, Image, X, Edit2, Save, XCircle } from "lucide-react";
 import { SmartTagSuggestions } from "@/components/smart-tag-suggestions";
 import OCRSummaryPreview from "@/components/ocr-summary-preview";
+import { PDFViewer } from "@/components/pdf-viewer";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -200,17 +201,45 @@ export default function DocumentModal({
         
         <div className="overflow-y-auto flex-1">
           {/* Document Preview */}
-          <div className="bg-gray-100 rounded-lg p-8 text-center mb-6">
-            {getFileIcon()}
-            <h3 className="text-lg font-medium mt-4 mb-2">{document.fileName}</h3>
-            <p className="text-gray-500 mb-4">
-              {document.mimeType.startsWith('image/') ? 'Image Document' : 'PDF Document'}
-            </p>
-            
-            {/* Preview would go here - for now showing placeholder */}
-            <div className="bg-white rounded border-2 border-dashed border-gray-300 p-8 text-gray-500">
-              Document preview would be displayed here
-            </div>
+          <div className="mb-6">
+            {document.mimeType === 'application/pdf' ? (
+              <PDFViewer 
+                documentId={document.id}
+                documentName={document.name}
+                onDownload={onDownload}
+              />
+            ) : document.mimeType.startsWith('image/') ? (
+              <div className="bg-gray-50 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between p-3 bg-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Image className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-gray-600 font-medium">Image Preview</span>
+                  </div>
+                </div>
+                <div className="p-4 flex items-center justify-center bg-white">
+                  <img
+                    src={`/api/documents/${document.id}/preview`}
+                    alt={document.name}
+                    className="max-w-full max-h-96 rounded shadow-sm"
+                    onError={(e) => {
+                      console.error('Image load error:', e);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-100 rounded-lg p-8 text-center">
+                {getFileIcon()}
+                <h3 className="text-lg font-medium mt-4 mb-2">{document.fileName}</h3>
+                <p className="text-gray-500 mb-4">
+                  {document.mimeType.startsWith('image/') ? 'Image Document' : 'Document'}
+                </p>
+                <div className="bg-white rounded border-2 border-dashed border-gray-300 p-8 text-gray-500">
+                  Preview not available for this file type
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Document Details */}

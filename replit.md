@@ -164,15 +164,15 @@ The application follows a standard full-stack architecture with clear separation
   - Added hideExtractedText prop to OCRSummaryPreview for future modal implementations
 - **Impact**: Document modals now have cleaner interface focusing on actionable insights rather than raw text
 
-### PDF.js Viewer Implementation (January 23, 2025)
-- **Issue**: Built-in browser PDF viewing in iframe/object tags was unreliable across different browsers
+### Simplified PDF Viewer Implementation (January 23, 2025)
+- **Issue**: Complex PDF.js viewer had browser compatibility and authentication issues
 - **Resolution**: 
-  - Implemented PDF.js-based viewer component with canvas rendering for consistent cross-browser support
-  - Added proper page navigation (previous/next) and zoom controls (in/out)
-  - Integrated fallback error handling with direct download/open options
-  - Added real-time PDF loading and rendering with progress indicators
-  - Enhanced user experience with proper controls and PDF information display
-- **Impact**: Document modals now reliably display PDF content across all browsers with full navigation controls
+  - Implemented simple, reliable PDF viewer with direct "Open PDF" button
+  - Removed complex dependencies and iframe rendering issues
+  - Added clean UI with download options as backup
+  - Focused on reliability over advanced features
+  - Maintained proper authentication for PDF access
+- **Impact**: Users can now reliably view PDFs by opening them in new tabs, with fallback download options
 
 ### Enhanced Document Summaries with Payment History Context (January 23, 2025)
 - **Issue**: User requested that documents due soon summaries provide better context including payment history details

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Share, Trash2, FileText, Image, X, Edit2, Save, XCircle } from "lucide-react";
 import { SmartTagSuggestions } from "@/components/smart-tag-suggestions";
 import OCRSummaryPreview from "@/components/ocr-summary-preview";
-import { PDFJSViewer } from "@/components/pdf-js-viewer";
+// Simple PDF viewer fallback
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -203,11 +203,43 @@ export default function DocumentModal({
           {/* Document Preview */}
           <div className="mb-6">
             {document.mimeType === 'application/pdf' ? (
-              <PDFJSViewer 
-                documentId={document.id}
-                documentName={document.name}
-                onDownload={onDownload}
-              />
+              <div className="bg-gray-50 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between p-3 bg-gray-100">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-red-600" />
+                    <span className="text-sm text-gray-600 font-medium">PDF Document</span>
+                  </div>
+                </div>
+                <div className="p-6 bg-white text-center">
+                  <div className="flex flex-col items-center gap-4">
+                    <FileText className="w-16 h-16 text-red-400" />
+                    <div>
+                      <h3 className="text-lg font-medium mb-2">{document.fileName}</h3>
+                      <p className="text-gray-600 text-sm mb-4">PDF Document Ready to View</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <a 
+                        href={`/api/documents/${document.id}/preview`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Open PDF
+                      </a>
+                      {onDownload && (
+                        <button
+                          onClick={onDownload}
+                          className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : document.mimeType.startsWith('image/') ? (
               <div className="bg-gray-50 rounded-lg overflow-hidden">
                 <div className="flex items-center justify-between p-3 bg-gray-100">

@@ -595,6 +595,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reprocess document with enhanced OCR and text extraction
+  app.post('/api/documents/:id/reprocess', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+      
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      if (!fs.existsSync(document.filePath)) {
+        return res.status(404).json({ message: "Document file not found" });
+      }
+
+      // Reprocess with enhanced OCR and date extraction
+      await processDocumentWithDateExtraction(
+        documentId,
+        document.name,
+        document.filePath,
+        document.mimeType || 'application/octet-stream',
+        userId,
+        storage
+      );
+      
+      res.json({ message: 'Document reprocessed successfully' });
+    } catch (error: any) {
+      console.error('Reprocess document error:', error);
+      res.status(500).json({ message: 'Failed to reprocess document' });
+    }
+  });
+
   app.delete('/api/documents/:id', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);

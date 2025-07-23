@@ -1,25 +1,69 @@
 import fs from "fs";
 import { createWorker } from 'tesseract.js';
 import { extractExpiryDatesFromText, type ExtractedDate } from "./dateExtractionService";
+import PDFParser from "pdf2json";
 
-// Extract text from PDF using a simple approach for text-based PDFs
+// Extract text from PDF using pdf2json for text-based PDFs
 async function extractTextFromPDF(filePath: string): Promise<string> {
-  try {
+  return new Promise((resolve, reject) => {
     console.log(`Starting PDF text extraction for: ${filePath}`);
     
     // Check if file exists
     if (!fs.existsSync(filePath)) {
-      throw new Error(`PDF file not found: ${filePath}`);
+      reject(new Error(`PDF file not found: ${filePath}`));
+      return;
     }
     
-    // For now, provide a more informative message about PDF processing
-    // In the future, we can add more sophisticated PDF text extraction
-    return 'PDF document uploaded successfully. Text-based PDF processing is available - content includes standard document text, tables, and form data. For scanned PDFs or images within PDFs, consider converting pages to image format first for OCR processing.';
+    const pdfParser = new (PDFParser as any)(null, 1);
     
-  } catch (error: any) {
-    console.error('PDF processing failed:', error);
-    return `PDF processing encountered an issue: ${error.message}. Please ensure the PDF is not password-protected or corrupted.`;
-  }
+    pdfParser.on("pdfParser_dataError", (errData: any) => {
+      console.error('PDF parsing error:', errData.parserError);
+      resolve('PDF text extraction failed - this may be a scanned PDF, password-protected, or corrupted file. Consider converting to images for OCR processing.');
+    });
+    
+    pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+      try {
+        let extractedText = '';
+        
+        // Extract text from all pages
+        if (pdfData.Pages && Array.isArray(pdfData.Pages)) {
+          for (const page of pdfData.Pages) {
+            if (page.Texts && Array.isArray(page.Texts)) {
+              for (const text of page.Texts) {
+                if (text.R && Array.isArray(text.R)) {
+                  for (const run of text.R) {
+                    if (run.T) {
+                      // Decode URI component to handle special characters
+                      const decodedText = decodeURIComponent(run.T);
+                      extractedText += decodedText + ' ';
+                    }
+                  }
+                }
+              }
+            }
+            extractedText += '\n'; // Add line break between pages
+          }
+        }
+        
+        const cleanedText = extractedText.trim();
+        
+        if (cleanedText.length > 10) {
+          console.log(`PDF text extraction successful: ${cleanedText.length} characters`);
+          resolve(cleanedText);
+        } else {
+          console.log('PDF appears to be image-based or empty');
+          resolve('PDF document processed but contains no extractable text. This appears to be an image-based or scanned PDF. Consider converting pages to images for OCR processing.');
+        }
+        
+      } catch (processingError: any) {
+        console.error('PDF text processing error:', processingError);
+        resolve(`PDF text processing failed: ${processingError.message}`);
+      }
+    });
+    
+    // Load and parse the PDF file
+    pdfParser.loadPDF(filePath);
+  });
 }
 
 // Free OCR using Tesseract.js

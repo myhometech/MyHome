@@ -1,8 +1,10 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Share, Trash2, FileText, Image, X } from "lucide-react";
+import { Download, Share, Trash2, FileText, Image, X, Edit2, Save, XCircle } from "lucide-react";
 import { SmartTagSuggestions } from "@/components/smart-tag-suggestions";
 import OCRSummaryPreview from "@/components/ocr-summary-preview";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -50,7 +52,26 @@ export default function DocumentModal({
   onDelete 
 }: DocumentModalProps) {
   const [currentTags, setCurrentTags] = useState(document.tags || []);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(document.name);
+  const [editExpiryDate, setEditExpiryDate] = useState(document.expiryDate || "");
   const queryClient = useQueryClient();
+
+  const updateDocumentMutation = useMutation({
+    mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {
+      const response = await fetch(`/api/documents/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, expiryDate }),
+      });
+      if (!response.ok) throw new Error('Failed to update document');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      setIsEditing(false);
+    },
+  });
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
     const k = 1024;
@@ -101,20 +122,79 @@ export default function DocumentModal({
     }
   };
 
+  const handleStartEdit = () => {
+    setIsEditing(true);
+    setEditName(document.name);
+    setEditExpiryDate(document.expiryDate || "");
+  };
+
+  const handleSaveEdit = () => {
+    const hasNameChange = editName.trim() !== document.name;
+    const hasExpiryChange = editExpiryDate !== (document.expiryDate || "");
+    
+    if (hasNameChange || hasExpiryChange) {
+      updateDocumentMutation.mutate({ 
+        id: document.id, 
+        name: editName.trim(), 
+        expiryDate: editExpiryDate || null 
+      });
+    } else {
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditName(document.name);
+    setEditExpiryDate(document.expiryDate || "");
+    setIsEditing(false);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl w-[95vw] md:w-full max-h-[90vh] overflow-hidden mx-2">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-lg font-semibold">{document.name}</DialogTitle>
-              <p className="text-sm text-gray-500 mt-1">
-                {category?.name || "Uncategorized"} • {formatFileSize(document.fileSize)} • Uploaded {formatDate(document.uploadedAt)}
-              </p>
+            <div className="flex-1">
+              {isEditing ? (
+                <div className="space-y-2">
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="text-lg font-semibold"
+                    placeholder="Document name"
+                  />
+                  <p className="text-sm text-gray-500">
+                    {category?.name || "Uncategorized"} • {formatFileSize(document.fileSize)} • Uploaded {formatDate(document.uploadedAt)}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <DialogTitle className="text-lg font-semibold">{document.name}</DialogTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {category?.name || "Uncategorized"} • {formatFileSize(document.fileSize)} • Uploaded {formatDate(document.uploadedAt)}
+                  </p>
+                </div>
+              )}
             </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {isEditing ? (
+                <>
+                  <Button variant="ghost" size="sm" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending}>
+                    <Save className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={handleStartEdit}>
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </DialogHeader>
         
@@ -158,6 +238,22 @@ export default function DocumentModal({
                   <span className="text-gray-500">Upload Date:</span>
                   <span className="font-medium">{formatDate(document.uploadedAt)}</span>
                 </div>
+                {isEditing ? (
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="text-gray-500">Expiry Date:</span>
+                    <Input
+                      type="date"
+                      value={editExpiryDate}
+                      onChange={(e) => setEditExpiryDate(e.target.value)}
+                      className="w-auto text-sm"
+                    />
+                  </div>
+                ) : document.expiryDate ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Expiry Date:</span>
+                    <span className="font-medium">{new Date(document.expiryDate).toLocaleDateString()}</span>
+                  </div>
+                ) : null}
               </div>
             </div>
 

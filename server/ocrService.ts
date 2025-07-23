@@ -129,6 +129,7 @@ export async function processDocumentWithDateExtraction(
   documentName: string,
   filePath: string,
   mimeType: string,
+  userId: string,
   storage: any
 ): Promise<void> {
   try {
@@ -155,7 +156,7 @@ export async function processDocumentWithDateExtraction(
     }
     
     // Update document with OCR and summary
-    await storage.updateDocumentOCRAndSummary(documentId, "system", extractedText, summaryResult);
+    await storage.updateDocumentOCRAndSummary(documentId, userId, extractedText, summaryResult);
     
     // If we found expiry dates, update the document with the most relevant one
     if (extractedDates.length > 0) {
@@ -166,7 +167,7 @@ export async function processDocumentWithDateExtraction(
       
       if (bestDate) {
         const expiryDate = bestDate.date.toISOString().split('T')[0]; // YYYY-MM-DD format
-        await storage.updateDocument(documentId, "system", { 
+        await storage.updateDocument(documentId, userId, { 
           expiryDate,
           name: documentName // Keep existing name
         });

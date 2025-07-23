@@ -297,6 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             req.file.originalname,
             req.file.path, 
             req.file.mimetype,
+            userId,
             storage
           );
           
@@ -1019,6 +1020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           document.fileName,
           document.filePath,
           document.mimeType,
+          userId,
           storage
         );
         res.json({ message: "Document reprocessed with date extraction successfully" });

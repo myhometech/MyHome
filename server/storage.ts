@@ -4,6 +4,7 @@ import {
   documentShares,
   emailForwards,
   userForwardingMappings,
+  stripeWebhooks,
   categories,
   expiryReminders,
   type User,
@@ -20,6 +21,8 @@ import {
   type InsertUserForwardingMapping,
   type ExpiryReminder,
   type InsertExpiryReminder,
+  type InsertStripeWebhook,
+  type SelectStripeWebhook,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
@@ -28,7 +31,9 @@ export interface IStorage {
   // User operations (email/password auth only)
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByStripeCustomerId(customerId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
   
   // Category operations
   getCategories(userId: string): Promise<Category[]>;
@@ -84,6 +89,10 @@ export interface IStorage {
   updateExpiryReminder(id: number, userId: string, updates: Partial<InsertExpiryReminder>): Promise<ExpiryReminder | undefined>;
   deleteExpiryReminder(id: number, userId: string): Promise<void>;
   markReminderCompleted(id: number, userId: string, isCompleted: boolean): Promise<ExpiryReminder | undefined>;
+
+  // Stripe operations
+  createStripeWebhook(webhook: InsertStripeWebhook): Promise<SelectStripeWebhook>;
+  getStripeWebhookByEventId(eventId: string): Promise<SelectStripeWebhook | undefined>;
 }
 
 export interface ExpiringDocument {
@@ -121,6 +130,23 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .insert(users)
       .values(userData)
+      .returning();
+    return user;
+  }
+
+  async getUserByStripeCustomerId(customerId: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.stripeCustomerId, customerId));
+    return user;
+  }
+
+  async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
       .returning();
     return user;
   }
@@ -1091,6 +1117,19 @@ export class DatabaseStorage implements IStorage {
     }
 
     return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 20);
+  }
+  // Stripe operations
+  async createStripeWebhook(webhook: InsertStripeWebhook): Promise<SelectStripeWebhook> {
+    const [result] = await db.insert(stripeWebhooks).values(webhook).returning();
+    return result;
+  }
+
+  async getStripeWebhookByEventId(eventId: string): Promise<SelectStripeWebhook | undefined> {
+    const [webhook] = await db
+      .select()
+      .from(stripeWebhooks)
+      .where(eq(stripeWebhooks.eventId, eventId));
+    return webhook;
   }
 }
 

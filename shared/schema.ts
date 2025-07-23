@@ -34,6 +34,10 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash").notNull(),
   role: varchar("role", { length: 20 }).default("user").notNull(), // 'user' or 'admin'
   subscriptionTier: varchar("subscription_tier", { length: 20 }).default("free").notNull(), // 'free' or 'premium'
+  stripeCustomerId: varchar("stripe_customer_id").unique(),
+  subscriptionStatus: varchar("subscription_status", { length: 20 }).default("inactive"), // 'active', 'inactive', 'canceled', 'past_due'
+  subscriptionId: varchar("subscription_id"),
+  subscriptionRenewalDate: timestamp("subscription_renewal_date"),
   isActive: boolean("is_active").default(true).notNull(),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -149,6 +153,20 @@ export const insertDocumentShareSchema = createInsertSchema(documentShares).omit
 });
 
 export const insertEmailForwardSchema = createInsertSchema(emailForwards).omit({
+  id: true,
+  processedAt: true,
+});
+
+// Stripe webhooks table for event tracking
+export const stripeWebhooks = pgTable("stripe_webhooks", {
+  id: serial("id").primaryKey(),
+  eventId: varchar("event_id").notNull().unique(), // Stripe event ID for deduplication
+  eventType: varchar("event_type").notNull(), // checkout.session.completed, etc.
+  processedAt: timestamp("processed_at").defaultNow(),
+  data: jsonb("data").notNull(), // Full event data from Stripe
+});
+
+export const insertStripeWebhookSchema = createInsertSchema(stripeWebhooks).omit({
   id: true,
   processedAt: true,
 });

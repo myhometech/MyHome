@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/header";
 import MobileNav from "@/components/mobile-nav";
 import { EmailForwarding } from "@/components/email-forwarding";
+import SubscriptionPlans from "@/components/SubscriptionPlans";
 import CategoryManagement from "@/components/category-management";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

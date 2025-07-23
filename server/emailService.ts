@@ -16,14 +16,14 @@ export class EmailService {
     // In production, this would connect to an actual IMAP server
     this.forwardingAddress = process.env.EMAIL_FORWARD_ADDRESS || 'documents@homedocs.local';
     
-    // Initialize transporter for sending confirmation emails
+    // Initialize transporter for sending confirmation emails using SendGrid
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
+      host: 'smtp.sendgrid.net',
+      port: 587,
       secure: false,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: 'apikey',
+        pass: process.env.SENDGRID_API_KEY,
       },
     });
   }

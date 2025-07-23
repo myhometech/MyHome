@@ -970,6 +970,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/email/webhook/mailgun', validateWebhookSignature, handleMailgunWebhook);
   app.post('/api/email/test', requireAuth, handleTestEmail);
   
+  // Import Stripe route handlers
+  const { 
+    createCheckoutSession, 
+    createPortalSession, 
+    getSubscriptionStatus, 
+    processWebhook,
+    getSubscriptionPlans 
+  } = await import('./stripeRoutes');
+
+  // Stripe API endpoints
+  app.get('/api/stripe/plans', requireAuth, getSubscriptionPlans);
+  app.post('/api/stripe/create-checkout-session', requireAuth, createCheckoutSession);
+  app.post('/api/stripe/create-portal-session', requireAuth, createPortalSession);
+  app.get('/api/stripe/subscription-status', requireAuth, getSubscriptionStatus);
+  
+  // Stripe webhook (no auth required - verified by signature)
+  app.post('/api/stripe/webhook', processWebhook);
+
   // Simple test endpoint to simulate email forwarding without external email service
   app.post('/api/email/simulate-forward', requireAuth, async (req: any, res) => {
     try {

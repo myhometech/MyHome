@@ -17,6 +17,7 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
   const pdfUrl = `/api/documents/${documentId}/preview`;
   
   console.log('PDFViewer rendered for document:', documentId, documentName);
+  console.log('PDF URL will be:', pdfUrl);
 
   useEffect(() => {
     // Test if PDF is accessible
@@ -152,18 +153,22 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
 
       {/* PDF Iframe Container */}
       <div className="relative bg-white border rounded">
+        {/* Debug info */}
+        <div className="p-2 bg-yellow-50 border-b text-xs">
+          <strong>Debug:</strong> Loading PDF from {pdfUrl}
+        </div>
+        
         <iframe
           src={pdfUrl}
           title={`PDF: ${documentName}`}
           className="w-full h-96 border-0"
-          style={{
-            transform: `scale(${zoom}) rotate(${rotation}deg)`,
-            transformOrigin: 'center center',
-          }}
+          allowFullScreen
           onLoad={(e) => {
             console.log('PDF iframe loaded successfully for:', pdfUrl);
             const iframe = e.target as HTMLIFrameElement;
             console.log('PDF iframe element:', iframe);
+            console.log('PDF iframe src:', iframe.src);
+            setIsLoading(false);
           }}
           onError={(e) => {
             console.error('PDF iframe load error for:', pdfUrl, e);
@@ -171,16 +176,22 @@ export function PDFViewer({ documentId, documentName, onDownload }: PDFViewerPro
           }}
         />
         
-        {/* Fallback link */}
-        <div className="absolute bottom-2 right-2">
+        {/* Fallback options */}
+        <div className="absolute bottom-2 right-2 flex gap-2">
           <a 
             href={pdfUrl} 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-xs text-blue-600 hover:text-blue-800 bg-white px-2 py-1 rounded border shadow"
           >
-            Open PDF in new tab
+            Open in New Tab
           </a>
+          <button
+            onClick={() => window.open(pdfUrl, '_blank')}
+            className="text-xs text-green-600 hover:text-green-800 bg-white px-2 py-1 rounded border shadow"
+          >
+            Force Open
+          </button>
         </div>
       </div>
 

@@ -2,15 +2,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { X, Download, FileText, Image as ImageIcon, AlertCircle, Eye, ZoomIn, ZoomOut, MoreHorizontal, Edit2, Trash2, Calendar, Save, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { MoreVertical, Eye, Download, Trash, Edit, Save, X, AlertCircle, FileText } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { SmartPreviewChips } from "./smart-preview-chips";
-import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
+// Removed react-pdf imports - using native browser PDF viewing instead
 
 interface DocumentPreviewProps {
   document: {
@@ -35,21 +33,16 @@ interface DocumentPreviewProps {
   onUpdate?: () => void;
 }
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+// Using native browser PDF viewing - removed PDF.js worker configuration
 
 export function DocumentPreview({ document, category, onClose, onDownload, onUpdate }: DocumentPreviewProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
   const [editExpiryDate, setEditExpiryDate] = useState(document.expiryDate || "");
   
   // PDF-specific state
-  const [numPages, setNumPages] = useState<number | null>(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pdfScale, setPdfScale] = useState(1.0);
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   
   const { toast } = useToast();
@@ -328,50 +321,14 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
             </div>
             
             <div className="flex items-center gap-2">
-              {/* Page Navigation */}
-              {numPages && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPageNumber(page => Math.max(1, page - 1))}
-                    disabled={pageNumber <= 1}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-gray-600 px-2">
-                    {pageNumber} / {numPages}
+              {/* PDF Info */}
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>PDF Document</span>
+                {pdfData && (
+                  <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                    {(pdfData.byteLength / 1024).toFixed(1)}KB
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPageNumber(page => Math.min(numPages, page + 1))}
-                    disabled={pageNumber >= numPages}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-              
-              {/* Zoom Controls */}
-              <div className="flex items-center gap-1 border-l pl-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPdfScale(scale => Math.max(0.5, scale - 0.25))}
-                  disabled={pdfScale <= 0.5}
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </Button>
-                <span className="text-xs text-gray-600 px-2">{Math.round(pdfScale * 100)}%</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPdfScale(scale => Math.min(2, scale + 0.25))}
-                  disabled={pdfScale >= 2}
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
+                )}
               </div>
               
               {/* External Open Button */}
@@ -389,92 +346,34 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
             </div>
           </div>
 
-          {/* PDF Viewer */}
+          {/* Simple PDF Viewer - Using iframe with blob URL for reliability */}
           <div className="flex items-center justify-center p-4 bg-white min-h-96 max-h-[70vh] overflow-auto">
             {pdfData ? (
-              <Document
-                file={{ data: pdfData }}
-                options={{
-                  cMapUrl: `//unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
-                  cMapPacked: true,
-                  standardFontDataUrl: `//unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
-                }}
-              onLoadSuccess={({ numPages }) => {
-                console.log(`🎉 PDF rendered successfully: ${numPages} pages, file size: ${pdfData?.byteLength} bytes`);
-                setNumPages(numPages);
-                setIsLoading(false);
-                setError(null);
-                // Clear the rendering timeout since we succeeded
-                if (timeoutId) {
-                  clearTimeout(timeoutId);
-                }
-              }}
-              onLoadError={(error) => {
-                console.error('❌ PDF rendering failed:', error);
-                console.error('PDF data details:', {
-                  hasData: !!pdfData,
-                  dataSize: pdfData?.byteLength,
-                  documentId: document.id,
-                  errorMessage: error.message,
-                  errorStack: error.stack
-                });
-                setError(`PDF render failed: ${error.message || 'Invalid PDF format'}`);
-                setIsLoading(false);
-                // Clear the rendering timeout since we got an explicit error
-                if (timeoutId) {
-                  clearTimeout(timeoutId);
-                }
-                // Don't clear pdfData here - keep it for retry
-              }}
-              onLoadProgress={({ loaded, total }) => {
-                console.log('🔄 PDF rendering progress:', Math.round((loaded / total) * 100) + '%');
-              }}
-              loading={
-                <div className="flex flex-col items-center gap-2 py-8">
-                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-sm text-gray-600">Loading PDF...</p>
-                  <p className="text-xs text-gray-500">This may take a moment for large files</p>
-                </div>
-              }
-              error={
-                <div className="flex flex-col items-center gap-3 text-gray-500 py-8">
-                  <AlertCircle className="w-12 h-12" />
-                  <div className="text-center">
-                    <p className="text-sm font-medium">Unable to display PDF</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {error || 'PDF viewer encountered an error'}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const pdfUrl = `/api/documents/${document.id}/preview`;
-                      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-                    }}
-                  >
-                    <Eye className="w-3 h-3 mr-1" />
-                    Open in Browser
-                  </Button>
-                </div>
-              }
-            >
-              {numPages && (
-                <Page
-                  pageNumber={pageNumber}
-                  scale={pdfScale}
-                  renderTextLayer={true}
-                  renderAnnotationLayer={true}
-                  className="pdf-page shadow-sm"
-                  onLoadSuccess={() => {
-                    console.log(`Page ${pageNumber} loaded successfully`);
+              <div className="w-full h-full">
+                <iframe
+                  src={URL.createObjectURL(new Blob([pdfData], { type: 'application/pdf' }))}
+                  className="w-full h-[60vh] border border-gray-200 rounded"
+                  title="PDF Preview"
+                  onLoad={() => {
+                    console.log('🎉 PDF loaded successfully in iframe');
+                    setIsLoading(false);
+                    setError(null);
+                    // Clear the rendering timeout since we succeeded
+                    if (timeoutId) {
+                      clearTimeout(timeoutId);
+                    }
                   }}
-                  onLoadError={(error) => {
-                    console.error(`Error loading page ${pageNumber}:`, error);
+                  onError={() => {
+                    console.error('❌ PDF iframe failed to load');
+                    setError('PDF display failed. Please use "Open External" button.');
+                    setIsLoading(false);
+                    // Clear the rendering timeout since we got an explicit error
+                    if (timeoutId) {
+                      clearTimeout(timeoutId);
+                    }
                   }}
                 />
-              )}
-              </Document>
+              </div>
             ) : error ? (
               <div className="flex flex-col items-center gap-3 text-gray-500 py-8">
                 <AlertCircle className="w-12 h-12" />

@@ -522,16 +522,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      // For PDFs, serve the file directly for in-browser viewing
+      // For PDFs, serve the file with proper headers for react-pdf
       if (document.mimeType === 'application/pdf') {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Cache-Control', 'public, max-age=3600');
         res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-        res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-        res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-        const fileStream = fs.createReadStream(document.filePath);
-        fileStream.pipe(res);
+        
+        // CORS headers for react-pdf compatibility
+        res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+        
+        // Support for partial content requests (important for PDF streaming)
+        res.setHeader('Accept-Ranges', 'bytes');
+        
+        const stat = fs.statSync(document.filePath);
+        const fileSize = stat.size;
+        const range = req.headers.range;
+
+        if (range) {
+          const parts = range.replace(/bytes=/, "").split("-");
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+          const chunksize = (end - start) + 1;
+          const file = fs.createReadStream(document.filePath, { start, end });
+          res.writeHead(206, {
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Content-Length': chunksize.toString(),
+          });
+          file.pipe(res);
+        } else {
+          res.writeHead(200, {
+            'Content-Length': fileSize.toString(),
+          });
+          fs.createReadStream(document.filePath).pipe(res);
+        }
         return;
       }
 

@@ -133,46 +133,35 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           setIsLoading(false);
         });
     } else if (isPDF()) {
-      // For PDFs, fetch the data with authentication first
+      // For PDFs, use URL-based loading with authentication
       setIsLoading(true);
+      console.log('Setting up PDF viewer for document:', document.id);
       
-      console.log('Starting PDF fetch for document:', document.id);
+      // Test PDF accessibility first
       fetch(`/api/documents/${document.id}/preview`, { 
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/pdf'
-        }
+        method: 'HEAD',
+        credentials: 'include'
       })
         .then(response => {
-          console.log('PDF fetch response:', response.status, response.statusText);
+          console.log('PDF head check response:', response.status, response.statusText);
           if (!response.ok) {
-            throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+            throw new Error(`PDF not accessible: ${response.status} ${response.statusText}`);
           }
-          console.log('Converting PDF response to arrayBuffer...');
-          return response.arrayBuffer();
-        })
-        .then(arrayBuffer => {
-          console.log('PDF data fetched successfully, size:', arrayBuffer.byteLength, 'bytes');
-          if (arrayBuffer.byteLength === 0) {
-            throw new Error('PDF file is empty');
-          }
-          setPdfData(arrayBuffer);
-          // Keep loading true until PDF component loads
+          // PDF is accessible, set a placeholder to trigger PDF component
+          setPdfData(new ArrayBuffer(1)); // Minimal buffer to trigger PDF component
         })
         .catch(err => {
-          console.error('PDF fetch error:', err);
-          setError(`Failed to load PDF: ${err.message}`);
+          console.error('PDF accessibility check failed:', err);
+          setError(`PDF not accessible: ${err.message}`);
           setIsLoading(false);
-          setPdfData(null);
         });
       
-      // Add timeout for PDF loading (60 seconds for large files)
+      // Add shorter timeout for initial check (15 seconds)
       timeoutId = setTimeout(() => {
-        console.warn('PDF loading timeout after 60 seconds');
-        setError('PDF loading timed out. The file may be too large or unavailable.');
+        console.warn('PDF setup timeout after 15 seconds');
+        setError('PDF setup timed out. Please try the retry button or open in browser.');
         setIsLoading(false);
-        setPdfData(null);
-      }, 60000);
+      }, 15000);
     } else {
       // For other files, just stop loading immediately
       setIsLoading(false);
@@ -362,7 +351,7 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           <div className="flex items-center justify-center p-4 bg-white min-h-96 max-h-[70vh] overflow-auto">
             {pdfData ? (
               <Document
-                file={{ data: pdfData }}
+                file={`/api/documents/${document.id}/preview`}
                 options={{
                   cMapUrl: `//unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
                   cMapPacked: true,
@@ -444,18 +433,15 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
                       setError(null);
                       setIsLoading(true);
                       setPdfData(null);
-                      // Trigger refetch by clearing and resetting PDF data
+                      // Trigger refetch by resetting state
                       fetch(`/api/documents/${document.id}/preview`, { 
-                        credentials: 'include',
-                        headers: { 'Accept': 'application/pdf' }
+                        method: 'HEAD',
+                        credentials: 'include'
                       })
                         .then(response => {
                           if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                          return response.arrayBuffer();
-                        })
-                        .then(arrayBuffer => {
-                          console.log('PDF retry successful, size:', arrayBuffer.byteLength);
-                          setPdfData(arrayBuffer);
+                          console.log('PDF retry check successful');
+                          setPdfData(new ArrayBuffer(1)); // Trigger PDF component
                         })
                         .catch(err => {
                           console.error('PDF retry failed:', err);

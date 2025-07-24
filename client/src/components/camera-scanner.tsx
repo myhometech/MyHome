@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback } from "react";
-import { Camera, X, RotateCcw, Check, Upload } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Camera, X, RotateCcw, Check, Upload, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
 interface CameraScannerProps {
@@ -14,10 +15,40 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
   const [isStreaming, setIsStreaming] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [offlineQueue, setOfflineQueue] = useState<File[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Process offline queue when coming back online
+  useEffect(() => {
+    if (isOnline && offlineQueue.length > 0) {
+      toast({
+        title: "Connection restored",
+        description: `Processing ${offlineQueue.length} offline document(s)...`,
+      });
+      
+      // Process each file in the queue
+      offlineQueue.forEach(file => onCapture(file));
+      setOfflineQueue([]);
+    }
+  }, [isOnline, offlineQueue, onCapture, toast]);
 
   const startCamera = useCallback(async () => {
     try {

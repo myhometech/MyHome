@@ -16,9 +16,11 @@ import { EmailForwarding } from "@/components/email-forwarding";
 import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
 import { useFeatures } from "@/hooks/useFeatures";
 import { useState } from "react";
-import { Grid, List, SortAsc, MessageCircle, Search, CheckSquare, Square, Trash2, FolderOpen, Share2, X } from "lucide-react";
+import { Grid, List, SortAsc, MessageCircle, Search, CheckSquare, Square, Trash2, FolderOpen, Share2, X, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { useLocation } from "wouter";
 import { SmartSearch } from "@/components/smart-search";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -29,6 +31,7 @@ import type { Category, Document } from "@shared/schema";
 export default function Home() {
   const { toast } = useToast();
   const { checkFeature, limits } = useFeatures();
+  const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -255,6 +258,33 @@ export default function Home() {
 
         {/* Stats Grid */}
         <StatsGrid stats={stats} />
+
+        {/* Discrete Email Forwarding Option */}
+        <FeatureGate feature="emailForwarding" hideCompletely={true}>
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Mail className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-blue-900">Email Import</h3>
+                    <p className="text-sm text-blue-700">Forward emails to automatically import documents</p>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setLocation('/settings?tab=email')}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                >
+                  Setup Email Import
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </FeatureGate>
 
 
 

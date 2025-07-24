@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Home, Search, Bell, LogOut, Settings, Shield } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Home, Search, Bell, LogOut, Settings, Shield, Mail } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 
 interface HeaderProps {
@@ -14,6 +16,13 @@ interface HeaderProps {
 
 export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const { user } = useAuth();
+  
+  // Get notification count for imported documents
+  const { data: importedDocsCount = 0 } = useQuery<number>({
+    queryKey: ["/api/documents/imported-count"],
+    refetchInterval: 30000, // Check every 30 seconds
+    retry: false,
+  });
 
   const handleLogout = async () => {
     try {
@@ -94,6 +103,21 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
 
           {/* User Menu */}
           <div className="flex items-center space-x-2 md:space-x-4">
+            {/* Email import notification */}
+            <div className="relative hidden md:flex">
+              <Button variant="ghost" size="sm" className="p-2 relative">
+                <Mail className="h-4 w-4 text-gray-500" />
+                {importedDocsCount > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px] min-w-[16px]"
+                  >
+                    {importedDocsCount}
+                  </Badge>
+                )}
+              </Button>
+            </div>
+            
             <Button variant="ghost" size="sm" className="p-2 hidden md:flex">
               <Bell className="h-4 w-4 text-gray-500" />
             </Button>

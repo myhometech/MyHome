@@ -470,6 +470,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get count of recently imported documents via email  
+  app.get('/api/documents/imported-count', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documents = await storage.getDocuments(userId);
+      
+      // Count documents imported via email in the last 24 hours
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recentlyImported = documents.filter(doc => {
+        const hasEmailTag = doc.tags && doc.tags.includes('imported-via-email');
+        const isRecent = new Date(doc.uploadedAt) > oneDayAgo;
+        return hasEmailTag && isRecent;
+      });
+      
+      res.json(recentlyImported.length);
+    } catch (error) {
+      console.error('Error getting imported document count:', error);
+      res.status(500).json({ message: 'Failed to get imported document count' });
+    }
+  });
+
 
 
   app.get('/api/documents/:id', requireAuth, async (req: any, res) => {

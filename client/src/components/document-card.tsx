@@ -246,7 +246,11 @@ export default function DocumentCard({
   };
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this document?')) {
+    // Enhanced confirmation dialog with details
+    const documentName = document.name.length > 30 ? document.name.substring(0, 30) + '...' : document.name;
+    const confirmMessage = `Are you sure you want to delete "${documentName}"?\n\nThis action cannot be undone. The document will be permanently removed from your account.`;
+    
+    if (confirm(confirmMessage)) {
       deleteMutation.mutate(document.id);
     }
   };

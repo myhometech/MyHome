@@ -13,15 +13,27 @@ interface FeatureGateProps {
   children: ReactNode;
   fallback?: ReactNode;
   showUpgrade?: boolean;
+  hideCompletely?: boolean; // New prop to hide features completely for free users
 }
 
-export function FeatureGate({ feature, children, fallback, showUpgrade = true }: FeatureGateProps) {
+export function FeatureGate({ 
+  feature, 
+  children, 
+  fallback, 
+  showUpgrade = true,
+  hideCompletely = true // Default to hiding completely (user preference)
+}: FeatureGateProps) {
   const { checkFeature, isFree } = useFeatures();
   const hasAccess = checkFeature(feature);
   const featureInfo = FEATURES[feature];
 
   if (hasAccess) {
     return <>{children}</>;
+  }
+
+  // If hideCompletely is true (user preference), don't show anything to free users
+  if (hideCompletely) {
+    return null;
   }
 
   if (fallback) {

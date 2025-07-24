@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CloudUpload, Camera, Plus, X, Upload } from "lucide-react";
+import { CloudUpload, Camera, Plus, X, Upload, Check } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useQuery } from "@tanstack/react-query";
 import { CameraScanner } from "./camera-scanner";
+import { useFeatures } from "@/hooks/useFeatures";
 
 interface UploadZoneProps {
   onUpload: (files: File[]) => void;
@@ -30,10 +31,24 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     customName: "",
   });
 
+  const [categorySuggestion, setCategorySuggestion] = useState<{
+    suggested: string;
+    confidence: number;
+    reason: string;
+    isVisible: boolean;
+  } | null>(null);
+
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
     retry: false,
   });
+
+  const { data: documentStats } = useQuery<any>({
+    queryKey: ["/api/documents/stats"],
+    retry: false,
+  });
+
+  const { checkFeature, isFree } = useFeatures();
 
   const uploadMutation = useMutation({
     mutationFn: async ({ file, data }: { file: File; data: any }) => {
@@ -66,6 +81,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
       setSelectedFiles([]);
       setShowUploadDialog(false);
       setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
+      setCategorySuggestion(null);
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -88,6 +104,25 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   });
 
   const handleFileSelect = async (files: File[]) => {
+    // Check document limit for free users
+    if (isFree && documentStats && documentStats.totalDocuments >= 50) {
+      toast({
+        title: "Document limit reached",
+        description: "Free users can upload up to 50 documents. Upgrade to Premium for unlimited uploads.",
+        variant: "destructive",
+        action: (
+          <Button 
+            size="sm" 
+            onClick={() => window.location.href = '/pricing'}
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            Upgrade Now
+          </Button>
+        )
+      });
+      return;
+    }
+
     const validFiles = files.filter(file => {
       const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
       const maxSize = 10 * 1024 * 1024; // 10MB
@@ -125,8 +160,60 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
       );
       
       setSelectedFiles(processedFiles);
+      
+      // Get AI category suggestion for the first file
+      if (processedFiles.length > 0) {
+        await getSuggestionForFile(processedFiles[0]);
+      }
+      
       setShowUploadDialog(true);
     }
+  };
+
+  // Get AI category suggestion for uploaded file
+  const getSuggestionForFile = async (file: File) => {
+    try {
+      const response = await fetch("/api/documents/suggest-category", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          ocrText: "" // TODO: Add OCR text if available
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const suggestedCategory = categories.find(cat => cat.name === result.suggested.category);
+        
+        if (suggestedCategory) {
+          setCategorySuggestion({
+            suggested: suggestedCategory.id.toString(),
+            confidence: result.suggested.confidence,
+            reason: result.suggested.reason,
+            isVisible: true
+          });
+          
+          // Auto-set the suggested category
+          setUploadData(prev => ({ ...prev, categoryId: suggestedCategory.id.toString() }));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to get category suggestion:", error);
+    }
+  };
+
+  // Accept the suggested category
+  const acceptSuggestion = () => {
+    setCategorySuggestion(prev => prev ? { ...prev, isVisible: false } : null);
+  };
+
+  // Dismiss the suggestion
+  const dismissSuggestion = () => {
+    setCategorySuggestion(null);
+    setUploadData(prev => ({ ...prev, categoryId: "" }));
   };
 
   // Process captured image with document detection
@@ -612,10 +699,45 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
               </p>
             </div>
 
+            {/* AI Category Suggestion */}
+            {categorySuggestion && categorySuggestion.isVisible && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="text-sm font-medium text-blue-800">AI Suggestion</span>
+                      <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                        {Math.round(categorySuggestion.confidence * 100)}% confident
+                      </span>
+                    </div>
+                    <p className="text-sm text-blue-700 mb-2">
+                      Suggested category: <strong>{categories.find(c => c.id.toString() === categorySuggestion.suggested)?.name}</strong>
+                    </p>
+                    <p className="text-xs text-blue-600">{categorySuggestion.reason}</p>
+                  </div>
+                  <div className="flex gap-1 ml-3">
+                    <Button size="sm" variant="ghost" onClick={acceptSuggestion} className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50">
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={dismissSuggestion} className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Category Selection */}
             <div className="space-y-2">
-              <Label htmlFor="category">Category (Optional)</Label>
-              <Select value={uploadData.categoryId} onValueChange={(value) => setUploadData(prev => ({ ...prev, categoryId: value }))}>
+              <Label htmlFor="category">Category {categorySuggestion ? '(You can change this)' : '(Optional)'}</Label>
+              <Select value={uploadData.categoryId} onValueChange={(value) => {
+                setUploadData(prev => ({ ...prev, categoryId: value }));
+                // Hide suggestion when user manually changes category
+                if (categorySuggestion) {
+                  setCategorySuggestion(prev => prev ? { ...prev, isVisible: false } : null);
+                }
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>

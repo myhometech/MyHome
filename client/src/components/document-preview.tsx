@@ -177,12 +177,8 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
             console.log('✅ Timeout cleared - PDF data ready for rendering');
           }
           
-          // Add a separate timeout for PDF rendering (iframe component)
-          timeoutId = setTimeout(() => {
-            console.warn('⏰ PDF rendering timeout - iframe component failed to render');
-            setError('PDF rendering timed out. The data loaded fine but display failed. Please try "Open External".');
-            setIsLoading(false);
-          }, 5000); // 5 seconds for rendering timeout
+          // For iframe, we rely on onLoad/onError callbacks instead of timeout
+          // The iframe will either load successfully or fail, no need for additional timeout
         })
         .catch(err => {
           console.error('❌ PDF loading failed:', err);
@@ -190,10 +186,10 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           setIsLoading(false);
         });
       
-      // Add timeout for PDF loading (8 seconds for small files)
+      // Add timeout for PDF data loading (8 seconds for small files)
       timeoutId = setTimeout(() => {
-        console.warn('⏰ PDF loading timeout after 8 seconds - this is too slow for a 35KB file');
-        setError('PDF loading timed out. Your 35KB file should load much faster. Please try retry.');
+        console.warn('⏰ PDF data loading timeout after 8 seconds - this is too slow for a 35KB file');
+        setError('PDF data loading timed out. Your 35KB file should load much faster. Please try retry.');
         setIsLoading(false);
       }, 8000);
     } else {

@@ -177,6 +177,18 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           const totalTime = Date.now() - startTime;
           console.log(`🎉 PDF ready for display in ${totalTime}ms, size: ${arrayBuffer.byteLength} bytes`);
           setPdfData(arrayBuffer);
+          // Clear timeout since data is ready - react-pdf will handle rendering
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            console.log('✅ Timeout cleared - PDF data ready for rendering');
+          }
+          
+          // Add a separate timeout for PDF rendering (react-pdf component)
+          timeoutId = setTimeout(() => {
+            console.warn('⏰ PDF rendering timeout - react-pdf component failed to render');
+            setError('PDF rendering timed out. The data loaded fine but display failed. Please try "Open External".');
+            setIsLoading(false);
+          }, 5000); // 5 seconds for rendering timeout
         })
         .catch(err => {
           console.error('❌ PDF loading failed:', err);
@@ -388,24 +400,34 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
                   standardFontDataUrl: `//unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
                 }}
               onLoadSuccess={({ numPages }) => {
-                console.log(`PDF rendered successfully: ${numPages} pages, file size: ${pdfData?.byteLength} bytes`);
+                console.log(`🎉 PDF rendered successfully: ${numPages} pages, file size: ${pdfData?.byteLength} bytes`);
                 setNumPages(numPages);
                 setIsLoading(false);
                 setError(null);
+                // Clear the rendering timeout since we succeeded
+                if (timeoutId) {
+                  clearTimeout(timeoutId);
+                }
               }}
               onLoadError={(error) => {
-                console.error('PDF rendering failed:', error);
+                console.error('❌ PDF rendering failed:', error);
                 console.error('PDF data details:', {
                   hasData: !!pdfData,
                   dataSize: pdfData?.byteLength,
-                  documentId: document.id
+                  documentId: document.id,
+                  errorMessage: error.message,
+                  errorStack: error.stack
                 });
                 setError(`PDF render failed: ${error.message || 'Invalid PDF format'}`);
                 setIsLoading(false);
+                // Clear the rendering timeout since we got an explicit error
+                if (timeoutId) {
+                  clearTimeout(timeoutId);
+                }
                 // Don't clear pdfData here - keep it for retry
               }}
               onLoadProgress={({ loaded, total }) => {
-                console.log('PDF loading progress:', Math.round((loaded / total) * 100) + '%');
+                console.log('🔄 PDF rendering progress:', Math.round((loaded / total) * 100) + '%');
               }}
               loading={
                 <div className="flex flex-col items-center gap-2 py-8">

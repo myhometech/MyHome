@@ -133,20 +133,54 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           setIsLoading(false);
         });
     } else if (isPDF()) {
-      // For PDFs, use URL-based loading with authentication
+      // For PDFs, fetch the data as blob for reliable loading
       setIsLoading(true);
-      console.log('Setting up PDF viewer for document:', document.id);
+      console.log('Loading PDF data for document:', document.id);
       
-      // Skip HEAD check and directly set PDF data for faster loading
-      console.log('Directly loading PDF for document:', document.id);
-      setPdfData(new ArrayBuffer(1)); // Trigger PDF component immediately
+      const startTime = Date.now();
+      fetch(`/api/documents/${document.id}/preview`, { 
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/pdf'
+        }
+      })
+        .then(response => {
+          const loadTime = Date.now() - startTime;
+          console.log(`PDF fetch completed in ${loadTime}ms, status: ${response.status}`);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          return response.blob();
+        })
+        .then(blob => {
+          console.log(`PDF blob created, size: ${blob.size} bytes`);
+          
+          if (blob.size === 0) {
+            throw new Error('PDF file is empty');
+          }
+          
+          // Convert blob to ArrayBuffer for react-pdf
+          return blob.arrayBuffer();
+        })
+        .then(arrayBuffer => {
+          const totalTime = Date.now() - startTime;
+          console.log(`PDF ready for display in ${totalTime}ms, size: ${arrayBuffer.byteLength} bytes`);
+          setPdfData(arrayBuffer);
+        })
+        .catch(err => {
+          console.error('PDF loading failed:', err);
+          setError(`Failed to load PDF: ${err.message}`);
+          setIsLoading(false);
+        });
       
-      // Add timeout for PDF loading (10 seconds for small files)
+      // Add timeout for PDF loading (15 seconds)
       timeoutId = setTimeout(() => {
-        console.warn('PDF loading timeout after 10 seconds');
-        setError('PDF loading is taking longer than expected. Please try the retry button.');
+        console.warn('PDF loading timeout after 15 seconds');
+        setError('PDF loading timed out. Please try again or open in browser.');
         setIsLoading(false);
-      }, 10000);
+      }, 15000);
     } else {
       // For other files, just stop loading immediately
       setIsLoading(false);
@@ -336,21 +370,26 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           <div className="flex items-center justify-center p-4 bg-white min-h-96 max-h-[70vh] overflow-auto">
             {pdfData ? (
               <Document
-                file={`/api/documents/${document.id}/preview`}
+                file={{ data: pdfData }}
                 options={{
                   cMapUrl: `//unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
                   cMapPacked: true,
                   standardFontDataUrl: `//unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
                 }}
               onLoadSuccess={({ numPages }) => {
-                console.log('PDF loaded successfully with', numPages, 'pages');
+                console.log(`PDF rendered successfully: ${numPages} pages, file size: ${pdfData?.byteLength} bytes`);
                 setNumPages(numPages);
                 setIsLoading(false);
                 setError(null);
               }}
               onLoadError={(error) => {
-                console.error('PDF component load error:', error);
-                setError(`PDF render failed: ${error.message || 'Unknown error'}`);
+                console.error('PDF rendering failed:', error);
+                console.error('PDF data details:', {
+                  hasData: !!pdfData,
+                  dataSize: pdfData?.byteLength,
+                  documentId: document.id
+                });
+                setError(`PDF render failed: ${error.message || 'Invalid PDF format'}`);
                 setIsLoading(false);
                 // Don't clear pdfData here - keep it for retry
               }}
@@ -418,9 +457,29 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
                       setError(null);
                       setIsLoading(true);
                       setPdfData(null);
-                      // Trigger retry by resetting state immediately
+                      // Trigger retry by fetching PDF data again
                       console.log('Retrying PDF load for document:', document.id);
-                      setPdfData(new ArrayBuffer(1)); // Trigger PDF component directly
+                      
+                      const startTime = Date.now();
+                      fetch(`/api/documents/${document.id}/preview`, { 
+                        credentials: 'include',
+                        headers: { 'Accept': 'application/pdf' }
+                      })
+                        .then(response => {
+                          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                          return response.blob();
+                        })
+                        .then(blob => blob.arrayBuffer())
+                        .then(arrayBuffer => {
+                          const totalTime = Date.now() - startTime;
+                          console.log(`PDF retry successful in ${totalTime}ms`);
+                          setPdfData(arrayBuffer);
+                        })
+                        .catch(err => {
+                          console.error('PDF retry failed:', err);
+                          setError(`Retry failed: ${err.message}`);
+                          setIsLoading(false);
+                        });
                     }}
                   >
                     Retry PDF

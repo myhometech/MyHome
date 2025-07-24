@@ -264,6 +264,18 @@ The application follows a standard full-stack architecture with clear separation
   - Smart tagging and organization of imported documents
 - **Impact**: Users can now easily import documents by forwarding emails to their unique address, with everything automatically organized and searchable
 
+### Inline PDF Viewer Implementation (January 24, 2025)
+- **Feature**: Added comprehensive inline PDF viewing capabilities to document viewer modal
+- **Implementation**:
+  - Integrated react-pdf library for full PDF rendering within the document viewer
+  - Added PDF-specific controls: page navigation (previous/next), zoom controls (50%-200%), and page counter
+  - Implemented proper PDF.js worker configuration for optimal performance
+  - Added loading states, error handling, and fallback to external viewer
+  - Enhanced PDF viewer with text selection, annotation layer support, and responsive scaling
+  - Added "Open External" button as backup option for users who prefer browser PDF viewer
+- **User Experience**: Users can now view complete PDF documents directly in the modal with full navigation and zoom controls
+- **Impact**: Eliminates need to open PDFs in separate tabs, providing seamless document viewing experience within the application
+
 ### Document Viewer Inline Editing Enhancement (January 24, 2025)
 - **Feature**: Added comprehensive editing capabilities to document viewer modal
 - **Implementation**:

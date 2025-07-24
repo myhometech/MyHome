@@ -2,12 +2,15 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { X, Download, FileText, Image as ImageIcon, AlertCircle, Eye, ZoomIn, ZoomOut, MoreHorizontal, Edit2, Trash2, Calendar, Save, XCircle } from "lucide-react";
+import { X, Download, FileText, Image as ImageIcon, AlertCircle, Eye, ZoomIn, ZoomOut, MoreHorizontal, Edit2, Trash2, Calendar, Save, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { SmartPreviewChips } from "./smart-preview-chips";
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
 interface DocumentPreviewProps {
   document: {
@@ -32,6 +35,9 @@ interface DocumentPreviewProps {
   onUpdate?: () => void;
 }
 
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+
 export function DocumentPreview({ document, category, onClose, onDownload, onUpdate }: DocumentPreviewProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +45,11 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
   const [editExpiryDate, setEditExpiryDate] = useState(document.expiryDate || "");
+  
+  // PDF-specific state
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pdfScale, setPdfScale] = useState(1.0);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -118,8 +129,11 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           setError(`Network error: ${err.message}`);
           setIsLoading(false);
         });
+    } else if (isPDF()) {
+      // For PDFs, loading will be handled by the PDF component
+      setIsLoading(true);
     } else {
-      // For PDFs and other files, just stop loading immediately
+      // For other files, just stop loading immediately
       setIsLoading(false);
     }
   }, []);
@@ -219,24 +233,121 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
 
     if (isPDF()) {
       return (
-        <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-gray-50 rounded-lg">
+          {/* PDF Controls */}
+          <div className="flex items-center justify-between p-3 bg-gray-100 border-b">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-600" />
-              <span className="text-sm text-gray-800 font-medium">{document.fileName}</span>
-              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">PDF</Badge>
+              <FileText className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium">{document.fileName}</span>
+              <Badge variant="secondary" className="text-xs">PDF</Badge>
             </div>
-            <button
-              onClick={() => {
-                console.log('Opening PDF for document ID:', document.id);
-                const pdfUrl = `/api/documents/${document.id}/preview`;
-                window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+            
+            <div className="flex items-center gap-2">
+              {/* Page Navigation */}
+              {numPages && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPageNumber(page => Math.max(1, page - 1))}
+                    disabled={pageNumber <= 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm text-gray-600 px-2">
+                    {pageNumber} / {numPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPageNumber(page => Math.min(numPages, page + 1))}
+                    disabled={pageNumber >= numPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+              
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-1 border-l pl-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPdfScale(scale => Math.max(0.5, scale - 0.25))}
+                  disabled={pdfScale <= 0.5}
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <span className="text-xs text-gray-600 px-2">{Math.round(pdfScale * 100)}%</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPdfScale(scale => Math.min(2, scale + 0.25))}
+                  disabled={pdfScale >= 2}
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {/* External Open Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const pdfUrl = `/api/documents/${document.id}/preview`;
+                  window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                }}
+              >
+                <Eye className="w-3 h-3 mr-1" />
+                Open External
+              </Button>
+            </div>
+          </div>
+
+          {/* PDF Viewer */}
+          <div className="flex items-center justify-center p-4 bg-white min-h-96 max-h-[70vh] overflow-auto">
+            <Document
+              file={`/api/documents/${document.id}/preview`}
+              onLoadSuccess={({ numPages }) => {
+                setNumPages(numPages);
+                setIsLoading(false);
               }}
-              className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+              onLoadError={(error) => {
+                console.error('PDF load error:', error);
+                setError('Failed to load PDF document');
+                setIsLoading(false);
+              }}
+              loading={
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm text-gray-600">Loading PDF...</p>
+                </div>
+              }
+              error={
+                <div className="flex flex-col items-center gap-2 text-gray-500">
+                  <AlertCircle className="w-12 h-12" />
+                  <p className="text-sm">Failed to load PDF</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const pdfUrl = `/api/documents/${document.id}/preview`;
+                      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    Open in new tab
+                  </Button>
+                </div>
+              }
             >
-              <FileText className="w-3 h-3 mr-1" />
-              Open PDF
-            </button>
+              <Page
+                pageNumber={pageNumber}
+                scale={pdfScale}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+                className="pdf-page shadow-sm"
+              />
+            </Document>
           </div>
         </div>
       );

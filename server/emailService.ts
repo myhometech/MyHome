@@ -442,8 +442,8 @@ ${mapping.forwardingAddress}
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
-    // Convert to positive number and create 12-character string
-    const hashString = Math.abs(hash).toString(36).padStart(12, '0').substring(0, 12);
+    // Convert to positive number and create 8-character string (shorter for DB)
+    const hashString = Math.abs(hash).toString(36).substring(0, 8);
     return hashString.toLowerCase();
   }
 

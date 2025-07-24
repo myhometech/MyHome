@@ -118,7 +118,34 @@ export const emailForwards = pgTable("email_forwards", {
   index("idx_email_forwards_status").on(table.status),
 ]);
 
+// Blog posts table for public-facing blog
+export const blogPosts = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  excerpt: text("excerpt").notNull(),
+  content: text("content").notNull(),
+  featuredImage: varchar("featured_image", { length: 255 }),
+  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  published: boolean("published").default(false).notNull(),
+  publishedAt: timestamp("published_at"),
+  tags: text("tags").array(),
+  readTimeMinutes: integer("read_time_minutes").default(5),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_blog_posts_published").on(table.published),
+  index("idx_blog_posts_slug").on(table.slug),
+  index("idx_blog_posts_author").on(table.authorId),
+]);
+
 // Create schemas
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   passwordHash: true,

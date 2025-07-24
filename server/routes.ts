@@ -6,7 +6,7 @@ import { AuthService } from "./authService";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, loginSchema, registerSchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertBlogPostSchema, loginSchema, registerSchema } from "@shared/schema";
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
@@ -1096,6 +1096,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Category suggestion endpoint
   const { suggestDocumentCategory } = await import('./routes/categorySuggestion');
   app.post('/api/documents/suggest-category', requireAuth, suggestDocumentCategory);
+
+  // Blog API endpoints (public access for reading)
+  app.get('/api/blog/posts', async (req: any, res) => {
+    try {
+      const posts = await storage.getPublishedBlogPosts();
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching blog posts:", error);
+      res.status(500).json({ message: "Failed to fetch blog posts" });
+    }
+  });
+
+  app.get('/api/blog/posts/:slug', async (req: any, res) => {
+    try {
+      const post = await storage.getBlogPostBySlug(req.params.slug);
+      if (!post) {
+        return res.status(404).json({ message: "Blog post not found" });
+      }
+      res.json(post);
+    } catch (error) {
+      console.error("Error fetching blog post:", error);
+      res.status(500).json({ message: "Failed to fetch blog post" });
+    }
+  });
+
+  // Admin-only blog management endpoints
+  app.post('/api/blog/posts', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const data = insertBlogPostSchema.parse(req.body);
+      const post = await storage.createBlogPost({ ...data, authorId: userId });
+      res.json(post);
+    } catch (error) {
+      console.error("Error creating blog post:", error);
+      res.status(500).json({ message: "Failed to create blog post" });
+    }
+  });
+
+  app.put('/api/blog/posts/:id', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      const data = insertBlogPostSchema.partial().parse(req.body);
+      const post = await storage.updateBlogPost(postId, data);
+      res.json(post);
+    } catch (error) {
+      console.error("Error updating blog post:", error);
+      res.status(500).json({ message: "Failed to update blog post" });
+    }
+  });
+
+  app.delete('/api/blog/posts/:id', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      if (isNaN(postId)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      
+      await storage.deleteBlogPost(postId);
+      res.json({ message: "Blog post deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting blog post:", error);
+      res.status(500).json({ message: "Failed to delete blog post" });
+    }
+  });
 
   // Get user's forwarding email address
   app.get('/api/email/forwarding-address', requireAuth, async (req: any, res) => {

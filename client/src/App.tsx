@@ -9,6 +9,8 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import Blog from "@/pages/blog";
+import BlogPost from "@/pages/blog-post";
 import ForgotPassword from "@/pages/forgot-password";
 
 import ExpiryDocuments from "@/pages/expiry-documents";
@@ -39,6 +41,8 @@ function Router() {
           <Route path="/register" component={Register} />
           <Route path="/forgot-password" component={ForgotPassword} />
           <Route path="/pricing" component={Pricing} />
+          <Route path="/blog" component={Blog} />
+          <Route path="/blog/:slug" component={BlogPost} />
           {/* Redirect protected routes to login */}
 
           <Route path="/expiry-documents">
@@ -63,6 +67,8 @@ function Router() {
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/pricing" component={Pricing} />
           <Route path="/email-import" component={EmailImport} />
+          <Route path="/blog" component={Blog} />
+          <Route path="/blog/:slug" component={BlogPost} />
           {/* Redirect auth routes to home for logged in users */}
           <Route path="/login">
             {() => { setLocation("/"); return null; }}

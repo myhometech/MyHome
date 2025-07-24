@@ -7,6 +7,7 @@ import {
   stripeWebhooks,
   categories,
   expiryReminders,
+  blogPosts,
   type User,
   type InsertUser,
   type Document,
@@ -24,6 +25,10 @@ import {
   type InsertStripeWebhook,
   type SelectStripeWebhook,
 } from "@shared/schema";
+
+// Add blog post types
+type BlogPost = typeof blogPosts.$inferSelect;
+type InsertBlogPost = typeof blogPosts.$inferInsert;
 import { db } from "./db";
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
 
@@ -93,6 +98,13 @@ export interface IStorage {
   // Stripe operations
   createStripeWebhook(webhook: InsertStripeWebhook): Promise<SelectStripeWebhook>;
   getStripeWebhookByEventId(eventId: string): Promise<SelectStripeWebhook | undefined>;
+  
+  // Blog operations
+  getPublishedBlogPosts(): Promise<BlogPost[]>;
+  getBlogPostBySlug(slug: string): Promise<BlogPost | undefined>;
+  createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
+  updateBlogPost(id: number, updates: Partial<InsertBlogPost>): Promise<BlogPost | undefined>;
+  deleteBlogPost(id: number): Promise<void>;
 }
 
 export interface ExpiringDocument {
@@ -1130,6 +1142,54 @@ export class DatabaseStorage implements IStorage {
       .from(stripeWebhooks)
       .where(eq(stripeWebhooks.eventId, eventId));
     return webhook;
+  }
+
+  // Blog operations
+  async getPublishedBlogPosts(): Promise<BlogPost[]> {
+    return await db
+      .select()
+      .from(blogPosts)
+      .where(eq(blogPosts.published, true))
+      .orderBy(desc(blogPosts.publishedAt));
+  }
+
+  async getBlogPostBySlug(slug: string): Promise<BlogPost | undefined> {
+    const [post] = await db
+      .select()
+      .from(blogPosts)
+      .where(and(eq(blogPosts.slug, slug), eq(blogPosts.published, true)));
+    return post;
+  }
+
+  async createBlogPost(post: InsertBlogPost): Promise<BlogPost> {
+    const [newPost] = await db
+      .insert(blogPosts)
+      .values({
+        ...post,
+        publishedAt: post.published ? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newPost;
+  }
+
+  async updateBlogPost(id: number, updates: Partial<InsertBlogPost>): Promise<BlogPost | undefined> {
+    const [updatedPost] = await db
+      .update(blogPosts)
+      .set({
+        ...updates,
+        publishedAt: updates.published ? new Date() : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(blogPosts.id, id))
+      .returning();
+    return updatedPost;
+  }
+
+  async deleteBlogPost(id: number): Promise<void> {
+    await db
+      .delete(blogPosts)
+      .where(eq(blogPosts.id, id));
   }
 }
 

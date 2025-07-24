@@ -68,13 +68,24 @@ export class StripeService {
 
     const customerId = await this.getOrCreateCustomer(userId, user.email, `${user.firstName} ${user.lastName}`);
 
+    // Create price on-the-fly for Premium plan
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
         {
-          price: priceId,
+          price_data: {
+            currency: 'gbp',
+            product_data: {
+              name: 'MyHome Premium',
+              description: 'Advanced document management with AI features',
+            },
+            unit_amount: 499, // £4.99 in pence
+            recurring: {
+              interval: 'month',
+            },
+          },
           quantity: 1,
         },
       ],

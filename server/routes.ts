@@ -1022,6 +1022,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Stripe webhook (no auth required - verified by signature)
   app.post('/api/stripe/webhook', processWebhook);
+  
+  // Manual subscription update for testing
+  app.post('/api/stripe/manual-update', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      await storage.updateUser(userId, {
+        subscriptionTier: 'premium',
+        subscriptionStatus: 'active',
+      });
+      res.json({ message: 'Subscription updated to premium' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to update subscription' });
+    }
+  });
 
   // Simple test endpoint to simulate email forwarding without external email service
   app.post('/api/email/simulate-forward', requireAuth, async (req: any, res) => {

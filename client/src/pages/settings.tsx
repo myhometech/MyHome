@@ -14,9 +14,12 @@ import { Settings as SettingsIcon, User, Mail, Bell, Shield, HelpCircle, Copy, E
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useFeatures } from "@/hooks/useFeatures";
+import { Crown } from "lucide-react";
 
 export default function Settings() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { userTier, isPremium } = useFeatures();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -149,7 +152,14 @@ export default function Settings() {
                     
                     <div className="flex gap-2">
                       <Badge variant="secondary">Verified Account</Badge>
-                      <Badge variant="outline">Free Plan</Badge>
+                      {isPremium ? (
+                        <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white">
+                          <Crown className="h-3 w-3 mr-1" />
+                          Premium Plan
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">Free Plan</Badge>
+                      )}
                     </div>
                     
                     <p className="text-sm text-gray-500">
@@ -231,6 +241,19 @@ export default function Settings() {
 
           {/* Billing Tab */}
           <TabsContent value="billing" className="space-y-6">
+            {isPremium && (
+              <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
+                    <Crown className="h-5 w-5" />
+                    Premium Active
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-green-700 dark:text-green-300">
+                  You have full access to all premium features including unlimited documents, AI analysis, and email forwarding.
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

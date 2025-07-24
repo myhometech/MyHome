@@ -89,6 +89,7 @@ export async function getSubscriptionStatus(req: Request, res: Response) {
     
     console.log('Getting subscription status for userId:', userId);
     const status = await stripeService.getSubscriptionStatus(userId);
+    console.log('Subscription status response:', status);
 
     res.json(status);
 

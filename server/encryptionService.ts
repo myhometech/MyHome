@@ -1,10 +1,11 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { Transform } from 'stream';
 
 // Encryption configuration
 const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16; // For GCM, this is the recommended IV length
+const IV_LENGTH = 12; // For GCM, 12 bytes is standard
 const SALT_LENGTH = 64;
 const TAG_LENGTH = 16;
 const ITERATIONS = 100000;
@@ -52,7 +53,7 @@ export class EncryptionService {
     // Derive key from master key and salt
     const derivedKey = crypto.pbkdf2Sync(masterKey, salt, ITERATIONS, 32, 'sha512');
     
-    const cipher = crypto.createCipherGCM(ALGORITHM, derivedKey, iv);
+    const cipher = crypto.createCipheriv(ALGORITHM, derivedKey, iv);
     const encrypted = Buffer.concat([cipher.update(documentKey), cipher.final()]);
     const tag = cipher.getAuthTag();
     
@@ -77,7 +78,7 @@ export class EncryptionService {
     // Derive key from master key and salt
     const derivedKey = crypto.pbkdf2Sync(masterKey, salt, ITERATIONS, 32, 'sha512');
     
-    const decipher = crypto.createDecipherGCM(ALGORITHM, derivedKey, iv);
+    const decipher = crypto.createDecipheriv(ALGORITHM, derivedKey, iv);
     decipher.setAuthTag(tag);
     
     const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
@@ -91,7 +92,7 @@ export class EncryptionService {
     return new Promise((resolve, reject) => {
       try {
         const iv = crypto.randomBytes(IV_LENGTH);
-        const cipher = crypto.createCipherGCM(ALGORITHM, documentKey, iv);
+        const cipher = crypto.createCipheriv(ALGORITHM, documentKey, iv);
         
         const input = fs.createReadStream(filePath);
         const encryptedPath = filePath + '.encrypted';
@@ -150,7 +151,7 @@ export class EncryptionService {
         const iv = metadataBuffer.subarray(0, IV_LENGTH);
         const tag = metadataBuffer.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
         
-        const decipher = crypto.createDecipherGCM(ALGORITHM, documentKey, iv);
+        const decipher = crypto.createDecipheriv(ALGORITHM, documentKey, iv);
         decipher.setAuthTag(tag);
         
         const encryptedData = fs.readFileSync(encryptedPath);
@@ -161,7 +162,7 @@ export class EncryptionService {
         
         resolve(decrypted);
       } catch (error) {
-        reject(new Error(`Decryption failed: ${error.message}`));
+        reject(new Error(`Decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
       }
     });
   }
@@ -174,7 +175,7 @@ export class EncryptionService {
     const iv = metadataBuffer.subarray(0, IV_LENGTH);
     const tag = metadataBuffer.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
     
-    const decipher = crypto.createDecipherGCM(ALGORITHM, documentKey, iv);
+    const decipher = crypto.createDecipheriv(ALGORITHM, documentKey, iv);
     decipher.setAuthTag(tag);
     
     const fileStream = fs.createReadStream(encryptedPath);
@@ -187,7 +188,7 @@ export class EncryptionService {
    */
   static encryptBuffer(buffer: Buffer, documentKey: Buffer): { encryptedBuffer: Buffer; metadata: string } {
     const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipherGCM(ALGORITHM, documentKey, iv);
+    const cipher = crypto.createCipheriv(ALGORITHM, documentKey, iv);
     
     const encrypted = Buffer.concat([
       cipher.update(buffer),
@@ -211,7 +212,7 @@ export class EncryptionService {
     const iv = metadataBuffer.subarray(0, IV_LENGTH);
     const tag = metadataBuffer.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
     
-    const decipher = crypto.createDecipherGCM(ALGORITHM, documentKey, iv);
+    const decipher = crypto.createDecipheriv(ALGORITHM, documentKey, iv);
     decipher.setAuthTag(tag);
     
     return Buffer.concat([

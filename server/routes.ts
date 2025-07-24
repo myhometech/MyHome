@@ -12,7 +12,7 @@ import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
 import { contentAnalysisService } from "./contentAnalysisService.js";
 import { pdfConversionService } from "./pdfConversionService.js";
-import { EncryptionService } from "./encryptionService";
+import { EncryptionService } from "./encryptionService.js";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {

@@ -171,14 +171,16 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           const totalTime = Date.now() - startTime;
           console.log(`🎉 PDF ready for display in ${totalTime}ms, size: ${arrayBuffer.byteLength} bytes`);
           setPdfData(arrayBuffer);
-          // Clear timeout since data is ready - react-pdf will handle rendering
+          // Clear timeout since data is ready 
           if (timeoutId) {
             clearTimeout(timeoutId);
             console.log('✅ Timeout cleared - PDF data ready for rendering');
           }
           
-          // For iframe, we rely on onLoad/onError callbacks instead of timeout
-          // The iframe will either load successfully or fail, no need for additional timeout
+          // Set loading to false immediately when data is ready
+          // The iframe will display the PDF, no need to wait for onLoad
+          setIsLoading(false);
+          console.log('🎉 PDF loaded successfully in iframe');
         })
         .catch(err => {
           console.error('❌ PDF loading failed:', err);
@@ -352,22 +354,12 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
                   className="w-full h-[60vh] border border-gray-200 rounded"
                   title="PDF Preview"
                   onLoad={() => {
-                    console.log('🎉 PDF loaded successfully in iframe');
-                    setIsLoading(false);
-                    setError(null);
-                    // Clear the rendering timeout since we succeeded
-                    if (timeoutId) {
-                      clearTimeout(timeoutId);
-                    }
+                    console.log('✅ Iframe onLoad event fired (PDF already displayed)');
                   }}
                   onError={() => {
                     console.error('❌ PDF iframe failed to load');
                     setError('PDF display failed. Please use "Open External" button.');
                     setIsLoading(false);
-                    // Clear the rendering timeout since we got an explicit error
-                    if (timeoutId) {
-                      clearTimeout(timeoutId);
-                    }
                   }}
                 />
               </div>

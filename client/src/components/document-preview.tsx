@@ -136,6 +136,7 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
       // For PDFs, fetch the data with authentication first
       setIsLoading(true);
       
+      console.log('Starting PDF fetch for document:', document.id);
       fetch(`/api/documents/${document.id}/preview`, { 
         credentials: 'include',
         headers: {
@@ -143,13 +144,18 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
         }
       })
         .then(response => {
+          console.log('PDF fetch response:', response.status, response.statusText);
           if (!response.ok) {
             throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
           }
+          console.log('Converting PDF response to arrayBuffer...');
           return response.arrayBuffer();
         })
         .then(arrayBuffer => {
-          console.log('PDF data fetched successfully, size:', arrayBuffer.byteLength);
+          console.log('PDF data fetched successfully, size:', arrayBuffer.byteLength, 'bytes');
+          if (arrayBuffer.byteLength === 0) {
+            throw new Error('PDF file is empty');
+          }
           setPdfData(arrayBuffer);
           // Keep loading true until PDF component loads
         })
@@ -157,14 +163,16 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           console.error('PDF fetch error:', err);
           setError(`Failed to load PDF: ${err.message}`);
           setIsLoading(false);
+          setPdfData(null);
         });
       
-      // Add timeout for PDF loading (30 seconds)
+      // Add timeout for PDF loading (60 seconds for large files)
       timeoutId = setTimeout(() => {
-        console.warn('PDF loading timeout after 30 seconds');
+        console.warn('PDF loading timeout after 60 seconds');
         setError('PDF loading timed out. The file may be too large or unavailable.');
         setIsLoading(false);
-      }, 30000);
+        setPdfData(null);
+      }, 60000);
     } else {
       // For other files, just stop loading immediately
       setIsLoading(false);
@@ -367,9 +375,10 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
                 setError(null);
               }}
               onLoadError={(error) => {
-                console.error('PDF load error:', error);
-                setError(`Failed to load PDF: ${error.message || 'Unknown error'}`);
+                console.error('PDF component load error:', error);
+                setError(`PDF render failed: ${error.message || 'Unknown error'}`);
                 setIsLoading(false);
+                // Don't clear pdfData here - keep it for retry
               }}
               onLoadProgress={({ loaded, total }) => {
                 console.log('PDF loading progress:', Math.round((loaded / total) * 100) + '%');
@@ -420,6 +429,56 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
                 />
               )}
               </Document>
+            ) : error ? (
+              <div className="flex flex-col items-center gap-3 text-gray-500 py-8">
+                <AlertCircle className="w-12 h-12" />
+                <div className="text-center">
+                  <p className="text-sm font-medium">PDF Loading Failed</p>
+                  <p className="text-xs text-gray-400 mt-1">{error}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setError(null);
+                      setIsLoading(true);
+                      setPdfData(null);
+                      // Trigger refetch by clearing and resetting PDF data
+                      fetch(`/api/documents/${document.id}/preview`, { 
+                        credentials: 'include',
+                        headers: { 'Accept': 'application/pdf' }
+                      })
+                        .then(response => {
+                          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                          return response.arrayBuffer();
+                        })
+                        .then(arrayBuffer => {
+                          console.log('PDF retry successful, size:', arrayBuffer.byteLength);
+                          setPdfData(arrayBuffer);
+                        })
+                        .catch(err => {
+                          console.error('PDF retry failed:', err);
+                          setError(`Retry failed: ${err.message}`);
+                          setIsLoading(false);
+                        });
+                    }}
+                  >
+                    Retry PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const pdfUrl = `/api/documents/${document.id}/preview`;
+                      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    <Eye className="w-3 h-3 mr-1" />
+                    Open in Browser
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-2 py-8">
                 <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>

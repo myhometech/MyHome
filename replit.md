@@ -312,6 +312,19 @@ The application follows a standard full-stack architecture with clear separation
 - **User Experience**: Clean interface for free users, intelligent suggestions, proper offline support, comprehensive deletion safeguards
 - **Status**: All behaviors production-ready and thoroughly integrated into existing system
 
+### Inline Category Creation During Document Upload (January 24, 2025)
+- **Feature**: Implemented seamless category creation within the document upload workflow
+- **Implementation Details**:
+  - Added "Create New Category" option to category dropdown in upload dialog
+  - Inline category creation dialog with name input, icon selection (16 options), and color picker (10 colors)
+  - Real-time category creation with immediate sync to profile settings
+  - Auto-selection of newly created category for current upload
+  - Comprehensive error handling with user feedback
+- **User Experience**: Users can create categories on-demand without interrupting upload workflow
+- **Integration**: New categories immediately available in profile settings and throughout the application
+- **Technical Implementation**: Shared category creation logic, cache invalidation for real-time updates, consistent UI/UX patterns
+- **Status**: Feature confirmed working by user - "Works great"
+
 ### Complete Stripe Payment Integration (January 23, 2025)
 - **Feature**: Full subscription management system with Stripe integration for Premium tier upgrades
 - **Implementation**:

@@ -122,10 +122,20 @@ export default function SubscriptionPlans() {
   });
 
   const handleSubscribe = async (plan: SubscriptionPlan) => {
-    if (!plan.stripePriceId) {
+    // Only show the free plan message if user is explicitly clicking on free plan
+    if (plan.id === 'free') {
       toast({
         title: 'Free Plan',
         description: 'You are already on the free plan!',
+      });
+      return;
+    }
+
+    if (!plan.stripePriceId) {
+      toast({
+        title: 'Configuration Error',
+        description: 'This plan is not properly configured. Please contact support.',
+        variant: 'destructive',
       });
       return;
     }

@@ -157,7 +157,7 @@ export async function getSubscriptionPlans(req: Request, res: Response) {
         price: 4.99,
         currency: 'GBP',
         interval: 'month',
-        priceId: process.env.STRIPE_PRICE_ID || 'price_premium', // This would be set in Stripe
+        stripePriceId: process.env.STRIPE_PRICE_ID || 'price_1QNB65BFnwgCH2lbLa6pYFBE', // Default test price ID
         features: [
           'Unlimited documents',
           'Unlimited storage',

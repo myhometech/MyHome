@@ -279,7 +279,7 @@ The application follows a standard full-stack architecture with clear separation
   - Premium plan upgrade through Stripe Checkout with automatic feature unlocking
   - Self-service subscription management through Stripe Customer Portal
   - Real-time subscription status updates and billing notifications
-- **Features Unlocked**: Premium tier provides unlimited documents, advanced AI analysis, email forwarding, and priority support
+- **Features Unlocked**: Premium tier (£4.99/month) provides unlimited documents, advanced AI analysis, email forwarding, and priority support
 - **Impact**: Monetization platform ready with secure payment processing and automatic subscription management
 
 ### Profile Settings Email Integration (January 23, 2025)

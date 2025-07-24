@@ -137,7 +137,7 @@ export async function getSubscriptionPlans(req: Request, res: Response) {
         id: 'premium',
         name: 'Premium',
         description: 'Advanced features with AI',
-        price: 9.99,
+        price: 4.99,
         currency: 'gbp',
         interval: 'month',
         features: [

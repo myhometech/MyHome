@@ -24,7 +24,7 @@ const pricingTiers = [
   },
   {
     name: "Premium",
-    price: "$9.99", 
+    price: "£4.99", 
     period: "per month",
     description: "Advanced features for power users and families",
     icon: Crown,

@@ -66,7 +66,7 @@ FRONTEND_URL=https://yourappdomain.com
 ### 4. Create Your Products in Stripe
 1. Go to **Products** in Stripe Dashboard
 2. Create "Premium Plan" product
-3. Add pricing (e.g., £9.99/month)
+3. Add pricing (e.g., £4.99/month)
 4. Copy the Price ID to `STRIPE_PREMIUM_PRICE_ID`
 
 ## 🎯 How It Works

@@ -1079,6 +1079,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Category suggestion endpoint
+  const { suggestDocumentCategory } = await import('./routes/categorySuggestion');
+  app.post('/api/documents/suggest-category', requireAuth, suggestDocumentCategory);
+
   // Get user's forwarding email address
   app.get('/api/email/forwarding-address', requireAuth, async (req: any, res) => {
     try {

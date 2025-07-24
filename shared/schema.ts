@@ -93,7 +93,7 @@ export const documentShares = pgTable("document_shares", {
 export const userForwardingMappings = pgTable("user_forwarding_mappings", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
-  emailHash: varchar("email_hash", { length: 10 }).notNull().unique(),
+  emailHash: varchar("email_hash", { length: 20 }).notNull().unique(),
   forwardingAddress: varchar("forwarding_address", { length: 255 }).notNull().unique(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [

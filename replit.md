@@ -12,6 +12,15 @@ Preferred communication style: Simple, everyday language.
 Project Direction: Building iOS version of MyHome document management app.
 Essential Features: Phone camera scanning for document digitization, future Google Drive integration planned.
 
+### Application Behavior Preferences (January 2025)
+1. **Document Upload**: Auto-suggest categories using AI analysis with user confirmation before saving
+2. **Premium Features**: Hide premium features completely from free users for clean interface
+3. **Free User Limits**: Block uploads when free users hit 50-document limit with upgrade message
+4. **Email Forwarding**: Show as discrete dashboard option linking to settings (not prominent)
+5. **Email Import Notifications**: Notification badge/counter + tag documents as "imported via email"
+6. **Mobile Camera**: Allow offline scanning with local storage, sync/process when online
+7. **Document Deletion**: Premium trash bin (30-day) + confirmation dialogs for all users
+
 ## System Architecture
 
 ### Web Frontend Architecture

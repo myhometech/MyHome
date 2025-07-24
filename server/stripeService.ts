@@ -2,8 +2,15 @@ import Stripe from 'stripe';
 import { storage } from './storage';
 import type { insertStripeWebhookSchema } from '@shared/schema';
 
-// Initialize Stripe with API key (fallback for development)
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
+// Initialize Stripe with API key
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+console.log('Stripe key type:', stripeSecretKey ? (stripeSecretKey.startsWith('sk_') ? 'SECRET ✅' : 'INVALID ❌') : 'MISSING ❌');
+
+if (!stripeSecretKey) {
+  throw new Error('STRIPE_SECRET_KEY environment variable is required');
+}
+
+const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2020-08-27',
 });
 

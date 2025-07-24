@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Mail, Bell, Shield, HelpCircle, Copy, ExternalLink } from "lucide-react";
+import { Settings as SettingsIcon, User, Mail, Bell, Shield, HelpCircle, Copy, ExternalLink, CreditCard } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -97,51 +98,76 @@ export default function Settings() {
           <p className="text-gray-600">Manage your account and preferences</p>
         </div>
 
-        <div className="space-y-6">
-          {/* Profile Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Profile Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-start gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={(user as any)?.profileImageUrl} alt="Profile" />
-                  <AvatarFallback className="text-lg">
-                    {getInitials((user as any)?.firstName, (user as any)?.lastName)}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex-1 space-y-2">
-                  <div>
-                    <h3 className="text-lg font-semibold">{getDisplayName()}</h3>
-                    <p className="text-gray-600">{(user as any)?.email}</p>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Badge variant="secondary">Verified Account</Badge>
-                    <Badge variant="outline">Free Plan</Badge>
-                  </div>
-                  
-                  <p className="text-sm text-gray-500">
-                    Member since {(user as any)?.createdAt ? new Date((user as any).createdAt).toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      year: 'numeric' 
-                    }) : 'Recently'}
-                  </p>
-                </div>
-                
-                <Button variant="outline" size="sm">
-                  Edit Profile
-                </Button>
-              </div>
+        {/* Settings Tabs */}
+        <Tabs defaultValue="profile" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Billing
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              Notifications
+            </TabsTrigger>
+            <TabsTrigger value="security" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Security
+            </TabsTrigger>
+            <TabsTrigger value="support" className="flex items-center gap-2">
+              <HelpCircle className="h-4 w-4" />
+              Support
+            </TabsTrigger>
+          </TabsList>
 
-              {/* Document Import Email Address */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="flex items-start gap-3">
+          {/* Profile Tab */}
+          <TabsContent value="profile" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Profile Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={(user as any)?.profileImageUrl} alt="Profile" />
+                    <AvatarFallback className="text-lg">
+                      {getInitials((user as any)?.firstName, (user as any)?.lastName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <h3 className="text-lg font-semibold">{getDisplayName()}</h3>
+                      <p className="text-gray-600">{(user as any)?.email}</p>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Badge variant="secondary">Verified Account</Badge>
+                      <Badge variant="outline">Free Plan</Badge>
+                    </div>
+                    
+                    <p className="text-sm text-gray-500">
+                      Member since {(user as any)?.createdAt ? new Date((user as any).createdAt).toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        year: 'numeric' 
+                      }) : 'Recently'}
+                    </p>
+                  </div>
+                  
+                  <Button variant="outline" size="sm">
+                    Edit Profile
+                  </Button>
+                </div>
+
+                {/* Document Import Email Address */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="flex items-start gap-3">
                   <Mail className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div className="flex-1">
                     <h4 className="text-sm font-medium text-gray-900 mb-2">📧 Your Document Import Email</h4>
@@ -194,150 +220,159 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Category Management Section */}
-          <CategoryManagement />
+            {/* Category Management Section */}
+            <CategoryManagement />
 
-          {/* Email Forwarding Section */}
-          <div id="email-forwarding-section">
-            <EmailForwarding />
-          </div>
+            {/* Email Forwarding Section */}
+            <div id="email-forwarding-section">
+              <EmailForwarding />
+            </div>
+          </TabsContent>
 
-          {/* Notifications Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notifications
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Document Expiry Alerts</h4>
-                  <p className="text-sm text-gray-600">Get notified when documents are expiring</p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Configure
-                </Button>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Email Processing Updates</h4>
-                  <p className="text-sm text-gray-600">Notifications when emails are processed</p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Configure
-                </Button>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Sharing Notifications</h4>
-                  <p className="text-sm text-gray-600">When documents are shared with you</p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Configure
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Billing Tab */}
+          <TabsContent value="billing" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Subscription & Billing
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SubscriptionPlans />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          {/* Subscription & Billing Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Subscription & Billing
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SubscriptionPlans />
-            </CardContent>
-          </Card>
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Notification Preferences
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Document Expiry Alerts</h4>
+                    <p className="text-sm text-gray-600">Get notified when documents are expiring</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Configure
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Email Processing Updates</h4>
+                    <p className="text-sm text-gray-600">Notifications when emails are processed</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Configure
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Sharing Notifications</h4>
+                    <p className="text-sm text-gray-600">When documents are shared with you</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Configure
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          {/* Security Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Security & Privacy
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Account Security</h4>
-                  <p className="text-sm text-gray-600">Manage your sign-in methods and security</p>
+          {/* Security Tab */}
+          <TabsContent value="security" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Security & Privacy
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Account Security</h4>
+                    <p className="text-sm text-gray-600">Manage your sign-in methods and security</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Manage
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm">
-                  Manage
-                </Button>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Data Export</h4>
-                  <p className="text-sm text-gray-600">Download all your documents and data</p>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Data Export</h4>
+                    <p className="text-sm text-gray-600">Download all your documents and data</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Export
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm">
-                  Export
-                </Button>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Delete Account</h4>
-                  <p className="text-sm text-gray-600">Permanently delete your account and data</p>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Delete Account</h4>
+                    <p className="text-sm text-gray-600">Permanently delete your account and data</p>
+                  </div>
+                  <Button variant="destructive" size="sm">
+                    Delete
+                  </Button>
                 </div>
-                <Button variant="destructive" size="sm">
-                  Delete
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          {/* Help & Support Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <HelpCircle className="h-5 w-5" />
-                Help & Support
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Documentation</h4>
-                  <p className="text-sm text-gray-600">Learn how to use HomeDocs effectively</p>
+          {/* Support Tab */}
+          <TabsContent value="support" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5" />
+                  Help & Support
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Documentation</h4>
+                    <p className="text-sm text-gray-600">Learn how to use MyHome effectively</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    View Docs
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm">
-                  View Docs
-                </Button>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Contact Support</h4>
-                  <p className="text-sm text-gray-600">Get help with any issues or questions</p>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Contact Support</h4>
+                    <p className="text-sm text-gray-600">Get help with any issues or questions</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Contact Us
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm">
-                  Contact Us
-                </Button>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">Feature Requests</h4>
-                  <p className="text-sm text-gray-600">Suggest improvements or new features</p>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Feature Requests</h4>
+                    <p className="text-sm text-gray-600">Suggest improvements or new features</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    Submit Idea
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm">
-                  Submit Idea
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
       <MobileNav />

@@ -135,7 +135,7 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
     } else if (isPDF()) {
       // For PDFs, fetch the data as blob for reliable loading
       setIsLoading(true);
-      console.log('Loading PDF data for document:', document.id);
+      console.log('🔄 Starting PDF load for document:', document.id, 'Expected size: ~35KB');
       
       const startTime = Date.now();
       fetch(`/api/documents/${document.id}/preview`, { 
@@ -146,41 +146,43 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
       })
         .then(response => {
           const loadTime = Date.now() - startTime;
-          console.log(`PDF fetch completed in ${loadTime}ms, status: ${response.status}`);
+          console.log(`✅ PDF fetch completed in ${loadTime}ms, status: ${response.status}`);
           
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
           
+          console.log('🔄 Converting response to blob...');
           return response.blob();
         })
         .then(blob => {
-          console.log(`PDF blob created, size: ${blob.size} bytes`);
+          console.log(`✅ PDF blob created, size: ${blob.size} bytes (${(blob.size/1024).toFixed(1)}KB)`);
           
           if (blob.size === 0) {
             throw new Error('PDF file is empty');
           }
           
+          console.log('🔄 Converting blob to ArrayBuffer...');
           // Convert blob to ArrayBuffer for react-pdf
           return blob.arrayBuffer();
         })
         .then(arrayBuffer => {
           const totalTime = Date.now() - startTime;
-          console.log(`PDF ready for display in ${totalTime}ms, size: ${arrayBuffer.byteLength} bytes`);
+          console.log(`🎉 PDF ready for display in ${totalTime}ms, size: ${arrayBuffer.byteLength} bytes`);
           setPdfData(arrayBuffer);
         })
         .catch(err => {
-          console.error('PDF loading failed:', err);
+          console.error('❌ PDF loading failed:', err);
           setError(`Failed to load PDF: ${err.message}`);
           setIsLoading(false);
         });
       
-      // Add timeout for PDF loading (15 seconds)
+      // Add timeout for PDF loading (8 seconds for small files)
       timeoutId = setTimeout(() => {
-        console.warn('PDF loading timeout after 15 seconds');
-        setError('PDF loading timed out. Please try again or open in browser.');
+        console.warn('⏰ PDF loading timeout after 8 seconds - this is too slow for a 35KB file');
+        setError('PDF loading timed out. Your 35KB file should load much faster. Please try retry.');
         setIsLoading(false);
-      }, 15000);
+      }, 8000);
     } else {
       // For other files, just stop loading immediately
       setIsLoading(false);

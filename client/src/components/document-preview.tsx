@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { MoreVertical, Eye, Download, Trash, Edit, Save, X, AlertCircle, FileText } from "lucide-react";
+import { MoreVertical, Eye, Download, Trash, Edit, Save, X, AlertCircle, FileText, Image as ImageIcon, ZoomIn, ZoomOut, Calendar, XCircle, MoreHorizontal, Edit2, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,6 +41,7 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
   const [editExpiryDate, setEditExpiryDate] = useState(document.expiryDate || "");
+  const [zoom, setZoom] = useState(1);
   
   // PDF-specific state
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
@@ -109,7 +110,7 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   };
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout | undefined;
     
     console.log('🚀 DocumentPreview useEffect triggered!', {
       documentId: document.id,
@@ -176,9 +177,9 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
             console.log('✅ Timeout cleared - PDF data ready for rendering');
           }
           
-          // Add a separate timeout for PDF rendering (react-pdf component)
+          // Add a separate timeout for PDF rendering (iframe component)
           timeoutId = setTimeout(() => {
-            console.warn('⏰ PDF rendering timeout - react-pdf component failed to render');
+            console.warn('⏰ PDF rendering timeout - iframe component failed to render');
             setError('PDF rendering timed out. The data loaded fine but display failed. Please try "Open External".');
             setIsLoading(false);
           }, 5000); // 5 seconds for rendering timeout
@@ -209,10 +210,10 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   
   // Reset timeout when PDF loads successfully
   useEffect(() => {
-    if (!isLoading && isPDF() && numPages) {
+    if (!isLoading && isPDF() && pdfData) {
       console.log('PDF loaded successfully, clearing any timeouts');
     }
-  }, [isLoading, numPages]);
+  }, [isLoading, pdfData]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';

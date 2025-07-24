@@ -1,0 +1,31 @@
+Uncaught ReferenceError: numPages is not defined
+    DocumentPreview document-preview.tsx:215
+    React 13
+document-preview.tsx:215:18
+Uncaught ReferenceError: numPages is not defined
+    DocumentPreview document-preview.tsx:215
+    React 14
+document-preview.tsx:215:18
+The above error occurred in the <DocumentPreview> component:
+
+DocumentPreview@https://daf47820-7f0c-4127-926d-69f7ca178fbc-00-ku01l6bih555.kirk.replit.dev/src/components/document-preview.tsx:28:32
+DocumentCard@https://daf47820-7f0c-4127-926d-69f7ca178fbc-00-ku01l6bih555.kirk.replit.dev/src/components/document-card.tsx:31:37
+div
+div
+div
+main
+div
+Home@https://daf47820-7f0c-4127-926d-69f7ca178fbc-00-ku01l6bih555.kirk.replit.dev/src/pages/home.tsx:42:21
+Route@https://daf47820-7f0c-4127-926d-69f7ca178fbc-00-ku01l6bih555.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=89af075c:323:13
+Switch@https://daf47820-7f0c-4127-926d-69f7ca178fbc-00-ku01l6bih555.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=89af075c:379:14
+Router@https://daf47820-7f0c-4127-926d-69f7ca178fbc-00-ku01l6bih555.kirk.replit.dev/src/App.tsx?v=EV73zfEzuu8wwJAoya9wn:37:48
+Provider@https://daf47820-7f0c-4127-926d-69f7ca178fbc-00-ku01l6bih555.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-5AJU3CG7.js?v=89af075c:38:47
+TooltipProvider@https://daf47820-7f0c-4127-926d-69f7ca178fbc-00-ku01l6bih555.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=89af075c:70:7
+QueryClientProvider@https://daf47820-7f0c-4127-926d-69f7ca178fbc-00-ku01l6bih555.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=89af075c:2804:27
+App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries. react-dom.development.js:18704:15
+Uncaught ReferenceError: numPages is not defined
+    DocumentPreview document-preview.tsx:215
+    React 11

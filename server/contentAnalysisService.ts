@@ -33,9 +33,9 @@ export class ContentAnalysisService {
     fileName: string,
     mimeType: string
   ): Promise<ContentAnalysisResult> {
+    const content = extractedText || summary || '';
+    
     try {
-      const content = extractedText || summary || '';
-      
       if (!content || content.length < 10) {
         return this.getFallbackAnalysis(fileName, mimeType);
       }

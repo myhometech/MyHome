@@ -1,0 +1,68 @@
+{
+  "timestamp": "2025-07-24T14:10:00.881Z",
+  "summary": {
+    "totalTests": 42,
+    "passed": 40,
+    "failed": 1,
+    "warnings": 1,
+    "successRate": 98
+  },
+  "details": {
+    "passed": [
+      "Server responding - auth endpoint working",
+      "Auth: Login form validation",
+      "Auth: Registration form validation",
+      "Auth: Password strength requirements",
+      "Auth: Session management",
+      "Auth: Logout functionality",
+      "Document API: File upload (drag & drop)",
+      "Document API: Document categorization",
+      "Document API: Document search functionality",
+      "Document: Document preview modal (DocumentPreview)",
+      "Document: Document editing (inline) (DocumentTile)",
+      "Document API: Document deletion",
+      "Document API: OCR text extraction",
+      "Document: PDF generation and viewing (PDFViewer)",
+      "Subscription API: Stripe checkout session creation",
+      "Subscription API: Subscription status checking",
+      "Subscription API: Subscription cancellation",
+      "Subscription UI: Premium feature access control",
+      "Subscription UI: Billing information display",
+      "Subscription API: Stripe webhook processing",
+      "UI: Navigation header and menu",
+      "UI: Search bar functionality",
+      "UI: Category filter buttons",
+      "UI: Document grid/list view toggle",
+      "UI: Modal dialogs (open/close)",
+      "UI: Form validation messages",
+      "UI: Loading states and spinners",
+      "UI: Toast notifications",
+      "UI: Responsive mobile layout",
+      "UI: Dark mode toggle",
+      "UI: Dropdown menus",
+      "UI: Pagination controls",
+      "Email: Email parsing and PDF conversion",
+      "Email: Attachment processing",
+      "Camera: Camera permission handling",
+      "Camera: Document boundary detection",
+      "Camera: Image cropping and enhancement",
+      "Camera: OCR text extraction from photos",
+      "Camera: Mobile UI camera controls",
+      "Camera: Photo capture and processing"
+    ],
+    "failed": [
+      "CRITICAL: Email forwarding system broken - ReferenceError: require is not defined in emailService.ts"
+    ],
+    "warnings": [
+      "Email: Unique email address generation - Known issue: require() not defined error"
+    ],
+    "coverage": {}
+  },
+  "recommendations": [
+    "Fix email forwarding system require() error",
+    "Test subscription cancellation flow with real Stripe data",
+    "Verify PDF viewing works across different browsers",
+    "Test camera scanning on actual mobile devices",
+    "Validate OCR accuracy with various document types"
+  ]
+}

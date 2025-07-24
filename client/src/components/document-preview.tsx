@@ -50,6 +50,7 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfScale, setPdfScale] = useState(1.0);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -115,6 +116,8 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   };
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     // For image documents, test if the preview URL is accessible
     if (isImage()) {
       fetch(getPreviewUrl(), { credentials: 'include' })
@@ -130,13 +133,56 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
           setIsLoading(false);
         });
     } else if (isPDF()) {
-      // For PDFs, loading will be handled by the PDF component
+      // For PDFs, fetch the data with authentication first
       setIsLoading(true);
+      
+      fetch(`/api/documents/${document.id}/preview`, { 
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/pdf'
+        }
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Failed to fetch PDF: ${response.status} ${response.statusText}`);
+          }
+          return response.arrayBuffer();
+        })
+        .then(arrayBuffer => {
+          console.log('PDF data fetched successfully, size:', arrayBuffer.byteLength);
+          setPdfData(arrayBuffer);
+          // Keep loading true until PDF component loads
+        })
+        .catch(err => {
+          console.error('PDF fetch error:', err);
+          setError(`Failed to load PDF: ${err.message}`);
+          setIsLoading(false);
+        });
+      
+      // Add timeout for PDF loading (30 seconds)
+      timeoutId = setTimeout(() => {
+        console.warn('PDF loading timeout after 30 seconds');
+        setError('PDF loading timed out. The file may be too large or unavailable.');
+        setIsLoading(false);
+      }, 30000);
     } else {
       // For other files, just stop loading immediately
       setIsLoading(false);
     }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
+  
+  // Reset timeout when PDF loads successfully
+  useEffect(() => {
+    if (!isLoading && isPDF() && numPages) {
+      console.log('PDF loaded successfully, clearing any timeouts');
+    }
+  }, [isLoading, numPages]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -306,27 +352,44 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
 
           {/* PDF Viewer */}
           <div className="flex items-center justify-center p-4 bg-white min-h-96 max-h-[70vh] overflow-auto">
-            <Document
-              file={`/api/documents/${document.id}/preview`}
+            {pdfData ? (
+              <Document
+                file={{ data: pdfData }}
+                options={{
+                  cMapUrl: `//unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+                  cMapPacked: true,
+                  standardFontDataUrl: `//unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+                }}
               onLoadSuccess={({ numPages }) => {
+                console.log('PDF loaded successfully with', numPages, 'pages');
                 setNumPages(numPages);
                 setIsLoading(false);
+                setError(null);
               }}
               onLoadError={(error) => {
                 console.error('PDF load error:', error);
-                setError('Failed to load PDF document');
+                setError(`Failed to load PDF: ${error.message || 'Unknown error'}`);
                 setIsLoading(false);
               }}
+              onLoadProgress={({ loaded, total }) => {
+                console.log('PDF loading progress:', Math.round((loaded / total) * 100) + '%');
+              }}
               loading={
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-2 py-8">
                   <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                   <p className="text-sm text-gray-600">Loading PDF...</p>
+                  <p className="text-xs text-gray-500">This may take a moment for large files</p>
                 </div>
               }
               error={
-                <div className="flex flex-col items-center gap-2 text-gray-500">
+                <div className="flex flex-col items-center gap-3 text-gray-500 py-8">
                   <AlertCircle className="w-12 h-12" />
-                  <p className="text-sm">Failed to load PDF</p>
+                  <div className="text-center">
+                    <p className="text-sm font-medium">Unable to display PDF</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {error || 'PDF viewer encountered an error'}
+                    </p>
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
@@ -335,19 +398,35 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
                       window.open(pdfUrl, '_blank', 'noopener,noreferrer');
                     }}
                   >
-                    Open in new tab
+                    <Eye className="w-3 h-3 mr-1" />
+                    Open in Browser
                   </Button>
                 </div>
               }
             >
-              <Page
-                pageNumber={pageNumber}
-                scale={pdfScale}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-                className="pdf-page shadow-sm"
-              />
-            </Document>
+              {numPages && (
+                <Page
+                  pageNumber={pageNumber}
+                  scale={pdfScale}
+                  renderTextLayer={true}
+                  renderAnnotationLayer={true}
+                  className="pdf-page shadow-sm"
+                  onLoadSuccess={() => {
+                    console.log(`Page ${pageNumber} loaded successfully`);
+                  }}
+                  onLoadError={(error) => {
+                    console.error(`Error loading page ${pageNumber}:`, error);
+                  }}
+                />
+              )}
+              </Document>
+            ) : (
+              <div className="flex flex-col items-center gap-2 py-8">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm text-gray-600">Preparing PDF...</p>
+                <p className="text-xs text-gray-500">Downloading document data</p>
+              </div>
+            )}
           </div>
         </div>
       );

@@ -118,6 +118,13 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
+    console.log('🚀 DocumentPreview useEffect triggered!', {
+      documentId: document.id,
+      mimeType: document.mimeType,
+      isImage: isImage(),
+      isPDF: isPDF()
+    });
+    
     // For image documents, test if the preview URL is accessible
     if (isImage()) {
       fetch(getPreviewUrl(), { credentials: 'include' })
@@ -193,7 +200,7 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
         clearTimeout(timeoutId);
       }
     };
-  }, []);
+  }, [document.id]);
   
   // Reset timeout when PDF loads successfully
   useEffect(() => {
@@ -219,7 +226,9 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   };
 
   const isPDF = () => {
-    return document.mimeType === 'application/pdf';
+    const result = document.mimeType === 'application/pdf';
+    console.log('isPDF check:', document.mimeType, '→', result);
+    return result;
   };
 
   const getPreviewUrl = () => {

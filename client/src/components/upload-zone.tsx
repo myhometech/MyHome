@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CloudUpload, Camera, Plus, X, Upload, Check } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { CameraScanner } from "./camera-scanner";
 import { useFeatures } from "@/hooks/useFeatures";
 
@@ -38,10 +39,50 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     isVisible: boolean;
   } | null>(null);
 
+  const [showCreateCategory, setShowCreateCategory] = useState(false);
+  const [newCategoryData, setNewCategoryData] = useState({
+    name: "",
+    icon: "fas fa-folder",
+    color: "blue"
+  });
+
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
     retry: false,
   });
+
+  // Available icons for category creation
+  const availableIcons = [
+    { icon: "fas fa-home", label: "Home" },
+    { icon: "fas fa-building", label: "Building" },
+    { icon: "fas fa-car", label: "Car" },
+    { icon: "fas fa-bolt", label: "Utilities" },
+    { icon: "fas fa-shield-alt", label: "Insurance" },
+    { icon: "fas fa-calculator", label: "Taxes" },
+    { icon: "fas fa-tools", label: "Maintenance" },
+    { icon: "fas fa-file-contract", label: "Legal" },
+    { icon: "fas fa-certificate", label: "Warranty" },
+    { icon: "fas fa-receipt", label: "Receipts" },
+    { icon: "fas fa-folder", label: "Folder" },
+    { icon: "fas fa-key", label: "Keys" },
+    { icon: "fas fa-wifi", label: "Internet" },
+    { icon: "fas fa-phone", label: "Phone" },
+    { icon: "fas fa-medkit", label: "Medical" },
+    { icon: "fas fa-graduation-cap", label: "Education" },
+  ];
+
+  const availableColors = [
+    { color: "blue", label: "Blue" },
+    { color: "green", label: "Green" },
+    { color: "purple", label: "Purple" },
+    { color: "orange", label: "Orange" },
+    { color: "teal", label: "Teal" },
+    { color: "indigo", label: "Indigo" },
+    { color: "yellow", label: "Yellow" },
+    { color: "red", label: "Red" },
+    { color: "pink", label: "Pink" },
+    { color: "gray", label: "Gray" },
+  ];
 
   const { data: documentStats } = useQuery<any>({
     queryKey: ["/api/documents/stats"],
@@ -49,6 +90,58 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   });
 
   const { checkFeature, isFree } = useFeatures();
+
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: { name: string; icon: string; color: string }) => {
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Failed to create category");
+      }
+
+      return response.json();
+    },
+    onSuccess: (newCategory) => {
+      // Invalidate categories cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      
+      // Auto-select the newly created category
+      setUploadData(prev => ({ ...prev, categoryId: newCategory.id.toString() }));
+      
+      // Reset form and close dialog
+      setNewCategoryData({ name: "", icon: "fas fa-folder", color: "blue" });
+      setShowCreateCategory(false);
+      
+      toast({
+        title: "Category created",
+        description: `"${newCategory.name}" category has been created and selected.`,
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Failed to create category",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const uploadMutation = useMutation({
     mutationFn: async ({ file, data }: { file: File; data: any }) => {
@@ -214,6 +307,37 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   const dismissSuggestion = () => {
     setCategorySuggestion(null);
     setUploadData(prev => ({ ...prev, categoryId: "" }));
+  };
+
+  // Handle creating new category
+  const handleCreateCategory = () => {
+    if (!newCategoryData.name.trim()) {
+      toast({
+        title: "Category name required",
+        description: "Please enter a name for your category.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createCategoryMutation.mutate(newCategoryData);
+  };
+
+  // Get color classes for category display
+  const getColorClasses = (color: string) => {
+    const colorMap: { [key: string]: string } = {
+      blue: "bg-blue-100 text-blue-800",
+      green: "bg-green-100 text-green-800", 
+      purple: "bg-purple-100 text-purple-800",
+      orange: "bg-orange-100 text-orange-800",
+      teal: "bg-teal-100 text-teal-800",
+      indigo: "bg-indigo-100 text-indigo-800",
+      yellow: "bg-yellow-100 text-yellow-800",
+      red: "bg-red-100 text-red-800",
+      pink: "bg-pink-100 text-pink-800",
+      gray: "bg-gray-100 text-gray-800",
+    };
+    return colorMap[color] || colorMap.blue;
   };
 
   // Process captured image with document detection
@@ -732,6 +856,10 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
             <div className="space-y-2">
               <Label htmlFor="category">Category {categorySuggestion ? '(You can change this)' : '(Optional)'}</Label>
               <Select value={uploadData.categoryId} onValueChange={(value) => {
+                if (value === "create_new") {
+                  setShowCreateCategory(true);
+                  return;
+                }
                 setUploadData(prev => ({ ...prev, categoryId: value }));
                 // Hide suggestion when user manually changes category
                 if (categorySuggestion) {
@@ -744,9 +872,18 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 <SelectContent>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
+                      <div className="flex items-center gap-2">
+                        <i className={`${category.icon} text-sm`}></i>
+                        {category.name}
+                      </div>
                     </SelectItem>
                   ))}
+                  <SelectItem value="create_new" className="text-blue-600 font-medium">
+                    <div className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Create New Category
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -798,6 +935,88 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                     Upload
                   </>
                 )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inline Category Creation Dialog */}
+      <Dialog open={showCreateCategory} onOpenChange={setShowCreateCategory}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Category</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="categoryName">Category Name</Label>
+              <Input
+                id="categoryName"
+                value={newCategoryData.name}
+                onChange={(e) => setNewCategoryData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Vacation Home, Investment Property"
+              />
+            </div>
+            
+            <div>
+              <Label>Icon</Label>
+              <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto mt-2">
+                {availableIcons.map((iconOption) => (
+                  <button
+                    key={iconOption.icon}
+                    type="button"
+                    onClick={() => setNewCategoryData(prev => ({ ...prev, icon: iconOption.icon }))}
+                    className={`p-2 rounded border text-center hover:bg-gray-50 ${
+                      newCategoryData.icon === iconOption.icon 
+                        ? "border-blue-500 bg-blue-50" 
+                        : "border-gray-200"
+                    }`}
+                  >
+                    <i className={`${iconOption.icon} text-lg`}></i>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <Label>Color</Label>
+              <div className="grid grid-cols-5 gap-2 mt-2">
+                {availableColors.map((colorOption) => (
+                  <button
+                    key={colorOption.color}
+                    type="button"
+                    onClick={() => setNewCategoryData(prev => ({ ...prev, color: colorOption.color }))}
+                    className={`p-3 rounded border text-center hover:opacity-80 ${
+                      getColorClasses(colorOption.color)
+                    } ${
+                      newCategoryData.color === colorOption.color 
+                        ? "ring-2 ring-offset-1 ring-blue-500" 
+                        : ""
+                    }`}
+                  >
+                    <div className="text-xs font-medium">{colorOption.label}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button 
+                onClick={handleCreateCategory} 
+                disabled={createCategoryMutation.isPending || !newCategoryData.name.trim()}
+                className="flex-1"
+              >
+                {createCategoryMutation.isPending ? "Creating..." : "Create Category"}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowCreateCategory(false);
+                  setNewCategoryData({ name: "", icon: "fas fa-folder", color: "blue" });
+                }}
+                className="flex-1"
+              >
+                Cancel
               </Button>
             </div>
           </div>

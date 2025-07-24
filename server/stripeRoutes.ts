@@ -7,7 +7,12 @@ import { stripeService } from './stripeService';
  */
 export async function createCheckoutSession(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    
     const { priceId, successUrl, cancelUrl } = req.body;
 
     if (!priceId || !successUrl || !cancelUrl) {
@@ -42,7 +47,12 @@ export async function createCheckoutSession(req: Request, res: Response) {
  */
 export async function createPortalSession(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    
     const { returnUrl } = req.body;
 
     if (!returnUrl) {
@@ -71,7 +81,13 @@ export async function createPortalSession(req: Request, res: Response) {
  */
 export async function getSubscriptionStatus(req: Request, res: Response) {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    
+    console.log('Getting subscription status for userId:', userId);
     const status = await stripeService.getSubscriptionStatus(userId);
 
     res.json(status);
@@ -115,40 +131,45 @@ export async function processWebhook(req: Request, res: Response) {
  */
 export async function getSubscriptionPlans(req: Request, res: Response) {
   try {
-    // Define your subscription plans here
-    // In a real application, you might fetch these from Stripe or a database
     const plans = [
       {
         id: 'free',
         name: 'Free',
         description: 'Basic document management',
         price: 0,
-        currency: 'gbp',
-        interval: null,
+        currency: 'GBP',
+        interval: 'month',
         features: [
           'Up to 50 documents',
-          'Basic OCR',
           '100MB storage',
-          'Email support'
+          'Basic OCR',
+          'Category organization'
         ],
-        stripePriceId: null
+        limits: {
+          documents: 50,
+          storage: 100 * 1024 * 1024 // 100MB in bytes
+        }
       },
       {
         id: 'premium',
         name: 'Premium',
-        description: 'Advanced features with AI',
+        description: 'Advanced features and unlimited storage',
         price: 4.99,
-        currency: 'gbp',
+        currency: 'GBP',
         interval: 'month',
+        priceId: process.env.STRIPE_PRICE_ID || 'price_premium', // This would be set in Stripe
         features: [
           'Unlimited documents',
-          'Advanced AI analysis',
           'Unlimited storage',
+          'Advanced AI analysis',
           'Email forwarding',
-          'Smart categorization',
+          'Smart content extraction',
           'Priority support'
         ],
-        stripePriceId: process.env.STRIPE_PREMIUM_PRICE_ID || 'price_premium_monthly'
+        limits: {
+          documents: -1, // unlimited
+          storage: -1 // unlimited
+        }
       }
     ];
 

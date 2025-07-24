@@ -295,17 +295,43 @@ export class StripeService {
     console.log('Getting subscription status for userId:', userId);
     const user = await storage.getUser(userId);
     console.log('Found user:', user ? 'Yes' : 'No');
+    console.log('User subscription data:', {
+      tier: user?.subscriptionTier,
+      status: user?.subscriptionStatus,
+      customerId: user?.stripeCustomerId
+    });
+    
     if (!user) {
       throw new Error('User not found');
     }
 
-    let portalUrl: string | undefined;
+    // If user has a Stripe customer ID, try to get real-time status from Stripe
     if (user.stripeCustomerId) {
       try {
-        const portal = await this.createPortalSession(userId, process.env.FRONTEND_URL || 'http://localhost:5000');
-        portalUrl = portal.url;
+        const subscriptions = await stripe.subscriptions.list({
+          customer: user.stripeCustomerId,
+          status: 'active',
+          limit: 1,
+        });
+
+        if (subscriptions.data.length > 0) {
+          const subscription = subscriptions.data[0];
+          // Update local database with current Stripe status
+          await storage.updateUser(userId, {
+            subscriptionTier: 'premium',
+            subscriptionStatus: 'active',
+            subscriptionId: subscription.id,
+            subscriptionRenewalDate: new Date(subscription.current_period_end * 1000),
+          });
+
+          return {
+            tier: 'premium',
+            status: 'active',
+            renewalDate: new Date(subscription.current_period_end * 1000),
+          };
+        }
       } catch (error) {
-        console.error('Failed to create portal session:', error);
+        console.error('Failed to fetch subscription from Stripe:', error);
       }
     }
 
@@ -313,7 +339,6 @@ export class StripeService {
       tier: user.subscriptionTier || 'free',
       status: user.subscriptionStatus || 'inactive',
       renewalDate: user.subscriptionRenewalDate,
-      portalUrl,
     };
   }
 }

@@ -198,13 +198,13 @@ export default function SubscriptionPlans() {
           </CardHeader>
           <CardFooter>
             <Button
-              onClick={handleManageSubscription}
+              onClick={handleCancelSubscription}
               variant="outline"
               disabled={isLoading}
               className="border-green-600 text-green-700 hover:bg-green-100 dark:border-green-400 dark:text-green-300 dark:hover:bg-green-900"
             >
               <CreditCard className="h-4 w-4 mr-2" />
-              Manage Subscription
+              Cancel Subscription
             </Button>
           </CardFooter>
         </Card>

@@ -62,8 +62,15 @@ export class ContentAnalysisService {
       const result = JSON.parse(response.choices[0].message.content || '{}');
       return this.validateAndEnhanceResult(result, fileName);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in content analysis:', error);
+      
+      // Handle OpenAI quota exceeded specifically
+      if (error?.status === 429 || error?.code === 'insufficient_quota') {
+        console.log('OpenAI quota exceeded, using enhanced fallback analysis');
+        return this.getEnhancedFallbackAnalysis(fileName, mimeType, content);
+      }
+      
       return this.getFallbackAnalysis(fileName, mimeType);
     }
   }
@@ -140,6 +147,98 @@ Limit entities and insights to 3-4 each. Prioritize the most important informati
     }
 
     return validated;
+  }
+
+  private getEnhancedFallbackAnalysis(fileName: string, mimeType: string, content: string): ContentAnalysisResult {
+    const entities: ContentEntity[] = [];
+    const insights: ContentInsight[] = [];
+    
+    // Enhanced regex-based extraction when AI is unavailable
+    const dateRegex = /(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}|\d{2,4}[-\/]\d{1,2}[-\/]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{2,4})/gi;
+    const amountRegex = /[£$€¥₹][\d,]+\.?\d*|\$\d+|\d+\.\d{2}(?:\s*(?:USD|GBP|EUR|CAD))?/gi;
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi;
+    const phoneRegex = /(?:\+44\s?|0)(?:\d{4}\s?\d{6}|\d{3}\s?\d{3}\s?\d{4})/gi;
+
+    // Extract dates
+    const dates = content.match(dateRegex);
+    if (dates && dates.length > 0) {
+      dates.slice(0, 2).forEach(date => {
+        entities.push({
+          type: 'date',
+          label: 'Date Found',
+          value: date,
+          confidence: 0.8
+        });
+      });
+    }
+
+    // Extract amounts
+    const amounts = content.match(amountRegex);
+    if (amounts && amounts.length > 0) {
+      amounts.slice(0, 2).forEach(amount => {
+        entities.push({
+          type: 'amount',
+          label: 'Amount',
+          value: amount,
+          confidence: 0.75
+        });
+      });
+    }
+
+    // Extract emails
+    const emails = content.match(emailRegex);
+    if (emails && emails.length > 0) {
+      emails.slice(0, 2).forEach(email => {
+        entities.push({
+          type: 'contact',
+          label: 'Email',
+          value: email,
+          confidence: 0.9
+        });
+      });
+    }
+
+    // Extract phone numbers
+    const phones = content.match(phoneRegex);
+    if (phones && phones.length > 0) {
+      phones.slice(0, 2).forEach(phone => {
+        entities.push({
+          type: 'contact',
+          label: 'Phone',
+          value: phone,
+          confidence: 0.8
+        });
+      });
+    }
+
+    // Determine document type from filename
+    let documentType = 'document';
+    if (fileName.toLowerCase().includes('invoice')) documentType = 'invoice';
+    else if (fileName.toLowerCase().includes('receipt')) documentType = 'receipt';
+    else if (fileName.toLowerCase().includes('contract')) documentType = 'contract';
+    else if (fileName.toLowerCase().includes('policy')) documentType = 'insurance policy';
+
+    entities.push({
+      type: 'document_type',
+      label: 'Document Type',
+      value: documentType,
+      confidence: 0.7
+    });
+
+    insights.push({
+      type: 'document_type',
+      label: 'Content Analysis',
+      value: `Enhanced offline analysis completed - found ${entities.length} key elements`,
+      confidence: 0.6
+    });
+
+    return {
+      entities: entities.slice(0, 8),
+      insights,
+      documentType,
+      priority: amounts && amounts.length > 0 ? 'medium' : 'low',
+      summary: `Document analyzed offline - ${entities.length} key elements identified`
+    };
   }
 
   private getFallbackAnalysis(fileName: string, mimeType: string): ContentAnalysisResult {

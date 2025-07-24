@@ -506,11 +506,22 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
         const file = new File([blob], `document-scan-${Date.now()}.jpg`, {
           type: 'image/jpeg'
         });
-        onCapture(file);
+        
+        if (!isOnline) {
+          // Store for offline processing
+          setOfflineQueue(prev => [...prev, file]);
+          toast({
+            title: "Document saved offline",
+            description: "Document will be uploaded when connection is restored.",
+          });
+        } else {
+          onCapture(file);
+        }
+        
         handleClose();
       }
     }, 'image/jpeg', 0.9);
-  }, [capturedImage, onCapture]);
+  }, [capturedImage, onCapture, isOnline, toast]);
 
   const handleClose = useCallback(() => {
     stopCamera();
@@ -526,7 +537,21 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
       <div className="w-full h-full max-w-4xl mx-auto p-4 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white text-xl font-semibold">Document Scanner</h2>
+          <div className="flex items-center space-x-3">
+            <h2 className="text-white text-xl font-semibold">Document Scanner</h2>
+            {!isOnline && (
+              <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                <WifiOff className="h-3 w-3 mr-1" />
+                Offline Mode
+              </Badge>
+            )}
+            {offlineQueue.length > 0 && (
+              <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                <Upload className="h-3 w-3 mr-1" />
+                {offlineQueue.length} queued
+              </Badge>
+            )}
+          </div>
           <Button variant="ghost" size="sm" onClick={handleClose} className="text-white hover:bg-white/20">
             <X className="h-6 w-6" />
           </Button>

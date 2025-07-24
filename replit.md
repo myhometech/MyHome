@@ -264,6 +264,18 @@ The application follows a standard full-stack architecture with clear separation
   - Smart tagging and organization of imported documents
 - **Impact**: Users can now easily import documents by forwarding emails to their unique address, with everything automatically organized and searchable
 
+### Document Viewer Inline Editing Enhancement (January 24, 2025)
+- **Feature**: Added comprehensive editing capabilities to document viewer modal
+- **Implementation**:
+  - Added dropdown menu (three dots) to document viewer header with Edit, Download, and Delete options
+  - Implemented inline editing mode for document name and expiry date directly in viewer
+  - Added Save and Cancel buttons when in editing mode for immediate feedback
+  - Integrated mutation handlers for updating document properties with real-time UI updates
+  - Enhanced header layout to show expiry dates and metadata clearly
+  - Added proper error handling and success notifications for all edit operations
+- **User Experience**: Users can now edit document properties directly in the viewer without closing the modal
+- **Impact**: Streamlined document management workflow with consistent editing interface across both tile view and document viewer
+
 ### Complete Stripe Payment Integration (January 23, 2025)
 - **Feature**: Full subscription management system with Stripe integration for Premium tier upgrades
 - **Implementation**:

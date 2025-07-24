@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { X, Download, FileText, Image as ImageIcon, AlertCircle, Eye, ZoomIn, ZoomOut } from "lucide-react";
+import { X, Download, FileText, Image as ImageIcon, AlertCircle, Eye, ZoomIn, ZoomOut, MoreHorizontal, Edit2, Trash2, Calendar, Save, XCircle } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { SmartPreviewChips } from "./smart-preview-chips";
 
 interface DocumentPreviewProps {
@@ -25,12 +29,79 @@ interface DocumentPreviewProps {
   };
   onClose: () => void;
   onDownload?: () => void;
+  onUpdate?: () => void;
 }
 
-export function DocumentPreview({ document, category, onClose, onDownload }: DocumentPreviewProps) {
+export function DocumentPreview({ document, category, onClose, onDownload, onUpdate }: DocumentPreviewProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(document.name);
+  const [editExpiryDate, setEditExpiryDate] = useState(document.expiryDate || "");
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Mutation for updating document properties
+  const updateDocumentMutation = useMutation({
+    mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {
+      const response = await fetch(`/api/documents/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, expiryDate: expiryDate || null }),
+      });
+      if (!response.ok) throw new Error('Failed to update document');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      setIsEditing(false);
+      toast({ title: "Document updated successfully" });
+      onUpdate?.();
+    },
+    onError: () => {
+      toast({ title: "Failed to update document", variant: "destructive" });
+    }
+  });
+
+  // Mutation for deleting document
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/documents/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete document');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      toast({ title: "Document deleted successfully" });
+      onUpdate?.();
+      onClose();
+    },
+    onError: () => {
+      toast({ title: "Failed to delete document", variant: "destructive" });
+    }
+  });
+
+  const handleSaveEdit = () => {
+    updateDocumentMutation.mutate({
+      id: document.id,
+      name: editName,
+      expiryDate: editExpiryDate || null
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditName(document.name);
+    setEditExpiryDate(document.expiryDate || "");
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('Are you sure you want to delete this document?')) {
+      deleteDocumentMutation.mutate(document.id);
+    }
+  };
 
   useEffect(() => {
     // For image documents, test if the preview URL is accessible
@@ -194,7 +265,7 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[98vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${category?.color || 'gray'}-100`}>
               {category?.icon ? (
                 <i className={`${category.icon} text-${category.color || 'gray'}-600`}></i>
@@ -202,21 +273,102 @@ export function DocumentPreview({ document, category, onClose, onDownload }: Doc
                 <FileText className="w-5 h-5 text-gray-600" />
               )}
             </div>
-            <div>
-              <h2 className="text-xl font-semibold truncate">{document.name}</h2>
-              <p className="text-sm text-gray-500">{category?.name || "Uncategorized"}</p>
+            <div className="flex-1 min-w-0">
+              {isEditing ? (
+                <div className="space-y-2">
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="text-lg font-semibold"
+                    placeholder="Document name"
+                  />
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <Input
+                        type="date"
+                        value={editExpiryDate}
+                        onChange={(e) => setEditExpiryDate(e.target.value)}
+                        className="text-sm h-8 w-40"
+                        placeholder="Expiry date"
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {category?.name || "Uncategorized"} • {formatFileSize(document.fileSize)} • Uploaded {formatDate(document.uploadedAt)}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="text-xl font-semibold truncate">{document.name}</h2>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span>{category?.name || "Uncategorized"} • {formatFileSize(document.fileSize)} • Uploaded {formatDate(document.uploadedAt)}</span>
+                    {document.expiryDate && (
+                      <>
+                        <span>•</span>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>Expires {formatDate(document.expiryDate)}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {onDownload && (
-              <Button variant="outline" size="sm" onClick={onDownload}>
-                <Download className="w-4 h-4 mr-2" />
-                Download
-              </Button>
+            {isEditing ? (
+              <>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleSaveEdit} 
+                  disabled={updateDocumentMutation.isPending}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    {onDownload && (
+                      <DropdownMenuItem onClick={onDownload}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={handleDelete}
+                      className="text-red-600 focus:text-red-600"
+                      disabled={deleteDocumentMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="ghost" size="sm" onClick={onClose}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </>
             )}
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
           </div>
         </div>
 

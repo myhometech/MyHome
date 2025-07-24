@@ -557,6 +557,7 @@ export default function DocumentCard({
             setShowModal(false);
           }}
           onDownload={handleDownload}
+          onUpdate={onUpdate}
         />
       )}
 

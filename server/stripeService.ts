@@ -328,6 +328,7 @@ export class StripeService {
             tier: 'premium',
             status: 'active',
             renewalDate: new Date(subscription.current_period_end * 1000),
+            portalUrl: undefined, // Disable portal for now due to configuration issues
           };
         }
       } catch (error) {

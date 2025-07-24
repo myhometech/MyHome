@@ -88,34 +88,35 @@ export default function SubscriptionPlans() {
     },
   });
 
-  // Create portal session mutation
-  const portalMutation = useMutation({
+  // Cancel subscription mutation
+  const cancelMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/stripe/create-portal-session', {
+      const response = await fetch('/api/stripe/cancel-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          returnUrl: `${window.location.origin}/settings`,
-        }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to create portal session');
+        throw new Error(error.message || 'Failed to cancel subscription');
       }
 
       return response.json();
     },
-    onSuccess: (data) => {
-      // Open portal in new tab
-      window.open(data.url, '_blank');
+    onSuccess: () => {
+      toast({
+        title: 'Subscription Canceled',
+        description: 'Your subscription has been canceled. You can continue using premium features until the end of your billing period.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/stripe/subscription-status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
     },
     onError: (error) => {
       toast({
-        title: 'Portal Error',
-        description: error.message || 'Failed to open billing portal',
+        title: 'Cancellation Error',
+        description: error.message || 'Failed to cancel subscription',
         variant: 'destructive',
       });
     },
@@ -148,12 +149,14 @@ export default function SubscriptionPlans() {
     }
   };
 
-  const handleManageSubscription = async () => {
-    setIsLoading(true);
-    try {
-      await portalMutation.mutateAsync();
-    } finally {
-      setIsLoading(false);
+  const handleCancelSubscription = async () => {
+    if (window.confirm('Are you sure you want to cancel your subscription? You will continue to have access until the end of your billing period.')) {
+      setIsLoading(true);
+      try {
+        await cancelMutation.mutateAsync();
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -265,15 +268,20 @@ export default function SubscriptionPlans() {
 
               <CardFooter>
                 {isCurrent && isPremium ? (
-                  <Button
-                    onClick={handleManageSubscription}
-                    variant="outline"
-                    className="w-full"
-                    disabled={isLoading}
-                  >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Manage Billing
-                  </Button>
+                  <div className="w-full space-y-2">
+                    <p className="text-xs text-center text-muted-foreground">
+                      Renews: {status.renewalDate ? new Date(status.renewalDate).toLocaleDateString() : 'Unknown'}
+                    </p>
+                    <Button
+                      onClick={handleCancelSubscription}
+                      variant="outline"
+                      className="w-full"
+                      disabled={isLoading}
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Cancel Subscription
+                    </Button>
+                  </div>
                 ) : isCurrent ? (
                   <Button variant="secondary" className="w-full" disabled>
                     Current Plan

@@ -1011,7 +1011,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     createPortalSession, 
     getSubscriptionStatus, 
     processWebhook,
-    getSubscriptionPlans 
+    getSubscriptionPlans,
+    cancelSubscription
   } = await import('./stripeRoutes');
 
   // Stripe API endpoints
@@ -1019,6 +1020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/stripe/create-checkout-session', requireAuth, createCheckoutSession);
   app.post('/api/stripe/create-portal-session', requireAuth, createPortalSession);
   app.get('/api/stripe/subscription-status', requireAuth, getSubscriptionStatus);
+  app.post('/api/stripe/cancel-subscription', requireAuth, cancelSubscription);
   
   // Stripe webhook (no auth required - verified by signature)
   app.post('/api/stripe/webhook', processWebhook);

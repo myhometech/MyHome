@@ -184,3 +184,34 @@ export async function getSubscriptionPlans(req: Request, res: Response) {
     });
   }
 }
+
+// Cancel subscription endpoint
+export async function cancelSubscription(req: any, res: any) {
+  try {
+    const userId = getUserId(req);
+    const user = await storage.getUser(userId);
+    
+    if (!user?.subscriptionId) {
+      return res.status(400).json({ message: 'No active subscription found' });
+    }
+
+    // Cancel the subscription at period end
+    const subscription = await stripe.subscriptions.update(user.subscriptionId, {
+      cancel_at_period_end: true,
+    });
+
+    // Update local database
+    await storage.updateUser(userId, {
+      subscriptionStatus: 'canceled',
+    });
+
+    console.log(`Subscription ${subscription.id} canceled for user ${userId}`);
+    res.json({ 
+      message: 'Subscription canceled successfully',
+      cancelAt: new Date(subscription.current_period_end * 1000),
+    });
+  } catch (error: any) {
+    console.error('Error canceling subscription:', error);
+    res.status(500).json({ message: 'Failed to cancel subscription' });
+  }
+}

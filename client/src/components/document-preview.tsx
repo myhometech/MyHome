@@ -137,31 +137,16 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
       setIsLoading(true);
       console.log('Setting up PDF viewer for document:', document.id);
       
-      // Test PDF accessibility first
-      fetch(`/api/documents/${document.id}/preview`, { 
-        method: 'HEAD',
-        credentials: 'include'
-      })
-        .then(response => {
-          console.log('PDF head check response:', response.status, response.statusText);
-          if (!response.ok) {
-            throw new Error(`PDF not accessible: ${response.status} ${response.statusText}`);
-          }
-          // PDF is accessible, set a placeholder to trigger PDF component
-          setPdfData(new ArrayBuffer(1)); // Minimal buffer to trigger PDF component
-        })
-        .catch(err => {
-          console.error('PDF accessibility check failed:', err);
-          setError(`PDF not accessible: ${err.message}`);
-          setIsLoading(false);
-        });
+      // Skip HEAD check and directly set PDF data for faster loading
+      console.log('Directly loading PDF for document:', document.id);
+      setPdfData(new ArrayBuffer(1)); // Trigger PDF component immediately
       
-      // Add shorter timeout for initial check (15 seconds)
+      // Add timeout for PDF loading (10 seconds for small files)
       timeoutId = setTimeout(() => {
-        console.warn('PDF setup timeout after 15 seconds');
-        setError('PDF setup timed out. Please try the retry button or open in browser.');
+        console.warn('PDF loading timeout after 10 seconds');
+        setError('PDF loading is taking longer than expected. Please try the retry button.');
         setIsLoading(false);
-      }, 15000);
+      }, 10000);
     } else {
       // For other files, just stop loading immediately
       setIsLoading(false);
@@ -433,21 +418,9 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
                       setError(null);
                       setIsLoading(true);
                       setPdfData(null);
-                      // Trigger refetch by resetting state
-                      fetch(`/api/documents/${document.id}/preview`, { 
-                        method: 'HEAD',
-                        credentials: 'include'
-                      })
-                        .then(response => {
-                          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                          console.log('PDF retry check successful');
-                          setPdfData(new ArrayBuffer(1)); // Trigger PDF component
-                        })
-                        .catch(err => {
-                          console.error('PDF retry failed:', err);
-                          setError(`Retry failed: ${err.message}`);
-                          setIsLoading(false);
-                        });
+                      // Trigger retry by resetting state immediately
+                      console.log('Retrying PDF load for document:', document.id);
+                      setPdfData(new ArrayBuffer(1)); // Trigger PDF component directly
                     }}
                   >
                     Retry PDF

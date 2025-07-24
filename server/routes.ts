@@ -503,6 +503,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid document ID" });
       }
       
+      // For HEAD requests, skip database lookup and file checks for faster response
+      if (req.method === 'HEAD') {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        return res.status(200).end();
+      }
+      
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });

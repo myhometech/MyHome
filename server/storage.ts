@@ -75,6 +75,11 @@ export interface IStorage {
   getSharedWithMeDocuments(userId: string): Promise<Document[]>;
   canAccessDocument(documentId: number, userId: string): Promise<boolean>;
   
+  // Encryption operations
+  updateDocumentEncryptionKey(documentId: number, encryptedKey: string): Promise<void>;
+  getDocumentsWithEncryptionKeys(): Promise<Array<{ id: number; encryptedDocumentKey: string | null }>>;
+  getEncryptionStats(): Promise<{ totalDocuments: number; encryptedDocuments: number; unencryptedDocuments: number }>;
+  
   // Email forwarding operations
   createEmailForward(emailForward: InsertEmailForward): Promise<EmailForward>;
   updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined>;
@@ -105,6 +110,21 @@ export interface IStorage {
   createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
   updateBlogPost(id: number, updates: Partial<InsertBlogPost>): Promise<BlogPost | undefined>;
   deleteBlogPost(id: number): Promise<void>;
+
+  // Encryption operations
+  getEncryptionStats(): Promise<{
+    totalDocuments: number;
+    encryptedDocuments: number;
+    unencryptedDocuments: number;
+    encryptionPercentage: number;
+  }>;
+  updateDocumentEncryption(
+    id: number,
+    userId: string,
+    encryptedDocumentKey: string,
+    encryptionMetadata: string,
+    newFilePath: string
+  ): Promise<Document | undefined>;
 }
 
 export interface ExpiringDocument {
@@ -1190,6 +1210,78 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(blogPosts)
       .where(eq(blogPosts.id, id));
+  }
+
+  // Encryption operations
+  async updateDocumentEncryptionKey(documentId: number, encryptedKey: string): Promise<void> {
+    await db
+      .update(documents)
+      .set({ 
+        encryptedDocumentKey: encryptedKey,
+        isEncrypted: true 
+      })
+      .where(eq(documents.id, documentId));
+  }
+
+  async getDocumentsWithEncryptionKeys(): Promise<Array<{ id: number; encryptedDocumentKey: string | null }>> {
+    return await db
+      .select({
+        id: documents.id,
+        encryptedDocumentKey: documents.encryptedDocumentKey,
+      })
+      .from(documents)
+      .where(isNotNull(documents.encryptedDocumentKey));
+  }
+
+  async getEncryptionStats(): Promise<{
+    totalDocuments: number;
+    encryptedDocuments: number;
+    unencryptedDocuments: number;
+    encryptionPercentage: number;
+  }> {
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(documents);
+    
+    const encryptedResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(documents)
+      .where(and(
+        eq(documents.isEncrypted, true),
+        isNotNull(documents.encryptedDocumentKey)
+      ));
+
+    const totalDocuments = totalResult[0]?.count || 0;
+    const encryptedDocuments = encryptedResult[0]?.count || 0;
+    const unencryptedDocuments = totalDocuments - encryptedDocuments;
+    const encryptionPercentage = totalDocuments > 0 ? Math.round((encryptedDocuments / totalDocuments) * 100) : 0;
+
+    return {
+      totalDocuments,
+      encryptedDocuments,
+      unencryptedDocuments,
+      encryptionPercentage
+    };
+  }
+
+  async updateDocumentEncryption(
+    id: number,
+    userId: string,
+    encryptedDocumentKey: string,
+    encryptionMetadata: string,
+    newFilePath: string
+  ): Promise<Document | undefined> {
+    const [updatedDocument] = await db
+      .update(documents)
+      .set({
+        encryptedDocumentKey,
+        encryptionMetadata,
+        filePath: newFilePath,
+        isEncrypted: true
+      })
+      .where(and(eq(documents.id, id), eq(documents.userId, userId)))
+      .returning();
+    return updatedDocument;
   }
 }
 

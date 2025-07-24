@@ -1,0 +1,70 @@
+Here’s a clear and comprehensive set of instructions for your Agent GPT to ensure your MyHome platform’s database maintains appropriate encryption for each document:
+
+⸻
+
+🔐 Agent GPT Instructions: Enforcing Proper Document Encryption in MyHome
+
+Objective
+
+Ensure that all documents stored in the MyHome database are encrypted in accordance with best practices for data security and privacy compliance.
+
+⸻
+
+✅ 1. Encryption Requirements
+	•	At Rest: All documents must be encrypted before being stored in the database or object storage (e.g., S3).
+	•	In Transit: Ensure TLS 1.2+ is used for all document uploads/downloads via MyHome’s web and API clients.
+	•	Key Management: Use a centralized Key Management Service (KMS) such as AWS KMS or GCP KMS to handle encryption key rotation and access control.
+
+⸻
+
+🗃️ 2. Document Storage Design
+	•	Documents are stored in cloud object storage (e.g., AWS S3) with server-side encryption (SSE-S3 or SSE-KMS).
+	•	Only encrypted URLs or metadata should be stored in the relational database (e.g., PostgreSQL).
+	•	For any file content temporarily cached in memory or local storage (e.g., during OCR or tag processing), ensure it’s purged post-operation.
+
+⸻
+
+🔐 3. Encryption Implementation Steps
+	1.	Before Uploading to Storage:
+	•	Validate that the file meets MyHome constraints (e.g., <10MB, supported file type).
+	•	Use the platform’s file upload service that automatically applies encryption via pre-signed URLs.
+	2.	At the Database Layer:
+	•	Never store raw document content.
+	•	Store only:
+	•	Metadata (file name, type, upload date, tags)
+	•	Reference to encrypted file (S3 URL or object key)
+	•	Encryption context or key ID (if using SSE-KMS)
+	3.	Access Control Checks:
+	•	Ensure only authenticated users with proper permissions can generate download links.
+	•	Logs all access attempts and key decrypt operations for auditing.
+
+⸻
+
+🔁 4. Key Rotation Policy
+	•	Use automatic key rotation via your cloud provider’s KMS (e.g., every 12 months).
+	•	For manual re-encryption:
+	•	Periodically scan stored files.
+	•	Re-encrypt with the new key using KMS APIs.
+	•	Update the encryption metadata in the database.
+
+⸻
+
+🧪 5. Verification & Auditing
+	•	Implement routine integrity checks to confirm:
+	•	Files are encrypted.
+	•	Access permissions are enforced.
+	•	Add logging and alerts for:
+	•	Any unencrypted file uploads.
+	•	Failed encryption/decryption operations.
+	•	Unauthorized access attempts.
+
+⸻
+
+📌 Compliance Notes
+	•	Aligns with GDPR, CCPA, and SOC 2 data encryption standards.
+	•	Encryption algorithm must be AES-256 or better.
+	•	KMS access must be restricted via IAM roles/policies.
+
+⸻
+
+Let me know if this instruction should be adapted to a specific cloud environment or database stack (e.g., AWS, Azure, GCP, PostgreSQL, MongoDB).

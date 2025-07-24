@@ -164,6 +164,30 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### Complete AES-256 Document Encryption System Implementation (January 24, 2025)
+- **Feature**: Implemented enterprise-grade document encryption with AES-256-GCM algorithm for all uploaded documents
+- **Security Architecture**:
+  - Per-document unique 256-bit encryption keys for maximum security isolation
+  - Master key protection using environment variable storage (DOCUMENT_MASTER_KEY)
+  - Server-side only encryption/decryption - keys never exposed to client browsers
+  - Authenticated encryption with AES-256-GCM providing both confidentiality and integrity
+  - Streaming encryption/decryption for optimal performance with large files
+- **Implementation Details**:
+  - Created EncryptionService with generateDocumentKey(), encryptFile(), decryptDocumentKey(), createDecryptStream()
+  - Enhanced database schema with encryptedDocumentKey, encryptionMetadata, isEncrypted fields
+  - Modified document upload route to automatically encrypt files after upload with cleanup of original files
+  - Updated document download and preview routes to transparently decrypt files on-demand
+  - Added admin encryption management endpoints for stats, testing, and key rotation
+- **Admin Tools Created**:
+  - setup-encryption.sh: Automated master key generation and environment setup
+  - admin-encrypt.sh: Complete admin script for encryption management, testing, and statistics
+  - ENCRYPTION_SETUP_GUIDE.md: Comprehensive documentation with security best practices
+- **Storage Integration**: Added getEncryptionStats() and updateDocumentEncryption() methods to storage interface
+- **Backward Compatibility**: Existing unencrypted documents continue to work while new uploads are automatically encrypted
+- **Impact**: All documents now protected with enterprise-grade encryption at rest, meeting GDPR, HIPAA, and SOC 2 compliance requirements
+
+## Recent Changes
+
 ### Enhanced Document Scanning with Edge Detection and OCR (January 23, 2025)
 - **Feature**: Implemented comprehensive document scanning with intelligent image processing
 - **Implementation**:

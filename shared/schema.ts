@@ -72,6 +72,10 @@ export const documents = pgTable("documents", {
   extractedText: text("extracted_text"),
   summary: text("summary"),
   ocrProcessed: boolean("ocr_processed").default(false),
+  // Encryption fields
+  encryptedDocumentKey: text("encrypted_document_key"),
+  encryptionMetadata: text("encryption_metadata"),
+  isEncrypted: boolean("is_encrypted").default(true),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
 

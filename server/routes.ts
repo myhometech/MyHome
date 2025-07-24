@@ -12,6 +12,7 @@ import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
 import { contentAnalysisService } from "./contentAnalysisService.js";
 import { pdfConversionService } from "./pdfConversionService.js";
+import { EncryptionService } from "./encryptionService";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -329,7 +330,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const validatedData = insertDocumentSchema.parse(finalDocumentData);
+      // Generate encryption key and encrypt the file
+      let encryptedDocumentKey = '';
+      let encryptionMetadata = '';
+      
+      try {
+        // Generate a unique document key
+        const documentKey = EncryptionService.generateDocumentKey();
+        
+        // Encrypt the document key with master key
+        encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
+        
+        // Encrypt the file
+        const encryptionResult = await EncryptionService.encryptFile(finalFilePath, documentKey);
+        finalFilePath = encryptionResult.encryptedPath;
+        encryptionMetadata = encryptionResult.metadata;
+        
+        console.log(`Document encrypted successfully: ${finalFilePath}`);
+      } catch (encryptionError) {
+        console.error('Document encryption failed:', encryptionError);
+        // Clean up uploaded file on encryption failure
+        if (fs.existsSync(finalFilePath)) {
+          fs.unlinkSync(finalFilePath);
+        }
+        return res.status(500).json({ message: "Document encryption failed" });
+      }
+
+      // Add encryption fields to document data
+      const encryptedDocumentData = {
+        ...finalDocumentData,
+        filePath: finalFilePath,
+        encryptedDocumentKey,
+        encryptionMetadata,
+        isEncrypted: true
+      };
+
+      const validatedData = insertDocumentSchema.parse(encryptedDocumentData);
       const document = await storage.createDocument(validatedData);
 
       // Process OCR, generate summary, extract dates, and suggest tags in the background
@@ -536,6 +572,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "File not found" });
       }
 
+      // Handle encrypted documents for preview
+      if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
+        try {
+          // Decrypt the document key
+          const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey);
+          
+          // For images, create decrypted stream
+          if (document.mimeType.startsWith('image/')) {
+            res.setHeader('Content-Type', document.mimeType);
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            
+            const decryptedStream = EncryptionService.createDecryptStream(
+              document.filePath, 
+              documentKey, 
+              document.encryptionMetadata
+            );
+            decryptedStream.pipe(res);
+            return;
+          }
+          
+          // For PDFs, decrypt and serve with proper headers
+          if (document.mimeType === 'application/pdf') {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+            
+            // CORS headers for react-pdf compatibility
+            res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+            res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+            res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+            
+            const decryptedStream = EncryptionService.createDecryptStream(
+              document.filePath, 
+              documentKey, 
+              document.encryptionMetadata
+            );
+            decryptedStream.pipe(res);
+            return;
+          }
+          
+          // For other encrypted file types
+          return res.status(200).json({ 
+            message: "Preview not supported for this encrypted file type",
+            mimeType: document.mimeType 
+          });
+        } catch (decryptionError) {
+          console.error('Document decryption failed for preview:', decryptionError);
+          return res.status(500).json({ message: "Failed to decrypt document for preview" });
+        }
+      }
+
+      // Handle unencrypted documents (legacy support)
       // For images, serve the file directly
       if (document.mimeType.startsWith('image/')) {
         res.setHeader('Content-Type', document.mimeType);
@@ -777,6 +866,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
+      // Handle encrypted documents
+      if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
+        try {
+          // Decrypt the document key
+          const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey);
+          
+          // Create decrypted stream
+          const decryptedStream = EncryptionService.createDecryptStream(
+            document.filePath, 
+            documentKey, 
+            document.encryptionMetadata
+          );
+          
+          // Set appropriate headers
+          res.setHeader('Content-Type', document.mimeType);
+          res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
+          
+          decryptedStream.pipe(res);
+          return;
+        } catch (decryptionError) {
+          console.error('Document decryption failed:', decryptionError);
+          return res.status(500).json({ message: "Failed to decrypt document" });
+        }
+      }
+
       // Check if file exists and handle missing files gracefully
       if (!fs.existsSync(document.filePath)) {
         console.error(`File not found: ${document.filePath} for document ${document.id}`);
@@ -840,6 +954,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     next();
   };
+
+  // Encryption management endpoints
+  app.get('/api/admin/encryption/stats', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const stats = await storage.getEncryptionStats();
+      const hasMasterKey = !!process.env.DOCUMENT_MASTER_KEY;
+      
+      res.json({
+        ...stats,
+        hasMasterKey,
+        encryptionEnabled: hasMasterKey
+      });
+    } catch (error) {
+      console.error("Error fetching encryption stats:", error);
+      res.status(500).json({ message: "Failed to fetch encryption stats" });
+    }
+  });
+
+  app.post('/api/admin/encryption/test', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const testResult = await EncryptionService.testEncryption();
+      res.json({
+        success: testResult,
+        message: testResult ? "Encryption system is working correctly" : "Encryption system test failed"
+      });
+    } catch (error) {
+      console.error("Error testing encryption:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Encryption test failed: " + error.message 
+      });
+    }
+  });
 
   // Content analysis endpoint
   app.post('/api/documents/analyze-content', requireAuth, async (req: any, res) => {

@@ -400,6 +400,7 @@ export default function DocumentCard({
     if (bulkMode && onToggleSelection) {
       onToggleSelection();
     } else if (!bulkMode && !isEditing) {
+      console.log('Opening document modal for:', document.id, document.name);
       setShowModal(true);
     }
   };
@@ -557,7 +558,7 @@ export default function DocumentCard({
           document={document}
           category={category}
           onClose={() => {
-            console.log('Closing modal');
+            console.log('Closing modal for document:', document.id);
             setShowModal(false);
           }}
           onDownload={handleDownload}

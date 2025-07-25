@@ -37,6 +37,8 @@ interface DocumentPreviewProps {
 // Using native browser PDF viewing - removed PDF.js worker configuration
 
 export function DocumentPreview({ document, category, onClose, onDownload, onUpdate }: DocumentPreviewProps) {
+  console.log('DocumentPreview rendering for document:', document.id, document.name);
+  
   // Check if mobile viewport for responsive behavior
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
 
@@ -50,6 +52,7 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
 
   // Use mobile viewer for small screens
   if (isMobile) {
+    console.log('Using mobile viewer for document:', document.id);
     return (
       <MobileDocumentViewer
         document={document}
@@ -60,6 +63,8 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
       />
     );
   }
+  
+  console.log('Using desktop viewer for document:', document.id);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -142,11 +147,22 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
       isImage: isImage(),
       isPDF: isPDF()
     });
+
+    // Add a safety timeout to prevent hanging
+    const safetyTimeout = setTimeout(() => {
+      console.warn('⚠️ DocumentPreview safety timeout - forcing loading to complete');
+      setIsLoading(false);
+      if (!error && !pdfData && isPDF()) {
+        setError('Document loading took too long. Please try again.');
+      }
+    }, 10000);
     
     // For image documents, test if the preview URL is accessible
     if (isImage()) {
+      console.log('📸 Loading image document...');
       fetch(getPreviewUrl(), { credentials: 'include' })
         .then(response => {
+          console.log('📸 Image fetch response:', response.status);
           if (!response.ok) {
             setError(`Failed to load preview: ${response.status} ${response.statusText}`);
           }
@@ -226,6 +242,9 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
+      }
+      if (safetyTimeout) {
+        clearTimeout(safetyTimeout);
       }
     };
   }, [document.id]);

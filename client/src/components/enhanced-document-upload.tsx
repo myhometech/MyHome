@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { compressImage, createThumbnail, isImageFile } from '@/lib/image-compression';
+import { ImageProcessor, ProcessingResult } from '@/lib/image-processing';
+import { ImageProcessingPanel } from '@/components/image-processing-panel';
 import { ComponentErrorBoundary } from '@/components/error-boundary';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { 
@@ -47,6 +49,8 @@ export function EnhancedDocumentUpload({
 }: EnhancedDocumentUploadProps) {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [showImageProcessor, setShowImageProcessor] = useState(false);
+  const [processingFile, setProcessingFile] = useState<File | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isOnline } = useNetworkStatus();
@@ -92,7 +96,34 @@ export function EnhancedDocumentUpload({
     },
   });
 
-  const processFiles = useCallback(async (files: File[]) => {
+  const handleImageProcessingComplete = useCallback((result: ProcessingResult) => {
+    if (!processingFile) return;
+    
+    // Replace the original file with the processed one
+    const processedFile = new File([result.processedImage], processingFile.name, {
+      type: result.processedImage.type,
+      lastModified: Date.now()
+    });
+    
+    setShowImageProcessor(false);
+    setProcessingFile(null);
+    
+    // Process the enhanced image
+    processFiles([processedFile], true);
+  }, [processingFile]);
+
+  const processFiles = useCallback(async (files: File[], skipImageProcessing = false) => {
+    // Check for images that might benefit from processing
+    if (!skipImageProcessing) {
+      const firstImageFile = files.find(file => isImageFile(file));
+      if (firstImageFile && files.length === 1) {
+        // Show image processing panel for single image uploads
+        setProcessingFile(firstImageFile);
+        setShowImageProcessor(true);
+        return;
+      }
+    }
+
     const newUploadFiles: UploadFile[] = files.map(file => ({
       ...file,
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -375,6 +406,19 @@ export function EnhancedDocumentUpload({
           </Card>
         )}
       </div>
+      
+      {/* Image Processing Panel */}
+      {showImageProcessor && processingFile && (
+        <ImageProcessingPanel
+          originalFile={processingFile}
+          onProcessed={handleImageProcessingComplete}
+          onCancel={() => {
+            setShowImageProcessor(false);
+            setProcessingFile(null);
+          }}
+          autoProcess={true}
+        />
+      )}
     </ComponentErrorBoundary>
   );
 }

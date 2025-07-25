@@ -117,8 +117,8 @@ export interface IStorage {
   getFeatureFlagAnalytics(): Promise<any>;
 
   // Stripe operations
-  createStripeWebhook(webhook: InsertStripeWebhook): Promise<SelectStripeWebhook>;
-  getStripeWebhookByEventId(eventId: string): Promise<SelectStripeWebhook | undefined>;
+  createStripeWebhook(webhook: InsertStripeWebhook): Promise<StripeWebhook>;
+  getStripeWebhookByEventId(eventId: string): Promise<StripeWebhook | undefined>;
   
   // Blog operations
   getPublishedBlogPosts(): Promise<BlogPost[]>;
@@ -1170,12 +1170,12 @@ export class DatabaseStorage implements IStorage {
     return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 20);
   }
   // Stripe operations
-  async createStripeWebhook(webhook: InsertStripeWebhook): Promise<SelectStripeWebhook> {
+  async createStripeWebhook(webhook: InsertStripeWebhook): Promise<StripeWebhook> {
     const [result] = await db.insert(stripeWebhooks).values(webhook).returning();
     return result;
   }
 
-  async getStripeWebhookByEventId(eventId: string): Promise<SelectStripeWebhook | undefined> {
+  async getStripeWebhookByEventId(eventId: string): Promise<StripeWebhook | undefined> {
     const [webhook] = await db
       .select()
       .from(stripeWebhooks)

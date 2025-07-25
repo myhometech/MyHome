@@ -331,21 +331,6 @@ export default function DocumentCard({
               </div>
               
               <div className="flex items-center space-x-2">
-                {document.tags && document.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {document.tags.slice(0, 2).map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {document.tags.length > 2 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{document.tags.length - 2}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -536,20 +521,7 @@ export default function DocumentCard({
               </div>
             )}
             
-            {document.tags && document.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {document.tags.slice(0, 2).map((tag, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-                {document.tags.length > 2 && (
-                  <Badge variant="secondary" className="text-xs">
-                    +{document.tags.length - 2}
-                  </Badge>
-                )}
-              </div>
-            )}
+
           </div>
         </CardContent>
       </Card>

@@ -309,18 +309,7 @@ export default function OCRSummaryPreview({ document, className = "", hideExtrac
                 <span className="text-gray-500">Upload Date:</span>
                 <p>{new Date(document.uploadedAt).toLocaleDateString()}</p>
               </div>
-              {document.tags && document.tags.length > 0 && (
-                <div className="col-span-2">
-                  <span className="text-gray-500">Tags:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {document.tags.map((tag, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+
             </div>
           </CollapsibleContent>
         </Collapsible>

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
-import { DocumentPreview } from "./document-preview";
+import { EnhancedDocumentViewer } from "./enhanced-document-viewer";
 
 import { isUnauthorizedError } from "@/lib/authUtils";
 
@@ -527,14 +527,12 @@ export default function DocumentCard({
       </Card>
 
       {showModal && (
-        <DocumentPreview
+        <EnhancedDocumentViewer
           document={document}
-          category={category}
           onClose={() => {
-            console.log('Closing document preview for document:', document.id);
+            console.log('Closing document viewer for document:', document.id);
             setShowModal(false);
           }}
-          onDownload={handleDownload}
           onUpdate={onUpdate}
         />
       )}

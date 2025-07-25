@@ -8,7 +8,7 @@ import { Home, Search, Bell, LogOut, Settings, Shield, Mail } from "lucide-react
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SmartSearch } from "@/components/smart-search";
-import { DocumentPreview } from "@/components/document-preview";
+import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
 import type { User, Document } from "@shared/schema";
 import { useState } from "react";
 
@@ -207,20 +207,13 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
         </div>
       </div>
       
-      {/* Document Preview Modal */}
+      {/* Enhanced Document Viewer Modal */}
       {selectedDocument && (
-        <DocumentPreview
+        <EnhancedDocumentViewer
           document={selectedDocument}
           onClose={() => {
-            console.log('Closing document preview modal');
+            console.log('Closing document viewer modal');
             setSelectedDocument(null);
-          }}
-          onDownload={() => {
-            console.log('Downloading document:', selectedDocument.id);
-            const link = document.createElement('a');
-            link.href = `/api/documents/${selectedDocument.id}/download`;
-            link.download = selectedDocument.fileName;
-            link.click();
           }}
           onUpdate={() => {
             console.log('Document updated, refreshing');

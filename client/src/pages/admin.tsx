@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, FileText, HardDrive, Activity, Calendar, Mail, Shield, AlertCircle } from "lucide-react";
+import { Users, FileText, HardDrive, Activity, Calendar, Mail, Shield, AlertCircle, Flag, BarChart3 } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface AdminStats {
@@ -302,6 +302,78 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Admin Tools Section */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-6">Admin Tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Flag className="h-5 w-5" />
+                Feature Flags
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                Manage feature rollouts and user access controls
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => window.location.href = '/admin/feature-flags'}
+                className="w-full"
+              >
+                Manage Features
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Encryption Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                Monitor document encryption status and security
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled
+                className="w-full"
+              >
+                Coming Soon
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                System Analytics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                Advanced system metrics and performance data
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled
+                className="w-full"
+              >
+                Coming Soon
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

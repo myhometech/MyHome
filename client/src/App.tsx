@@ -16,6 +16,7 @@ import ForgotPassword from "@/pages/forgot-password";
 import ExpiryDocuments from "@/pages/expiry-documents";
 import Settings from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
+import FeatureFlagsAdmin from "@/pages/admin/feature-flags";
 import Pricing from "@/pages/pricing";
 import EmailImport from "@/pages/email-import";
 
@@ -65,6 +66,7 @@ function Router() {
           <Route path="/expiry-documents" component={ExpiryDocuments} />
           <Route path="/settings" component={Settings} />
           <Route path="/admin" component={AdminDashboard} />
+          <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
           <Route path="/pricing" component={Pricing} />
           <Route path="/email-import" component={EmailImport} />
           <Route path="/blog" component={Blog} />

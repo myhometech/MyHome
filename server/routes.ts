@@ -13,6 +13,7 @@ import { tagSuggestionService } from "./tagSuggestionService";
 import { contentAnalysisService } from "./contentAnalysisService.js";
 import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
+import { featureFlagService } from './featureFlagService';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -1696,6 +1697,188 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+
+  // ===== FEATURE FLAG ADMIN ROUTES =====
+  
+  // Initialize feature flags on server start
+  featureFlagService.initializeFeatureFlags().catch(console.error);
+
+  // Get all feature flags (admin only)
+  app.get("/api/admin/feature-flags", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const flags = await storage.getAllFeatureFlags();
+      res.json(flags);
+    } catch (error: any) {
+      console.error("Error fetching feature flags:", error);
+      res.status(500).json({ message: "Failed to fetch feature flags", error: error.message });
+    }
+  });
+
+  // Create/Update feature flag (admin only)
+  app.post("/api/admin/feature-flags", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const flag = await featureFlagService.upsertFeatureFlag(req.body);
+      res.json(flag);
+    } catch (error: any) {
+      console.error("Error creating feature flag:", error);
+      res.status(500).json({ message: "Failed to create feature flag", error: error.message });
+    }
+  });
+
+  // Update feature flag (admin only)
+  app.put("/api/admin/feature-flags", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const flag = await featureFlagService.upsertFeatureFlag(req.body);
+      res.json(flag);
+    } catch (error: any) {
+      console.error("Error updating feature flag:", error);
+      res.status(500).json({ message: "Failed to update feature flag", error: error.message });
+    }
+  });
+
+  // Toggle feature flag (admin only)
+  app.patch("/api/admin/feature-flags/:flagId/toggle", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { flagId } = req.params;
+      const { enabled } = req.body;
+
+      await storage.toggleFeatureFlag(flagId, enabled);
+      featureFlagService.clearCache();
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error toggling feature flag:", error);
+      res.status(500).json({ message: "Failed to toggle feature flag", error: error.message });
+    }
+  });
+
+  // Get feature flag overrides (admin only)  
+  app.get("/api/admin/feature-flag-overrides", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const overrides = await storage.getFeatureFlagOverrides();
+      res.json(overrides);
+    } catch (error: any) {
+      console.error("Error fetching feature flag overrides:", error);
+      res.status(500).json({ message: "Failed to fetch overrides", error: error.message });
+    }
+  });
+
+  // Create feature flag override (admin only)
+  app.post("/api/admin/feature-flag-overrides", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId, featureFlagName, isEnabled, overrideReason, expiresAt } = req.body;
+      
+      await featureFlagService.setUserOverride(
+        userId, 
+        featureFlagName, 
+        isEnabled, 
+        overrideReason,
+        expiresAt ? new Date(expiresAt) : undefined
+      );
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error creating feature flag override:", error);
+      res.status(500).json({ message: "Failed to create override", error: error.message });
+    }
+  });
+
+  // Get feature flag analytics (admin only)
+  app.get("/api/admin/feature-flag-analytics", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const analytics = await storage.getFeatureFlagAnalytics();
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Error fetching feature flag analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics", error: error.message });
+    }
+  });
+
+  // Enhanced useFeatures hook endpoint - returns batch evaluation results
+  app.get("/api/feature-flags/batch-evaluation", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const context = {
+        userId,
+        userTier: user.subscriptionTier as 'free' | 'premium',
+        sessionId: req.sessionID,
+        userAgent: req.get('User-Agent'),
+        ipAddress: req.ip,
+      };
+
+      const enabledFeatures = await featureFlagService.getAllEnabledFeatures(context);
+      res.json({ enabledFeatures });
+    } catch (error: any) {
+      console.error("Error in batch feature evaluation:", error);
+      res.status(500).json({ message: "Failed to evaluate features", error: error.message });
+    }
+  });
+
+  // Individual feature check endpoint
+  app.get("/api/feature-flags/:featureName/check", requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { featureName } = req.params;
+      const context = {
+        userId,
+        userTier: user.subscriptionTier as 'free' | 'premium',
+        sessionId: req.sessionID,
+        userAgent: req.get('User-Agent'),
+        ipAddress: req.ip,
+      };
+
+      const isEnabled = await featureFlagService.isFeatureEnabled(featureName, context);
+      res.json({ enabled: isEnabled });
+    } catch (error: any) {
+      console.error("Error checking feature flag:", error);
+      res.status(500).json({ message: "Failed to check feature", error: error.message });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

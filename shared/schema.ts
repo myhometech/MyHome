@@ -247,3 +247,6 @@ export type DocumentShare = typeof documentShares.$inferSelect;
 export type InsertDocumentShare = z.infer<typeof insertDocumentShareSchema>;
 export type EmailForward = typeof emailForwards.$inferSelect;
 export type InsertEmailForward = z.infer<typeof insertEmailForwardSchema>;
+
+// Re-export feature flag schemas
+export * from "./featureFlagSchema";

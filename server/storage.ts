@@ -8,6 +8,9 @@ import {
   categories,
   expiryReminders,
   blogPosts,
+  featureFlags,
+  featureFlagOverrides,
+  featureFlagEvents,
   type User,
   type InsertUser,
   type Document,
@@ -24,6 +27,12 @@ import {
   type InsertExpiryReminder,
   type InsertStripeWebhook,
   type SelectStripeWebhook,
+  type FeatureFlag,
+  type InsertFeatureFlag,
+  type FeatureFlagOverride,
+  type InsertFeatureFlagOverride,
+  type FeatureFlagEvent,
+  type InsertFeatureFlagEvent,
 } from "@shared/schema";
 
 // Add blog post types
@@ -99,6 +108,12 @@ export interface IStorage {
   updateExpiryReminder(id: number, userId: string, updates: Partial<InsertExpiryReminder>): Promise<ExpiryReminder | undefined>;
   deleteExpiryReminder(id: number, userId: string): Promise<void>;
   markReminderCompleted(id: number, userId: string, isCompleted: boolean): Promise<ExpiryReminder | undefined>;
+
+  // Feature flag operations (admin only)
+  getAllFeatureFlags(): Promise<FeatureFlag[]>;
+  toggleFeatureFlag(flagId: string, enabled: boolean): Promise<void>;
+  getFeatureFlagOverrides(): Promise<any[]>;
+  getFeatureFlagAnalytics(): Promise<any>;
 
   // Stripe operations
   createStripeWebhook(webhook: InsertStripeWebhook): Promise<SelectStripeWebhook>;
@@ -1282,6 +1297,54 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(documents.id, id), eq(documents.userId, userId)))
       .returning();
     return updatedDocument;
+  }
+
+  // ===== FEATURE FLAG OPERATIONS =====
+
+  async getAllFeatureFlags(): Promise<FeatureFlag[]> {
+    return await db.select().from(featureFlags).orderBy(featureFlags.category, featureFlags.name);
+  }
+
+  async toggleFeatureFlag(flagId: string, enabled: boolean): Promise<void> {
+    await db
+      .update(featureFlags)
+      .set({ enabled, updatedAt: new Date() })
+      .where(eq(featureFlags.id, flagId));
+  }
+
+  async getFeatureFlagOverrides(): Promise<any[]> {
+    const overrides = await db
+      .select({
+        id: featureFlagOverrides.id,
+        userId: featureFlagOverrides.userId,
+        userEmail: users.email,
+        featureFlagName: featureFlags.name,
+        isEnabled: featureFlagOverrides.isEnabled,
+        overrideReason: featureFlagOverrides.overrideReason,
+        expiresAt: featureFlagOverrides.expiresAt,
+        createdAt: featureFlagOverrides.createdAt,
+      })
+      .from(featureFlagOverrides)
+      .innerJoin(featureFlags, eq(featureFlagOverrides.featureFlagId, featureFlags.id))
+      .innerJoin(users, eq(featureFlagOverrides.userId, users.id))
+      .orderBy(featureFlagOverrides.createdAt);
+
+    return overrides;
+  }
+
+  async getFeatureFlagAnalytics(): Promise<any> {
+    // Get basic stats
+    const totalFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags);
+    const activeFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.enabled, true));
+    const totalOverrides = await db.select({ count: sql<number>`count(*)` }).from(featureFlagOverrides);
+    const premiumFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.tierRequired, 'premium'));
+
+    return {
+      totalFlags: totalFlags[0]?.count || 0,
+      activeFlags: activeFlags[0]?.count || 0,
+      totalOverrides: totalOverrides[0]?.count || 0,
+      premiumFlags: premiumFlags[0]?.count || 0,
+    };
   }
 }
 

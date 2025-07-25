@@ -1,6 +1,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Initialize error tracking and monitoring first
+import { initializeSentry, monitorSystemHealth } from "./monitoring";
+initializeSentry();
+
+// Start system health monitoring
+monitorSystemHealth();
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";

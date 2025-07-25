@@ -14,6 +14,7 @@ import { contentAnalysisService } from "./contentAnalysisService.js";
 import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
 import { featureFlagService } from './featureFlagService';
+import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQuery } from './monitoring';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -64,6 +65,9 @@ function getUserId(req: any): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup error tracking middleware
+  app.use(sentryRequestHandler());
+  
   // Setup simple authentication
   setupSimpleAuth(app);
 
@@ -2040,6 +2044,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Add error handling middleware at the end
+  app.use(sentryErrorHandler());
 
   const httpServer = createServer(app);
   return httpServer;

@@ -1,0 +1,94 @@
+Here is a high-priority instruction set for your Dev GPT to implement and test Error Handling & Monitoring improvements for production readiness:
+
+⸻
+
+🛠️ Instructions for Dev GPT: Implement Error Tracking & Monitoring (HIGH PRIORITY)
+
+🟠 Issue Summary
+	•	Symptom: Errors are logged to console or missed entirely
+	•	Impact: No way to detect, diagnose, or act on production failures
+	•	Goal: Add centralized error tracking, performance monitoring, and alerting
+
+⸻
+
+✅ Implementation Tasks
+
+1. Integrate Sentry for Error Tracking
+	•	Install SDK:
+	•	For Node.js backend: @sentry/node
+	•	For frontend (React/Next): @sentry/react + @sentry/tracing
+	•	Initialize Sentry:
+	•	Add Sentry DSN in both frontend and backend
+	•	Initialize early in app lifecycle
+
+// backend example
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  tracesSampleRate: 1.0,
+  environment: process.env.NODE_ENV,
+});
+
+	•	Capture errors manually if needed:
+
+try {
+  // risky logic
+} catch (err) {
+  Sentry.captureException(err);
+  throw err;
+}
+
+
+
+⸻
+
+2. Enable Performance Monitoring
+	•	Track slow requests, database queries, and render delays
+	•	On the frontend:
+	•	Use tracesSampleRate: 1.0 to sample full user flows (adjust in production)
+	•	On the backend:
+	•	Use transaction tracing for slow API calls and DB interactions
+
+⸻
+
+3. Set Up Alerting
+	•	In Sentry dashboard:
+	•	Create alert rules for:
+	•	High error rates
+	•	Performance regressions
+	•	Specific exceptions (e.g., DatabaseTimeoutError)
+	•	Route alerts to:
+	•	Slack/Email channels
+	•	PagerDuty (if available)
+
+⸻
+
+4. Enhance Logging for Debugging
+	•	Add contextual metadata to error reports:
+	•	userId, route, featureFlag, buildVersion
+	•	Include breadcrumbs: last steps before error (API calls, user actions)
+	•	Use Sentry.setUser() and Sentry.setContext() for tagging
+
+⸻
+
+✅ Testing Plan
+
+1. Unit Tests
+	•	Simulate thrown errors and assert they are reported to Sentry
+	•	Test logs with/without context (e.g., missing user info)
+
+2. Manual Testing
+	•	Trigger a known frontend error (e.g., null access) in dev and staging
+	•	Trigger a backend API error (e.g., force a DB query to fail)
+	•	Check:
+	•	Error appears in Sentry
+	•	Stack trace and context are visible
+	•	Alert is triggered (if thresholds met)
+
+3. Deployment Smoke Test
+	•	Deploy with Sentry DSN active in staging
+	•	Use test routes or buttons to send intentional errors
+	•	Confirm successful Sentry ingestion and alert visibility
+
+⸻
+
+Would you like this documented as a rollout checklist or merged into a GitHub issue card format?

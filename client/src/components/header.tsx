@@ -75,20 +75,54 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
           
           {/* Search Bar - Hidden on mobile */}
           <div className="flex-1 max-w-2xl mx-8 hidden md:block">
-            <SmartSearch
-              onDocumentSelect={(document) => {
-                console.log('Document selected from search:', document);
-                // Convert the document to match DocumentPreview interface
-                const previewDocument = {
-                  ...document,
-                  uploadedAt: document.uploadedAt?.toString() || new Date().toISOString(),
-                  expiryDate: document.expiryDate?.toString() || null
-                };
-                setSelectedDocument(previewDocument);
-              }}
-              onSearchChange={onSearchChange}
-              placeholder="Search documents..."
-            />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <SmartSearch
+                  onDocumentSelect={(document) => {
+                    console.log('Document selected from search:', document);
+                    // Convert the document to match DocumentPreview interface  
+                    const previewDocument = {
+                      id: document.id,
+                      name: document.name,
+                      fileName: document.fileName,
+                      filePath: document.filePath,
+                      mimeType: document.mimeType,
+                      fileSize: document.fileSize,
+                      extractedText: document.extractedText,
+                      summary: document.summary,
+                      uploadedAt: document.uploadedAt ? document.uploadedAt.toString() : new Date().toISOString(),
+                      expiryDate: document.expiryDate ? document.expiryDate.toString() : null
+                    };
+                    setSelectedDocument(previewDocument);
+                  }}
+                  onSearchChange={onSearchChange}
+                  placeholder="Search documents..."
+                />
+              </div>
+              {/* Debug button - temporary */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  console.log('Test modal button clicked');
+                  setSelectedDocument({
+                    id: 999,
+                    name: "Test Document",
+                    fileName: "test.pdf",
+                    filePath: "/test/path",
+                    mimeType: "application/pdf",
+                    fileSize: 12345,
+                    extractedText: "Test content",
+                    summary: "Test summary",
+                    uploadedAt: new Date().toISOString(),
+                    expiryDate: null
+                  });
+                }}
+                className="bg-red-100 text-red-800"
+              >
+                Test Modal
+              </Button>
+            </div>
           </div>
 
           {/* Mobile Search Button */}
@@ -177,15 +211,19 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
       {selectedDocument && (
         <DocumentPreview
           document={selectedDocument}
-          onClose={() => setSelectedDocument(null)}
+          onClose={() => {
+            console.log('Closing document preview modal');
+            setSelectedDocument(null);
+          }}
           onDownload={() => {
+            console.log('Downloading document:', selectedDocument.id);
             const link = document.createElement('a');
             link.href = `/api/documents/${selectedDocument.id}/download`;
             link.download = selectedDocument.fileName;
             link.click();
           }}
           onUpdate={() => {
-            // Refresh can be handled by parent if needed
+            console.log('Document updated, refreshing');
             setSelectedDocument(null);
           }}
         />

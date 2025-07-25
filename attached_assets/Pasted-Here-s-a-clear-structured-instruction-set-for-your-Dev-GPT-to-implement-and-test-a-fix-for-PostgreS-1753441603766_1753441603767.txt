@@ -1,0 +1,97 @@
+Here’s a clear, structured instruction set for your Dev GPT to implement and test a fix for PostgreSQL connection reliability issues, including automatic reconnection and resilience patterns:
+
+⸻
+
+🛠️ Instructions for Dev GPT: PostgreSQL Connection Reliability Fix
+
+🔴 Issue Summary
+	•	Symptom: PostgreSQL connection error — “terminating connection due to administrator command”
+	•	Impact: Full system outage when DB connection drops
+	•	Goal: Add resiliency so app stays functional during brief outages or reconnections
+
+⸻
+
+✅ Implementation Tasks
+
+1. Introduce Connection Pooling
+	•	Tool: Use a library like pg-pool (if using Node.js), or ORM-native pooling (e.g., Prisma, Sequelize)
+	•	Config:
+	•	Set sensible limits: max: 10–20, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 5_000
+	•	Example (for pg-pool):
+
+const pool = new Pool({
+  max: 20,
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 30000,
+});
+
+
+	•	Outcome: Prevents overloading and supports reuse of connections
+
+⸻
+
+2. Add Automatic Reconnection Logic
+	•	Wrap query logic in a retry mechanism for transient errors:
+	•	Use backoff strategy (e.g., retry up to 3 times with 1s, 2s, 4s delay)
+	•	Only retry for known transient errors (e.g., ECONNRESET, Connection terminated unexpectedly)
+
+async function retryQuery(queryFn, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await queryFn();
+    } catch (err) {
+      if (i === attempts - 1 || !isTransientError(err)) throw err;
+      await wait(1000 * 2 ** i); // backoff
+    }
+  }
+}
+
+
+⸻
+
+3. Implement Circuit Breaker Pattern
+	•	Use a library like opossum (Node.js) or build your own:
+	•	Trip circuit after 3 failed DB attempts in a 30s window
+	•	Automatically retry after a cooldown period (e.g., 10s)
+	•	While open, serve fallback responses or “Service temporarily unavailable”
+
+const breaker = new CircuitBreaker(dbQueryFunction, {
+  timeout: 5000,
+  errorThresholdPercentage: 50,
+  resetTimeout: 10000,
+});
+
+
+⸻
+
+4. Graceful Error Handling in API Layer
+	•	Wrap DB calls with error boundaries that return user-friendly errors
+	•	Avoid full crashes due to uncaught database failures
+	•	Show maintenance banner if circuit is open or DB is unreachable
+
+⸻
+
+✅ Testing Plan
+
+1. Unit Tests
+	•	Simulate transient DB failures and assert retries work
+	•	Verify fallback response when circuit is open
+
+2. Integration Tests
+	•	Manually stop the DB and restart
+	•	Confirm:
+	•	API retries during disconnection window
+	•	Circuit opens after repeated failures
+	•	Circuit resets after cooldown
+	•	App recovers without needing restart
+
+3. Load Test
+	•	Simulate 100 concurrent users during a DB outage
+	•	Ensure:
+	•	App doesn’t crash
+	•	Pool limits are respected
+	•	Memory/CPU usage stays within acceptable bounds
+
+⸻
+
+Would you like me to write a GitHub issue template or PR checklist based on this implementation?

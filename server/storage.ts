@@ -39,6 +39,7 @@ import {
 type BlogPost = typeof blogPosts.$inferSelect;
 type InsertBlogPost = typeof blogPosts.$inferInsert;
 import { db } from "./db";
+import { safeQuery, safeTransaction, checkDatabaseHealth } from "./db-connection";
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
 
 export interface IStorage {
@@ -1345,6 +1346,15 @@ export class DatabaseStorage implements IStorage {
       totalOverrides: totalOverrides[0]?.count || 0,
       premiumFlags: premiumFlags[0]?.count || 0,
     };
+  }
+
+  // Health check method
+  async checkDatabaseHealth(): Promise<{
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    details: string;
+    circuitState: string;
+  }> {
+    return await checkDatabaseHealth();
   }
 }
 

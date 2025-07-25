@@ -2011,6 +2011,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Database health check endpoint
+  app.get('/api/health', async (req, res) => {
+    try {
+      const healthStatus = await storage.checkDatabaseHealth();
+      const httpStatus = healthStatus.status === 'healthy' ? 200 : 
+                        healthStatus.status === 'degraded' ? 200 : 503;
+      
+      res.status(httpStatus).json({
+        status: healthStatus.status,
+        database: healthStatus,
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        version: process.env.npm_package_version || '1.0.0'
+      });
+    } catch (error) {
+      console.error("Health check failed:", error);
+      res.status(503).json({
+        status: 'unhealthy',
+        database: {
+          status: 'unhealthy',
+          details: 'Health check failed',
+          circuitState: 'unknown'
+        },
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        error: 'Health check system failure'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

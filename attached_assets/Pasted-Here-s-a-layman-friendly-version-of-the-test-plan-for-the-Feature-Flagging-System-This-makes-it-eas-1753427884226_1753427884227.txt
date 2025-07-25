@@ -1,0 +1,62 @@
+Here’s a layman-friendly version of the test plan for the Feature Flagging System. This makes it easier for team members, including product managers or QA leads, to understand the test goals even if code details vary.
+
+⸻
+
+✅ Feature Flagging System – Test Plan (Layman Version)
+
+🔹 1. Feature Evaluation Logic Tests
+
+Ensure that the system correctly decides whether a feature should be available to a user.
+	•	✅ If a feature is globally turned on, it should be available to everyone.
+	•	❌ If a feature is globally turned off, it should not be available to anyone.
+	•	🔄 If a specific user has an override, the system should honor that (even if the global flag is off).
+	•	⚙️ If no settings exist, the system should fall back to a safe default (usually “off”).
+	•	🧠 The system should remember the result for a short time (cache it), so it doesn’t do the same check repeatedly.
+
+⸻
+
+🔹 2. Database Integrity Tests
+
+Check the structure and consistency of the feature flag data in the database.
+	•	🔁 Make sure no feature is defined more than once with the same name.
+	•	🧹 Check that all user-specific overrides are linked to valid features (no broken references).
+
+⸻
+
+🔹 3. API Tests
+
+Verify that the backend system behaves correctly when asked for feature flag data or when updating it.
+	•	📥 When we ask for a list of active features for a user, it should return the correct list.
+	•	🚫 Features that are off should not appear in the user’s active feature list.
+	•	✍️ When we add or update an override for a user, it should work correctly and reflect in future responses.
+
+⸻
+
+🔹 4. Frontend UI Tests
+
+Check how the app behaves visually depending on feature availability.
+	•	👻 If a user doesn’t have access to a feature, it should be hidden or grayed out in the app.
+	•	🚪 The user should see an upgrade prompt or a restriction message if they try to use a locked feature.
+	•	🔧 In the admin panel, administrators should be able to view and toggle feature flags without needing code changes.
+
+⸻
+
+🔹 5. Rollout, A/B Testing, and Tracking
+
+Confirm that advanced rollout strategies behave as intended.
+	•	🎯 For percentage rollouts (e.g., “only 10% of users get it”), verify that the same user always sees the same behavior (deterministic).
+	•	🧪 For A/B testing, track whether users see the “A” or “B” version and if that matches the system’s assignment.
+	•	📊 Log how often users access each feature, to support usage and adoption metrics.
+
+⸻
+
+🔹 6. Edge Cases and Security
+
+Protect the system from misuse and bad data.
+	•	❌ Don’t allow creating or toggling feature flags for nonexistent features.
+	•	🔐 Only authorized users (e.g., admins) should be able to change feature settings or overrides.
+	•	🧪 Test how the system behaves if the database is unreachable or an unexpected error happens.
+
+⸻
+
+Would you like a table-format version of this plan for inclusion in a QA document or planning tool?

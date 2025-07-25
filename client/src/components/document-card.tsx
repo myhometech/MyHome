@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { DocumentPreview } from "./document-preview";
-import { SimpleDocumentModal } from "./simple-document-modal";
+
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface Document {
@@ -555,12 +555,15 @@ export default function DocumentCard({
       </Card>
 
       {showModal && (
-        <SimpleDocumentModal
+        <DocumentPreview
           document={document}
+          category={category}
           onClose={() => {
-            console.log('Closing simple modal for document:', document.id);
+            console.log('Closing document preview for document:', document.id);
             setShowModal(false);
           }}
+          onDownload={handleDownload}
+          onUpdate={onUpdate}
         />
       )}
 

@@ -121,7 +121,7 @@ export async function enhancedApiRequest<T = any>(
         throw new Error('You don\'t have permission to perform this action');
       } else if (error.status === 404) {
         throw new Error('The requested resource was not found');
-      } else if (error.status >= 500) {
+      } else if (error.status && error.status >= 500) {
         throw new Error('Server error. Please try again in a moment');
       }
     }

@@ -600,10 +600,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // Quick file existence check
+      // Quick file existence check with cleanup
       if (!fs.existsSync(document.filePath)) {
         console.log(`File not found: ${document.filePath} for document ${documentId}`);
-        return res.status(404).json({ message: "File not found" });
+        
+        // Clean up orphaned database record
+        try {
+          await storage.deleteDocument(documentId, userId);
+          console.log(`Cleaned up orphaned document record: ${documentId}`);
+        } catch (cleanupError) {
+          console.error(`Failed to cleanup orphaned document ${documentId}:`, cleanupError);
+        }
+        
+        return res.status(404).json({ 
+          message: "File not found - document record has been cleaned up",
+          autoCleanup: true 
+        });
       }
 
       // Handle encrypted documents for preview

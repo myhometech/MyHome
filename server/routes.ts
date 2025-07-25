@@ -15,6 +15,7 @@ import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
 import { featureFlagService } from './featureFlagService';
 import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQuery } from './monitoring';
+import { emailService } from './emailService';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -550,7 +551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recentlyImported = documents.filter(doc => {
         const hasEmailTag = doc.tags && doc.tags.includes('imported-via-email');
-        const isRecent = new Date(doc.uploadedAt) > oneDayAgo;
+        const isRecent = doc.uploadedAt ? new Date(doc.uploadedAt) > oneDayAgo : false;
         return hasEmailTag && isRecent;
       });
       
@@ -1029,7 +1030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error testing encryption:", error);
       res.status(500).json({ 
         success: false,
-        message: "Encryption test failed: " + error.message 
+        message: "Encryption test failed: " + (error instanceof Error ? error.message : "Unknown error")
       });
     }
   });
@@ -1250,7 +1251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/email/simulate-forward', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const user = await storage.getUserById(userId);
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -1749,10 +1750,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   featureFlagService.initializeFeatureFlags().catch(console.error);
 
   // Get all feature flags (admin only)
-  app.get("/api/admin/feature-flags", requireAuth, async (req, res) => {
+  app.get("/api/admin/feature-flags", requireAuth, async (req: any, res) => {
     try {
-      const user = req.user as any;
-      if (user.role !== 'admin') {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1765,10 +1767,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create/Update feature flag (admin only)
-  app.post("/api/admin/feature-flags", requireAuth, async (req, res) => {
+  app.post("/api/admin/feature-flags", requireAuth, async (req: any, res) => {
     try {
-      const user = req.user as any;
-      if (user.role !== 'admin') {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1781,10 +1784,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update feature flag (admin only)
-  app.put("/api/admin/feature-flags", requireAuth, async (req, res) => {
+  app.put("/api/admin/feature-flags", requireAuth, async (req: any, res) => {
     try {
-      const user = req.user as any;
-      if (user.role !== 'admin') {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1797,10 +1801,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toggle feature flag (admin only)
-  app.patch("/api/admin/feature-flags/:flagId/toggle", requireAuth, async (req, res) => {
+  app.patch("/api/admin/feature-flags/:flagId/toggle", requireAuth, async (req: any, res) => {
     try {
-      const user = req.user as any;
-      if (user.role !== 'admin') {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1818,10 +1823,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get feature flag overrides (admin only)  
-  app.get("/api/admin/feature-flag-overrides", requireAuth, async (req, res) => {
+  app.get("/api/admin/feature-flag-overrides", requireAuth, async (req: any, res) => {
     try {
-      const user = req.user as any;
-      if (user.role !== 'admin') {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
@@ -1834,17 +1840,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create feature flag override (admin only)
-  app.post("/api/admin/feature-flag-overrides", requireAuth, async (req, res) => {
+  app.post("/api/admin/feature-flag-overrides", requireAuth, async (req: any, res) => {
     try {
-      const user = req.user as any;
-      if (user.role !== 'admin') {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const { userId, featureFlagName, isEnabled, overrideReason, expiresAt } = req.body;
+      const { userId: targetUserId, featureFlagName, isEnabled, overrideReason, expiresAt } = req.body;
       
       await featureFlagService.setUserOverride(
-        userId, 
+        targetUserId, 
         featureFlagName, 
         isEnabled, 
         overrideReason,
@@ -1859,10 +1866,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get feature flag analytics (admin only)
-  app.get("/api/admin/feature-flag-analytics", requireAuth, async (req, res) => {
+  app.get("/api/admin/feature-flag-analytics", requireAuth, async (req: any, res) => {
     try {
-      const user = req.user as any;
-      if (user.role !== 'admin') {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 

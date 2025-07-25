@@ -25,8 +25,8 @@ import {
   type InsertUserForwardingMapping,
   type ExpiryReminder,
   type InsertExpiryReminder,
+  type StripeWebhook,
   type InsertStripeWebhook,
-  type SelectStripeWebhook,
   type FeatureFlag,
   type InsertFeatureFlag,
   type FeatureFlagOverride,
@@ -787,6 +787,9 @@ export class DatabaseStorage implements IStorage {
         summary: documents.summary,
         ocrProcessed: documents.ocrProcessed,
         uploadedAt: documents.uploadedAt,
+        encryptedDocumentKey: documents.encryptedDocumentKey,
+        encryptionMetadata: documents.encryptionMetadata,
+        isEncrypted: documents.isEncrypted,
       })
       .from(documents)
       .innerJoin(documentShares, eq(documents.id, documentShares.documentId))

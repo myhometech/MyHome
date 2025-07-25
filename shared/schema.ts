@@ -220,6 +220,10 @@ export const insertStripeWebhookSchema = createInsertSchema(stripeWebhooks).omit
   processedAt: true,
 });
 
+// Stripe webhook types
+export type StripeWebhook = typeof stripeWebhooks.$inferSelect;
+export type InsertStripeWebhook = z.infer<typeof insertStripeWebhookSchema>;
+
 // Types  
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;

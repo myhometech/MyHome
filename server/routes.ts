@@ -245,7 +245,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      const searchResults = await storage.searchDocuments(userId, searchQuery.trim());
+      // Use optimized search service
+      const { searchOptimizationService } = await import('./searchOptimizationService');
+      const searchResults = await searchOptimizationService.searchDocumentsOptimized(userId, searchQuery.trim());
       res.json(searchResults);
     } catch (error) {
       console.error("Error searching documents:", error);
@@ -1877,6 +1879,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error checking feature flag:", error);
       res.status(500).json({ message: "Failed to check feature", error: error.message });
+    }
+  });
+
+  // Bulk Operations API Endpoints
+  
+  // Bulk update documents (tags, category, name)
+  app.patch('/api/documents/bulk-update', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { documentIds, updates } = req.body;
+
+      if (!Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.status(400).json({ message: "Document IDs array is required" });
+      }
+
+      if (documentIds.length > 100) {
+        return res.status(400).json({ message: "Maximum 100 documents can be updated at once" });
+      }
+
+      if (!updates || typeof updates !== 'object') {
+        return res.status(400).json({ message: "Updates object is required" });
+      }
+
+      const { searchOptimizationService } = await import('./searchOptimizationService');
+      const result = await searchOptimizationService.bulkUpdateDocuments(userId, documentIds, updates);
+      
+      res.json({
+        message: `Bulk update completed: ${result.success} successful, ${result.failed} failed`,
+        ...result
+      });
+    } catch (error) {
+      console.error("Error in bulk update:", error);
+      res.status(500).json({ message: "Failed to perform bulk update" });
+    }
+  });
+
+  // Bulk delete documents
+  app.delete('/api/documents/bulk-delete', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { documentIds } = req.body;
+
+      if (!Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.status(400).json({ message: "Document IDs array is required" });
+      }
+
+      if (documentIds.length > 50) {
+        return res.status(400).json({ message: "Maximum 50 documents can be deleted at once" });
+      }
+
+      const { searchOptimizationService } = await import('./searchOptimizationService');
+      const result = await searchOptimizationService.bulkDeleteDocuments(userId, documentIds);
+      
+      res.json({
+        message: `Bulk delete completed: ${result.success} successful, ${result.failed} failed`,
+        ...result
+      });
+    } catch (error) {
+      console.error("Error in bulk delete:", error);
+      res.status(500).json({ message: "Failed to perform bulk delete" });
+    }
+  });
+
+  // Search analytics endpoint for admin monitoring
+  app.get('/api/admin/search-analytics', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { searchOptimizationService } = await import('./searchOptimizationService');
+      const { performanceMonitoringService } = await import('./performanceMonitoringService');
+      
+      const searchAnalytics = searchOptimizationService.getSearchAnalytics();
+      const performanceAnalytics = performanceMonitoringService.getPerformanceAnalytics(24);
+      const recommendations = performanceMonitoringService.getOptimizationRecommendations();
+      
+      res.json({
+        search: searchAnalytics,
+        performance: performanceAnalytics,
+        recommendations,
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      console.error("Error fetching search analytics:", error);
+      res.status(500).json({ message: "Failed to fetch search analytics" });
+    }
+  });
+
+  // User-specific search analytics
+  app.get('/api/search-analytics', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { searchOptimizationService } = await import('./searchOptimizationService');
+      const analytics = searchOptimizationService.getSearchAnalytics(userId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching user search analytics:", error);
+      res.status(500).json({ message: "Failed to fetch search analytics" });
     }
   });
 

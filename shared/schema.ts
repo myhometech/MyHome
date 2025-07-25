@@ -77,7 +77,25 @@ export const documents = pgTable("documents", {
   encryptionMetadata: text("encryption_metadata"),
   isEncrypted: boolean("is_encrypted").default(true),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
-});
+}, (table) => [
+  // Primary user-based indexes for common queries
+  index("idx_documents_user_id").on(table.userId),
+  index("idx_documents_user_category").on(table.userId, table.categoryId),
+  index("idx_documents_user_uploaded").on(table.userId, table.uploadedAt),
+  
+  // Search optimization indexes
+  index("idx_documents_name_search").on(table.name),
+  index("idx_documents_filename_search").on(table.fileName),
+  
+  // GIN indexes for full-text search and arrays
+  index("idx_documents_tags_gin").on(table.tags),
+  
+  // Expiry date index for alerts
+  index("idx_documents_expiry").on(table.expiryDate),
+  
+  // OCR processing status for background jobs
+  index("idx_documents_ocr_status").on(table.ocrProcessed),
+]);
 
 // Document sharing table
 export const documentShares = pgTable("document_shares", {

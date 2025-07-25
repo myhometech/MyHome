@@ -19,7 +19,17 @@ import { Crown } from "lucide-react";
 
 export default function Settings() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const { userTier, isPremium } = useFeatures();
+  // Get subscription status for proper premium detection
+  const { data: subscriptionStatus } = useQuery<{
+    tier: string;
+    status: string;
+    renewalDate?: string;
+  }>({
+    queryKey: ["/api/stripe/subscription-status"],
+    enabled: isAuthenticated,
+  });
+  
+  const isPremium = subscriptionStatus?.tier === 'premium' && subscriptionStatus?.status === 'active';
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
 

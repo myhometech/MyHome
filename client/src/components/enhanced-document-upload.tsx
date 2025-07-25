@@ -18,8 +18,7 @@ import {
   CheckCircle, 
   AlertCircle, 
   Loader2,
-  WifiOff,
-  Compress
+  WifiOff
 } from 'lucide-react';
 
 interface UploadFile extends File {
@@ -73,8 +72,8 @@ export function EnhancedDocumentUpload({
         formData.append('thumbnail', file.thumbnail);
       }
 
-      const response = await fetch('/api/documents/upload', {
-        method: 'POST',
+      const response = await fetch('/api/documents', {
+        method: 'POST', 
         body: formData,
         credentials: 'include',
       });
@@ -100,7 +99,7 @@ export function EnhancedDocumentUpload({
     if (!processingFile) return;
     
     // Replace the original file with the processed one
-    const processedFile = new File([result.processedImage], processingFile.name, {
+    const processedFile = new File([result.processedImage], `processed_${processingFile.name}`, {
       type: result.processedImage.type,
       lastModified: Date.now()
     });
@@ -219,7 +218,10 @@ export function EnhancedDocumentUpload({
   const retryFailed = () => {
     const failedFiles = uploadFiles.filter(file => file.status === 'error');
     if (failedFiles.length > 0) {
-      const originalFiles = failedFiles.map(file => new File([file], file.name, { type: file.type }));
+      const originalFiles = failedFiles.map(file => {
+        const blob = new Blob([new ArrayBuffer(file.size)], { type: file.type });
+        return new File([blob], file.name, { type: file.type });
+      });
       processFiles(originalFiles);
     }
   };

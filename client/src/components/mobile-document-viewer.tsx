@@ -219,11 +219,11 @@ export function MobileDocumentViewer({
 
   const toggleFullscreen = async () => {
     try {
-      if (!document.fullscreenElement) {
+      if (!(document as any).fullscreenElement) {
         await viewerRef.current?.requestFullscreen();
         setIsFullscreen(true);
       } else {
-        await document.exitFullscreen();
+        await (document as any).exitFullscreen();
         setIsFullscreen(false);
       }
     } catch (error) {
@@ -514,7 +514,7 @@ export function MobileDocumentViewer({
                   Reset
                 </Button>
 
-                {document.fullscreenEnabled && (
+                {(document as any).fullscreenEnabled && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -530,7 +530,7 @@ export function MobileDocumentViewer({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .mobile-viewer {
           /* Prevent iOS Safari bounce effect */
           position: fixed;

@@ -7,7 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Home, Search, Bell, LogOut, Settings, Shield, Mail } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import type { User } from "@shared/schema";
+import { SmartSearch } from "@/components/smart-search";
+import { DocumentPreview } from "@/components/document-preview";
+import type { User, Document } from "@shared/schema";
+import { useState } from "react";
 
 interface HeaderProps {
   searchQuery: string;
@@ -16,6 +19,7 @@ interface HeaderProps {
 
 export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const { user } = useAuth();
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   
   // Get notification count for imported documents
   const { data: importedDocsCount = 0 } = useQuery<number>({
@@ -71,16 +75,11 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
           
           {/* Search Bar - Hidden on mobile */}
           <div className="flex-1 max-w-2xl mx-8 hidden md:block">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+            <SmartSearch
+              onDocumentSelect={(document) => setSelectedDocument(document)}
+              onSearchChange={onSearchChange}
+              placeholder="Search documents..."
+            />
           </div>
 
           {/* Mobile Search Button */}
@@ -164,6 +163,24 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
           </div>
         </div>
       </div>
+      
+      {/* Document Preview Modal */}
+      {selectedDocument && (
+        <DocumentPreview
+          document={selectedDocument}
+          onClose={() => setSelectedDocument(null)}
+          onDownload={() => {
+            const link = document.createElement('a');
+            link.href = `/api/documents/${selectedDocument.id}/download`;
+            link.download = selectedDocument.fileName;
+            link.click();
+          }}
+          onUpdate={() => {
+            // Refresh can be handled by parent if needed
+            setSelectedDocument(null);
+          }}
+        />
+      )}
     </header>
   );
 }

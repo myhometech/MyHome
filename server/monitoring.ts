@@ -18,11 +18,11 @@ export function initializeSentry() {
     // Enhanced error tracking
     integrations: [
       // HTTP request monitoring  
-      new Sentry.Integrations.Http({ tracing: true }),
+      Sentry.httpIntegration({ tracing: true }),
       // Console integration
-      new Sentry.Integrations.Console(),
+      Sentry.consoleIntegration(),
       // OnUncaughtException integration
-      new Sentry.Integrations.OnUncaughtException(),
+      Sentry.onUncaughtExceptionIntegration(),
     ],
     
     // Additional options

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { SmartPreviewChips } from "./smart-preview-chips";
+import { MobileDocumentViewer } from "@/components/mobile-document-viewer";
 // Removed react-pdf imports - using native browser PDF viewing instead
 
 interface DocumentPreviewProps {
@@ -36,6 +37,29 @@ interface DocumentPreviewProps {
 // Using native browser PDF viewing - removed PDF.js worker configuration
 
 export function DocumentPreview({ document, category, onClose, onDownload, onUpdate }: DocumentPreviewProps) {
+  // Check if mobile viewport for responsive behavior
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 480);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Use mobile viewer for small screens
+  if (isMobile) {
+    return (
+      <MobileDocumentViewer
+        document={document}
+        category={category}
+        onClose={onClose}
+        onDownload={onDownload}
+        onUpdate={onUpdate}
+      />
+    );
+  }
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);

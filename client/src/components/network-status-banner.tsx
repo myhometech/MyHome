@@ -1,59 +1,31 @@
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { Wifi, WifiOff, Loader2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { WifiOff, Wifi, Signal } from 'lucide-react';
 
 export function NetworkStatusBanner() {
-  const { isOnline, isSlowConnection } = useNetworkStatus();
-  const [showOffline, setShowOffline] = useState(false);
-  const [wasOffline, setWasOffline] = useState(false);
+  const { isOnline, connectionType, isSlowConnection } = useNetworkStatus();
 
-  useEffect(() => {
-    if (!isOnline) {
-      setShowOffline(true);
-      setWasOffline(true);
-    } else if (wasOffline && isOnline) {
-      // Show reconnection message briefly
-      setTimeout(() => setShowOffline(false), 3000);
-    }
-  }, [isOnline, wasOffline]);
-
-  if (!showOffline && isOnline && !isSlowConnection) {
-    return null;
+  if (isOnline && !isSlowConnection) {
+    return null; // Don't show banner when connection is good
   }
 
   return (
-    <div className={`
-      fixed top-0 left-0 right-0 z-[100] transition-transform duration-300 transform
-      ${showOffline ? 'translate-y-0' : '-translate-y-full'}
-    `}>
-      <div className={`
-        px-4 py-2 text-sm font-medium text-center
-        ${!isOnline 
-          ? 'bg-red-600 text-white' 
-          : wasOffline 
-          ? 'bg-green-600 text-white'
-          : 'bg-yellow-600 text-white'
-        }
-      `}>
-        <div className="flex items-center justify-center gap-2">
-          {!isOnline ? (
-            <>
-              <WifiOff className="w-4 h-4" />
-              <span>You're offline. Some features may not work properly.</span>
-            </>
-          ) : wasOffline ? (
-            <>
-              <Wifi className="w-4 h-4" />
-              <span>You're back online!</span>
-            </>
-          ) : isSlowConnection ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Slow connection detected. Please be patient.</span>
-            </>
-          ) : null}
-        </div>
-      </div>
+    <div className="fixed top-0 left-0 right-0 z-50">
+      {!isOnline ? (
+        <Alert className="border-0 rounded-none bg-red-600 text-white">
+          <WifiOff className="h-4 w-4" />
+          <AlertDescription className="text-white">
+            You're offline. Some features may not work properly.
+          </AlertDescription>
+        </Alert>
+      ) : isSlowConnection ? (
+        <Alert className="border-0 rounded-none bg-yellow-600 text-white">
+          <Signal className="h-4 w-4" />
+          <AlertDescription className="text-white">
+            Slow connection detected ({connectionType}). Some features may be limited.
+          </AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   );
 }

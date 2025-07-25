@@ -5,6 +5,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import mobile viewer styles */
+@import './styles/mobile-viewer.css';
+
 /* PDF Viewer Styles */
 .pdf-page canvas {
   border-radius: 4px;

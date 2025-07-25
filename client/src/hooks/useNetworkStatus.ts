@@ -1,54 +1,51 @@
 import { useState, useEffect } from 'react';
 
-interface NetworkStatus {
-  isOnline: boolean;
-  isSlowConnection: boolean;
-  connectionType: string;
-}
-
-export function useNetworkStatus(): NetworkStatus {
+export function useNetworkStatus() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isSlowConnection, setIsSlowConnection] = useState(false);
-  const [connectionType, setConnectionType] = useState('unknown');
+  const [connectionType, setConnectionType] = useState<string>('unknown');
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const updateOnlineStatus = () => {
+      setIsOnline(navigator.onLine);
+    };
 
-    // Check connection speed/type if available
-    const updateConnectionInfo = () => {
-      if ('connection' in navigator) {
-        const connection = (navigator as any).connection;
-        if (connection) {
-          setConnectionType(connection.effectiveType || 'unknown');
-          setIsSlowConnection(
-            connection.effectiveType === 'slow-2g' || 
-            connection.effectiveType === '2g' ||
-            connection.downlink < 1.5
-          );
-        }
+    const updateConnectionType = () => {
+      // @ts-ignore - experimental API
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (connection) {
+        setConnectionType(connection.effectiveType || 'unknown');
       }
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    // Listen for connection changes
-    if ('connection' in navigator) {
-      (navigator as any).connection?.addEventListener('change', updateConnectionInfo);
+    // Listen for online/offline events
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    // Listen for connection changes (experimental API)
+    // @ts-ignore
+    if (navigator.connection) {
+      // @ts-ignore
+      navigator.connection.addEventListener('change', updateConnectionType);
     }
 
-    // Initial check
-    updateConnectionInfo();
+    // Initial connection type check
+    updateConnectionType();
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      if ('connection' in navigator) {
-        (navigator as any).connection?.removeEventListener('change', updateConnectionInfo);
+      window.removeEventListener('online', updateOnlineStatus);
+      window.removeEventListener('offline', updateOnlineStatus);
+      
+      // @ts-ignore
+      if (navigator.connection) {
+        // @ts-ignore
+        navigator.connection.removeEventListener('change', updateConnectionType);
       }
     };
   }, []);
 
-  return { isOnline, isSlowConnection, connectionType };
+  return {
+    isOnline,
+    connectionType,
+    isSlowConnection: connectionType === 'slow-2g' || connectionType === '2g',
+  };
 }

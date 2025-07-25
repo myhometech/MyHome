@@ -245,10 +245,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Use optimized search service
-      const { searchOptimizationService } = await import('./searchOptimizationService');
-      const searchResults = await searchOptimizationService.searchDocumentsOptimized(userId, searchQuery.trim());
-      res.json(searchResults);
+      // Use regular document search with filtering as reliable fallback
+      const allDocuments = await storage.getDocuments(userId);
+      const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 1);
+      
+      const filteredResults = allDocuments.filter(doc => {
+        const searchContent = [
+          doc.name,
+          doc.fileName,
+          doc.extractedText,
+          doc.summary,
+          (doc.tags || []).join(' '),
+        ].join(' ').toLowerCase();
+        
+        return searchTerms.some(term => searchContent.includes(term));
+      });
+
+      res.json(filteredResults);
     } catch (error) {
       console.error("Error searching documents:", error);
       res.status(500).json({ message: "Failed to search documents" });

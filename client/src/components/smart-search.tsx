@@ -118,6 +118,8 @@ export function SmartSearch({
     setIsOpen(false);
     setSelectedIndex(-1);
     inputRef.current?.blur();
+    // Update the search query in parent to filter documents
+    onSearchChange?.(document.name);
   };
 
   const clearSearch = () => {

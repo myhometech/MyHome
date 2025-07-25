@@ -8,10 +8,8 @@ import { documents, categories } from '@shared/schema';
 import { eq, and, or, ilike, desc, sql, inArray } from 'drizzle-orm';
 import { performanceMonitoringService } from './performanceMonitoringService';
 
-// Get db instance from storage
-const getDb = () => {
-  return (storage as any).db;
-};
+// Import db directly
+import { db } from './db';
 
 export interface SearchMetrics {
   query: string;
@@ -59,7 +57,6 @@ class SearchOptimizationService {
       }
 
       // Use optimized query with proper indexes and full-text search
-      const db = getDb();
       const results = await db
         .select({
           id: documents.id,
@@ -360,7 +357,6 @@ class SearchOptimizationService {
     const results = { success: 0, failed: 0, errors: [] as string[] };
     
     try {
-      const db = getDb();
       await db.transaction(async (tx) => {
         for (const docId of documentIds) {
           try {
@@ -404,7 +400,6 @@ class SearchOptimizationService {
     const results = { success: 0, failed: 0, errors: [] as string[] };
     
     try {
-      const db = getDb();
       await db.transaction(async (tx) => {
         // Verify all documents belong to user first
         const validDocs = await tx

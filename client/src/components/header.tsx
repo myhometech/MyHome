@@ -76,7 +76,16 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
           {/* Search Bar - Hidden on mobile */}
           <div className="flex-1 max-w-2xl mx-8 hidden md:block">
             <SmartSearch
-              onDocumentSelect={(document) => setSelectedDocument(document)}
+              onDocumentSelect={(document) => {
+                console.log('Document selected from search:', document);
+                // Convert the document to match DocumentPreview interface
+                const previewDocument = {
+                  ...document,
+                  uploadedAt: document.uploadedAt?.toString() || new Date().toISOString(),
+                  expiryDate: document.expiryDate?.toString() || null
+                };
+                setSelectedDocument(previewDocument);
+              }}
               onSearchChange={onSearchChange}
               placeholder="Search documents..."
             />

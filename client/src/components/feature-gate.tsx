@@ -23,8 +23,9 @@ export function FeatureGate({
   showUpgrade = true,
   hideCompletely = true // Default to hiding completely (user preference)
 }: FeatureGateProps) {
-  const { checkFeature, isFree } = useFeatures();
-  const hasAccess = checkFeature(feature);
+  const { hasFeature, features } = useFeatures();
+  const hasAccess = hasFeature(feature as any);
+  const isFree = !features.BULK_OPERATIONS; // Simple check for free tier
   const featureInfo = FEATURES[feature];
 
   if (hasAccess) {
@@ -85,8 +86,8 @@ interface PremiumFeatureProps {
 }
 
 export function PremiumFeature({ feature, children, className = "" }: PremiumFeatureProps) {
-  const { checkFeature } = useFeatures();
-  const hasAccess = checkFeature(feature);
+  const { hasFeature } = useFeatures();
+  const hasAccess = hasFeature(feature as any);
 
   if (!hasAccess) {
     return (
@@ -120,7 +121,8 @@ interface FeatureLimitAlertProps {
 }
 
 export function FeatureLimitAlert({ current, max, item, upgradeMessage }: FeatureLimitAlertProps) {
-  const { isFree } = useFeatures();
+  const { features } = useFeatures();
+  const isFree = !features.BULK_OPERATIONS; // Simple check for free tier
   const percentage = (current / max) * 100;
   
   if (!isFree || percentage < 80) {

@@ -30,7 +30,8 @@ import type { Category, Document } from "@shared/schema";
 
 export default function Home() {
   const { toast } = useToast();
-  const { checkFeature, limits } = useFeatures();
+  const { hasFeature, features } = useFeatures();
+  const limits = { documents: features.BULK_OPERATIONS ? 999999 : 50 }; // Simple limits logic
   const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");

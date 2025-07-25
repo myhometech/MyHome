@@ -89,7 +89,8 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     retry: false,
   });
 
-  const { checkFeature, isFree } = useFeatures();
+  const { hasFeature, features } = useFeatures();
+  const isFree = !features.BULK_OPERATIONS; // Simple check for free tier
 
   const createCategoryMutation = useMutation({
     mutationFn: async (data: { name: string; icon: string; color: string }) => {

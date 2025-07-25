@@ -53,15 +53,21 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   // Use mobile viewer for small screens
   if (isMobile) {
     console.log('Using mobile viewer for document:', document.id);
-    return (
-      <MobileDocumentViewer
-        document={document}
-        category={category}
-        onClose={onClose}
-        onDownload={onDownload}
-        onUpdate={onUpdate}
-      />
-    );
+    try {
+      return (
+        <MobileDocumentViewer
+          document={document}
+          category={category}
+          onClose={onClose}
+          onDownload={onDownload}
+          onUpdate={onUpdate}
+        />
+      );
+    } catch (error) {
+      console.error('MobileDocumentViewer error:', error);
+      // Fallback to desktop viewer if mobile fails
+      console.log('Falling back to desktop viewer');
+    }
   }
   
   console.log('Using desktop viewer for document:', document.id);

@@ -110,7 +110,48 @@ export function MobileDocumentViewer({
   onDownload, 
   onUpdate 
 }: MobileDocumentViewerProps) {
+  console.log('🔥 MobileDocumentViewer rendering for document:', document.id, document.name);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Add a safety timeout to prevent hanging  
+  useEffect(() => {
+    console.log('🔄 MobileDocumentViewer useEffect: Starting document load for:', document.id);
+    
+    const safetyTimeout = setTimeout(() => {
+      console.warn('⚠️ MobileDocumentViewer safety timeout - forcing loading to complete');
+      setIsLoading(false);
+      if (!error) {
+        setError('Document loading took too long. Please try again.');
+      }
+    }, 5000);
+    
+    // For images, try to load the preview
+    if (document.mimeType.startsWith('image/')) {
+      console.log('📸 Loading image in mobile viewer...');
+      const img = new Image();
+      img.onload = () => {
+        console.log('✅ Image loaded successfully in mobile viewer');
+        setIsLoading(false);
+        clearTimeout(safetyTimeout);
+      };
+      img.onerror = () => {
+        console.error('❌ Image failed to load in mobile viewer');
+        setError('Failed to load image');
+        setIsLoading(false);
+        clearTimeout(safetyTimeout);
+      };
+      img.src = `/api/documents/${document.id}/preview`;
+    } else {
+      // For non-images, just stop loading
+      console.log('📄 Non-image document in mobile viewer');
+      setIsLoading(false);
+      clearTimeout(safetyTimeout);
+    }
+    
+    return () => {
+      clearTimeout(safetyTimeout);
+    };
+  }, [document.id, error]);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);

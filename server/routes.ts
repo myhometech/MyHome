@@ -32,11 +32,25 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
+    const allowedTypes = [
+      'application/pdf', 
+      'image/jpeg', 
+      'image/jpg',
+      'image/png', 
+      'image/webp',
+      'image/svg+xml', // SVG support for testing
+      'image/heic',    // iPhone HEIC format
+      'image/heif',    // iPhone HEIF format
+      'image/tiff',    // TIFF format sometimes used by cameras
+      'image/bmp'      // BMP format
+    ];
+    
+    // Also allow files with no specified mimetype (some camera uploads)
+    if (!file.mimetype || allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Unsupported file type. Only PDF, JPG, PNG, and WEBP files are allowed.'));
+      console.warn(`Rejected file upload - unsupported MIME type: ${file.mimetype} for file: ${file.originalname}`);
+      cb(new Error(`Unsupported file type: ${file.mimetype}. Only PDF and image files are allowed.`));
     }
   }
 });

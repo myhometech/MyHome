@@ -338,6 +338,22 @@ The application follows a standard full-stack architecture with clear separation
   - Implemented comprehensive analytics dashboard for admin monitoring
 - **Status**: ✅ OPERATIONAL - Search system now handles high-performance queries with proper indexing, atomic bulk operations, and comprehensive monitoring
 
+### iPhone Camera Upload Bug Fix - RESOLVED (January 25, 2025)
+- **Issue**: iPhone camera document scans failing with "internal server error" due to restrictive MIME type filtering
+- **Root Cause**: Server upload validation only allowed specific MIME types (PDF, JPEG, PNG, WEBP) but iPhone cameras produce additional formats
+- **Solution Implemented**:
+  - Expanded allowed MIME types to include iPhone-specific formats: image/heic, image/heif, image/tiff, image/bmp
+  - Added support for files with undefined/null MIME types (edge case with some camera uploads)
+  - Enhanced error logging to track rejected file types for future debugging
+  - Added comprehensive mobile upload testing framework with iPhone-specific test scenarios
+- **Testing Validation**:
+  - Created comprehensive test suite validating all iPhone camera MIME types
+  - Tested file size handling from 100KB to 12MB (including above 10MB limit validation)
+  - Verified document encryption works correctly with all camera upload formats
+  - Validated processed document naming convention triggers PDF conversion properly
+- **Impact**: iPhone camera uploads now work flawlessly with complete format support and proper encryption
+- **Status**: ✅ RESOLVED - All iPhone camera upload scenarios now functional with comprehensive error handling and testing coverage
+
 ## Recent Changes
 
 ### Enhanced Document Scanning with Edge Detection and OCR (January 23, 2025)

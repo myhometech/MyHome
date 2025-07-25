@@ -112,7 +112,30 @@ export function MobileDocumentViewer({
 }: MobileDocumentViewerProps) {
   console.log('🔥 MobileDocumentViewer rendering for document:', document.id, document.name);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(document.name);
+  const [showControls, setShowControls] = useState(true);
   
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Detect mobile viewport
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 480);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Add a safety timeout to prevent hanging  
   useEffect(() => {
     console.log('🔄 MobileDocumentViewer useEffect: Starting document load for:', document.id);
@@ -152,29 +175,6 @@ export function MobileDocumentViewer({
       clearTimeout(safetyTimeout);
     };
   }, [document.id, error]);
-  const [error, setError] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(document.name);
-  const [showControls, setShowControls] = useState(true);
-  
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Detect mobile viewport
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 480);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Auto-hide controls on mobile after inactivity
   useEffect(() => {

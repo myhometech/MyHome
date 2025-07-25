@@ -50,25 +50,102 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Use mobile viewer for small screens
-  if (isMobile) {
-    console.log('Using mobile viewer for document:', document.id);
-    try {
-      return (
-        <MobileDocumentViewer
-          document={document}
-          category={category}
-          onClose={onClose}
-          onDownload={onDownload}
-          onUpdate={onUpdate}
-        />
-      );
-    } catch (error) {
-      console.error('MobileDocumentViewer error:', error);
-      // Fallback to desktop viewer if mobile fails
-      console.log('Falling back to desktop viewer');
-    }
-  }
+  // Use simple modal for all devices to avoid complexity
+  console.log('Using simple modal for document:', document.id);
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div>
+            <h2 className="text-xl font-semibold truncate">{document.name}</h2>
+            <p className="text-sm text-gray-600">
+              {document.mimeType} • {Math.round(document.fileSize / 1024)} KB
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={onDownload} variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Download
+            </Button>
+            <Button onClick={onClose} variant="ghost" size="sm">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4">
+          {isLoading && (
+            <div className="flex items-center justify-center h-96 bg-gray-50">
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm text-gray-600">Loading document...</p>
+              </div>
+            </div>
+          )}
+          
+          {error && (
+            <div className="flex items-center justify-center h-96 bg-gray-50">
+              <div className="text-center">
+                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-lg font-medium">Preview failed</p>
+                <p className="text-sm text-gray-600 mb-4">{error}</p>
+                <Button onClick={onDownload} variant="outline">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Instead
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!isLoading && !error && isImage() && (
+            <div className="flex items-center justify-center h-96 bg-gray-50">
+              <img
+                src={getPreviewUrl()}
+                alt={document.name}
+                className="max-w-full max-h-full object-contain"
+                onLoad={() => console.log('✅ Image loaded in simple modal')}
+                onError={() => {
+                  console.error('❌ Image failed to load in simple modal');
+                  setError('Failed to load image');
+                }}
+              />
+            </div>
+          )}
+
+          {!isLoading && !error && isPDF() && (
+            <div className="h-96 bg-gray-50">
+              <iframe
+                src={getPreviewUrl()}
+                className="w-full h-full border-0"
+                title={document.name}
+                onLoad={() => console.log('✅ PDF loaded in simple modal')}
+                onError={() => {
+                  console.error('❌ PDF failed to load in simple modal');
+                  setError('Failed to load PDF');
+                }}
+              />
+            </div>
+          )}
+
+          {!isLoading && !error && !isImage() && !isPDF() && (
+            <div className="flex items-center justify-center h-96 bg-gray-50">
+              <div className="text-center">
+                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-lg font-medium">Preview not available</p>
+                <p className="text-sm text-gray-600 mb-4">File type: {document.mimeType}</p>
+                <Button onClick={onDownload} variant="outline">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download File
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
   
   console.log('Using desktop viewer for document:', document.id);
   const [isLoading, setIsLoading] = useState(true);

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GCS Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+        .result { margin-top: 10px; padding: 10px; border-radius: 4px; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Google Cloud Storage Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Storage Provider Test</h2>
+        <button onclick="testStorageProvider()">Test Storage Configuration</button>
+        <div id="storageResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. File Upload Test</h2>
+        <input type="file" id="fileInput" accept=".pdf,.jpg,.png,.txt">
+        <button onclick="testFileUpload()">Upload to GCS</button>
+        <div id="uploadResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Document List Test</h2>
+        <button onclick="testDocumentList()">Load Documents</button>
+        <div id="listResult" class="result"></div>
+    </div>
+
+    <script>
+        async function testStorageProvider() {
+            const resultDiv = document.getElementById('storageResult');
+            resultDiv.innerHTML = 'Testing storage configuration...';
+            
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Storage Configuration Test</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Storage Test Failed</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('uploadResult');
+            
+            if (!fileInput.files.length) {
+                resultDiv.innerHTML = '<div class="error">Please select a file first</div>';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('name', `GCS Test - ${file.name}`);
+            formData.append('categoryId', '1');
+
+            resultDiv.innerHTML = 'Uploading to Google Cloud Storage...';
+
+            try {
+                const response = await fetch('/api/documents', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Upload Successful</h3>
+                            <p>File uploaded to GCS successfully!</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Upload Failed</h3>
+                            <p>Status: ${response.status}</p>
+                            <pre>${JSON.stringify(errorData, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Upload Error</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testDocumentList() {
+            const resultDiv = document.getElementById('listResult');
+            resultDiv.innerHTML = 'Loading documents...';
+
+            try {
+                const response = await fetch('/api/documents');
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Documents Loaded</h3>
+                            <p>Found ${data.length} documents</p>
+                            <pre>${JSON.stringify(data.slice(0, 3), null, 2)}</pre>
+                            ${data.length > 3 ? '<p>... and more</p>' : ''}
+                        </div>
+                    `;
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Load Failed</h3>
+                            <p>Status: ${response.status}</p>
+                            <pre>${JSON.stringify(errorData, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Load Error</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-test storage provider on page load
+        window.onload = function() {
+            testStorageProvider();
+        };
+    </script>
+</body>
+</html>

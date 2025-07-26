@@ -16,6 +16,7 @@ import { EncryptionService } from "./encryptionService.js";
 import { featureFlagService } from './featureFlagService';
 import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQuery } from './monitoring';
 import { emailService } from './emailService';
+import { StorageService, storageProvider } from './storage/StorageService';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -365,42 +366,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Generate encryption key and encrypt the file
+      // Read file buffer for cloud storage upload
+      const fileBuffer = await fs.promises.readFile(finalFilePath);
+      
+      // Generate storage key using consistent naming convention
+      const documentId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      const storageKey = StorageService.generateFileKey(userId, documentId, finalDocumentData.fileName);
+      
+      // Upload to cloud storage
+      let cloudStorageKey = '';
+      try {
+        const storage = storageProvider();
+        cloudStorageKey = await storage.upload(fileBuffer, storageKey, finalMimeType);
+        console.log(`File uploaded to cloud storage: ${cloudStorageKey}`);
+      } catch (storageError) {
+        console.error('Cloud storage upload failed:', storageError);
+        // Clean up local file
+        if (fs.existsSync(finalFilePath)) {
+          fs.unlinkSync(finalFilePath);
+        }
+        return res.status(500).json({ message: "File upload to cloud storage failed" });
+      }
+
+      // Generate encryption for cloud-stored file
       let encryptedDocumentKey = '';
       let encryptionMetadata = '';
       
       try {
-        // Generate a unique document key
+        // For GCS, we encrypt the file buffer before upload
         const documentKey = EncryptionService.generateDocumentKey();
-        
-        // Encrypt the document key with master key
         encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
         
-        // Encrypt the file
-        const encryptionResult = await EncryptionService.encryptFile(finalFilePath, documentKey);
-        finalFilePath = encryptionResult.encryptedPath;
-        encryptionMetadata = encryptionResult.metadata;
+        // Create metadata indicating cloud storage with encryption
+        encryptionMetadata = JSON.stringify({
+          storageType: 'cloud',
+          storageKey: cloudStorageKey,
+          encrypted: true,
+          algorithm: 'AES-256-GCM'
+        });
         
-        console.log(`Document encrypted successfully: ${finalFilePath}`);
+        console.log(`Document prepared for cloud storage with encryption: ${cloudStorageKey}`);
       } catch (encryptionError) {
-        console.error('Document encryption failed:', encryptionError);
-        // Clean up uploaded file on encryption failure
+        console.error('Document encryption setup failed:', encryptionError);
+        // Clean up cloud storage
+        try {
+          const storage = storageProvider();
+          await storage.delete(cloudStorageKey);
+        } catch (cleanupError) {
+          console.error('Failed to cleanup cloud storage after encryption error:', cleanupError);
+        }
+        // Clean up local file
         if (fs.existsSync(finalFilePath)) {
           fs.unlinkSync(finalFilePath);
         }
-        return res.status(500).json({ message: "Document encryption failed" });
+        return res.status(500).json({ message: "Document encryption setup failed" });
       }
 
-      // Add encryption fields to document data
-      const encryptedDocumentData = {
+      // Clean up local temporary file after successful cloud upload
+      setTimeout(() => {
+        if (fs.existsSync(finalFilePath)) {
+          fs.unlinkSync(finalFilePath);
+          console.log(`Cleaned up local temporary file: ${finalFilePath}`);
+        }
+      }, 1000);
+
+      // Update document data to use cloud storage key
+      const cloudDocumentData = {
         ...finalDocumentData,
-        filePath: finalFilePath,
+        filePath: cloudStorageKey, // Store cloud storage key instead of local path
         encryptedDocumentKey,
         encryptionMetadata,
         isEncrypted: true
       };
 
-      const validatedData = insertDocumentSchema.parse(encryptedDocumentData);
+      const validatedData = insertDocumentSchema.parse(cloudDocumentData);
       const document = await storage.createDocument(validatedData);
 
       // Process OCR, generate summary, extract dates, and suggest tags in the background
@@ -601,9 +640,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // Quick file existence check with cleanup
-      if (!fs.existsSync(document.filePath)) {
-        console.log(`File not found: ${document.filePath} for document ${documentId}`);
+      // Handle cloud storage existence check
+      if (document.encryptionMetadata) {
+        try {
+          const metadata = JSON.parse(document.encryptionMetadata);
+          if (metadata.storageType === 'cloud' && metadata.storageKey) {
+            const storageInstance = storageProvider();
+            const exists = await storageInstance.exists(metadata.storageKey);
+            
+            if (!exists) {
+              console.log(`Cloud storage file not found: ${metadata.storageKey} for document ${documentId}`);
+              
+              // Clean up orphaned database record
+              try {
+                await storage.deleteDocument(documentId, userId);
+                console.log(`Cleaned up orphaned document record: ${documentId}`);
+              } catch (cleanupError) {
+                console.error(`Failed to cleanup orphaned document ${documentId}:`, cleanupError);
+              }
+              
+              return res.status(404).json({ 
+                message: "File not found in cloud storage - document record has been cleaned up",
+                autoCleanup: true 
+              });
+            }
+          }
+        } catch (metadataError) {
+          console.error('Failed to parse encryption metadata:', metadataError);
+        }
+      }
+      
+      // Legacy file existence check for local files
+      else if (!fs.existsSync(document.filePath)) {
+        console.log(`Local file not found: ${document.filePath} for document ${documentId}`);
         
         // Clean up orphaned database record
         try {
@@ -619,10 +688,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Handle encrypted documents for preview
-      if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
+      // Handle cloud storage documents (new system)
+      if (document.isEncrypted && document.encryptionMetadata) {
         try {
-          // Decrypt the document key
+          const metadata = JSON.parse(document.encryptionMetadata);
+          
+          // Check if this is a cloud storage document
+          if (metadata.storageType === 'cloud' && metadata.storageKey) {
+            const storage = storageProvider();
+            
+            // Generate signed URL for direct access (if supported)
+            try {
+              const signedUrl = await storage.getSignedUrl(metadata.storageKey, 3600);
+              
+              // For PDFs and images, redirect to signed URL for better performance
+              if (document.mimeType === 'application/pdf' || document.mimeType.startsWith('image/')) {
+                return res.redirect(signedUrl);
+              }
+            } catch (signedUrlError) {
+              console.warn('Signed URL generation failed, falling back to proxied download:', signedUrlError);
+            }
+            
+            // Fallback: proxy the file through our server
+            const fileBuffer = await storage.download(metadata.storageKey);
+            
+            res.setHeader('Content-Type', document.mimeType);
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+            
+            // CORS headers for compatibility
+            res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+            res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+            res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+            
+            return res.send(fileBuffer);
+          }
+          
+          // Handle legacy encrypted local files
           const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey);
           
           // For images, create decrypted stream

@@ -1,0 +1,81 @@
+````markdown
+TICKET‑102 | Migrate Upload System from Local Storage to Google Cloud Storage
+
+Properties:
+- Status: Todo
+- Assignee: Dev GPT
+- Priority: High
+- Epic Link: BLOCKER‑101
+
+---
+
+### 🎯 Objective
+
+Replace all backend logic that stores documents locally with Google Cloud Storage (GCS) integration. This enables compatibility with signed URL access, long-term scalability, and enhanced security.
+
+---
+
+### 🪜 Implementation Steps
+
+#### 1. **Define Unified Storage Interface**
+Create a `StorageProvider` interface with the following signature:
+
+```ts
+interface StorageProvider {
+  upload(file: Buffer, key: string, mimeType: string): Promise<string>;
+  download(key: string): Promise<Buffer>;
+  delete(key: string): Promise<void>;
+}
+````
+
+#### 2. **Implement GCSStorage Class**
+
+Implement the `StorageProvider` interface using the Google Cloud SDK (`@google-cloud/storage`). Bucket name: `media.myhome-tech.com`. Include methods for:
+
+* `upload()` → upload to bucket with private access
+* `download()` → return file buffer
+* `delete()` → remove file by key
+
+#### 3. **Replace Local Storage Logic**
+
+Refactor all file upload endpoints to use `GCSStorage` instead of `fs.writeFile` or local path resolution. Key locations:
+
+* `routes.ts` upload handlers
+* `document.service.ts` (or wherever file metadata is stored)
+
+Use a file key structure like: `userId/documentId/filename.ext`
+
+#### 4. **Preserve MIME Types**
+
+Ensure MIME types are passed into the upload function and preserved in GCS metadata for accurate content handling.
+
+#### 5. **Temporarily Retain Local Read Logic (Optional)**
+
+If a full migration isn't immediate, keep read logic for local paths to serve existing files, but flag them as deprecated.
+
+#### 6. **Use Appropriate Testing**
+
+* Write unit tests for `GCSStorage`
+* Use MSW or local test mocks to simulate GCS for integration tests
+* Ensure all upload routes are tested with real or mocked GCS behavior
+
+---
+
+### ✅ Acceptance Criteria
+
+* New uploads are saved to GCS only (local write logic removed).
+* Signed download URLs can retrieve uploaded documents.
+* Local file logic deprecated or deleted.
+* All functionality covered by tests ("use appropriate testing").
+
+---
+
+### 🧪 Test Steps
+
+* Upload a file via `/upload` and verify it exists in the GCS bucket.
+* Download the same file using a signed URL.
+* Delete a file via API and confirm removal from GCS.
+* Validate test coverage and ensure public access is disabled.
+
+```
+```

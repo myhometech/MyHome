@@ -18,6 +18,9 @@ import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQu
 import { emailService } from './emailService';
 import { StorageService, storageProvider } from './storage/StorageService';
 import { backupRoutes } from './routes/backup.js';
+import { securityHeaders, rateLimiter, corsOptions, securityLogger } from './middleware/security.js';
+import { enhancedHealthCheck } from './middleware/healthCheck.js';
+import cors from 'cors';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -70,6 +73,12 @@ function getUserId(req: any): string {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup error tracking middleware
   app.use(sentryRequestHandler());
+  
+  // CORE-002: Security Headers and Rate Limiting
+  app.use(securityHeaders);
+  app.use(rateLimiter);
+  app.use(cors(corsOptions));
+  app.use(securityLogger);
   
   // Setup simple authentication
   setupSimpleAuth(app);
@@ -727,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Handle legacy encrypted local files
-          const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey);
+          const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey!);
           
           // For images, create decrypted stream
           if (document.mimeType.startsWith('image/')) {
@@ -2139,35 +2148,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Database health check endpoint
-  app.get('/api/health', async (req, res) => {
-    try {
-      const healthStatus = await storage.checkDatabaseHealth();
-      const httpStatus = healthStatus.status === 'healthy' ? 200 : 
-                        healthStatus.status === 'degraded' ? 200 : 503;
-      
-      res.status(httpStatus).json({
-        status: healthStatus.status,
-        database: healthStatus,
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version || '1.0.0'
-      });
-    } catch (error) {
-      console.error("Health check failed:", error);
-      res.status(503).json({
-        status: 'unhealthy',
-        database: {
-          status: 'unhealthy',
-          details: 'Health check failed',
-          circuitState: 'unknown'
-        },
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString(),
-        error: 'Health check system failure'
-      });
-    }
-  });
+  // CORE-002: Enhanced Health Check Endpoint
+  app.get('/api/health', enhancedHealthCheck);
 
   // Add error handling middleware at the end
   // Backup management routes (admin only)

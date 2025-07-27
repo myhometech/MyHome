@@ -51,7 +51,13 @@ export class StorageService {
   /**
    * Create Google Cloud Storage provider
    */
-  private static createGCSStorage(): GCSStorage {
+  private static createGCSStorage(): StorageProvider {
+    // Force local storage in production to prevent memory leaks
+    if (process.env.NODE_ENV === 'production') {
+      console.log('⚠️ Forcing local storage in production to prevent memory issues');
+      return StorageService.createLocalStorage();
+    }
+    
     const bucketName = process.env.GCS_BUCKET_NAME || 'media.myhome-tech.com';
     const projectId = process.env.GCS_PROJECT_ID;
     const keyFilename = process.env.GCS_KEY_FILENAME;

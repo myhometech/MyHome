@@ -195,7 +195,7 @@ export default function Landing() {
             ))}
           </div>
 
-          {blogPosts && (blogPosts as any[]).length > 3 && (
+          {blogPosts && (blogPosts as any[]).length > 3 ? (
             <div className="text-center mt-8">
               <Link href="/blog">
                 <Button variant="outline" size="lg">
@@ -203,7 +203,7 @@ export default function Landing() {
                 </Button>
               </Link>
             </div>
-          ) as React.ReactNode}
+          ) : null}
         </div>
 
         {/* CTA Section */}

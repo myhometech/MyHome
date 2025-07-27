@@ -14,15 +14,16 @@ import { setupVite, serveStatic, log } from "./vite";
 
 // Aggressive memory management for production
 if (process.env.NODE_ENV === 'production') {
-  // Force garbage collection every 30 seconds
+  // Force garbage collection every 10 seconds
   setInterval(() => {
     if (global.gc) {
       global.gc();
+      console.log('GC forced, memory usage:', process.memoryUsage());
     }
-  }, 30000);
+  }, 10000);
   
   // Set Node.js memory limits
-  process.env.NODE_OPTIONS = '--max-old-space-size=512';
+  process.env.NODE_OPTIONS = '--max-old-space-size=512 --optimize-for-size';
 }
 
 // Import backup service only in development to prevent memory issues

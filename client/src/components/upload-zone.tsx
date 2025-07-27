@@ -12,6 +12,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { CameraScanner } from "./camera-scanner";
+import { AdvancedDocumentScanner } from "./advanced-document-scanner";
 import { useFeatures } from "@/hooks/useFeatures";
 
 interface UploadZoneProps {
@@ -24,6 +25,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const [showAdvancedScanner, setShowAdvancedScanner] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadData, setUploadData] = useState({
     categoryId: "",
@@ -670,6 +672,16 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     setShowCameraScanner(true);
   };
 
+  const openAdvancedScanner = () => {
+    setShowAdvancedScanner(true);
+  };
+
+  const handleAdvancedScannerCapture = (file: File) => {
+    setSelectedFiles([file]);
+    setShowUploadDialog(true);
+    setShowAdvancedScanner(false);
+  };
+
   const handleFileUpload = () => {
     if (fileInputRef.current) {
       fileInputRef.current.removeAttribute('capture');
@@ -748,7 +760,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                   {/* Advanced scanner for desktop */}
                   <Button 
                     variant="outline"
-                    onClick={openCameraScanner}
+                    onClick={openAdvancedScanner}
                     className="border-gray-300 text-gray-700 hover:bg-gray-50 w-full sm:w-auto order-2 sm:order-1"
                   >
                     <Camera className="h-4 w-4 mr-2" />
@@ -1029,6 +1041,13 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         isOpen={showCameraScanner}
         onClose={() => setShowCameraScanner(false)}
         onCapture={handleCameraCapture}
+      />
+
+      {/* Advanced Document Scanner */}
+      <AdvancedDocumentScanner
+        isOpen={showAdvancedScanner}
+        onClose={() => setShowAdvancedScanner(false)}
+        onCapture={handleAdvancedScannerCapture}
       />
     </>
   );

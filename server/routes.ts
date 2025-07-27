@@ -18,6 +18,7 @@ import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQu
 import { emailService } from './emailService';
 import { StorageService, storageProvider } from './storage/StorageService';
 import { backupRoutes } from './routes/backup.js';
+import advancedScanningRoutes from './routes/advancedScanning.js';
 import { securityHeaders, rateLimiter, corsOptions, securityLogger } from './middleware/security.js';
 import { enhancedHealthCheck } from './middleware/healthCheck.js';
 import cors from 'cors';
@@ -2154,6 +2155,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add error handling middleware at the end
   // Backup management routes (admin only)
   app.use('/api/backup', backupRoutes);
+
+  // Advanced scanning routes
+  app.use('/api/scanning', advancedScanningRoutes);
 
   app.use(sentryErrorHandler());
 

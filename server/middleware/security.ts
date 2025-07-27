@@ -97,7 +97,7 @@ export const securityHeaders = helmet({
 // Rate limiting configuration
 export const rateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Much higher limit in development
+  max: 500, // Increased from 100 to handle legitimate frontend traffic
   message: {
     error: 'Too many requests from this IP, please try again later.',
     retryAfter: 60
@@ -105,7 +105,7 @@ export const rateLimiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   
-  // Skip rate limiting for health checks and development assets
+  // Skip rate limiting for health checks and static assets
   skip: (req: Request) => {
     const path = req.path;
     return (
@@ -117,12 +117,14 @@ export const rateLimiter = rateLimit({
       path.endsWith('.css') ||
       path.endsWith('.ts') ||
       path.endsWith('.tsx') ||
-      (process.env.NODE_ENV === 'development' && (
-        path.startsWith('/api/auth/user') ||
-        path.startsWith('/api/documents') ||
-        path.startsWith('/api/categories') ||
-        path.startsWith('/api/feature-flags')
-      ))
+      path.endsWith('.png') ||
+      path.endsWith('.jpg') ||
+      path.endsWith('.jpeg') ||
+      path.endsWith('.svg') ||
+      path.endsWith('.ico') ||
+      path.endsWith('.woff') ||
+      path.endsWith('.woff2') ||
+      path.endsWith('.ttf')
     );
   },
   

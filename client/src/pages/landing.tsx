@@ -158,7 +158,7 @@ export default function Landing() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {blogPosts?.slice(0, 3).map((post: any) => (
+            {(blogPosts as any[])?.slice(0, 3)?.map((post: any) => (
               <Card key={post.id} className="bg-white/70 backdrop-blur-sm border-gray-200 hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
@@ -175,7 +175,7 @@ export default function Landing() {
                   </p>
                   <div className="flex items-center justify-between">
                     <div className="flex flex-wrap gap-1">
-                      {post.tags?.slice(0, 2).map((tag: string) => (
+                      {(post.tags as string[])?.slice(0, 2)?.map((tag: string) => (
                         <span
                           key={tag}
                           className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
@@ -195,7 +195,7 @@ export default function Landing() {
             ))}
           </div>
 
-          {blogPosts && blogPosts.length > 3 && (
+          {blogPosts && (blogPosts as any[]).length > 3 && (
             <div className="text-center mt-8">
               <Link href="/blog">
                 <Button variant="outline" size="lg">
@@ -203,7 +203,7 @@ export default function Landing() {
                 </Button>
               </Link>
             </div>
-          )}
+          ) as React.ReactNode}
         </div>
 
         {/* CTA Section */}

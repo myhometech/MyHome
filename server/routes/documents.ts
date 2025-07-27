@@ -4,6 +4,7 @@ import path from 'path';
 import { ImageProcessingService } from '../imageProcessingService';
 import { PDFOptimizationService } from '../pdfOptimizationService';
 import { storage } from '../storage';
+import type { AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -39,8 +40,8 @@ const pdfOptimizer = new PDFOptimizationService('./uploads');
 router.post('/upload', upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'thumbnail', maxCount: 1 }
-]), async (req, res) => {
-  if (!req.isAuthenticated()) {
+]), async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
 
@@ -53,7 +54,7 @@ router.post('/upload', upload.fields([
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const userId = req.user!.id;
+    const userId = req.user.id;
     const categoryId = req.body.categoryId ? parseInt(req.body.categoryId) : null;
     
     console.log('Processing uploaded file:', {
@@ -128,8 +129,6 @@ router.post('/upload', upload.fields([
       fileSize: uploadedFile.size,
       userId,
       categoryId,
-      processingMetadata,
-      thumbnailPath,
     });
 
     // Clean up temporary files
@@ -175,13 +174,13 @@ router.post('/upload', upload.fields([
 });
 
 // Get optimized document list with pagination and search
-router.get('/', async (req, res) => {
-  if (!req.isAuthenticated()) {
+router.get('/', async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
 
   try {
-    const userId = req.user!.id;
+    const userId = req.user.id;
     const {
       search,
       category,
@@ -195,16 +194,12 @@ router.get('/', async (req, res) => {
     const limitNum = parseInt(limit as string, 10);
     const offset = (pageNum - 1) * limitNum;
 
-    // Use optimized search if search vector is available
-    const documents = await storage.searchDocuments({
+    // Get documents with simple search
+    const documents = await storage.getDocuments(
       userId,
-      searchQuery: search as string,
-      categoryId: category ? parseInt(category as string) : undefined,
-      limit: limitNum,
-      offset,
-      sortBy: sortBy as string,
-      sortOrder: sortOrder as 'asc' | 'desc',
-    });
+      category ? parseInt(category as string) : undefined,
+      search as string
+    );
 
     res.json(documents);
 
@@ -218,22 +213,21 @@ router.get('/', async (req, res) => {
 });
 
 // Get document thumbnail
-router.get('/:id/thumbnail', async (req, res) => {
-  if (!req.isAuthenticated()) {
+router.get('/:id/thumbnail', async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
 
   try {
     const documentId = parseInt(req.params.id);
-    const userId = req.user!.id;
+    const userId = req.user.id;
 
-    const document = await storage.getDocumentById(documentId, userId);
+    const document = await storage.getDocument(documentId, userId);
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    const thumbnailPath = document.thumbnailPath || 
-                         imageProcessor.getThumbnailPath(document.filePath);
+    const thumbnailPath = imageProcessor.getThumbnailPath(document.filePath);
 
     const fs = require('fs');
     if (fs.existsSync(thumbnailPath)) {

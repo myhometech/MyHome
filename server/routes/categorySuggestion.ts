@@ -42,9 +42,25 @@ export async function suggestDocumentCategory(req: Request, res: Response) {
   } catch (error) {
     console.error("Category suggestion error:", error);
     
-    // Return fallback suggestion on error
-    const fallback = getFallbackSuggestion(req.body.fileName, req.body.fileType);
-    res.json(fallback);
+    // Always return a fallback suggestion instead of crashing
+    try {
+      const fallback = getFallbackSuggestion(req.body.fileName || 'unknown', req.body.fileType || 'unknown');
+      res.json(fallback);
+    } catch (fallbackError) {
+      console.error("Fallback suggestion also failed:", fallbackError);
+      
+      // Last resort: return a generic suggestion
+      res.json({
+        suggested: {
+          category: 'Other',
+          confidence: 0.5,
+          reason: 'Unable to analyze document, using default category'
+        },
+        alternatives: [
+          { category: 'Personal', confidence: 0.3, reason: 'Alternative generic category' }
+        ]
+      });
+    }
   }
 }
 
@@ -116,6 +132,18 @@ Return a JSON response with:
     
   } catch (error) {
     console.error("OpenAI analysis failed:", error);
+    
+    // Handle specific OpenAI errors gracefully
+    if (error && typeof error === 'object' && 'status' in error) {
+      if (error.status === 429) {
+        console.warn("OpenAI quota exceeded, using fallback categorization");
+      } else if (error.status === 401) {
+        console.warn("OpenAI authentication failed, using fallback categorization");
+      } else {
+        console.warn(`OpenAI API error ${error.status}, using fallback categorization`);
+      }
+    }
+    
     return getFallbackSuggestion(fileName, fileType);
   }
 }

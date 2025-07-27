@@ -11,11 +11,22 @@ monitorSystemHealth();
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+// Aggressive memory management for production
+if (process.env.NODE_ENV === 'production') {
+  // Force garbage collection every 30 seconds
+  setInterval(() => {
+    if (global.gc) {
+      global.gc();
+    }
+  }, 30000);
+  
+  // Set Node.js memory limits
+  process.env.NODE_OPTIONS = '--max-old-space-size=512';
+}
+
 // Import backup service only in development to prevent memory issues
 let backupService: any = null;
-if (process.env.NODE_ENV !== 'production') {
-  backupService = (await import('./backupService.js')).backupService;
-}
 
 const app = express();
 app.use(express.json());
@@ -53,10 +64,16 @@ app.use((req, res, next) => {
 
 (async () => {
   // Skip backup service in production to prevent memory issues
-  if (process.env.NODE_ENV !== 'production' && backupService) {
-    backupService.initialize()
-      .then(() => console.log('✅ Backup service initialized successfully'))
-      .catch((error) => console.warn('⚠️ Backup service initialization failed (non-critical):', error.message));
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const { backupService: bs } = await import('./backupService.js');
+      backupService = bs;
+      backupService.initialize()
+        .then(() => console.log('✅ Backup service initialized successfully'))
+        .catch((error: any) => console.warn('⚠️ Backup service initialization failed (non-critical):', error.message));
+    } catch (importError: any) {
+      console.warn('⚠️ Could not import backup service (non-critical):', importError.message);
+    }
   } else {
     console.log('ℹ️ Backup service disabled in production');
   }

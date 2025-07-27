@@ -45,6 +45,10 @@ function Router() {
   // Debug info for production
   if (typeof window !== 'undefined') {
     console.log('Auth state:', { isAuthenticated, isLoading, hasUser: !!user });
+    // Additional debugging for white screen issue
+    if (!isLoading && !isAuthenticated) {
+      console.log('Rendering landing page for unauthenticated user');
+    }
   }
 
   return (

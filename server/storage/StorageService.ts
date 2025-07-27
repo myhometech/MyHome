@@ -50,8 +50,15 @@ export class StorageService {
 
   /**
    * Create Google Cloud Storage provider
+   * PRODUCTION WHITE SCREEN FIX: Force local storage to prevent memory leak
    */
   private static createGCSStorage(): StorageProvider {
+    // CRITICAL: Force local storage in production to prevent 97% memory usage causing white screen
+    if (process.env.NODE_ENV === 'production') {
+      console.log('🛡️ PRODUCTION: Forcing local storage to prevent GCS memory leak');
+      return StorageService.createLocalStorage();
+    }
+    
     // Force local storage in production to prevent memory leaks
     if (process.env.NODE_ENV === 'production') {
       console.log('⚠️ Forcing local storage in production to prevent memory issues');

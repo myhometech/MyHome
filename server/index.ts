@@ -12,18 +12,32 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
-// Aggressive memory management for production
+// PRODUCTION WHITE SCREEN FIX: Aggressive memory management
 if (process.env.NODE_ENV === 'production') {
-  // Force garbage collection every 10 seconds
+  console.log('🚨 PRODUCTION MODE: Applying memory fixes for white screen issue');
+  
+  // Force garbage collection every 30 seconds
   setInterval(() => {
     if (global.gc) {
       global.gc();
-      console.log('GC forced, memory usage:', process.memoryUsage());
+      const mem = process.memoryUsage();
+      const heapUsedMB = Math.round(mem.heapUsed/1024/1024);
+      const heapTotalMB = Math.round(mem.heapTotal/1024/1024);
+      const heapPercent = Math.round((mem.heapUsed / mem.heapTotal) * 100);
+      console.log(`🧹 GC: ${heapUsedMB}MB/${heapTotalMB}MB (${heapPercent}%)`);
     }
-  }, 10000);
+  }, 30000);
   
-  // Set Node.js memory limits
-  process.env.NODE_OPTIONS = '--max-old-space-size=512 --optimize-for-size';
+  // CRITICAL: Disable GCS completely in production to prevent memory leak causing white screen
+  process.env.STORAGE_TYPE = 'local';
+  delete process.env.GCS_BUCKET_NAME;
+  delete process.env.GCS_PROJECT_ID;
+  delete process.env.GCS_CREDENTIALS;
+  console.log('🛡️ GCS disabled in production to prevent memory leak');
+  
+  // Log initial memory state
+  const initialMem = process.memoryUsage();
+  console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap`);
 }
 
 // Import backup service only in development to prevent memory issues
@@ -64,9 +78,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Skip backup service in production to prevent memory issues
+  // PRODUCTION WHITE SCREEN FIX: Completely disable backup service in production
   if (process.env.NODE_ENV !== 'production') {
     try {
+      // Dynamic import prevents loading GCS modules in production  
       const { backupService: bs } = await import('./backupService.js');
       backupService = bs;
       backupService.initialize()

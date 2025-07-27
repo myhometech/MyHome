@@ -50,7 +50,9 @@ const contentSecurityPolicy = {
     frameSrc: [
       "'self'",
       "https://js.stripe.com",
-      "https://hooks.stripe.com"
+      "https://hooks.stripe.com",
+      "https://storage.googleapis.com",
+      "https://*.googleapis.com"
     ],
     objectSrc: ["'none'"],
     mediaSrc: ["'self'", "blob:", "data:"],

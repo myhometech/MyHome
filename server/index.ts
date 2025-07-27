@@ -48,13 +48,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize backup service
-  try {
-    await backupService.initialize();
-    console.log('✅ Backup service initialized successfully');
-  } catch (error) {
-    console.error('❌ Failed to initialize backup service:', error);
-  }
+  // Initialize backup service (non-blocking)
+  backupService.initialize()
+    .then(() => console.log('✅ Backup service initialized successfully'))
+    .catch((error) => console.warn('⚠️ Backup service initialization failed (non-critical):', error.message));
 
   const server = await registerRoutes(app);
 

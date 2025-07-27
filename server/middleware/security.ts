@@ -148,11 +148,14 @@ export const corsOptions = {
       'http://127.0.0.1:5000',
       'http://127.0.0.1:3000',
       'https://myhome.replit.app',
+      'https://myhomedocs.replit.app', // CORS FIX: Add new deployment domain
       'https://myhome-tech.com',
       'https://www.myhome-tech.com',
       'https://app.myhome-tech.com',
+      'https://myhome-docs.com',
       // Replit development URLs
       /https:\/\/.*\.replit\.dev$/,
+      /https:\/\/.*\.replit\.app$/,
       process.env.REPLIT_DOMAINS?.split(',') || []
     ].flat().filter(Boolean);
     

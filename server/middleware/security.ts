@@ -97,7 +97,7 @@ export const securityHeaders = helmet({
 // Rate limiting configuration
 export const rateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Much higher limit in development
   message: {
     error: 'Too many requests from this IP, please try again later.',
     retryAfter: 60
@@ -105,9 +105,25 @@ export const rateLimiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   
-  // Skip rate limiting for health checks
+  // Skip rate limiting for health checks and development assets
   skip: (req: Request) => {
-    return req.path === '/api/health' || req.path === '/health';
+    const path = req.path;
+    return (
+      path === '/api/health' || 
+      path === '/health' ||
+      path.startsWith('/@vite/') ||
+      path.startsWith('/src/') ||
+      path.endsWith('.js') ||
+      path.endsWith('.css') ||
+      path.endsWith('.ts') ||
+      path.endsWith('.tsx') ||
+      (process.env.NODE_ENV === 'development' && (
+        path.startsWith('/api/auth/user') ||
+        path.startsWith('/api/documents') ||
+        path.startsWith('/api/categories') ||
+        path.startsWith('/api/feature-flags')
+      ))
+    );
   },
   
   // Custom handler for rate limit exceeded

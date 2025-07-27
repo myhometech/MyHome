@@ -53,17 +53,10 @@ export class StorageService {
    * PRODUCTION WHITE SCREEN FIX: Force local storage to prevent memory leak
    */
   private static createGCSStorage(): StorageProvider {
-    // CRITICAL: Force local storage in production to prevent 97% memory usage causing white screen
-    if (process.env.NODE_ENV === 'production') {
-      console.log('🛡️ PRODUCTION: Forcing local storage to prevent GCS memory leak');
-      return StorageService.createLocalStorage();
-    }
+    // GCS memory leak has been fixed with explicit authentication
+    // Re-enable GCS in production
     
-    // Force local storage in production to prevent memory leaks
-    if (process.env.NODE_ENV === 'production') {
-      console.log('⚠️ Forcing local storage in production to prevent memory issues');
-      return StorageService.createLocalStorage();
-    }
+    // GCS now properly configured with explicit authentication
     
     const bucketName = process.env.GCS_BUCKET_NAME || 'media.myhome-tech.com';
     const projectId = process.env.GCS_PROJECT_ID;

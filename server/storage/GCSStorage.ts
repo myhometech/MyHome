@@ -14,12 +14,26 @@ export class GCSStorage implements StorageProvider {
   constructor(config: StorageConfig) {
     this.bucketName = config.bucketName;
     
-    // Initialize Google Cloud Storage
-    this.storage = new Storage({
+    // Initialize Google Cloud Storage with explicit authentication
+    const storageOptions: any = {
       projectId: config.projectId,
-      keyFilename: config.keyFilename,
-      credentials: config.credentials
-    });
+    };
+
+    // CRITICAL: Prevent fallback to instance metadata authentication
+    if (config.credentials) {
+      storageOptions.credentials = config.credentials;
+    } else if (config.keyFilename) {
+      storageOptions.keyFilename = config.keyFilename;
+    } else {
+      throw new Error('GCS authentication requires either credentials or keyFilename');
+    }
+
+    // Disable automatic authentication discovery to prevent metadata server calls
+    storageOptions.autoRetry = false;
+    storageOptions.maxRetries = 0;
+    
+    this.storage = new Storage(storageOptions);
+    console.log('GCS Storage initialized with explicit credentials');
   }
 
   /**

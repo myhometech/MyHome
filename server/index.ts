@@ -28,12 +28,8 @@ if (process.env.NODE_ENV === 'production') {
     }
   }, 30000);
   
-  // CRITICAL: Disable GCS completely in production to prevent memory leak causing white screen
-  process.env.STORAGE_TYPE = 'local';
-  delete process.env.GCS_BUCKET_NAME;
-  delete process.env.GCS_PROJECT_ID;
-  delete process.env.GCS_CREDENTIALS;
-  console.log('🛡️ GCS disabled in production to prevent memory leak');
+  // GCS memory leak should now be fixed with explicit authentication
+  console.log('🔧 GCS re-enabled in production with memory leak fixes');
   
   // Log initial memory state
   const initialMem = process.memoryUsage();

@@ -17,6 +17,7 @@ import { featureFlagService } from './featureFlagService';
 import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQuery } from './monitoring';
 import { emailService } from './emailService';
 import { StorageService, storageProvider } from './storage/StorageService';
+import { backupRoutes } from './routes/backup.js';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -2169,6 +2170,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add error handling middleware at the end
+  // Backup management routes (admin only)
+  app.use('/api/backup', backupRoutes);
+
   app.use(sentryErrorHandler());
 
   const httpServer = createServer(app);

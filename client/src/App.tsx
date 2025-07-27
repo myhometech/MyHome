@@ -8,7 +8,11 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { initializeFrontendSentry } from "@/lib/monitoring";
 
 // Initialize frontend error tracking
-initializeFrontendSentry();
+try {
+  initializeFrontendSentry();
+} catch (error) {
+  console.error('Failed to initialize Sentry:', error);
+}
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
@@ -36,6 +40,11 @@ function Router() {
         <div className="text-lg">Loading...</div>
       </div>
     );
+  }
+
+  // Debug info for production
+  if (typeof window !== 'undefined') {
+    console.log('Auth state:', { isAuthenticated, isLoading, hasUser: !!user });
   }
 
   return (

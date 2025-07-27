@@ -48,10 +48,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize backup service (non-blocking)
-  backupService.initialize()
-    .then(() => console.log('✅ Backup service initialized successfully'))
-    .catch((error) => console.warn('⚠️ Backup service initialization failed (non-critical):', error.message));
+  // Skip backup service in production to prevent memory issues
+  if (process.env.NODE_ENV !== 'production') {
+    backupService.initialize()
+      .then(() => console.log('✅ Backup service initialized successfully'))
+      .catch((error) => console.warn('⚠️ Backup service initialization failed (non-critical):', error.message));
+  } else {
+    console.log('ℹ️ Backup service disabled in production');
+  }
 
   const server = await registerRoutes(app);
 

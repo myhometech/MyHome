@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Debug</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .test { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Production Debug Test</h1>
+    <div id="root">Original root content</div>
+    
+    <div id="debug-info">
+        <h2>Debug Information:</h2>
+        <p id="root-status">Checking root element...</p>
+        <p id="js-status">JavaScript loading...</p>
+        <p id="react-status">React initialization...</p>
+    </div>
+
+    <script>
+        console.log('Debug script starting...');
+        
+        // Test root element
+        const root = document.getElementById('root');
+        const rootStatus = document.getElementById('root-status');
+        if (root) {
+            rootStatus.textContent = '✅ Root element found';
+            rootStatus.className = 'test';
+        } else {
+            rootStatus.textContent = '❌ Root element NOT found';
+            rootStatus.className = 'error';
+        }
+        
+        // Test error capturing
+        window.addEventListener('error', (e) => {
+            const jsStatus = document.getElementById('js-status');
+            jsStatus.textContent = `❌ JavaScript Error: ${e.message}`;
+            jsStatus.className = 'error';
+            console.error('Captured error:', e);
+        });
+        
+        // Test unhandled promise rejections
+        window.addEventListener('unhandledrejection', (e) => {
+            const reactStatus = document.getElementById('react-status');
+            reactStatus.textContent = `❌ Promise Rejection: ${e.reason}`;
+            reactStatus.className = 'error';
+            console.error('Captured rejection:', e);
+        });
+        
+        setTimeout(() => {
+            const jsStatus = document.getElementById('js-status');
+            if (jsStatus.textContent === 'JavaScript loading...') {
+                jsStatus.textContent = '✅ JavaScript loaded without errors';
+                jsStatus.className = 'test';
+            }
+        }, 2000);
+    </script>
+    
+    <!-- Load the actual production JavaScript -->
+    <script type="module" crossorigin src="/assets/index-XUqBjYsW.js"></script>
+    
+    <script>
+        setTimeout(() => {
+            const reactStatus = document.getElementById('react-status');
+            const root = document.getElementById('root');
+            
+            if (root && root.innerHTML !== 'Original root content') {
+                reactStatus.textContent = '✅ React rendered successfully';
+                reactStatus.className = 'test';
+            } else {
+                reactStatus.textContent = '❌ React did not render (white screen cause)';
+                reactStatus.className = 'error';
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

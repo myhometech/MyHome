@@ -703,30 +703,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // Handle cloud storage existence check
+      // EMERGENCY FALLBACK: Disable cloud storage existence check during billing issues
+      // This prevents automatic cleanup of document records when GCS billing is disabled
       if (document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
           if (metadata.storageType === 'cloud' && metadata.storageKey) {
-            const storageInstance = storageProvider();
-            const exists = await storageInstance.exists(metadata.storageKey);
+            console.log(`⚠️ EMERGENCY MODE: Skipping cloud storage existence check for ${metadata.storageKey} due to GCS billing issues`);
             
-            if (!exists) {
-              console.log(`Cloud storage file not found: ${metadata.storageKey} for document ${documentId}`);
-              
-              // Clean up orphaned database record
-              try {
-                await storage.deleteDocument(documentId, userId);
-                console.log(`Cleaned up orphaned document record: ${documentId}`);
-              } catch (cleanupError) {
-                console.error(`Failed to cleanup orphaned document ${documentId}:`, cleanupError);
-              }
-              
-              return res.status(404).json({ 
-                message: "File not found in cloud storage - document record has been cleaned up",
-                autoCleanup: true 
-              });
-            }
+            // Instead of checking existence and cleaning up, return graceful error
+            return res.status(503).json({ 
+              message: "Document temporarily unavailable due to cloud storage maintenance. Please try again later.",
+              code: "STORAGE_MAINTENANCE",
+              documentId: documentId,
+              fileName: document.fileName
+            });
           }
         } catch (metadataError) {
           console.error('Failed to parse encryption metadata:', metadataError);
@@ -737,17 +728,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       else if (!fs.existsSync(document.filePath)) {
         console.log(`Local file not found: ${document.filePath} for document ${documentId}`);
         
-        // Clean up orphaned database record
-        try {
-          await storage.deleteDocument(documentId, userId);
-          console.log(`Cleaned up orphaned document record: ${documentId}`);
-        } catch (cleanupError) {
-          console.error(`Failed to cleanup orphaned document ${documentId}:`, cleanupError);
-        }
+        // EMERGENCY FALLBACK: Preserve document records during maintenance
+        console.log(`⚠️ EMERGENCY MODE: Local file not found but preserving document record: ${documentId}`);
         
-        return res.status(404).json({ 
-          message: "File not found - document record has been cleaned up",
-          autoCleanup: true 
+        return res.status(503).json({ 
+          message: "Document temporarily unavailable. Please try again later.",
+          code: "FILE_TEMPORARILY_UNAVAILABLE",
+          documentId: documentId,
+          fileName: document.fileName
         });
       }
 
@@ -758,34 +746,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Check if this is a cloud storage document
           if (metadata.storageType === 'cloud' && metadata.storageKey) {
-            const storage = storageProvider();
+            console.log(`⚠️ EMERGENCY MODE: Cloud storage document ${metadata.storageKey} - returning maintenance message`);
             
-            // Generate signed URL for direct access (if supported)
-            try {
-              const signedUrl = await storage.getSignedUrl(metadata.storageKey, 3600);
-              
-              // For PDFs and images, redirect to signed URL for better performance
-              if (document.mimeType === 'application/pdf' || document.mimeType.startsWith('image/')) {
-                return res.redirect(signedUrl);
-              }
-            } catch (signedUrlError) {
-              console.warn('Signed URL generation failed, falling back to proxied download:', signedUrlError);
-            }
+            // EMERGENCY FALLBACK: Return maintenance message instead of attempting GCS access
+            return res.status(503).json({ 
+              message: "Document temporarily unavailable due to cloud storage maintenance. Please try again later.",
+              code: "STORAGE_MAINTENANCE",
+              documentId: documentId,
+              fileName: document.fileName,
+              storageKey: metadata.storageKey
+            });
             
-            // Fallback: proxy the file through our server
-            const fileBuffer = await storage.download(metadata.storageKey);
-            
-            res.setHeader('Content-Type', document.mimeType);
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-            res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-            
-            // CORS headers for compatibility
-            res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
-            res.setHeader('Access-Control-Allow-Credentials', 'true');
-            res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
-            res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-            
-            return res.send(fileBuffer);
+            // DISABLED DURING EMERGENCY - Original cloud storage logic:
+            // const storage = storageProvider();
+            // try {
+            //   const signedUrl = await storage.getSignedUrl(metadata.storageKey, 3600);
+            //   if (document.mimeType === 'application/pdf' || document.mimeType.startsWith('image/')) {
+            //     return res.redirect(signedUrl);
+            //   }
+            // } catch (signedUrlError) {
+            //   console.warn('Signed URL generation failed, falling back to proxied download:', signedUrlError);
+            // }
+            // const fileBuffer = await storage.download(metadata.storageKey);
+            // res.setHeader('Content-Type', document.mimeType);
+            // res.setHeader('Cache-Control', 'public, max-age=3600');
+            // res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+            // res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+            // res.setHeader('Access-Control-Allow-Credentials', 'true');
+            // res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+            // res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+            // return res.send(fileBuffer);
           }
           
           // Handle legacy encrypted local files
@@ -1326,7 +1316,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle encrypted documents
       if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
         try {
-          // Decrypt the document key
+          const metadata = JSON.parse(document.encryptionMetadata);
+          
+          // EMERGENCY FALLBACK: Handle cloud storage documents during billing issues
+          if (metadata.storageType === 'cloud' && metadata.storageKey) {
+            console.log(`⚠️ EMERGENCY MODE: Cloud storage download ${metadata.storageKey} - returning maintenance message`);
+            
+            return res.status(503).json({ 
+              message: "Document temporarily unavailable due to cloud storage maintenance. Please try again later.",
+              code: "STORAGE_MAINTENANCE",
+              documentId: documentId,
+              fileName: document.fileName,
+              storageKey: metadata.storageKey
+            });
+          }
+          
+          // Handle local encrypted documents (legacy)
           const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey);
           
           // Create decrypted stream

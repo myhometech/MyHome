@@ -10,6 +10,7 @@ import { LocalStorage } from './LocalStorage';
  */
 export class StorageService {
   private static instance: StorageProvider | null = null;
+  private static fallbackMode: boolean = false;
 
   /**
    * Initialize storage provider based on environment configuration
@@ -24,7 +25,15 @@ export class StorageService {
     switch (storageType.toLowerCase()) {
       case 'gcs':
       case 'google':
-        StorageService.instance = StorageService.createGCSStorage();
+        try {
+          StorageService.instance = StorageService.createGCSStorage();
+          console.log('✅ GCS Storage initialized successfully');
+        } catch (error) {
+          console.error('🚨 GCS Storage initialization failed:', error);
+          console.warn('⚠️ Falling back to local storage due to GCS failure');
+          StorageService.fallbackMode = true;
+          StorageService.instance = StorageService.createLocalStorage();
+        }
         break;
       
       case 'local':
@@ -34,7 +43,7 @@ export class StorageService {
         break;
     }
 
-    console.log(`Storage provider initialized: ${storageType}`);
+    console.log(`Storage provider initialized: ${StorageService.fallbackMode ? 'local (fallback)' : storageType}`);
     return StorageService.instance;
   }
 
@@ -46,6 +55,21 @@ export class StorageService {
       return StorageService.initialize();
     }
     return StorageService.instance;
+  }
+
+  /**
+   * Check if running in fallback mode
+   */
+  static isFallbackMode(): boolean {
+    return StorageService.fallbackMode;
+  }
+
+  /**
+   * Force reset to reinitialize storage (for emergency situations)
+   */
+  static reset(): void {
+    StorageService.instance = null;
+    StorageService.fallbackMode = false;
   }
 
   /**
@@ -108,12 +132,7 @@ export class StorageService {
     return new LocalStorage(uploadPath);
   }
 
-  /**
-   * Reset storage provider (useful for testing)
-   */
-  static reset(): void {
-    StorageService.instance = null;
-  }
+
 
   /**
    * Set a custom storage provider (useful for testing)

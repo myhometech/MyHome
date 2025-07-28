@@ -236,19 +236,26 @@ export type InsertUser = typeof users.$inferInsert;
 export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
 
-// Standalone expiry reminders (not tied to documents)
+// DOC-305: Enhanced expiry reminders with AI suggestion support
 export const expiryReminders = pgTable("expiry_reminders", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  documentId: integer("document_id").references(() => documents.id, { onDelete: "cascade" }), // DOC-305: Link to documents
   title: varchar("title").notNull(),
   description: text("description"),
   expiryDate: timestamp("expiry_date").notNull(),
+  reminderDate: timestamp("reminder_date").notNull(), // DOC-305: When to trigger reminder
   category: varchar("category"), // e.g., "subscription", "membership", "insurance", "license"
+  source: varchar("source", { length: 20 }).default("manual"), // DOC-305: 'ai', 'ocr', 'manual'
+  status: varchar("status", { length: 20 }).default("pending"), // DOC-305: 'pending', 'confirmed', 'dismissed'
   isCompleted: boolean("is_completed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("idx_expiry_reminders_user").on(table.userId),
+  index("idx_expiry_reminders_document").on(table.documentId), // DOC-305: Document lookups
+  index("idx_expiry_reminders_status").on(table.status), // DOC-305: Status filtering
+  index("idx_expiry_reminders_source").on(table.source), // DOC-305: Source filtering
 ]);
 
 export type InsertExpiryReminder = typeof expiryReminders.$inferInsert;

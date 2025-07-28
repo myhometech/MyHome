@@ -2,6 +2,7 @@ import fs from "fs";
 import { createWorker } from 'tesseract.js';
 import { extractExpiryDatesFromText, type ExtractedDate } from "./dateExtractionService";
 import { aiDateExtractionService, type ExtractedDate as AIExtractedDate } from "./aiDateExtractionService";
+import { reminderSuggestionService } from "./reminderSuggestionService";
 import PDFParser from "pdf2json";
 import { storageProvider } from './storage/StorageService';
 import path from 'path';
@@ -673,6 +674,20 @@ export async function processDocumentWithDateExtraction(
         const source = (bestDate as any).source || 'ocr';
         console.log(`DOC-304: Auto-detected expiry date for ${documentName}: ${expiryDate} (source: ${source}, confidence: ${bestDate.confidence})`);
         console.log(`DOC-304: Date context: ${bestDate.context || 'No context available'}`);
+        
+        // DOC-305: Create reminder suggestion for this document
+        try {
+          const expiryDateObj = new Date(expiryDate);
+          await reminderSuggestionService.processDocumentForReminders(
+            documentId,
+            userId,
+            expiryDateObj,
+            source
+          );
+        } catch (reminderError) {
+          console.error(`DOC-305: Failed to create reminder suggestion for document ${documentId}:`, reminderError);
+          // Don't fail the OCR process if reminder creation fails
+        }
       }
     } else {
       console.log(`DOC-304: No expiry dates found for ${documentName}`);

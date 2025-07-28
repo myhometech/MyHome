@@ -1812,7 +1812,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Expiry reminder routes
+  // DOC-305: Enhanced expiry reminder routes with AI suggestion support
   app.get('/api/expiry-reminders', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
@@ -1821,6 +1821,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching expiry reminders:", error);
       res.status(500).json({ message: "Failed to fetch expiry reminders" });
+    }
+  });
+
+  // DOC-305: Get pending reminder suggestions
+  app.get('/api/reminder-suggestions', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { reminderSuggestionService } = await import('./reminderSuggestionService');
+      const suggestions = await reminderSuggestionService.getPendingReminderSuggestions(userId);
+      res.json({
+        suggestions,
+        count: suggestions.length,
+        message: `Found ${suggestions.length} pending reminder suggestions`
+      });
+    } catch (error) {
+      console.error("DOC-305: Error fetching reminder suggestions:", error);
+      res.status(500).json({ message: "Failed to fetch reminder suggestions" });
+    }
+  });
+
+  // DOC-305: Update reminder suggestion status
+  app.patch('/api/reminder-suggestions/:id/status', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const reminderId = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (isNaN(reminderId)) {
+        return res.status(400).json({ message: "Invalid reminder ID" });
+      }
+
+      if (!['confirmed', 'dismissed'].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'confirmed' or 'dismissed'" });
+      }
+
+      const { reminderSuggestionService } = await import('./reminderSuggestionService');
+      const success = await reminderSuggestionService.updateReminderStatus(reminderId, userId, status);
+
+      if (success) {
+        res.json({ message: `Reminder ${status} successfully` });
+      } else {
+        res.status(400).json({ message: "Failed to update reminder status" });
+      }
+    } catch (error) {
+      console.error("DOC-305: Error updating reminder status:", error);
+      res.status(500).json({ message: "Failed to update reminder status" });
+    }
+  });
+
+  // DOC-305: Batch process documents for reminder suggestions
+  app.post('/api/reminder-suggestions/batch-process', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { reminderSuggestionService } = await import('./reminderSuggestionService');
+      const result = await reminderSuggestionService.batchProcessDocuments(userId);
+      
+      res.json({
+        message: "Batch processing completed",
+        processed: result.processed,
+        created: result.created,
+        success: true
+      });
+    } catch (error) {
+      console.error("DOC-305: Error in batch processing:", error);
+      res.status(500).json({ message: "Failed to batch process documents" });
     }
   });
 

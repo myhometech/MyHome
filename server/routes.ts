@@ -746,36 +746,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Check if this is a cloud storage document
           if (metadata.storageType === 'cloud' && metadata.storageKey) {
-            console.log(`⚠️ EMERGENCY MODE: Cloud storage document ${metadata.storageKey} - returning maintenance message`);
+            console.log(`📁 GCS PREVIEW: Loading document ${metadata.storageKey} from cloud storage`);
             
-            // EMERGENCY FALLBACK: Return maintenance message instead of attempting GCS access
-            return res.status(503).json({ 
-              message: "Document temporarily unavailable due to cloud storage maintenance. Please try again later.",
-              code: "STORAGE_MAINTENANCE",
-              documentId: documentId,
-              fileName: document.fileName,
-              storageKey: metadata.storageKey
-            });
-            
-            // DISABLED DURING EMERGENCY - Original cloud storage logic:
-            // const storage = storageProvider();
-            // try {
-            //   const signedUrl = await storage.getSignedUrl(metadata.storageKey, 3600);
-            //   if (document.mimeType === 'application/pdf' || document.mimeType.startsWith('image/')) {
-            //     return res.redirect(signedUrl);
-            //   }
-            // } catch (signedUrlError) {
-            //   console.warn('Signed URL generation failed, falling back to proxied download:', signedUrlError);
-            // }
-            // const fileBuffer = await storage.download(metadata.storageKey);
-            // res.setHeader('Content-Type', document.mimeType);
-            // res.setHeader('Cache-Control', 'public, max-age=3600');
-            // res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-            // res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
-            // res.setHeader('Access-Control-Allow-Credentials', 'true');
-            // res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
-            // res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-            // return res.send(fileBuffer);
+            const storage = storageProvider();
+            try {
+              const signedUrl = await storage.getSignedUrl(metadata.storageKey, 3600);
+              if (document.mimeType === 'application/pdf' || document.mimeType.startsWith('image/')) {
+                return res.redirect(signedUrl);
+              }
+            } catch (signedUrlError) {
+              console.warn('Signed URL generation failed, falling back to proxied download:', signedUrlError);
+              
+              // Fallback to direct download and proxy the file
+              const fileBuffer = await storage.download(metadata.storageKey);
+              res.setHeader('Content-Type', document.mimeType);
+              res.setHeader('Cache-Control', 'public, max-age=3600');
+              res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+              res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+              res.setHeader('Access-Control-Allow-Credentials', 'true');
+              res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+              res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+              return res.send(fileBuffer);
+            }
           }
           
           // Handle legacy encrypted local files
@@ -1318,17 +1310,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
           
-          // EMERGENCY FALLBACK: Handle cloud storage documents during billing issues
+          // Handle cloud storage documents with GCS download
           if (metadata.storageType === 'cloud' && metadata.storageKey) {
-            console.log(`⚠️ EMERGENCY MODE: Cloud storage download ${metadata.storageKey} - returning maintenance message`);
+            console.log(`📁 GCS DOWNLOAD: Downloading document ${metadata.storageKey} from cloud storage`);
             
-            return res.status(503).json({ 
-              message: "Document temporarily unavailable due to cloud storage maintenance. Please try again later.",
-              code: "STORAGE_MAINTENANCE",
-              documentId: documentId,
-              fileName: document.fileName,
-              storageKey: metadata.storageKey
-            });
+            try {
+              const storage = storageProvider();
+              const fileBuffer = await storage.download(metadata.storageKey);
+              
+              // Set appropriate headers for download
+              res.setHeader('Content-Type', document.mimeType);
+              res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
+              res.setHeader('Cache-Control', 'private, max-age=3600');
+              
+              res.send(fileBuffer);
+              return;
+            } catch (gcsError: any) {
+              console.error('GCS download failed:', gcsError);
+              return res.status(500).json({ 
+                message: "Failed to download document from cloud storage",
+                error: gcsError?.message || 'Unknown error' 
+              });
+            }
           }
           
           // Handle local encrypted documents (legacy)
@@ -2644,6 +2647,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // CORE-002: Enhanced Health Check Endpoint
   app.get('/api/health', enhancedHealthCheck);
+
+  // GCS Test and Reset endpoint
+  app.get('/api/admin/gcs-test', requireAuth, async (req: any, res) => {
+    try {
+      console.log('🔄 Resetting StorageService to use new GCS credentials...');
+      StorageService.reset();
+      
+      const storage = storageProvider();
+      const testKey = `test/${Date.now()}/test-file.txt`;
+      const testContent = Buffer.from('GCS Test File - ' + new Date().toISOString());
+      
+      console.log('🧪 Testing GCS upload...');
+      await storage.upload(testContent, testKey, 'text/plain');
+      
+      console.log('🧪 Testing GCS download...');
+      const downloadedContent = await storage.download(testKey);
+      
+      console.log('🧪 Testing GCS signed URL...');
+      const signedUrl = await storage.getSignedUrl(testKey, 300);
+      
+      console.log('🧪 Testing GCS delete...');
+      await storage.delete(testKey);
+      
+      res.json({
+        success: true,
+        message: 'GCS functionality fully operational with new credentials',
+        tests: {
+          upload: 'SUCCESS',
+          download: 'SUCCESS', 
+          signedUrl: 'SUCCESS',
+          delete: 'SUCCESS'
+        },
+        downloadedContent: downloadedContent.toString(),
+        signedUrlGenerated: !!signedUrl,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error: any) {
+      console.error('GCS test failed:', error);
+      res.status(500).json({
+        success: false,
+        message: 'GCS test failed',
+        error: error?.message || 'Unknown error',
+        details: error?.stack
+      });
+    }
+  });
 
   // Add error handling middleware at the end
   // Backup management routes (admin only)

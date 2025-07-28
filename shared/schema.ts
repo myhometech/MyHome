@@ -261,6 +261,41 @@ export const expiryReminders = pgTable("expiry_reminders", {
 export type InsertExpiryReminder = typeof expiryReminders.$inferInsert;
 export type ExpiryReminder = typeof expiryReminders.$inferSelect;
 
+// DOC-501: Document Insights table for AI-powered document analysis
+export const documentInsights = pgTable("document_insights", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  insightId: varchar("insight_id").notNull(), // Unique identifier for this insight
+  type: varchar("type", { length: 50 }).notNull(), // 'summary', 'action_items', 'key_dates', etc.
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+  confidence: integer("confidence").notNull(), // 0-100 (stored as integer for database efficiency)
+  priority: varchar("priority", { length: 10 }).notNull().default("medium"), // 'low', 'medium', 'high'
+  metadata: jsonb("metadata"), // Additional structured data
+  processingTime: integer("processing_time"), // Time taken to generate insight (ms)
+  aiModel: varchar("ai_model", { length: 50 }).default("gpt-4o"),
+  source: varchar("source", { length: 20 }).default("ai"), // 'ai', 'manual', 'rule-based'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_document_insights_document").on(table.documentId),
+  index("idx_document_insights_user").on(table.userId),
+  index("idx_document_insights_type").on(table.type),
+  index("idx_document_insights_priority").on(table.priority),
+  unique("unique_insight_per_document").on(table.documentId, table.insightId),
+]);
+
+export type InsertDocumentInsight = typeof documentInsights.$inferInsert;
+export type DocumentInsight = typeof documentInsights.$inferSelect;
+
+// Zod schema for document insights
+export const insertDocumentInsightSchema = createInsertSchema(documentInsights).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Zod schemas for validation
 export const insertExpiryReminderSchema = createInsertSchema(expiryReminders, {
   expiryDate: z.string().transform((str) => new Date(str)),

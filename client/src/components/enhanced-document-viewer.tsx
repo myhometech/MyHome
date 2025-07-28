@@ -25,6 +25,7 @@ import {
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DocumentInsights } from "@/components/document-insights";
 
 interface EnhancedDocumentViewerProps {
   document: {
@@ -490,6 +491,14 @@ export function EnhancedDocumentViewer({ document, onClose, onUpdate }: Enhanced
                     )}
                   </CardContent>
                 </Card>
+              )}
+
+              {/* AI Document Insights */}
+              {fullDocument && (
+                <DocumentInsights 
+                  documentId={document.id}
+                  documentName={fullDocument.name}
+                />
               )}
 
               {/* Edit Actions */}

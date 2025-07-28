@@ -11,6 +11,7 @@ import {
   featureFlags,
   featureFlagOverrides,
   featureFlagEvents,
+  documentInsights,
   type User,
   type InsertUser,
   type Document,
@@ -33,6 +34,8 @@ import {
   type InsertFeatureFlagOverride,
   type FeatureFlagEvent,
   type InsertFeatureFlagEvent,
+  type DocumentInsight,
+  type InsertDocumentInsight,
 } from "@shared/schema";
 
 // Add blog post types
@@ -142,6 +145,11 @@ export interface IStorage {
     encryptionMetadata: string,
     newFilePath: string
   ): Promise<Document | undefined>;
+
+  // DOC-501: Document insights operations
+  createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight>;
+  getDocumentInsights(documentId: number, userId: string): Promise<DocumentInsight[]>;
+  deleteDocumentInsight(documentId: number, userId: string, insightId: string): Promise<void>;
 }
 
 export interface ExpiringDocument {
@@ -1364,6 +1372,40 @@ export class DatabaseStorage implements IStorage {
     circuitState: string;
   }> {
     return await checkDatabaseHealth();
+  }
+
+  // DOC-501: Document insights operations
+  async createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight> {
+    const [newInsight] = await db
+      .insert(documentInsights)
+      .values(insight)
+      .returning();
+    return newInsight;
+  }
+
+  async getDocumentInsights(documentId: number, userId: string): Promise<DocumentInsight[]> {
+    return await db
+      .select()
+      .from(documentInsights)
+      .where(
+        and(
+          eq(documentInsights.documentId, documentId),
+          eq(documentInsights.userId, userId)
+        )
+      )
+      .orderBy(documentInsights.priority, documentInsights.createdAt);
+  }
+
+  async deleteDocumentInsight(documentId: number, userId: string, insightId: string): Promise<void> {
+    await db
+      .delete(documentInsights)
+      .where(
+        and(
+          eq(documentInsights.documentId, documentId),
+          eq(documentInsights.userId, userId),
+          eq(documentInsights.insightId, insightId)
+        )
+      );
   }
 }
 

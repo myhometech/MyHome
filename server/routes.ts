@@ -6,11 +6,11 @@ import { AuthService } from "./authService";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertBlogPostSchema, loginSchema, registerSchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema } from "@shared/schema";
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
-
+import { aiInsightService } from "./aiInsightService";
 import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
 import { featureFlagService } from './featureFlagService';
@@ -1004,6 +1004,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Reprocess document error:', error);
       res.status(500).json({ message: 'Failed to reprocess document' });
+    }
+  });
+
+  // DOC-501: Generate AI insights for a document
+  app.post('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // Check if AI Insight service is available
+      if (!aiInsightService.isServiceAvailable()) {
+        return res.status(503).json({ 
+          message: "AI Insight service not available - OpenAI API key required",
+          status: aiInsightService.getServiceStatus()
+        });
+      }
+
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Require extracted text for insight generation
+      if (!document.extractedText || document.extractedText.trim() === '') {
+        return res.status(400).json({ 
+          message: "Document has no extracted text. Please run OCR processing first." 
+        });
+      }
+
+      const insights = await aiInsightService.generateDocumentInsights(
+        document.name,
+        document.extractedText,
+        document.mimeType,
+        userId
+      );
+
+      // Store insights in database
+      for (const insight of insights.insights) {
+        await storage.createDocumentInsight({
+          documentId,
+          userId,
+          insightId: insight.id,
+          type: insight.type,
+          title: insight.title,
+          content: insight.content,
+          confidence: Math.round(insight.confidence * 100), // Convert to 0-100 scale
+          priority: insight.priority,
+          metadata: insight.metadata || {},
+          processingTime: insights.processingTime,
+          aiModel: 'gpt-4o',
+          source: 'ai'
+        });
+      }
+
+      res.json({
+        success: true,
+        insights: insights.insights,
+        documentType: insights.documentType,
+        recommendedActions: insights.recommendedActions,
+        processingTime: insights.processingTime,
+        confidence: insights.confidence
+      });
+
+    } catch (error: any) {
+      console.error("Error generating document insights:", error);
+      captureError(error, req, 'ai_insight_generation');
+      
+      if (error.message.includes('quota exceeded')) {
+        return res.status(429).json({ 
+          message: "OpenAI API quota exceeded. Please check your billing and usage limits." 
+        });
+      }
+      
+      res.status(500).json({ message: "Failed to generate document insights" });
+    }
+  });
+
+  // DOC-501: Get existing insights for a document
+  app.get('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      const insights = await storage.getDocumentInsights(documentId, userId);
+      res.json(insights);
+
+    } catch (error) {
+      console.error("Error fetching document insights:", error);
+      res.status(500).json({ message: "Failed to fetch document insights" });
+    }
+  });
+
+  // DOC-501: Delete a specific insight
+  app.delete('/api/documents/:id/insights/:insightId', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+      const insightId = req.params.insightId;
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      await storage.deleteDocumentInsight(documentId, userId, insightId);
+      res.json({ success: true, message: "Insight deleted successfully" });
+
+    } catch (error) {
+      console.error("Error deleting document insight:", error);
+      res.status(500).json({ message: "Failed to delete document insight" });
     }
   });
 

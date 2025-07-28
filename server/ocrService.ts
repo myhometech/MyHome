@@ -2,26 +2,58 @@ import fs from "fs";
 import { createWorker } from 'tesseract.js';
 import { extractExpiryDatesFromText, type ExtractedDate } from "./dateExtractionService";
 import PDFParser from "pdf2json";
+import { storageProvider } from './storage/StorageService';
+import path from 'path';
+import os from 'os';
 
-// Extract text from PDF using pdf2json for text-based PDFs
-async function extractTextFromPDF(filePath: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    console.log(`Starting PDF text extraction for: ${filePath}`);
+// MEMORY OPTIMIZED: Extract text from PDF using GCS streaming or local path
+async function extractTextFromPDF(filePathOrGCSKey: string): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    console.log(`Starting PDF text extraction for: ${filePathOrGCSKey}`);
     
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      reject(new Error(`PDF file not found: ${filePath}`));
-      return;
-    }
+    let tempFilePath: string | null = null;
+    let isGCSFile = false;
+    
+    try {
+      // Detect if this is a GCS key (contains user ID path structure)
+      if (filePathOrGCSKey.includes('/') && !filePathOrGCSKey.startsWith('/') && !filePathOrGCSKey.startsWith('\\')) {
+        isGCSFile = true;
+        console.log('Detected GCS file, downloading for OCR processing...');
+        
+        // Download file from GCS to temporary location for OCR processing
+        const storage = storageProvider();
+        const fileBuffer = await storage.download(filePathOrGCSKey);
+        
+        // Create temporary file for PDF processing
+        tempFilePath = path.join(os.tmpdir(), `ocr_${Date.now()}_${Math.random().toString(36).substring(2)}.pdf`);
+        await fs.promises.writeFile(tempFilePath, fileBuffer);
+        
+        console.log(`Downloaded GCS file to temporary location: ${tempFilePath}`);
+        filePathOrGCSKey = tempFilePath; // Use temp file for processing
+      } else {
+        // Local file path - check if exists
+        if (!fs.existsSync(filePathOrGCSKey)) {
+          reject(new Error(`PDF file not found: ${filePathOrGCSKey}`));
+          return;
+        }
+      }
     
     const pdfParser = new (PDFParser as any)(null, 1);
     
-    pdfParser.on("pdfParser_dataError", (errData: any) => {
+    pdfParser.on("pdfParser_dataError", async (errData: any) => {
       console.error('PDF parsing error:', errData.parserError);
+      // Clean up temporary file if it was created
+      if (tempFilePath && isGCSFile) {
+        try {
+          await fs.promises.unlink(tempFilePath);
+        } catch (cleanupError) {
+          console.warn(`Failed to cleanup temporary file: ${cleanupError}`);
+        }
+      }
       resolve('PDF text extraction failed - this may be a scanned PDF, password-protected, or corrupted file. Consider converting to images for OCR processing.');
     });
     
-    pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+    pdfParser.on("pdfParser_dataReady", async (pdfData: any) => {
       try {
         let extractedText = '';
         
@@ -49,27 +81,78 @@ async function extractTextFromPDF(filePath: string): Promise<string> {
         
         if (cleanedText.length > 10) {
           console.log(`PDF text extraction successful: ${cleanedText.length} characters`);
+          // Clean up temporary file if it was created
+          if (tempFilePath && isGCSFile) {
+            try {
+              await fs.promises.unlink(tempFilePath);
+              console.log(`Cleaned up temporary OCR file: ${tempFilePath}`);
+            } catch (cleanupError) {
+              console.warn(`Failed to cleanup temporary file: ${cleanupError}`);
+            }
+          }
           resolve(cleanedText);
         } else {
           console.log('PDF appears to be image-based or empty');
+          // Clean up temporary file if it was created
+          if (tempFilePath && isGCSFile) {
+            try {
+              await fs.promises.unlink(tempFilePath);
+            } catch (cleanupError) {
+              console.warn(`Failed to cleanup temporary file: ${cleanupError}`);
+            }
+          }
           resolve('PDF document processed but contains no extractable text. This appears to be an image-based or scanned PDF. Consider converting pages to images for OCR processing.');
         }
         
       } catch (processingError: any) {
         console.error('PDF text processing error:', processingError);
+        // Clean up temporary file if it was created
+        if (tempFilePath && isGCSFile) {
+          try {
+            await fs.promises.unlink(tempFilePath);
+          } catch (cleanupError) {
+            console.warn(`Failed to cleanup temporary file: ${cleanupError}`);
+          }
+        }
         resolve(`PDF text processing failed: ${processingError.message}`);
       }
     });
     
     // Load and parse the PDF file
-    pdfParser.loadPDF(filePath);
+    pdfParser.loadPDF(filePathOrGCSKey);
+    
+    } catch (gcsError: any) {
+      console.error('GCS file processing error:', gcsError);
+      reject(new Error(`Failed to process GCS file: ${gcsError.message}`));
+    }
   });
 }
 
-// Enhanced OCR using Tesseract.js with optimized settings for document scanning
-async function extractTextWithTesseract(filePath: string): Promise<string> {
+// MEMORY OPTIMIZED: Enhanced OCR using Tesseract.js with GCS streaming support
+async function extractTextWithTesseract(filePathOrGCSKey: string): Promise<string> {
+  let tempFilePath: string | null = null;
+  let isGCSFile = false;
+
   try {
     console.log('Initializing Tesseract worker with enhanced document recognition...');
+    
+    // Handle GCS files
+    if (filePathOrGCSKey.includes('/') && !filePathOrGCSKey.startsWith('/') && !filePathOrGCSKey.startsWith('\\')) {
+      isGCSFile = true;
+      console.log('Detected GCS file, downloading for OCR processing...');
+      
+      // Download file from GCS to temporary location for OCR processing
+      const storage = storageProvider();
+      const fileBuffer = await storage.download(filePathOrGCSKey);
+      
+      // Create temporary file for OCR processing
+      tempFilePath = path.join(os.tmpdir(), `tesseract_${Date.now()}_${Math.random().toString(36).substring(2)}.tmp`);
+      await fs.promises.writeFile(tempFilePath, fileBuffer);
+      
+      console.log(`Downloaded GCS file to temporary location: ${tempFilePath}`);
+      filePathOrGCSKey = tempFilePath; // Use temp file for processing
+    }
+    
     const worker = await createWorker('eng');
     
     try {
@@ -82,24 +165,51 @@ async function extractTextWithTesseract(filePath: string): Promise<string> {
         tessjs_create_tsv: '1', // Create tab-separated values output
       });
 
-      console.log(`Processing scanned document with enhanced OCR: ${filePath}`);
+      console.log(`Processing scanned document with enhanced OCR: ${filePathOrGCSKey}`);
       
-      const { data: { text, confidence } } = await worker.recognize(filePath, {
+      const { data: { text, confidence } } = await worker.recognize(filePathOrGCSKey, {
         rectangle: undefined, // Process full image
       });
       
       console.log(`OCR completed with confidence: ${confidence}%`);
       
       if (!text || text.trim() === '') {
+        // Clean up temporary file and worker
+        if (tempFilePath && isGCSFile) {
+          try {
+            await fs.promises.unlink(tempFilePath);
+          } catch (cleanupError) {
+            console.warn(`Failed to cleanup temporary file: ${cleanupError}`);
+          }
+        }
+        await worker.terminate();
         return 'No text detected in scanned document';
       }
       
       // Clean up the extracted text for better readability
       const cleanedText = cleanupOCRText(text);
       
+      // Clean up temporary file if it was created
+      if (tempFilePath && isGCSFile) {
+        try {
+          await fs.promises.unlink(tempFilePath);
+          console.log(`Cleaned up temporary OCR file: ${tempFilePath}`);
+        } catch (cleanupError) {
+          console.warn(`Failed to cleanup temporary file: ${cleanupError}`);
+        }
+      }
+      
       return cleanedText;
     } finally {
       await worker.terminate();
+      // Additional cleanup for temporary file in case of exceptions
+      if (tempFilePath && isGCSFile) {
+        try {
+          await fs.promises.unlink(tempFilePath);
+        } catch (cleanupError) {
+          // Ignore errors here as file might already be cleaned up
+        }
+      }
     }
   } catch (error: any) {
     console.error('Enhanced Tesseract OCR failed:', error);
@@ -129,17 +239,12 @@ function cleanupOCRText(text: string): string {
 
 
 
-export async function extractTextFromImage(filePath: string, mimeType?: string): Promise<string> {
+export async function extractTextFromImage(filePathOrGCSKey: string, mimeType?: string): Promise<string> {
   try {
-    console.log(`Starting Tesseract OCR for file: ${filePath}`);
+    console.log(`Starting Tesseract OCR for file: ${filePathOrGCSKey}`);
     
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
-    }
-
-    // Use Tesseract.js for OCR
-    const extractedText = await extractTextWithTesseract(filePath);
+    // Use Tesseract.js for OCR with GCS support
+    const extractedText = await extractTextWithTesseract(filePathOrGCSKey);
     console.log(`Tesseract OCR completed, extracted ${extractedText.length} characters`);
     return extractedText;
   } catch (error: any) {
@@ -447,7 +552,7 @@ function extractPremium(text: string): string | null {
   return null;
 }
 
-export async function processDocumentOCRAndSummary(filePath: string, fileName: string, mimeType?: string): Promise<{extractedText: string, summary: string}> {
+export async function processDocumentOCRAndSummary(filePathOrGCSKey: string, fileName: string, mimeType?: string): Promise<{extractedText: string, summary: string}> {
   try {
     console.log(`Processing OCR and summary for: ${fileName}`);
     
@@ -455,9 +560,9 @@ export async function processDocumentOCRAndSummary(filePath: string, fileName: s
     
     // Extract text based on file type
     if (isImageFile(mimeType || '')) {
-      extractedText = await extractTextFromImage(filePath, mimeType);
+      extractedText = await extractTextFromImage(filePathOrGCSKey, mimeType);
     } else if (isPDFFile(mimeType || '')) {
-      extractedText = await extractTextFromPDF(filePath);
+      extractedText = await extractTextFromPDF(filePathOrGCSKey);
     } else {
       extractedText = 'No text detected';
     }
@@ -486,7 +591,7 @@ export function supportsOCR(mimeType: string): boolean {
 export async function processDocumentWithDateExtraction(
   documentId: number,
   documentName: string,
-  filePath: string,
+  filePathOrGCSKey: string,
   mimeType: string,
   userId: string,
   storage: any
@@ -496,9 +601,9 @@ export async function processDocumentWithDateExtraction(
     
     // Extract text based on file type
     if (isImageFile(mimeType)) {
-      extractedText = await extractTextFromImage(filePath, mimeType);
+      extractedText = await extractTextFromImage(filePathOrGCSKey, mimeType);
     } else if (isPDFFile(mimeType)) {
-      extractedText = await extractTextFromPDF(filePath);
+      extractedText = await extractTextFromPDF(filePathOrGCSKey);
     } else {
       extractedText = 'No text detected';
     }

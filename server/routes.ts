@@ -468,7 +468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await processDocumentWithDateExtraction(
             document.id,
             finalDocumentData.fileName,
-            finalFilePath, 
+            cloudStorageKey, // Use GCS key instead of local path
             finalMimeType,
             userId,
             storage
@@ -505,7 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Fallback to basic OCR without date extraction
           try {
             const { extractedText, summary } = await processDocumentOCRAndSummary(
-              finalFilePath, 
+              cloudStorageKey, // Use GCS key instead of local path
               finalDocumentData.fileName, 
               finalMimeType
             );

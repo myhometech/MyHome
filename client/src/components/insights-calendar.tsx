@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Clock, Info, Calendar, ExternalLink } from 'lucide-react';
 import { Link } from 'wouter';
+import { EnhancedDocumentViewer } from './enhanced-document-viewer';
 
 interface CalendarInsight {
   id: string;
@@ -63,6 +64,7 @@ export function InsightsCalendar({
   priorityFilter = 'all' 
 }: InsightsCalendarProps) {
   const [selectedEvent, setSelectedEvent] = useState<CalendarInsight | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<{ id: number; name: string; mimeType: string; fileSize: number } | null>(null);
 
   // Fetch insights with due dates for calendar view
   const { data: insightsData, isLoading, error } = useQuery<InsightsResponse>({
@@ -165,9 +167,37 @@ export function InsightsCalendar({
   console.log('📅 Total calendar events created:', calendarEvents.length);
   console.log('📅 Calendar events:', calendarEvents);
 
-  const handleEventClick = (eventInfo: any) => {
+  const handleEventClick = async (eventInfo: any) => {
     const insight = eventInfo.event.extendedProps.insight;
-    setSelectedEvent(insight);
+    console.log('📅 Calendar event clicked:', insight);
+    
+    // Fetch document details to open the document viewer
+    try {
+      const response = await fetch(`/api/documents/${insight.documentId}`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const document = await response.json();
+        console.log('📄 Opening document viewer for:', document);
+        
+        // Set document to open in viewer modal
+        setSelectedDocument({
+          id: document.id,
+          name: document.name,
+          mimeType: document.mimeType,
+          fileSize: document.fileSize
+        });
+      } else {
+        console.error('Failed to fetch document details');
+        // Fallback to showing event details if document fetch fails
+        setSelectedEvent(insight);
+      }
+    } catch (error) {
+      console.error('Error fetching document:', error);
+      // Fallback to showing event details if there's an error
+      setSelectedEvent(insight);
+    }
   };
 
   const handleDateClick = () => {
@@ -284,6 +314,21 @@ export function InsightsCalendar({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Enhanced Document Viewer Modal */}
+      {selectedDocument && (
+        <EnhancedDocumentViewer
+          document={selectedDocument}
+          onClose={() => {
+            console.log('📄 Closing document viewer from calendar');
+            setSelectedDocument(null);
+          }}
+          onUpdate={() => {
+            console.log('📄 Document updated from calendar, refreshing');
+            setSelectedDocument(null);
+          }}
+        />
       )}
     </div>
   );

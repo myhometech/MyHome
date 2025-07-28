@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { apiRequest } from "@/lib/queryClient";
 
 interface CriticalInsight {
   id: string;
@@ -92,11 +91,20 @@ export default function CriticalInsightsDashboard() {
   // TICKET 8: Dismiss insight mutation
   const dismissInsightMutation = useMutation({
     mutationFn: async (insightId: string) => {
-      return apiRequest(`/api/insights/${insightId}`, {
+      const response = await fetch(`/api/insights/${insightId}`, {
         method: 'PATCH',
         body: JSON.stringify({ status: 'dismissed' }),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to dismiss insight');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       // Invalidate critical insights query to refresh the list

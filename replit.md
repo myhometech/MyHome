@@ -164,6 +164,29 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### TICKET 8: Critical Insights Dashboard Redesign - PRODUCTION READY (January 28, 2025)
+- **Achievement**: Successfully redesigned homepage AI insights into a focused "Critical Insights Dashboard" replacing the broad TopInsightsWidget with targeted, actionable insights display
+- **Backend Implementation**:
+  - Created `/api/insights/critical` endpoint with intelligent filtering logic for maximum 4 critical insights
+  - Implemented smart categorization: expiring documents (30-day window, limit 2), missing data (high priority), time-sensitive events (upcoming due dates)
+  - Added sophisticated deduplication and urgency-based sorting (priority → due date → creation date)
+  - Enhanced database queries with proper type filtering (expiration, event, missing_data) and SQL optimization
+- **Frontend Component**:
+  - Replaced TopInsightsWidget with CriticalInsightsDashboard featuring clean "⚠️ Urgent Insights" interface
+  - Implemented priority-based color coding (red for high, yellow for medium, blue for low priority)
+  - Added smart due date formatting (Today, Tomorrow, X days, Overdue) with Calendar icons
+  - Created type labels (Expiring Soon, Missing Info, Time-Sensitive) with proper Badge components
+  - Built direct "View" buttons linking to `/document/{id}` pages for immediate action
+  - Added "View All Insights →" footer navigation to full insights dashboard
+  - Implemented "All Clear" state with CheckCircle icon when no critical insights exist
+- **Technical Features**:
+  - Auto-refresh every 60 seconds to maintain current critical insights without manual refresh
+  - Responsive design with proper mobile optimization and loading states
+  - Error handling with retry mechanisms and graceful fallback displays
+  - Database type updates converting action_items to expiration and key_dates to event types for better filtering
+- **User Experience Impact**: Homepage now shows only the most urgent, actionable insights (max 4) instead of a general feed, dramatically improving focus and reducing cognitive load for users
+- **Status**: ✅ PRODUCTION READY - Critical insights filtering operational with smart prioritization, real-time updates, and seamless navigation to document actions
+
 ### TICKET 3: Remove Document Statistics and Category Dashboard Features - SYSTEMATIC CLEANUP COMPLETE (January 28, 2025)
 - **Achievement**: Successfully completed removal of all legacy document statistics and category-based dashboard components following systematic JIRA ticket methodology, preparing clean foundation for AI Insights Dashboard
 - **Backend API Cleanup**: 

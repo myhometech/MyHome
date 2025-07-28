@@ -194,14 +194,12 @@ export default function CriticalInsightsDashboard() {
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0">
-                  {insight.actionUrl && (
-                    <Link href={insight.actionUrl}>
-                      <Button size="sm" variant="outline" className="text-xs px-3 py-1">
-                        <FileText className="w-3 h-3 mr-1" />
-                        View
-                      </Button>
-                    </Link>
-                  )}
+                  <Link href={`/document/${insight.documentId}`}>
+                    <Button size="sm" variant="outline" className="text-xs px-3 py-1">
+                      <FileText className="w-3 h-3 mr-1" />
+                      View
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </div>

@@ -380,7 +380,7 @@ export default function Home() {
                               Uncategorized
                             </div>
                           </SelectItem>
-                          {categories.map((category: Category) => (
+                          {categories.filter((category: Category) => category.id && category.id > 0).map((category: Category) => (
                             <SelectItem key={category.id} value={category.id.toString()}>
                               <div className="flex items-center gap-2">
                                 <i className={`${category.icon} text-${category.color}-500`}></i>

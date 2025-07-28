@@ -77,6 +77,10 @@ export const documents = pgTable("documents", {
   encryptionMetadata: text("encryption_metadata"),
   isEncrypted: boolean("is_encrypted").default(true),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
+  // DOC-302: Email ingestion fields
+  gcsPath: text("gcs_path"), // Path in Google Cloud Storage
+  uploadSource: varchar("upload_source", { length: 20 }).default("manual"), // 'manual', 'email', 'api'
+  status: varchar("status", { length: 20 }).default("active"), // 'pending', 'active', 'failed'
 }, (table) => [
   // Primary user-based indexes for common queries
   index("idx_documents_user_id").on(table.userId),

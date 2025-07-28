@@ -1615,23 +1615,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         attachmentDetails: processedAttachments
       });
 
-      // Process the email using GCS+SendGrid pipeline
+      // DOC-302: Process attachments with comprehensive validation and GCS upload
+      let attachmentResults: {
+        processedAttachments: any[];
+        totalProcessed: number;
+        totalFailed: number;
+      } = {
+        processedAttachments: [],
+        totalProcessed: 0,
+        totalFailed: 0
+      };
+
+      if (attachments && attachments.length > 0) {
+        const { attachmentProcessor } = await import('./attachmentProcessor');
+        attachmentResults = await attachmentProcessor.processEmailAttachments(
+          attachments,
+          user.id,
+          { from, subject: subject || 'Email Document', requestId }
+        );
+      }
+
+      // Process the email content using existing GCS+SendGrid pipeline
       const emailData = {
         from,
         subject: subject || 'Forwarded Document',
         html,
         text,
-        attachments: attachments || [],
+        attachments: [], // Attachments handled separately by DOC-302 processor
         metadata: emailMetadata
       };
 
       const result = await emailService.processIncomingEmail(emailData, user.email);
       
+      // Combine results from email content and attachments
+      const totalDocumentsCreated = (result.documentsCreated || 0) + attachmentResults.totalProcessed;
+      
       const processingTime = Date.now() - startTime;
       
       console.log(`[${requestId}] Email processing completed:`, {
         success: result.success,
-        documentsCreated: result.documentsCreated,
+        emailDocumentsCreated: result.documentsCreated || 0,
+        attachmentsProcessed: attachmentResults.totalProcessed,
+        attachmentsFailed: attachmentResults.totalFailed,
+        totalDocumentsCreated,
         processingTimeMs: processingTime,
         userId: user.id
       });
@@ -1639,8 +1665,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({
         message: 'Email processed successfully via SendGrid webhook',
         requestId,
-        documentsCreated: result.documentsCreated,
-        success: result.success,
+        documentsCreated: totalDocumentsCreated,
+        attachmentResults: {
+          processed: attachmentResults.totalProcessed,
+          failed: attachmentResults.totalFailed,
+          details: attachmentResults.processedAttachments
+        },
+        success: result.success && attachmentResults.totalFailed === 0,
         processingTimeMs: processingTime
       });
 

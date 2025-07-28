@@ -45,6 +45,7 @@ import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "dri
 export interface IStorage {
   // User operations (email/password auth only)
   getUser(id: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>; // DOC-302: Added getUserById method
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByStripeCustomerId(customerId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -167,6 +168,11 @@ export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
+  }
+
+  // DOC-302: getUserById method (alias for getUser for compatibility)
+  async getUserById(id: string): Promise<User | undefined> {
+    return this.getUser(id);
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {

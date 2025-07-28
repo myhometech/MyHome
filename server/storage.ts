@@ -1133,6 +1133,89 @@ export class DatabaseStorage implements IStorage {
     
     return updatedInsight;
   }
+
+  // TICKET 8: Get critical insights for homepage dashboard (max 4 items)
+  async getCriticalInsights(userId: string): Promise<DocumentInsight[]> {
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+
+    // Get expiring soon (limit 2)
+    const expiringSoon = await db
+      .select()
+      .from(documentInsights)
+      .where(
+        and(
+          eq(documentInsights.userId, userId),
+          eq(documentInsights.status, 'open'),
+          eq(documentInsights.priority, 'high'),
+          isNotNull(documentInsights.dueDate),
+          sql`${documentInsights.dueDate} >= ${now.toISOString().split('T')[0]}`,
+          sql`${documentInsights.dueDate} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
+        )
+      )
+      .orderBy(documentInsights.dueDate)
+      .limit(2);
+
+    // Get missing or incomplete info
+    const missingData = await db
+      .select()
+      .from(documentInsights)
+      .where(
+        and(
+          eq(documentInsights.userId, userId),
+          eq(documentInsights.status, 'open'),
+          eq(documentInsights.type, 'missing_data'),
+          eq(documentInsights.priority, 'high')
+        )
+      )
+      .orderBy(desc(documentInsights.createdAt))
+      .limit(1);
+
+    // Get time-sensitive events
+    const timeSensitiveEvents = await db
+      .select()
+      .from(documentInsights)
+      .where(
+        and(
+          eq(documentInsights.userId, userId),
+          eq(documentInsights.status, 'open'),
+          eq(documentInsights.type, 'event'),
+          isNotNull(documentInsights.dueDate),
+          sql`${documentInsights.dueDate} >= ${now.toISOString().split('T')[0]}`,
+          sql`${documentInsights.dueDate} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
+        )
+      )
+      .orderBy(documentInsights.dueDate)
+      .limit(1);
+
+    // Combine and limit to max 4 insights
+    const allCritical = [...expiringSoon, ...missingData, ...timeSensitiveEvents];
+    
+    // Remove duplicates and sort by urgency
+    const unique = Array.from(new Map(allCritical.map(insight => [insight.id, insight])).values());
+    
+    return unique
+      .sort((a, b) => {
+        // Sort by priority first, then by due date
+        const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
+        const priorityDiff = (priorityOrder[a.priority as keyof typeof priorityOrder] || 3) - 
+                           (priorityOrder[b.priority as keyof typeof priorityOrder] || 3);
+        
+        if (priorityDiff !== 0) return priorityDiff;
+        
+        // Then by due date (earliest first)
+        if (a.dueDate && b.dueDate) {
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        }
+        
+        // If only one has a due date, prioritize it
+        if (a.dueDate && !b.dueDate) return -1;
+        if (!a.dueDate && b.dueDate) return 1;
+        
+        return new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime();
+      })
+      .slice(0, 4);
+  }
 }
 
 export const storage = new DatabaseStorage();

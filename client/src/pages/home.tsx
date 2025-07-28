@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ShareDocumentDialog } from "@/components/share-document-dialog";
 import { BatchTagManager } from "@/components/batch-tag-manager";
-import TopInsightsWidget from "@/components/top-insights-widget";
+import CriticalInsightsDashboard from "@/components/critical-insights-dashboard";
 import type { Category, Document } from "@shared/schema";
 
 export default function Home() {
@@ -243,9 +243,9 @@ export default function Home() {
         {/* Upload Zone */}
         <UploadZone onUpload={handleFileUpload} />
 
-        {/* AI Insights Widget */}
+        {/* Critical Insights Dashboard */}
         <div className="mb-6">
-          <TopInsightsWidget />
+          <CriticalInsightsDashboard />
         </div>
 
 

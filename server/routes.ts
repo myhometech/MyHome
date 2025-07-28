@@ -1172,6 +1172,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TICKET 8: Get critical insights for homepage dashboard
+  app.get('/api/insights/critical', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+
+      const criticalInsights = await storage.getCriticalInsights(userId);
+
+      res.json(criticalInsights);
+
+    } catch (error) {
+      console.error("Error fetching critical insights:", error);
+      captureError(error, req, 'critical_insights_fetch');
+      res.status(500).json({ message: "Failed to fetch critical insights" });
+    }
+  });
+
   // TICKET 4: Update insight status
   app.patch('/api/insights/:id/status', requireAuth, async (req: any, res) => {
     try {

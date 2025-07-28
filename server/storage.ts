@@ -71,11 +71,7 @@ export interface IStorage {
   updateDocumentOCRAndSummary(id: number, userId: string, extractedText: string, summary: string): Promise<Document | undefined>;
   updateDocumentSummary(id: number, userId: string, summary: string): Promise<void>;
   updateDocumentTags(id: number, userId: string, tags: string[]): Promise<void>;
-  getDocumentStats(userId: string): Promise<{
-    totalDocuments: number;
-    totalSize: number;
-    categoryCounts: { categoryId: number; count: number }[];
-  }>;
+
 
   
   // Document sharing operations
@@ -382,33 +378,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(documents.id, id), eq(documents.userId, userId)));
   }
 
-  async getDocumentStats(userId: string): Promise<{
-    totalDocuments: number;
-    totalSize: number;
-    categoryCounts: { categoryId: number; count: number }[];
-  }> {
-    const userDocs = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.userId, userId));
 
-    const totalDocuments = userDocs.length;
-    const totalSize = userDocs.reduce((sum, doc) => sum + doc.fileSize, 0);
-    
-    const categoryCounts = userDocs.reduce((acc, doc) => {
-      if (doc.categoryId) {
-        const existing = acc.find(c => c.categoryId === doc.categoryId);
-        if (existing) {
-          existing.count++;
-        } else {
-          acc.push({ categoryId: doc.categoryId, count: 1 });
-        }
-      }
-      return acc;
-    }, [] as { categoryId: number; count: number }[]);
-
-    return { totalDocuments, totalSize, categoryCounts };
-  }
 
 
 

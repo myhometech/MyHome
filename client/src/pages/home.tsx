@@ -5,7 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Header from "@/components/header";
 import UploadZone from "@/components/upload-zone";
-import StatsGrid from "@/components/stats-grid";
+
 import CategoryFilter from "@/components/category-filter";
 import DocumentCard from "@/components/document-card";
 import MobileNav from "@/components/mobile-nav";
@@ -78,8 +78,6 @@ export default function Home() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/documents/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/documents/expiry-alerts"] });
       setSelectedDocuments(new Set());
       setBulkMode(false);
       toast({
@@ -122,7 +120,6 @@ export default function Home() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/documents/stats"] });
       setSelectedDocuments(new Set());
       setBulkMode(false);
       toast({
@@ -215,19 +212,10 @@ export default function Home() {
     retry: false,
   });
 
-  // Fetch stats
-  const { data: stats } = useQuery<{
-    totalDocuments: number;
-    totalSize: number;
-    categoryCounts: { categoryId: number; count: number }[];
-  }>({
-    queryKey: ["/api/documents/stats"],
-    retry: false,
-  });
+
 
   const handleFileUpload = (files: File[]) => {
     queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/documents/stats"] });
   };
 
   return (
@@ -256,8 +244,7 @@ export default function Home() {
 
 
 
-        {/* Stats Grid */}
-        <StatsGrid stats={stats} />
+
 
         {/* Discrete Email Forwarding Option */}
         <FeatureGate feature="emailForwarding" hideCompletely={true}>

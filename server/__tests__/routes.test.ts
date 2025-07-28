@@ -18,7 +18,7 @@ const mockStorage = {
   createCategory: vi.fn(),
   updateCategory: vi.fn(),
   deleteCategory: vi.fn(),
-  getDocumentStats: vi.fn()
+
 }
 
 // Mock external services
@@ -252,21 +252,7 @@ describe('API Routes', () => {
       })
     })
 
-    it('GET /api/documents/stats returns document statistics', async () => {
-      const mockStats = {
-        totalDocuments: 5,
-        totalSize: 5120,
-        categoryCounts: [{ categoryId: 1, count: 5 }]
-      }
 
-      mockStorage.getDocumentStats.mockResolvedValue(mockStats)
-
-      const response = await request(app)
-        .get('/api/documents/stats')
-
-      expect(response.status).toBe(200)
-      expect(response.body).toEqual(mockStats)
-    })
 
 
   })

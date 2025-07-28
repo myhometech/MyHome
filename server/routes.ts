@@ -591,17 +591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Document stats (must come before parameterized routes)
-  app.get('/api/documents/stats', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const stats = await storage.getDocumentStats(userId);
-      res.json(stats);
-    } catch (error) {
-      console.error("Error fetching document stats:", error);
-      res.status(500).json({ message: "Failed to fetch document stats" });
-    }
-  });
+
 
   // Get count of recently imported documents via email  
   app.get('/api/documents/imported-count', requireAuth, async (req: any, res) => {

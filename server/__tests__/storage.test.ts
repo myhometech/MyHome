@@ -231,29 +231,5 @@ describe('Storage Layer', () => {
     })
   })
 
-  describe('Statistics Operations', () => {
-    it('gets document statistics', async () => {
-      const mockStats = {
-        totalDocuments: 5,
-        totalSize: 5120,
-        categoryCounts: [{ categoryId: 1, count: 5 }]
-      }
 
-      // Mock complex query for stats
-      const mockSelect = {
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        groupBy: vi.fn().mockReturnThis(),
-        execute: vi.fn().mockResolvedValue(mockStats)
-      }
-
-      ;(db.select as any).mockReturnValue(mockSelect)
-
-      const result = await storage.getDocumentStats('user-123')
-
-      expect(result.totalDocuments).toBeDefined()
-      expect(result.totalSize).toBeDefined()
-      expect(result.categoryCounts).toBeDefined()
-    })
-  })
 })

@@ -86,10 +86,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
     { color: "gray", label: "Gray" },
   ];
 
-  const { data: documentStats } = useQuery<any>({
-    queryKey: ["/api/documents/stats"],
-    retry: false,
-  });
+
 
   const { hasFeature, features } = useFeatures();
   const isFree = !features.BULK_OPERATIONS; // Simple check for free tier
@@ -200,24 +197,8 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   });
 
   const handleFileSelect = async (files: File[]) => {
-    // Check document limit for free users
-    if (isFree && documentStats && documentStats.totalDocuments >= 50) {
-      toast({
-        title: "Document limit reached",
-        description: "Free users can upload up to 50 documents. Upgrade to Premium for unlimited uploads.",
-        variant: "destructive",
-        action: (
-          <Button 
-            size="sm" 
-            onClick={() => window.location.href = '/pricing'}
-            className="bg-amber-600 hover:bg-amber-700 text-white"
-          >
-            Upgrade Now
-          </Button>
-        )
-      });
-      return;
-    }
+    // Note: Document limit checking for free users will be handled server-side during upload
+    // This removes the need for client-side document statistics API calls
 
     const validFiles = files.filter(file => {
       const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];

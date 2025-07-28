@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Brain, Filter, RefreshCw, TrendingUp, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Brain, Filter, RefreshCw, TrendingUp, AlertCircle, CheckCircle, Clock, Calendar as CalendarIcon, List } from 'lucide-react';
 import { InsightCard } from './insight-card';
+import { InsightsCalendar } from './insights-calendar';
 import { DocumentInsight } from '@shared/schema';
 
 interface InsightsResponse {
@@ -26,6 +27,8 @@ export function AIInsightsDashboard() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('priority');
+  // TICKET 9: View toggle state (list or calendar)
+  const [currentView, setCurrentView] = useState<'list' | 'calendar'>('list');
 
   // TICKET 8: Map activeTab to API status filter
   const getAPIStatusFilter = () => {
@@ -177,14 +180,37 @@ export function AIInsightsDashboard() {
         </Card>
       </div>
 
-      {/* Filters Section */}
+      {/* TICKET 9: View Toggle and Filters Section */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2">
-              <Filter className="h-5 w-5" />
-              <span>Filters</span>
-            </CardTitle>
+            <div className="flex items-center space-x-4">
+              <CardTitle className="flex items-center space-x-2">
+                <Filter className="h-5 w-5" />
+                <span>Filters & View</span>
+              </CardTitle>
+              {/* TICKET 9: View Toggle */}
+              <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                <Button
+                  variant={currentView === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setCurrentView('list')}
+                  className="h-8 px-3"
+                >
+                  <List className="h-4 w-4 mr-1" />
+                  List
+                </Button>
+                <Button
+                  variant={currentView === 'calendar' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setCurrentView('calendar')}
+                  className="h-8 px-3"
+                >
+                  <CalendarIcon className="h-4 w-4 mr-1" />
+                  Calendar
+                </Button>
+              </div>
+            </div>
             <Button variant="outline" size="sm" onClick={clearFilters}>
               Clear All
             </Button>
@@ -276,51 +302,63 @@ export function AIInsightsDashboard() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab Content */}
+        {/* TICKET 9: Tab Content with conditional view rendering */}
         <TabsContent value={activeTab} className="mt-6">
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardHeader>
-                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+          {currentView === 'calendar' ? (
+            // TICKET 9: Calendar View
+            <InsightsCalendar 
+              statusFilter={getAPIStatusFilter()}
+              typeFilter={typeFilter !== 'all' ? typeFilter : undefined}
+              priorityFilter={priorityFilter !== 'all' ? priorityFilter : undefined}
+            />
+          ) : (
+            // List View (Default)
+            <>
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[...Array(6)].map((_, i) => (
+                    <Card key={i} className="animate-pulse">
+                      <CardHeader>
+                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : tabInsights.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tabInsights.map((insight) => (
+                    <InsightCard
+                      key={insight.id}
+                      insight={insight}
+                      onStatusUpdate={handleStatusUpdate}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Insights Found</h3>
+                    <p className="text-gray-600 mb-4">
+                      {activeTab === 'all' 
+                        ? "Upload some documents to start generating AI insights."
+                        : `No ${activeTab} insights match your current filters.`
+                      }
+                    </p>
+                    {activeTab !== 'all' && (
+                      <Button variant="outline" onClick={() => setActiveTab('all')}>
+                        View All Insights
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          ) : tabInsights.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {tabInsights.map((insight) => (
-                <InsightCard
-                  key={insight.id}
-                  insight={insight}
-                  onStatusUpdate={handleStatusUpdate}
-                />
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Insights Found</h3>
-                <p className="text-gray-600 mb-4">
-                  {activeTab === 'all' 
-                    ? "Upload some documents to start generating AI insights."
-                    : `No ${activeTab} insights match your current filters.`
-                  }
-                </p>
-                {activeTab !== 'all' && (
-                  <Button variant="outline" onClick={() => setActiveTab('all')}>
-                    View All Insights
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+              )}
+            </>
           )}
         </TabsContent>
       </Tabs>

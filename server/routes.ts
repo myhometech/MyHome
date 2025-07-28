@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage, type ExpiringDocument } from "./storage";
+import { storage } from "./storage";
 import { setupSimpleAuth, requireAuth } from "./simpleAuth";
 import { AuthService } from "./authService";
 import multer from "multer";
@@ -1112,7 +1112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error: any) {
       console.error("Error generating document insights:", error);
-      captureError(error, req, 'ai_insight_generation');
+      captureError(error, req);
       
       if (error.message.includes('quota exceeded')) {
         return res.status(429).json({ 
@@ -1157,18 +1157,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const type = req.query.type as string;
       const priority = req.query.priority as string;
       const sort = req.query.sort as string;
+      // TICKET 9: Support filtering insights with due dates for calendar view
+      const hasDueDate = req.query.has_due_date === 'true';
 
-      const insights = await storage.getInsights(userId, status === 'open' ? 'open' : status, type, priority);
+      let insights = await storage.getInsights(userId, status === 'open' ? 'open' : status, type, priority);
+
+      // TICKET 9: Filter insights with due dates if requested
+      if (hasDueDate) {
+        insights = insights.filter(insight => insight.dueDate && insight.dueDate !== null);
+      }
+
+      // Enhanced insight format for calendar support with action_url
+      const enhancedInsights = insights.map(insight => ({
+        ...insight,
+        action_url: `/document/${insight.documentId}`,
+        due_date: insight.dueDate ? (typeof insight.dueDate === 'string' ? insight.dueDate.split('T')[0] : insight.dueDate.toISOString().split('T')[0]) : null
+      }));
 
       res.json({
-        insights,
-        total: insights.length,
-        filters: { status, type, priority, sort }
+        insights: enhancedInsights,
+        total: enhancedInsights.length,
+        filters: { status, type, priority, sort, has_due_date: hasDueDate }
       });
 
     } catch (error) {
       console.error("Error fetching insights:", error);
-      captureError(error, req, 'insights_fetch');
+      captureError(error, req);
       res.status(500).json({ message: "Failed to fetch insights" });
     }
   });
@@ -1184,7 +1198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error fetching critical insights:", error);
-      captureError(error, req, 'critical_insights_fetch');
+      captureError(error, req);
       res.status(500).json({ message: "Failed to fetch critical insights" });
     }
   });
@@ -1210,7 +1224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error updating insight:", error);
-      captureError(error, req, 'insight_update');
+      captureError(error, req);
       res.status(500).json({ message: "Failed to update insight" });
     }
   });
@@ -1236,7 +1250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error updating insight status:", error);
-      captureError(error, req, 'insight_status_update');
+      captureError(error, req);
       res.status(500).json({ message: "Failed to update insight status" });
     }
   });

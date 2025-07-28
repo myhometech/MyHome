@@ -113,6 +113,9 @@ export interface IStorage {
   getAllFeatureFlags(): Promise<FeatureFlag[]>;
   toggleFeatureFlag(flagId: string, enabled: boolean): Promise<void>;
   getFeatureFlagOverrides(): Promise<any[]>;
+  
+  // Insight operations  
+  createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight>;
   getFeatureFlagAnalytics(): Promise<any>;
 
   // Stripe operations

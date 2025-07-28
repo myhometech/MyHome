@@ -123,7 +123,7 @@ class OCRJobQueue {
           
           // Store insights in database for dashboard display
           for (const insight of insights.insights) {
-            await storage.createInsight({
+            await storage.createDocumentInsight({
               documentId: job.documentId,
               userId: job.userId,
               insightId: insight.id,

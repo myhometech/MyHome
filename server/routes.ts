@@ -710,7 +710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
           if (metadata.storageType === 'cloud' && metadata.storageKey) {
-            console.log(`⚠️ EMERGENCY MODE: Skipping cloud storage existence check for ${metadata.storageKey} due to GCS billing issues`);
+            console.log(`⚠️ EMERGENCY MODE: Cloud storage temporarily unavailable for ${metadata.storageKey}`);
             
             // Instead of checking existence and cleaning up, return graceful error
             return res.status(503).json({ 

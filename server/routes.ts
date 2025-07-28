@@ -71,6 +71,56 @@ function getUserId(req: any): string {
   throw new Error("User not authenticated");
 }
 
+// TICKET 4: Helper function to generate dashboard-ready messages
+function generateInsightMessage(insight: any, documentName: string): string {
+  const docName = documentName.length > 30 ? documentName.substring(0, 30) + '...' : documentName;
+  
+  switch (insight.type) {
+    case 'key_dates':
+      return `${docName}: Important date identified - ${insight.title}`;
+    case 'action_items':
+      return `${docName}: Action required - ${insight.title}`;
+    case 'financial_info':
+      return `${docName}: Financial information - ${insight.title}`;
+    case 'compliance':
+      return `${docName}: Compliance requirement - ${insight.title}`;
+    case 'summary':
+      return `${docName}: Document summary available`;
+    case 'contacts':
+      return `${docName}: Contact information found - ${insight.title}`;
+    default:
+      return `${docName}: ${insight.title}`;
+  }
+}
+
+// TICKET 4: Helper function to extract due dates from insight content
+function extractDueDate(insight: any): string | null {
+  const content = (insight.content || '').toLowerCase();
+  const dateRegex = /(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}-\d{1,2}-\d{4})/;
+  
+  // Look for date patterns in the content
+  const match = content.match(dateRegex);
+  if (match) {
+    try {
+      const date = new Date(match[0]);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+      }
+    } catch (e) {
+      // Invalid date format
+    }
+  }
+  
+  // For certain types, set default due dates
+  if (insight.type === 'action_items' && insight.priority === 'high') {
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    return thirtyDaysFromNow.toISOString().split('T')[0];
+  }
+  
+  return null;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup error tracking middleware
   app.use(sentryRequestHandler());
@@ -1024,17 +1074,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId
       );
 
-      // Store insights in database
+      // Store insights in database with TICKET 4 dashboard fields
       for (const insight of insights.insights) {
+        // TICKET 4: Generate dashboard-ready message and action URL
+        const message = generateInsightMessage(insight, document.name);
+        const actionUrl = `/documents/${documentId}`;
+        const dueDate = extractDueDate(insight);
+
         await storage.createDocumentInsight({
           documentId,
           userId,
           insightId: insight.id,
+          message, // TICKET 4: User-facing message
           type: insight.type,
           title: insight.title,
           content: insight.content,
           confidence: Math.round(insight.confidence * 100), // Convert to 0-100 scale
           priority: insight.priority,
+          dueDate, // TICKET 4: Due date for actionable insights
+          actionUrl, // TICKET 4: URL to take action
+          status: 'open', // TICKET 4: Default status
           metadata: insight.metadata || {},
           processingTime: insights.processingTime,
           aiModel: 'gpt-4o',
@@ -1086,6 +1145,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching document insights:", error);
       res.status(500).json({ message: "Failed to fetch document insights" });
+    }
+  });
+
+  // TICKET 4: Get insights for dashboard
+  app.get('/api/insights', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const status = req.query.status as string;
+      const type = req.query.type as string;
+      const priority = req.query.priority as string;
+      const sort = req.query.sort as string;
+
+      const insights = await storage.getInsights(userId, status, type, priority);
+
+      res.json({
+        insights,
+        total: insights.length,
+        filters: { status, type, priority, sort }
+      });
+
+    } catch (error) {
+      console.error("Error fetching insights:", error);
+      captureError(error, req, 'insights_fetch');
+      res.status(500).json({ message: "Failed to fetch insights" });
+    }
+  });
+
+  // TICKET 4: Update insight status
+  app.patch('/api/insights/:id/status', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const insightId = req.params.id;
+      const { status } = req.body;
+
+      if (!['open', 'dismissed', 'resolved'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be 'open', 'dismissed', or 'resolved'." });
+      }
+
+      const updatedInsight = await storage.updateInsightStatus(insightId, userId, status);
+      
+      if (!updatedInsight) {
+        return res.status(404).json({ message: "Insight not found" });
+      }
+
+      res.json(updatedInsight);
+
+    } catch (error) {
+      console.error("Error updating insight status:", error);
+      captureError(error, req, 'insight_status_update');
+      res.status(500).json({ message: "Failed to update insight status" });
     }
   });
 

@@ -138,10 +138,14 @@ export interface IStorage {
     newFilePath: string
   ): Promise<Document | undefined>;
 
-  // DOC-501: Document insights operations
+  // DOC-501: Document insights operations  
   createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight>;
   getDocumentInsights(documentId: number, userId: string): Promise<DocumentInsight[]>;
   deleteDocumentInsight(documentId: number, userId: string, insightId: string): Promise<void>;
+  
+  // TICKET 4: AI Insights Dashboard operations
+  getInsights(userId: string, status?: string, type?: string, priority?: string): Promise<DocumentInsight[]>;
+  updateInsightStatus(insightId: string, userId: string, status: 'open' | 'dismissed' | 'resolved'): Promise<DocumentInsight | undefined>;
 }
 
 
@@ -1081,6 +1085,53 @@ export class DatabaseStorage implements IStorage {
           eq(documentInsights.insightId, insightId)
         )
       );
+  }
+
+  // TICKET 4: AI Insights Dashboard operations
+  async getInsights(userId: string, status?: string, type?: string, priority?: string): Promise<DocumentInsight[]> {
+    const conditions = [eq(documentInsights.userId, userId)];
+    
+    if (status) {
+      conditions.push(eq(documentInsights.status, status));
+    }
+    if (type) {
+      conditions.push(eq(documentInsights.type, type));
+    }
+    if (priority) {
+      conditions.push(eq(documentInsights.priority, priority));
+    }
+
+    return await db
+      .select()
+      .from(documentInsights)
+      .where(and(...conditions))
+      .orderBy(
+        sql`CASE ${documentInsights.priority}
+          WHEN 'high' THEN 1
+          WHEN 'medium' THEN 2
+          WHEN 'low' THEN 3
+        END`,
+        documentInsights.dueDate,
+        desc(documentInsights.createdAt)
+      );
+  }
+
+  async updateInsightStatus(insightId: string, userId: string, status: 'open' | 'dismissed' | 'resolved'): Promise<DocumentInsight | undefined> {
+    const [updatedInsight] = await db
+      .update(documentInsights)
+      .set({ 
+        status,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(documentInsights.id, insightId),
+          eq(documentInsights.userId, userId)
+        )
+      )
+      .returning();
+    
+    return updatedInsight;
   }
 }
 

@@ -9,6 +9,8 @@ import {
   integer,
   boolean,
   unique,
+  uuid,
+  date,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -226,6 +228,8 @@ export const insertStripeWebhookSchema = createInsertSchema(stripeWebhooks).omit
   processedAt: true,
 });
 
+
+
 // Stripe webhook types
 export type StripeWebhook = typeof stripeWebhooks.$inferSelect;
 export type InsertStripeWebhook = z.infer<typeof insertStripeWebhookSchema>;
@@ -261,17 +265,21 @@ export const expiryReminders = pgTable("expiry_reminders", {
 export type InsertExpiryReminder = typeof expiryReminders.$inferInsert;
 export type ExpiryReminder = typeof expiryReminders.$inferSelect;
 
-// DOC-501: Document Insights table for AI-powered document analysis
+// TICKET 4: Document Insights table for AI-powered dashboard (extends DOC-501)
 export const documentInsights = pgTable("document_insights", {
-  id: serial("id").primaryKey(),
+  id: uuid("id").primaryKey().defaultRandom(),
   documentId: integer("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   insightId: varchar("insight_id").notNull(), // Unique identifier for this insight
-  type: varchar("type", { length: 50 }).notNull(), // 'summary', 'action_items', 'key_dates', etc.
+  message: text("message").notNull(), // TICKET 4: User-facing message
+  type: varchar("type", { length: 50 }).notNull(), // 'summary', 'action_items', 'key_dates', 'financial', 'expiring', etc.
   title: varchar("title").notNull(),
   content: text("content").notNull(),
   confidence: integer("confidence").notNull(), // 0-100 (stored as integer for database efficiency)
   priority: varchar("priority", { length: 10 }).notNull().default("medium"), // 'low', 'medium', 'high'
+  dueDate: date("due_date"), // TICKET 4: Due date for actionable insights
+  actionUrl: text("action_url"), // TICKET 4: URL to take action
+  status: varchar("status", { length: 20 }).notNull().default("open"), // TICKET 4: 'open', 'dismissed', 'resolved'
   metadata: jsonb("metadata"), // Additional structured data
   processingTime: integer("processing_time"), // Time taken to generate insight (ms)
   aiModel: varchar("ai_model", { length: 50 }).default("gpt-4o"),
@@ -279,11 +287,15 @@ export const documentInsights = pgTable("document_insights", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
+  // Existing DOC-501 indexes
   index("idx_document_insights_document").on(table.documentId),
   index("idx_document_insights_user").on(table.userId),
   index("idx_document_insights_type").on(table.type),
   index("idx_document_insights_priority").on(table.priority),
   unique("unique_insight_per_document").on(table.documentId, table.insightId),
+  // TICKET 4: New indexes for dashboard
+  index("idx_insights_user_status").on(table.userId, table.status),
+  index("idx_insights_due_date").on(table.dueDate),
 ]);
 
 export type InsertDocumentInsight = typeof documentInsights.$inferInsert;

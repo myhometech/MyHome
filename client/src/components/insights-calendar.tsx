@@ -126,23 +126,44 @@ export function InsightsCalendar({
 
   const insights = insightsData?.insights || [];
 
-  // Convert insights to FullCalendar events
+  // Debug logging for calendar event mapping
+  console.log('📅 Calendar Debug - Raw insights data:', insights);
+  console.log('📅 Calendar Debug - Insights with due dates:', insights.filter(insight => insight.dueDate));
+
+  // Convert insights to FullCalendar events following the debug checklist
   const calendarEvents = insights
-    .filter(insight => insight.dueDate) // Fixed: use dueDate
-    .map(insight => ({
-      id: insight.id,
-      title: insight.message,
-      date: insight.dueDate!, // Fixed: use dueDate
-      backgroundColor: getPriorityColor(insight.priority),
-      borderColor: getPriorityColor(insight.priority),
-      textColor: '#ffffff',
-      extendedProps: {
-        insight: insight,
-        priority: insight.priority,
-        type: insight.type,
-        actionUrl: insight.actionUrl, // Fixed: use actionUrl
-      }
-    }));
+    .filter(insight => {
+      const hasDueDate = insight.dueDate && insight.dueDate !== null;
+      console.log(`📅 Insight ${insight.id}: dueDate="${insight.dueDate}", has due date: ${hasDueDate}`);
+      return hasDueDate;
+    })
+    .map(insight => {
+      // Ensure proper date format for FullCalendar - filter out null dates first
+      if (!insight.dueDate) return null;
+      
+      const event = {
+        id: insight.id,
+        title: insight.message,
+        start: insight.dueDate, // Now guaranteed to be non-null
+        allDay: true, // All-day events as per checklist
+        className: `priority-${insight.priority}`, // Priority-based styling
+        backgroundColor: getPriorityColor(insight.priority),
+        borderColor: getPriorityColor(insight.priority),
+        textColor: '#ffffff',
+        extendedProps: {
+          insight: insight,
+          priority: insight.priority,
+          type: insight.type,
+          insightUrl: insight.actionUrl, // Use insightUrl as per checklist
+        }
+      };
+      console.log('📅 Created calendar event:', event);
+      return event;
+    })
+    .filter(event => event !== null); // Remove any null events
+
+  console.log('📅 Total calendar events created:', calendarEvents.length);
+  console.log('📅 Calendar events:', calendarEvents);
 
   const handleEventClick = (eventInfo: any) => {
     const insight = eventInfo.event.extendedProps.insight;
@@ -195,6 +216,19 @@ export function InsightsCalendar({
                   // Add hover effects and tooltip
                   info.el.title = `${info.event.title} (${info.event.extendedProps.priority} priority)`;
                   info.el.style.cursor = 'pointer';
+                  console.log('📅 Event mounted:', info.event.title, 'on date:', info.event.start);
+                }}
+                eventContent={(eventInfo) => {
+                  // Custom event rendering for better visibility
+                  console.log('📅 Rendering event:', eventInfo.event.title);
+                  return {
+                    html: `<div class="fc-event-title">${eventInfo.event.title}</div>`
+                  };
+                }}
+                // Ensure events are visible across date range
+                validRange={{
+                  start: new Date(new Date().getFullYear(), new Date().getMonth() - 6, 1),
+                  end: new Date(new Date().getFullYear(), new Date().getMonth() + 6, 30)
                 }}
               />
             </div>

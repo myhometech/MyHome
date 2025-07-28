@@ -238,15 +238,13 @@ export default function Home() {
           </div>
         </div>
 
-
-
-        {/* Upload Zone */}
-        <UploadZone onUpload={handleFileUpload} />
-
-        {/* Critical Insights Dashboard */}
+        {/* Critical Insights Dashboard - Prioritized at top */}
         <div className="mb-6">
           <CriticalInsightsDashboard />
         </div>
+
+        {/* Upload Zone */}
+        <UploadZone onUpload={handleFileUpload} />
 
 
 

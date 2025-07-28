@@ -72,7 +72,9 @@ class AIInsightService {
         return {
           insights: [],
           processingTime: 0,
-          aiServiceUsed: false
+          confidence: 0,
+          documentType: 'unknown',
+          recommendedActions: []
         };
       }
     } catch (error) {

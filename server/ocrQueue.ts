@@ -108,47 +108,34 @@ class OCRJobQueue {
         storage
       );
       
-      // TICKET 5: Generate AI insights automatically after OCR processing
+      // TICKET 17: Queue AI insights for background processing
       try {
         const document = await storage.getDocument(job.documentId, job.userId);
-        if (document && document.extractedText && aiInsightService.isServiceAvailable()) {
-          console.log(`🧠 Generating AI insights for document: ${job.documentId}`);
+        if (document && document.extractedText) {
+          console.log(`💡 Queueing AI insights job for document: ${job.documentId}`);
           
-          const insights = await aiInsightService.generateDocumentInsights(
-            document.name,
-            document.extractedText,
-            document.mimeType,
-            job.userId
-          );
+          const { insightJobQueue } = await import('./insightJobQueue');
           
-          // Store insights in database for dashboard display
-          for (const insight of insights.insights) {
-            await storage.createDocumentInsight({
-              documentId: job.documentId,
-              userId: job.userId,
-              insightId: insight.id,
-              message: aiInsightService.generateInsightMessage(insight),
-              type: insight.type,
-              title: insight.title,
-              content: insight.content,
-              confidence: insight.confidence,
-              priority: insight.priority,
-              dueDate: aiInsightService.extractDueDate(insight.content),
-              actionUrl: `/document/${job.documentId}`,
-              status: 'open',
-              metadata: insight.metadata ? JSON.stringify(insight.metadata) : null,
-              processingTime: insights.processingTime,
-              aiModel: 'gpt-4o',
-              source: 'ai'
-            });
+          const insightJobId = await insightJobQueue.addInsightJob({
+            documentId: job.documentId,
+            userId: job.userId,
+            documentType: document.category?.name || 'general',
+            documentName: document.name,
+            extractedText: document.extractedText,
+            mimeType: document.mimeType,
+            priority: 5
+          });
+          
+          if (insightJobId) {
+            console.log(`✅ AI insights job queued: ${insightJobId} for document ${job.documentId}`);
+          } else {
+            console.log(`⚠️ AI insights job skipped (duplicate or queue full) for document ${job.documentId}`);
           }
-          
-          console.log(`✅ Generated ${insights.insights.length} AI insights for document: ${job.documentId}`);
         } else {
-          console.log(`⚠️ Skipping AI insights - document has no extracted text or AI service unavailable: ${job.documentId}`);
+          console.log(`⚠️ Skipping AI insights - document has no extracted text: ${job.documentId}`);
         }
       } catch (insightError) {
-        console.error(`❌ AI insight generation failed for document ${job.documentId}:`, insightError);
+        console.error(`❌ AI insight job queueing failed for document ${job.documentId}:`, insightError);
         // Continue processing - insights are optional
       }
       

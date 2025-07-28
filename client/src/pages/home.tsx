@@ -27,6 +27,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ShareDocumentDialog } from "@/components/share-document-dialog";
 import { BatchTagManager } from "@/components/batch-tag-manager";
 import CriticalInsightsDashboard from "@/components/critical-insights-dashboard";
+import { InsightJobStatus } from "@/components/InsightJobStatus";
 import type { Category, Document } from "@shared/schema";
 
 export default function Home() {
@@ -242,6 +243,11 @@ export default function Home() {
         <div className="mb-6">
           <CriticalInsightsDashboard />
         </div>
+
+        {/* TICKET 17: Show AI insight generation status */}
+        <FeatureGate feature="AI_INSIGHTS">
+          <InsightJobStatus />
+        </FeatureGate>
 
         {/* Upload Zone */}
         <UploadZone onUpload={handleFileUpload} />

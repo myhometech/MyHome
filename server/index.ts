@@ -48,11 +48,12 @@ process.env.MEMORY_PROFILING = 'true';
 const initialMem = process.memoryUsage();
 console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap (${Math.round((initialMem.heapUsed/initialMem.heapTotal)*100)}%)`);
 
-// Import memory profiler, memory manager, and session cleanup
+// Import memory profiler, memory manager, session cleanup, and job monitoring
 Promise.all([
   import('./memoryProfiler.js'),
   import('./memoryManager.js'),
-  import('./sessionCleanup.js')
+  import('./sessionCleanup.js'),
+  import('./jobQueueMonitor.js')
 ]).then(([{ memoryProfiler }, { memoryManager }, { sessionCleanup }]) => {
   console.log('🔍 Memory profiler loaded');
   console.log('🔧 Memory manager loaded');

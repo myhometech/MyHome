@@ -23,6 +23,7 @@ const houseSchema = z.object({
 const carSchema = z.object({
   type: z.literal("car"),
   name: z.string().min(1, "Name is required"),
+  registration: z.string().min(1, "Registration is required"),
   make: z.string().min(1, "Make is required"),
   model: z.string().min(1, "Model is required"),
   year: z.number().int().gte(1900).lte(new Date().getFullYear()),
@@ -69,6 +70,7 @@ export function YourAssetsSection() {
         form.reset({
           type: "car",
           name: form.getValues("name"),
+          registration: "",
           make: "",
           model: "",
           year: new Date().getFullYear(),
@@ -217,6 +219,19 @@ export function YourAssetsSection() {
                 <>
                   <FormField
                     control={form.control}
+                    name="registration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Registration Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. ABC 123" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="make"
                     render={({ field }) => (
                       <FormItem>
@@ -316,7 +331,7 @@ export function YourAssetsSection() {
                     </div>
                   ) : (
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                      <p>{asset.make} {asset.model} {asset.year && `(${asset.year})`}</p>
+                      <p>{asset.registration && `${asset.registration} • `}{asset.make} {asset.model} {asset.year && `(${asset.year})`}</p>
                       {asset.vin && <p className="text-xs opacity-75">VIN: {asset.vin}</p>}
                     </div>
                   )}

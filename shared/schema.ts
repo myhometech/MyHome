@@ -343,6 +343,7 @@ export const userAssets = pgTable("user_assets", {
   make: varchar("make", { length: 100 }), // For cars
   model: varchar("model", { length: 100 }), // For cars
   year: integer("year"), // For cars
+  registration: varchar("registration", { length: 50 }), // For cars
   vin: varchar("vin", { length: 50 }), // For cars (optional)
   // Common optional fields
   estimatedValue: integer("estimated_value"), // Optional estimated value in cents

@@ -2735,6 +2735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const carSchema = z.object({
         type: z.literal("car"),
         name: z.string().min(1),
+        registration: z.string().min(1),
         make: z.string().min(1),
         model: z.string().min(1),
         year: z.number().int().gte(1900).lte(new Date().getFullYear()),

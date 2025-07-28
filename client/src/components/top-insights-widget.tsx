@@ -188,17 +188,11 @@ export default function TopInsightsWidget() {
                       {insight.title}
                     </p>
                   </div>
-                  {insight.actionUrl && insight.actionUrl.trim() ? (
-                    <Link href={insight.actionUrl.trim()}>
-                      <Button size="sm" variant="outline" className="shrink-0 text-xs">
-                        View
-                      </Button>
-                    </Link>
-                  ) : (
-                    <Button size="sm" variant="outline" className="shrink-0 text-xs" disabled>
+                  <Link href={`/document/${insight.documentId}`}>
+                    <Button size="sm" variant="outline" className="shrink-0 text-xs">
                       View
                     </Button>
-                  )}
+                  </Link>
                 </div>
               </div>
             );

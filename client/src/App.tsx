@@ -28,6 +28,7 @@ import AdminDashboard from "@/pages/admin";
 import FeatureFlagsAdmin from "@/pages/admin/feature-flags";
 import Pricing from "@/pages/pricing";
 import { InsightsPage } from "@/pages/insights";
+import DocumentPage from "@/pages/document";
 
 
 function Router() {
@@ -78,6 +79,7 @@ function Router() {
         <>
           <Route path="/" component={Home} />
           <Route path="/insights" component={InsightsPage} />
+          <Route path="/document/:id" component={DocumentPage} />
           <Route path="/settings" component={Settings} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />

@@ -33,12 +33,13 @@ export default function Settings() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Get user's forwarding email address
+  // DOC-306: Get user's forwarding email address for profile display
   const { data: forwardingInfo, isLoading: forwardingLoading } = useQuery<{
-    address: string;
+    address: string | null;
     instructions: string;
+    isConfigured?: boolean;
   }>({
-    queryKey: ["/api/email/forwarding-address"],
+    queryKey: ["/api/user/email-forwarding-address"],
     enabled: isAuthenticated,
   });
 
@@ -208,15 +209,15 @@ export default function Settings() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => copyToClipboard(forwardingInfo.address)}
+                          onClick={() => copyToClipboard(forwardingInfo.address!)}
                           className="shrink-0"
                         >
                           <Copy className="h-3 w-3" />
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
-                        <span className="text-sm text-orange-800">Unable to load forwarding address</span>
+                      <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                        <span className="text-sm text-amber-800">Pending setup...</span>
                       </div>
                     )}
                     

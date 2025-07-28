@@ -29,10 +29,10 @@ export function EmailForwarding() {
     enabled: showHistory,
   });
 
-  // Test email processing
+  // Test email processing - Using GCS+SendGrid pipeline
   const testEmailMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/email/test");
+      const response = await apiRequest("POST", "/api/email/forwarding-address");
       return await response.json();
     },
     onSuccess: (data: any) => {

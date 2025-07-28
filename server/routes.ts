@@ -1507,6 +1507,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Main SendGrid webhook endpoint for GCS+SendGrid pipeline
+  app.post('/api/email-ingest', async (req, res) => {
+    try {
+      const { to, from, subject, text, html, attachments } = req.body;
+      
+      if (!to || !from) {
+        return res.status(400).json({ message: "Missing required email fields" });
+      }
+
+      // Parse user from forwarding email address
+      const EmailService = (await import('./emailService')).EmailService;
+      const emailService = new EmailService();
+      const userId = await emailService.parseUserFromEmail(to);
+      
+      if (!userId) {
+        console.log('No user found for email address:', to);
+        return res.status(200).json({ message: 'Email processed but no user found' });
+      }
+
+      // Get user for processing
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(200).json({ message: 'User not found' });
+      }
+
+      // Process the email using GCS+SendGrid pipeline
+      const emailData = {
+        from,
+        subject: subject || 'Forwarded Document',
+        html,
+        text,
+        attachments: attachments || []
+      };
+
+      const result = await emailService.processIncomingEmail(emailData, user.email);
+      
+      res.status(200).json({
+        message: 'Email processed successfully via GCS+SendGrid pipeline',
+        documentsCreated: result.documentsCreated,
+        success: result.success
+      });
+
+    } catch (error) {
+      console.error('Error processing email ingest:', error);
+      res.status(500).json({ 
+        message: 'Error processing email via GCS+SendGrid pipeline',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Chatbot endpoints
   app.post('/api/chatbot/ask', requireAuth, async (req: any, res) => {
     try {

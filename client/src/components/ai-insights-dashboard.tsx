@@ -33,12 +33,20 @@ export function AIInsightsDashboard() {
     error,
     refetch
   } = useQuery<InsightsResponse>({
-    queryKey: ['/api/insights', { 
-      status: statusFilter === 'all' ? '' : statusFilter, 
-      type: typeFilter === 'all' ? '' : typeFilter, 
-      priority: priorityFilter === 'all' ? '' : priorityFilter, 
-      sort: sortBy 
-    }],
+    queryKey: ['/api/insights', statusFilter, typeFilter, priorityFilter, sortBy],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      if (typeFilter && typeFilter !== 'all') params.append('type', typeFilter);
+      if (priorityFilter && priorityFilter !== 'all') params.append('priority', priorityFilter);
+      if (sortBy) params.append('sort', sortBy);
+
+      const response = await fetch(`/api/insights?${params}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch insights');
+      return response.json();
+    },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 

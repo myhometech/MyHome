@@ -96,10 +96,8 @@ class OCRJobQueue {
     try {
       // Import OCR functions dynamically to avoid memory retention
       const { processDocumentWithDateExtraction } = await import('./ocrService.js');
-      const { storageProvider } = await import('./storage/StorageService.js');
+      const { storage } = await import('./storage.js');
       const { aiInsightService } = await import('./aiInsightService.js');
-      
-      const storage = storageProvider();
       
       await processDocumentWithDateExtraction(
         job.documentId,

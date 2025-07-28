@@ -252,7 +252,12 @@ export function YourAssetsSection() {
                             type="number" 
                             placeholder="e.g. 2020" 
                             {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                            min="1900"
+                            max={new Date().getFullYear()}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === "" ? undefined : parseInt(value));
+                            }}
                           />
                         </FormControl>
                         <FormMessage />

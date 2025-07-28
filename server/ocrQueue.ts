@@ -96,7 +96,8 @@ class OCRJobQueue {
     try {
       // Import OCR functions dynamically to avoid memory retention
       const { processDocumentWithDateExtraction } = await import('./ocrService.js');
-      const { storageProvider } = await import('./storage/StorageProvider.js');
+      const { storageProvider } = await import('./storage/StorageService.js');
+      const { aiInsightService } = await import('./aiInsightService.js');
       
       const storage = storageProvider();
       
@@ -108,6 +109,50 @@ class OCRJobQueue {
         job.userId,
         storage
       );
+      
+      // TICKET 5: Generate AI insights automatically after OCR processing
+      try {
+        const document = await storage.getDocument(job.documentId, job.userId);
+        if (document && document.extractedText && aiInsightService.isServiceAvailable()) {
+          console.log(`🧠 Generating AI insights for document: ${job.documentId}`);
+          
+          const insights = await aiInsightService.generateDocumentInsights(
+            document.name,
+            document.extractedText,
+            document.mimeType,
+            job.userId
+          );
+          
+          // Store insights in database for dashboard display
+          for (const insight of insights.insights) {
+            await storage.createInsight({
+              documentId: job.documentId,
+              userId: job.userId,
+              insightId: insight.id,
+              message: aiInsightService.generateInsightMessage(insight),
+              type: insight.type,
+              title: insight.title,
+              content: insight.content,
+              confidence: insight.confidence,
+              priority: insight.priority,
+              dueDate: aiInsightService.extractDueDate(insight.content),
+              actionUrl: `/document/${job.documentId}`,
+              status: 'open',
+              metadata: insight.metadata ? JSON.stringify(insight.metadata) : null,
+              processingTime: insights.processingTime,
+              aiModel: 'gpt-4o',
+              source: 'ai'
+            });
+          }
+          
+          console.log(`✅ Generated ${insights.insights.length} AI insights for document: ${job.documentId}`);
+        } else {
+          console.log(`⚠️ Skipping AI insights - document has no extracted text or AI service unavailable: ${job.documentId}`);
+        }
+      } catch (insightError) {
+        console.error(`❌ AI insight generation failed for document ${job.documentId}:`, insightError);
+        // Continue processing - insights are optional
+      }
       
       const endTime = performance.now();
       const endMemory = process.memoryUsage().heapUsed;

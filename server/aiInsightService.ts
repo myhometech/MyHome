@@ -254,6 +254,71 @@ Ensure all insights are actionable and provide real value to the user.`;
       reason: 'OpenAI API key not configured'
     };
   }
+
+  /**
+   * TICKET 4: Generate user-facing message for dashboard insights
+   */
+  generateInsightMessage(insight: DocumentInsight): string {
+    const docName = insight.title.length > 30 ? 
+      insight.title.substring(0, 30) + '...' : 
+      insight.title;
+
+    switch (insight.type) {
+      case 'key_dates':
+        return `Important dates found in ${docName}`;
+      case 'action_items':
+        return `Action required for ${docName}`;
+      case 'financial_info':
+        return `Financial details in ${docName}`;
+      case 'compliance':
+        return `Compliance check needed for ${docName}`;
+      case 'summary':
+        return `Summary available for ${docName}`;
+      default:
+        return `Review ${docName}`;
+    }
+  }
+
+  /**
+   * TICKET 4: Extract due date from insight content
+   */
+  extractDueDate(content: string): Date | null {
+    const datePatterns = [
+      /(?:due|expires?|deadline|expiry).*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}).*?(?:due|expires?|deadline|expiry)/i,
+      /(?:by|before|until).*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i
+    ];
+
+    for (const pattern of datePatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        try {
+          const dateStr = match[1];
+          const date = new Date(dateStr);
+          
+          // Validate date is reasonable (not too far in past/future)
+          const now = new Date();
+          const yearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+          const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+          
+          if (date >= yearAgo && date <= yearFromNow) {
+            return date;
+          }
+        } catch (error) {
+          // Continue to next pattern
+        }
+      }
+    }
+
+    // If priority is high, set due date for next week
+    if (content.toLowerCase().includes('urgent') || content.toLowerCase().includes('important')) {
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      return nextWeek;
+    }
+
+    return null;
+  }
 }
 
 // Export singleton instance

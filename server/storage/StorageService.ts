@@ -59,14 +59,34 @@ export class StorageService {
     // GCS now properly configured with explicit authentication
     
     const bucketName = process.env.GCS_BUCKET_NAME || 'media.myhome-tech.com';
-    const projectId = process.env.GCS_PROJECT_ID;
-    const keyFilename = process.env.GCS_KEY_FILENAME;
+    let projectId = process.env.GCS_PROJECT_ID;
+    let keyFilename = process.env.GCS_KEY_FILENAME;
     
     // Support for service account credentials from environment
     let credentials;
-    if (process.env.GCS_CREDENTIALS) {
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      try {
+        // Parse the JSON credentials from the environment variable
+        credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+        // Extract project ID from credentials if not provided
+        if (!projectId && credentials.project_id) {
+          projectId = credentials.project_id;
+        }
+        console.log('✅ Parsed GCS credentials from GOOGLE_APPLICATION_CREDENTIALS');
+      } catch (error) {
+        console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS:', error);
+        // Fallback: check if it's a file path
+        if (process.env.GOOGLE_APPLICATION_CREDENTIALS.endsWith('.json')) {
+          keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+        }
+      }
+    } else if (process.env.GCS_CREDENTIALS) {
       try {
         credentials = JSON.parse(process.env.GCS_CREDENTIALS);
+        // Extract project ID from credentials if not provided
+        if (!projectId && credentials.project_id) {
+          projectId = credentials.project_id;
+        }
       } catch (error) {
         console.error('Failed to parse GCS_CREDENTIALS:', error);
       }

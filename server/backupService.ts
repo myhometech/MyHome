@@ -67,8 +67,23 @@ export class BackupService {
       }
     };
 
-    this.storageService = new StorageService();
-    this.gcsClient = new Storage();
+    this.storageService = StorageService;
+    
+    // Initialize GCS client with explicit credentials to prevent metadata server calls
+    const gcsOptions: any = {};
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      try {
+        gcsOptions.credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+        gcsOptions.projectId = gcsOptions.credentials.project_id;
+      } catch (error) {
+        console.error('Failed to parse GCS credentials for backup service:', error);
+        throw new Error('Invalid GCS credentials configuration');
+      }
+    } else {
+      throw new Error('GOOGLE_APPLICATION_CREDENTIALS required for backup service');
+    }
+    
+    this.gcsClient = new Storage(gcsOptions);
     this.backupBucket = this.config.storage.archivalBucket;
   }
 
@@ -567,12 +582,12 @@ export class BackupService {
 
       // Find most recent backups
       const databaseBackups = files.sort((a, b) => 
-        new Date(b.metadata.timeCreated).getTime() - new Date(a.metadata.timeCreated).getTime()
+        new Date(b.metadata.timeCreated || 0).getTime() - new Date(a.metadata.timeCreated || 0).getTime()
       );
       
       const storageBackups = storageFiles.filter(f => f.name.includes('manifest.json'))
         .sort((a, b) => 
-          new Date(b.metadata.timeCreated).getTime() - new Date(a.metadata.timeCreated).getTime()
+          new Date(b.metadata.timeCreated || 0).getTime() - new Date(a.metadata.timeCreated || 0).getTime()
         );
 
       // Calculate total bucket size
@@ -582,8 +597,8 @@ export class BackupService {
       );
 
       return {
-        lastDatabaseBackup: databaseBackups[0]?.metadata.timeCreated! || null,
-        lastStorageBackup: storageBackups[0]?.metadata.timeCreated! || null,
+        lastDatabaseBackup: databaseBackups[0]?.metadata.timeCreated || null,
+        lastStorageBackup: storageBackups[0]?.metadata.timeCreated || null,
         backupBucketSize: totalSize,
         totalBackups: allFiles.length
       };

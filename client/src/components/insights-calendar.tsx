@@ -12,10 +12,10 @@ import { Link } from 'wouter';
 interface CalendarInsight {
   id: string;
   message: string;
-  due_date: string | null;
+  dueDate: string | null; // Fixed: should be camelCase like the schema
   priority: 'low' | 'medium' | 'high';
   type: string;
-  action_url: string;
+  actionUrl: string; // Fixed: should be camelCase like the schema
   documentId: number;
 }
 
@@ -128,11 +128,11 @@ export function InsightsCalendar({
 
   // Convert insights to FullCalendar events
   const calendarEvents = insights
-    .filter(insight => insight.due_date)
+    .filter(insight => insight.dueDate) // Fixed: use dueDate
     .map(insight => ({
       id: insight.id,
       title: insight.message,
-      date: insight.due_date!,
+      date: insight.dueDate!, // Fixed: use dueDate
       backgroundColor: getPriorityColor(insight.priority),
       borderColor: getPriorityColor(insight.priority),
       textColor: '#ffffff',
@@ -140,7 +140,7 @@ export function InsightsCalendar({
         insight: insight,
         priority: insight.priority,
         type: insight.type,
-        action_url: insight.action_url,
+        actionUrl: insight.actionUrl, // Fixed: use actionUrl
       }
     }));
 
@@ -230,7 +230,7 @@ export function InsightsCalendar({
               <div className="flex items-center gap-4 text-sm text-gray-600">
                 <div className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  Due: {selectedEvent.due_date}
+                  Due: {selectedEvent.dueDate}
                 </div>
                 <Badge variant="outline" className="capitalize">
                   {selectedEvent.priority} Priority
@@ -241,7 +241,7 @@ export function InsightsCalendar({
               </div>
             </div>
             <div className="pt-2 border-t">
-              <Link href={selectedEvent.action_url}>
+              <Link href={selectedEvent.actionUrl}>
                 <Button className="w-full">
                   <ExternalLink className="w-4 h-4 mr-2" />
                   View Document

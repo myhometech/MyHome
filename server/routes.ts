@@ -1167,11 +1167,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         insights = insights.filter(insight => insight.dueDate && insight.dueDate !== null);
       }
 
-      // Enhanced insight format for calendar support with action_url
+      // Enhanced insight format for calendar support - keep camelCase for consistency
       const enhancedInsights = insights.map(insight => ({
         ...insight,
-        action_url: `/document/${insight.documentId}`,
-        due_date: insight.dueDate ? (typeof insight.dueDate === 'string' ? insight.dueDate.split('T')[0] : insight.dueDate.toISOString().split('T')[0]) : null
+        actionUrl: `/document/${insight.documentId}`,
+        // Ensure dueDate is in YYYY-MM-DD format for calendar
+        dueDate: insight.dueDate ? (typeof insight.dueDate === 'string' ? insight.dueDate.split('T')[0] : (insight.dueDate as Date).toISOString().split('T')[0]) : null
       }));
 
       res.json({
@@ -1182,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error fetching insights:", error);
-      captureError(error, req);
+      captureError(error as Error, req);
       res.status(500).json({ message: "Failed to fetch insights" });
     }
   });
@@ -1198,7 +1199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error fetching critical insights:", error);
-      captureError(error, req);
+      captureError(error as Error, req);
       res.status(500).json({ message: "Failed to fetch critical insights" });
     }
   });
@@ -1224,7 +1225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error updating insight:", error);
-      captureError(error, req);
+      captureError(error as Error, req);
       res.status(500).json({ message: "Failed to update insight" });
     }
   });
@@ -1250,7 +1251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error updating insight status:", error);
-      captureError(error, req);
+      captureError(error as Error, req);
       res.status(500).json({ message: "Failed to update insight status" });
     }
   });

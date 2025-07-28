@@ -1,15 +1,18 @@
 import { Pool, PoolClient } from 'pg';
 import CircuitBreaker from 'opossum';
 
-// Database connection pool with resilience settings
+// Database connection pool with memory-optimized settings
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: 20, // Maximum number of connections in the pool
+  max: process.env.NODE_ENV === 'production' ? 10 : 5, // Reduced for memory optimization
+  min: 1,
   idleTimeoutMillis: 30000, // Close idle connections after 30s
   connectionTimeoutMillis: 5000, // Timeout for new connections
   statement_timeout: 10000, // Timeout for queries
   keepAlive: true,
   keepAliveInitialDelayMillis: 0,
+  maxUses: 7500, // Retire connections after 7500 uses to prevent memory leaks
+  allowExitOnIdle: true // Allow process to exit when pool is idle
 });
 
 // Error handling for pool events

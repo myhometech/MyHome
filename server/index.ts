@@ -1,6 +1,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Enable manual garbage collection if available
+if (global.gc) {
+  console.log('✅ Manual GC enabled');
+} else {
+  console.warn('⚠️ Manual GC not available - start with --expose-gc for better memory management');
+}
+
 // Initialize error tracking and monitoring first
 import { initializeSentry, monitorSystemHealth } from "./monitoring";
 initializeSentry();
@@ -41,9 +48,15 @@ process.env.MEMORY_PROFILING = 'true';
 const initialMem = process.memoryUsage();
 console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap (${Math.round((initialMem.heapUsed/initialMem.heapTotal)*100)}%)`);
 
-// Import memory profiler for diagnostics
-import('./memoryProfiler.js').then(({ memoryProfiler }) => {
+// Import memory profiler, memory manager, and session cleanup
+Promise.all([
+  import('./memoryProfiler.js'),
+  import('./memoryManager.js'),
+  import('./sessionCleanup.js')
+]).then(([{ memoryProfiler }, { memoryManager }, { sessionCleanup }]) => {
   console.log('🔍 Memory profiler loaded');
+  console.log('🔧 Memory manager loaded');
+  console.log('🧹 Session cleanup loaded');
   
   // Take immediate snapshot
   setTimeout(() => {

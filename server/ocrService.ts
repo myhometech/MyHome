@@ -201,14 +201,31 @@ async function extractTextWithTesseract(filePathOrGCSKey: string): Promise<strin
       
       return cleanedText;
     } finally {
-      await worker.terminate();
+      // CRITICAL: Ensure worker is always terminated
+      try {
+        await worker.terminate();
+        console.log('✅ Tesseract worker terminated successfully');
+      } catch (workerError) {
+        console.error('❌ Failed to terminate Tesseract worker:', workerError);
+      }
+      
       // Additional cleanup for temporary file in case of exceptions
       if (tempFilePath && isGCSFile) {
         try {
           await fs.promises.unlink(tempFilePath);
+          console.log('🧹 Cleaned up temporary OCR file');
         } catch (cleanupError) {
-          // Ignore errors here as file might already be cleaned up
+          console.warn('⚠️ Failed to cleanup temporary file:', cleanupError);
         }
+      }
+      
+      // Force GC after OCR processing if available
+      if (global.gc) {
+        const beforeMem = process.memoryUsage();
+        global.gc();
+        const afterMem = process.memoryUsage();
+        const freed = (beforeMem.heapUsed - afterMem.heapUsed) / 1024 / 1024;
+        console.log(`🗑️ Post-OCR GC freed ${freed.toFixed(1)}MB`);
       }
     }
   } catch (error: any) {

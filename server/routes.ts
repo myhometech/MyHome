@@ -462,16 +462,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertDocumentSchema.parse(cloudDocumentData);
       const document = await storage.createDocument(validatedData);
 
-      // Process OCR, generate summary, extract dates, and suggest tags in the background
+      // Process OCR using memory-bounded queue system
       if (supportsOCR(finalMimeType) || isPDFFile(finalMimeType)) {
         try {
-          await processDocumentWithDateExtraction(
-            document.id,
-            finalDocumentData.fileName,
-            cloudStorageKey, // Use GCS key instead of local path
-            finalMimeType,
+          // Use OCR queue for memory-bounded processing
+          const { ocrQueue } = await import('./ocrQueue.js');
+          
+          await ocrQueue.addJob({
+            documentId: document.id,
+            fileName: finalDocumentData.fileName,
+            filePathOrGCSKey: cloudStorageKey,
+            mimeType: finalMimeType,
             userId,
-            storage
+            priority: 5 // Normal priority
+          });
+          
+          console.log(`📝 OCR job queued for document ${document.id}`);
+          
+          // Continue with tag suggestions using basic filename analysis
+          const tagSuggestions = await tagSuggestionService.suggestTags(
+            finalDocumentData.fileName,
+            '', // No extracted text yet
+            finalMimeType,
+            documentData.tags
           );
           
           // Get the updated document with extracted text for tag suggestions
@@ -2167,6 +2180,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Advanced scanning routes
   app.use('/api/scanning', advancedScanningRoutes);
+
+  // Memory management routes
+  const memoryRoutes = (await import('./api/memory.js')).default;
+  app.use('/api/memory', memoryRoutes);
 
   // Debug route for production testing
   app.get("/debug", (_req, res) => {

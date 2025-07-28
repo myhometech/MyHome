@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
 import express from 'express'
-import { registerRoutes } from '../../server/routes'
+import { registerRoutes } from '../../../server/routes'
 
 describe('Feature Flag Integration', () => {
   let app: express.Application

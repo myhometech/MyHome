@@ -27,7 +27,7 @@ import Settings from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
 import FeatureFlagsAdmin from "@/pages/admin/feature-flags";
 import Pricing from "@/pages/pricing";
-import EmailImport from "@/pages/email-import";
+
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -73,9 +73,7 @@ function Router() {
           <Route path="/admin">
             {() => { setLocation("/login"); return null; }}
           </Route>
-          <Route path="/email-import">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
+
         </>
       ) : (
         <>
@@ -86,7 +84,7 @@ function Router() {
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
           <Route path="/pricing" component={Pricing} />
-          <Route path="/email-import" component={EmailImport} />
+
           <Route path="/blog" component={Blog} />
           <Route path="/blog/:slug" component={BlogPost} />
           {/* Redirect auth routes to home for logged in users */}

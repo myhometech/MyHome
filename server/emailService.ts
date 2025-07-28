@@ -12,8 +12,7 @@ export class EmailService {
   private forwardingAddress: string;
 
   constructor() {
-    // For development, we'll use a webhook approach
-    // In production, this would connect to an actual IMAP server
+    // Using GCS+SendGrid pipeline for email processing
     this.forwardingAddress = process.env.EMAIL_FORWARD_ADDRESS || 'documents@homedocs.local';
     
     // Initialize transporter for sending confirmation emails using SendGrid
@@ -29,7 +28,7 @@ export class EmailService {
   }
 
   /**
-   * Process an incoming email (would be called by webhook or IMAP listener)
+   * Process an incoming email via GCS+SendGrid pipeline
    */
   async processIncomingEmail(emailData: {
     from: string;

@@ -1339,15 +1339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Email forwarding endpoints
-  
-  // Import email webhook handlers
-  const { handleSendGridWebhook, handleMailgunWebhook, handleTestEmail, validateWebhookSignature } = await import('./emailWebhook');
-  
-  // Email webhook endpoints for receiving forwarded emails
-  app.post('/api/email/webhook/sendgrid', validateWebhookSignature, handleSendGridWebhook);
-  app.post('/api/email/webhook/mailgun', validateWebhookSignature, handleMailgunWebhook);
-  app.post('/api/email/test', requireAuth, handleTestEmail);
+  // Email forwarding endpoints - Using new GCS+SendGrid pipeline
   
   // Import Stripe route handlers
   const { 
@@ -1383,45 +1375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Simple test endpoint to simulate email forwarding without external email service
-  app.post('/api/email/simulate-forward', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
 
-      // Create test email data
-      const testEmailData = {
-        from: req.body.from || 'test@example.com',
-        subject: req.body.subject || 'Test Document Forward',
-        html: req.body.html || '<h1>Test Email</h1><p>This is a test email to verify the document forwarding system is working.</p>',
-        text: req.body.text || 'Test Email\n\nThis is a test email to verify the document forwarding system is working.',
-        attachments: req.body.attachments || []
-      };
-
-      console.log('Processing simulated email forward for user:', user.email);
-      const result = await emailService.processIncomingEmail(testEmailData, user.email);
-      
-      res.json({
-        message: 'Email forwarding simulation completed successfully',
-        forwardingAddress: await emailService.getUserForwardingAddress(userId),
-        result: {
-          success: result.success,
-          documentsCreated: result.documentsCreated,
-          error: result.error
-        }
-      });
-
-    } catch (error) {
-      console.error('Error simulating email forward:', error);
-      res.status(500).json({ 
-        message: 'Failed to simulate email forward',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
   
   // Category suggestion endpoint
   const { suggestDocumentCategory } = await import('./routes/categorySuggestion');
@@ -1509,59 +1463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test email processing (for development) - simulates receiving an email with attachments
-  app.post('/api/email/test', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const user = await storage.getUser(userId);
-      
-      if (!user?.email) {
-        return res.status(400).json({ message: "User email not found" });
-      }
 
-      // Create sample email data to simulate forwarded email
-      const sampleEmailData = {
-        from: user.email || 'test@example.com',
-        subject: 'Sample Document Forward - Insurance Policy',
-        html: '<p>This is a test email with an attached insurance document.</p><p>Please process this document and add it to my HomeDocs library.</p>',
-        text: 'This is a test email with an attached insurance document. Please process this document and add it to my HomeDocs library.',
-        attachments: [
-          {
-            filename: 'insurance-policy.pdf',
-            content: Buffer.from('Sample PDF content for testing email forwarding functionality'),
-            contentType: 'application/pdf'
-          }
-        ]
-      };
-
-      const EmailService = (await import('./emailService')).EmailService;
-      const emailService = new EmailService();
-      const result = await emailService.processIncomingEmail(sampleEmailData, user.email);
-      res.json(result);
-    } catch (error) {
-      console.error("Error testing email processing:", error);
-      res.status(500).json({ message: "Failed to test email processing" });
-    }
-  });
-
-  // Process incoming email (webhook endpoint - no auth required)
-  app.post('/api/email/webhook', async (req, res) => {
-    try {
-      const { emailData, userEmail } = req.body;
-      
-      if (!emailData || !userEmail) {
-        return res.status(400).json({ message: "Missing email data or user email" });
-      }
-
-      const EmailService = (await import('./emailService')).EmailService;
-      const emailService = new EmailService();
-      const result = await emailService.processIncomingEmail(emailData, userEmail);
-      res.json(result);
-    } catch (error) {
-      console.error("Email webhook error:", error);
-      res.status(500).json({ message: "Failed to process email" });
-    }
-  });
   
   // OCR configuration and status endpoint
   app.get('/api/ocr/config', async (req, res) => {

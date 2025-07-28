@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Share, Trash2, FileText, Image, X, Edit2, Save, XCircle } from "lucide-react";
 import { SmartTagSuggestions } from "@/components/smart-tag-suggestions";
-import OCRSummaryPreview from "@/components/ocr-summary-preview";
+
 // Simple PDF viewer fallback
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -301,8 +301,7 @@ export default function DocumentModal({
               </div>
             </div>
 
-            {/* OCR Summary and Insights */}
-            <OCRSummaryPreview document={document} className="mb-6" hideExtractedText={true} />
+
 
             {/* Tags and AI Suggestions */}
             <Tabs defaultValue="details" className="w-full">

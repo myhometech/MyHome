@@ -164,6 +164,22 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### DOC-500A: Legacy AI Insight Code Cleanup - CLEANUP COMPLETE (January 28, 2025)
+- **Achievement**: Successfully identified and removed all outdated experimental AI-generated insight and summary logic from backend and frontend, preparing system for clean DOC-501 AI Insight Layer implementation
+- **Backend Cleanup**: 
+  - Deleted `server/contentAnalysisService.ts` legacy AI content analysis service with OpenAI integration for preview chips
+  - Removed `POST /api/documents/analyze-content` endpoint for legacy content analysis  
+  - Cleaned up import references from server routes
+- **Frontend Cleanup**:
+  - Deleted `client/src/components/smart-preview-chips.tsx` AI-powered preview chips component
+  - Deleted `client/src/components/ocr-summary-preview.tsx` OCR summary preview component
+  - Removed legacy AI Summary display section from document preview components
+  - Cleaned up all component imports and references
+- **Legacy Component Removal**: Deleted unused `document-preview-old.tsx` component with 55 LSP errors
+- **Core Intelligence Preserved**: Document intelligence trilogy (DOC-303 → DOC-304 → DOC-305) remains fully operational with OCR pipeline and legitimate summary generation unchanged
+- **Validation Complete**: No stale AI insight content displayed, all imports resolved, system ready for fresh DOC-501 implementation
+- **Status**: ✅ CLEANUP COMPLETE - Clean architecture achieved with no overlap or confusion, ready for new AI Insight Layer
+
 ### DOC-306: Clean Profile-Based Email Forwarding Display - PRODUCTION READY (January 28, 2025)
 - **Achievement**: Successfully replaced legacy email import UI with clean profile-based forwarding address display featuring professional copy-to-clipboard functionality and comprehensive user guidance
 - **Profile Integration**: Enhanced settings page with dedicated "Document Import Settings" section displaying user's unique forwarding address

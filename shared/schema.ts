@@ -81,6 +81,8 @@ export const documents = pgTable("documents", {
   gcsPath: text("gcs_path"), // Path in Google Cloud Storage
   uploadSource: varchar("upload_source", { length: 20 }).default("manual"), // 'manual', 'email', 'api'
   status: varchar("status", { length: 20 }).default("active"), // 'pending', 'active', 'failed'
+  // DOC-303: AI categorization fields
+  categorizationSource: varchar("categorization_source", { length: 20 }).default("rules"), // 'rules', 'ai', 'manual'
 }, (table) => [
   // Primary user-based indexes for common queries
   index("idx_documents_user_id").on(table.userId),

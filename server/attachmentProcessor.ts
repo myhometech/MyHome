@@ -174,6 +174,14 @@ export class AttachmentProcessor {
    * DOC-302: Validate attachment file type and size
    */
   private validateAttachment(attachment: AttachmentData): { isValid: boolean; error?: string } {
+    // Validate content type exists
+    if (!attachment.contentType) {
+      return {
+        isValid: false,
+        error: 'Missing content type information'
+      };
+    }
+
     // Validate file type by MIME type
     if (!SUPPORTED_MIME_TYPES.includes(attachment.contentType.toLowerCase())) {
       return {
@@ -285,7 +293,7 @@ export class AttachmentProcessor {
   }
 
   /**
-   * DOC-302: Store document metadata in PostgreSQL
+   * DOC-302/303: Store document metadata in PostgreSQL with enhanced categorization
    */
   private async storeDocumentMetadata(params: {
     userId: string;
@@ -296,13 +304,18 @@ export class AttachmentProcessor {
     fileSize: number;
     emailMetadata: { from: string; subject: string };
   }): Promise<number> {
-    // Get appropriate category for the file
-    const categoryId = await this.getCategoryForFile(params.filename, params.mimeType, params.userId);
+    // DOC-303: Get appropriate category using enhanced categorization service
+    const categoryResult = await this.getCategoryForFile(
+      params.filename, 
+      params.mimeType, 
+      params.userId,
+      params.emailMetadata
+    );
 
-    // Create document record with DOC-302 fields
+    // Create document record with DOC-302/303 fields
     const documentData: InsertDocument = {
       userId: params.userId,
-      categoryId,
+      categoryId: categoryResult.categoryId,
       name: `${params.filename} (from ${params.emailMetadata.from})`,
       fileName: params.originalFilename,
       filePath: params.gcsPath, // Store GCS path in filePath field
@@ -311,6 +324,7 @@ export class AttachmentProcessor {
       mimeType: params.mimeType,
       uploadSource: 'email', // DOC-302: Mark as email upload
       status: 'pending', // DOC-302: Initial status
+      categorizationSource: categoryResult.source, // DOC-303: Track categorization method
       tags: ['email-attachment', 'imported', `from-${params.emailMetadata.from.split('@')[1]}`],
       extractedText: `Email Subject: ${params.emailMetadata.subject}\nFrom: ${params.emailMetadata.from}\nImported via email forwarding`,
       ocrProcessed: false,
@@ -318,53 +332,50 @@ export class AttachmentProcessor {
     };
 
     const document = await storage.createDocument(documentData);
-    console.log(`Document metadata stored with ID: ${document.id}`);
+    console.log(`Document metadata stored with ID: ${document.id}, Category: ${categoryResult.categoryId} (${categoryResult.source})`);
     return document.id;
   }
 
   /**
-   * Smart category detection for email attachments
+   * DOC-303: Enhanced category detection using new categorization service
    */
-  private async getCategoryForFile(filename: string, mimeType: string, userId: string): Promise<number | null> {
+  private async getCategoryForFile(filename: string, mimeType: string, userId: string, emailContext?: { from: string; subject: string }): Promise<{ categoryId: number | null; source: string }> {
     try {
-      const categories = await storage.getCategories(userId);
-      const lowerFilename = filename.toLowerCase();
-      const lowerMimeType = mimeType.toLowerCase();
+      // Import categorization service
+      const { categorizationService } = await import('./categorizationService');
+      
+      // Use DOC-303 categorization service
+      const result = await categorizationService.categorizeDocument({
+        filename,
+        mimeType,
+        emailSubject: emailContext?.subject,
+        userId
+      });
 
-      // Enhanced categorization logic for email attachments
-      if (lowerFilename.includes('invoice') || lowerFilename.includes('bill') || lowerFilename.includes('receipt')) {
-        return categories.find(c => c.name.toLowerCase() === 'receipts')?.id || 
-               categories.find(c => c.name.toLowerCase() === 'financial')?.id || null;
-      }
-      
-      if (lowerFilename.includes('insurance') || lowerFilename.includes('policy') || lowerFilename.includes('coverage')) {
-        return categories.find(c => c.name.toLowerCase() === 'insurance')?.id || null;
-      }
-      
-      if (lowerFilename.includes('tax') || lowerFilename.includes('irs') || lowerFilename.includes('1099') || lowerFilename.includes('w2')) {
-        return categories.find(c => c.name.toLowerCase() === 'taxes')?.id || null;
-      }
-      
-      if (lowerFilename.includes('contract') || lowerFilename.includes('legal') || lowerFilename.includes('agreement')) {
-        return categories.find(c => c.name.toLowerCase() === 'legal')?.id || null;
-      }
-      
-      if (lowerFilename.includes('warranty') || lowerFilename.includes('manual') || lowerFilename.includes('guide')) {
-        return categories.find(c => c.name.toLowerCase() === 'warranty')?.id || null;
-      }
-      
-      if (lowerMimeType.includes('image/')) {
-        return categories.find(c => c.name.toLowerCase() === 'photos')?.id || 
-               categories.find(c => c.name.toLowerCase() === 'documents')?.id || null;
-      }
+      console.log(`Category detection result for ${filename}:`, {
+        categoryId: result.categoryId,
+        source: result.source,
+        confidence: result.confidence,
+        reasoning: result.reasoning
+      });
 
-      // Default to 'Other' or 'Documents' category
-      return categories.find(c => c.name.toLowerCase() === 'other')?.id || 
-             categories.find(c => c.name.toLowerCase() === 'documents')?.id || null;
+      return {
+        categoryId: result.categoryId,
+        source: result.source
+      };
 
     } catch (error) {
       console.error('Error determining category for email attachment:', error);
-      return null;
+      
+      // Fallback to basic categorization
+      const categories = await storage.getCategories(userId);
+      const fallbackCategoryId = categories.find(c => c.name.toLowerCase() === 'other')?.id || 
+                                 categories.find(c => c.name.toLowerCase() === 'documents')?.id || null;
+      
+      return {
+        categoryId: fallbackCategoryId,
+        source: 'fallback'
+      };
     }
   }
 

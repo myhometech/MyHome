@@ -36,7 +36,7 @@ const upload = multer({
 const imageProcessor = new ImageProcessingService('./uploads');
 const pdfOptimizer = new PDFOptimizationService('./uploads');
 
-// Enhanced document upload with image compression and PDF optimization
+// DOC-303: Enhanced document upload with auto-categorization via rules and AI fallback
 router.post('/upload', upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'thumbnail', maxCount: 1 }
@@ -55,7 +55,8 @@ router.post('/upload', upload.fields([
     }
 
     const userId = req.user.id;
-    const categoryId = req.body.categoryId ? parseInt(req.body.categoryId) : null;
+    let categoryId = req.body.categoryId ? parseInt(req.body.categoryId) : null;
+    let categorizationSource = 'manual';
     
     console.log('Processing uploaded file:', {
       name: uploadedFile.originalname,
@@ -64,6 +65,37 @@ router.post('/upload', upload.fields([
       userId,
       categoryId
     });
+
+    // DOC-303: Auto-categorization if no category provided
+    if (!categoryId) {
+      try {
+        const { categorizationService } = await import('../categorizationService.js');
+        
+        const categorizationResult = await categorizationService.categorizeDocument({
+          filename: uploadedFile.originalname,
+          mimeType: uploadedFile.mimetype,
+          userId
+        });
+
+        if (categorizationResult.categoryId) {
+          categoryId = categorizationResult.categoryId;
+          categorizationSource = categorizationResult.source;
+          
+          console.log(`DOC-303 Auto-categorization successful:`, {
+            filename: uploadedFile.originalname,
+            categoryId,
+            source: categorizationSource,
+            confidence: categorizationResult.confidence,
+            reasoning: categorizationResult.reasoning
+          });
+        } else {
+          console.log(`DOC-303 Auto-categorization failed for ${uploadedFile.originalname}:`, categorizationResult.reasoning);
+        }
+      } catch (categorizationError) {
+        console.error('DOC-303 Auto-categorization error:', categorizationError);
+        // Continue without categorization - don't fail the upload
+      }
+    }
 
     let finalFilePath = uploadedFile.path;
     let thumbnailPath: string | undefined;
@@ -120,7 +152,7 @@ router.post('/upload', upload.fields([
       console.log('PDF optimization completed:', processingMetadata);
     }
 
-    // Create document record
+    // Create document record with DOC-303 categorization tracking
     const document = await storage.createDocument({
       name: path.parse(uploadedFile.originalname).name,
       fileName: uploadedFile.originalname,
@@ -129,6 +161,7 @@ router.post('/upload', upload.fields([
       fileSize: uploadedFile.size,
       userId,
       categoryId,
+      categorizationSource, // DOC-303: Track categorization method
     });
 
     // Clean up temporary files

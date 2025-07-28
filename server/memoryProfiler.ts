@@ -61,7 +61,7 @@ export class MemoryProfiler {
     // Monitor GC activity
     if (global.gc) {
       const originalGC = global.gc;
-      global.gc = () => {
+      global.gc = async () => {
         const start = performance.now();
         this.gcMetrics.forced++;
         originalGC();
@@ -277,7 +277,7 @@ ${this.getRecommendations(current, trends)}
     console.log('🚨 Starting emergency memory cleanup...');
     
     // Force garbage collection if available
-    if (global.gc) {
+    if (typeof global.gc === 'function') {
       global.gc();
       console.log('✅ Forced garbage collection');
     }

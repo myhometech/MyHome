@@ -49,6 +49,32 @@ export class LocalStorage implements StorageProvider {
     }
   }
 
+  async uploadStream(fileStream: NodeJS.ReadableStream, key: string, mimeType: string): Promise<string> {
+    try {
+      const filePath = this.getFilePath(key);
+      const directory = path.dirname(filePath);
+      
+      // Ensure directory exists
+      await fs.mkdir(directory, { recursive: true });
+      
+      // Create write stream
+      const writeStream = require('fs').createWriteStream(filePath);
+      
+      return new Promise((resolve, reject) => {
+        writeStream.on('error', reject);
+        writeStream.on('finish', () => {
+          console.log(`File streamed locally: ${filePath}`);
+          resolve(filePath);
+        });
+        
+        fileStream.pipe(writeStream);
+      });
+    } catch (error: any) {
+      console.error('Local storage stream error:', error);
+      throw new Error(`Failed to stream file locally: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
   async download(key: string): Promise<Buffer> {
     try {
       const filePath = this.getFilePath(key);

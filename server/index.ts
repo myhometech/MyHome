@@ -12,29 +12,47 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
-// PRODUCTION WHITE SCREEN FIX: Aggressive memory management
-if (process.env.NODE_ENV === 'production') {
-  console.log('🚨 PRODUCTION MODE: Applying memory fixes for white screen issue');
-  
-  // Force garbage collection every 30 seconds
-  setInterval(() => {
-    if (global.gc) {
-      global.gc();
-      const mem = process.memoryUsage();
-      const heapUsedMB = Math.round(mem.heapUsed/1024/1024);
-      const heapTotalMB = Math.round(mem.heapTotal/1024/1024);
-      const heapPercent = Math.round((mem.heapUsed / mem.heapTotal) * 100);
-      console.log(`🧹 GC: ${heapUsedMB}MB/${heapTotalMB}MB (${heapPercent}%)`);
+// CRITICAL MEMORY MANAGEMENT: Emergency fixes for critical heap usage
+console.log('🚨 CRITICAL MEMORY MODE: Applying emergency memory management');
+
+// Force garbage collection every 15 seconds (more aggressive)
+setInterval(() => {
+  if (global.gc) {
+    const beforeMem = process.memoryUsage();
+    global.gc();
+    const afterMem = process.memoryUsage();
+    const heapUsedMB = Math.round(afterMem.heapUsed/1024/1024);
+    const heapTotalMB = Math.round(afterMem.heapTotal/1024/1024);
+    const heapPercent = Math.round((afterMem.heapUsed / afterMem.heapTotal) * 100);
+    const freedMB = Math.round((beforeMem.heapUsed - afterMem.heapUsed)/1024/1024);
+    console.log(`🧹 GC: ${heapUsedMB}MB/${heapTotalMB}MB (${heapPercent}%) freed ${freedMB}MB`);
+    
+    // Emergency action if still critical
+    if (heapPercent > 95) {
+      console.error('🚨 EMERGENCY: Memory still critical after GC');
     }
-  }, 30000);
+  }
+}, 15000);
+
+// Enable memory profiling
+process.env.MEMORY_PROFILING = 'true';
+
+// Log initial memory state
+const initialMem = process.memoryUsage();
+console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap (${Math.round((initialMem.heapUsed/initialMem.heapTotal)*100)}%)`);
+
+// Import memory profiler for diagnostics
+import('./memoryProfiler.js').then(({ memoryProfiler }) => {
+  console.log('🔍 Memory profiler loaded');
   
-  // GCS memory leak should now be fixed with explicit authentication
-  console.log('🔧 GCS re-enabled in production with memory leak fixes');
-  
-  // Log initial memory state
-  const initialMem = process.memoryUsage();
-  console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap`);
-}
+  // Take immediate snapshot
+  setTimeout(() => {
+    const report = memoryProfiler.generateReport();
+    console.log('📊 Memory Profile Report:', report);
+  }, 5000);
+}).catch(error => {
+  console.error('Failed to load memory profiler:', error);
+});
 
 // Import backup service only in development to prevent memory issues
 let backupService: any = null;

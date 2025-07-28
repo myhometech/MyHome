@@ -16,6 +16,15 @@ export interface StorageProvider {
   upload(file: Buffer, key: string, mimeType: string): Promise<string>;
 
   /**
+   * MEMORY OPTIMIZED: Upload a file stream to storage
+   * @param fileStream - File stream to upload (avoids loading entire file into memory)
+   * @param key - Unique key/path for the file
+   * @param mimeType - MIME type of the file
+   * @returns Promise resolving to the storage URL or key
+   */
+  uploadStream(fileStream: NodeJS.ReadableStream, key: string, mimeType: string): Promise<string>;
+
+  /**
    * Download a file from storage
    * @param key - File key/path to download
    * @returns Promise resolving to file buffer

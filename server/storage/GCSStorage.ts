@@ -37,7 +37,7 @@ export class GCSStorage implements StorageProvider {
   }
 
   /**
-   * Upload file to Google Cloud Storage
+   * Upload file to Google Cloud Storage (Buffer-based - legacy)
    */
   async upload(file: Buffer, key: string, mimeType: string): Promise<string> {
     try {
@@ -59,6 +59,45 @@ export class GCSStorage implements StorageProvider {
     } catch (error: any) {
       console.error('GCS upload error:', error);
       throw new Error(`Failed to upload file to GCS: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * MEMORY OPTIMIZED: Upload file stream to Google Cloud Storage
+   */
+  async uploadStream(fileStream: NodeJS.ReadableStream, key: string, mimeType: string): Promise<string> {
+    try {
+      const bucket = this.storage.bucket(this.bucketName);
+      const gcsFile = bucket.file(key);
+
+      // Create upload stream with metadata
+      const uploadStream = gcsFile.createWriteStream({
+        metadata: {
+          contentType: mimeType,
+          cacheControl: 'private, max-age=3600',
+        },
+        public: false,
+        validation: 'md5',
+        resumable: false // Use simple upload for better memory efficiency
+      });
+
+      return new Promise((resolve, reject) => {
+        uploadStream.on('error', (error) => {
+          console.error('GCS stream upload error:', error);
+          reject(new Error(`Failed to stream file to GCS: ${error?.message || 'Unknown error'}`));
+        });
+
+        uploadStream.on('finish', () => {
+          console.log(`File streamed to GCS: ${key}`);
+          resolve(key);
+        });
+
+        // Pipe the file stream to GCS
+        fileStream.pipe(uploadStream);
+      });
+    } catch (error: any) {
+      console.error('GCS stream setup error:', error);
+      throw new Error(`Failed to setup GCS stream: ${error?.message || 'Unknown error'}`);
     }
   }
 

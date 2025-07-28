@@ -377,22 +377,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Read file buffer for cloud storage upload
-      const fileBuffer = await fs.promises.readFile(finalFilePath);
-      
+      // MEMORY OPTIMIZATION: Use streaming upload instead of buffering entire file
       // Generate storage key using consistent naming convention
       const documentId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
       const storageKey = StorageService.generateFileKey(userId, documentId, finalDocumentData.fileName);
       
-      // Upload to cloud storage
+      // Upload to cloud storage using stream (memory-efficient)
       let cloudStorageKey = '';
       try {
         const storage = storageProvider();
-        cloudStorageKey = await storage.upload(fileBuffer, storageKey, finalMimeType);
-        console.log(`File uploaded to cloud storage: ${cloudStorageKey}`);
+        // Create read stream instead of loading full file into memory
+        const fileStream = fs.createReadStream(finalFilePath);
+        // Use streaming upload if available, fallback to buffer upload
+        if (typeof storage.uploadStream === 'function') {
+          cloudStorageKey = await storage.uploadStream(fileStream, storageKey, finalMimeType);
+        } else {
+          // Fallback to buffer upload for LocalStorage
+          const fileBuffer = await fs.promises.readFile(finalFilePath);
+          cloudStorageKey = await storage.upload(fileBuffer, storageKey, finalMimeType);
+        }
+        console.log(`File streamed to cloud storage: ${cloudStorageKey}`);
+        
+        // Close stream immediately
+        fileStream.destroy();
       } catch (storageError) {
         console.error('Cloud storage upload failed:', storageError);
-        // Clean up local file
+        // Clean up local file immediately
         if (fs.existsSync(finalFilePath)) {
           fs.unlinkSync(finalFilePath);
         }
@@ -433,13 +443,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Document encryption setup failed" });
       }
 
-      // Clean up local temporary file after successful cloud upload
-      setTimeout(() => {
-        if (fs.existsSync(finalFilePath)) {
-          fs.unlinkSync(finalFilePath);
-          console.log(`Cleaned up local temporary file: ${finalFilePath}`);
-        }
-      }, 1000);
+      // MEMORY OPTIMIZATION: Immediate cleanup instead of delayed setTimeout
+      // Clean up local temporary file immediately after successful cloud upload
+      if (fs.existsSync(finalFilePath)) {
+        fs.unlinkSync(finalFilePath);
+        console.log(`Immediately cleaned up local temporary file: ${finalFilePath}`);
+      }
 
       // Update document data to use cloud storage key
       const cloudDocumentData = {

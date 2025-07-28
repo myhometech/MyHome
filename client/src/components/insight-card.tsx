@@ -122,8 +122,28 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
 
   const dueInfo = formatDueDate(insight.dueDate);
 
+  // Handle card click to open document
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on buttons, dropdown menus, or interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || 
+        target.closest('[role="button"]') || 
+        target.closest('[data-radix-dropdown-menu-trigger]') ||
+        target.closest('[data-radix-dropdown-menu-content]')) {
+      return;
+    }
+    
+    // Navigate to document if actionUrl exists
+    if (insight.actionUrl) {
+      setLocation(insight.actionUrl);
+    }
+  };
+
   return (
-    <Card className={`transition-all duration-200 hover:shadow-md ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}>
+    <Card 
+      className={`transition-all duration-200 hover:shadow-md cursor-pointer ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}
+      onClick={handleCardClick}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-2">
@@ -146,7 +166,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" disabled={isUpdating}>
+              <Button variant="ghost" size="sm" disabled={isUpdating} data-radix-dropdown-menu-trigger>
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -200,17 +220,6 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
             </span>
           )}
         </div>
-        {insight.actionUrl && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full mt-2"
-            onClick={() => setLocation(insight.actionUrl!)}
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Take Action
-          </Button>
-        )}
       </CardContent>
     </Card>
   );

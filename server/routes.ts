@@ -6,7 +6,7 @@ import { AuthService } from "./authService";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema } from "@shared/schema";
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 import { answerDocumentQuestion } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
@@ -2705,6 +2705,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Memory management routes
   const memoryRoutes = (await import('./api/memory.js')).default;
   app.use('/api/memory', memoryRoutes);
+
+  // User Assets routes
+  app.get('/api/user-assets', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const assets = await storage.getUserAssets(userId);
+      res.json(assets);
+    } catch (error) {
+      console.error("Error fetching user assets:", error);
+      res.status(500).json({ message: "Failed to fetch user assets" });
+    }
+  });
+
+  app.post('/api/user-assets', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const validatedData = insertUserAssetSchema.parse(req.body);
+      const assetData = { ...validatedData, userId };
+      const asset = await storage.createUserAsset(assetData);
+      res.json(asset);
+    } catch (error) {
+      console.error("Error creating user asset:", error);
+      res.status(500).json({ message: "Failed to create user asset" });
+    }
+  });
+
+  app.delete('/api/user-assets/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const assetId = parseInt(req.params.id);
+      
+      if (isNaN(assetId)) {
+        return res.status(400).json({ message: "Invalid asset ID" });
+      }
+      
+      await storage.deleteUserAsset(assetId, userId);
+      res.json({ message: "Asset deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user asset:", error);
+      res.status(500).json({ message: "Failed to delete user asset" });
+    }
+  });
 
   // Debug route for production testing
   app.get("/debug", (_req, res) => {

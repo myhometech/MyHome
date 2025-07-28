@@ -6,6 +6,7 @@ import MobileNav from "@/components/mobile-nav";
 import { EmailForwarding } from "@/components/email-forwarding";
 import SubscriptionPlans from "@/components/SubscriptionPlans";
 import CategoryManagement from "@/components/category-management";
+import { YourAssetsSection } from "@/components/YourAssetsSection";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -243,6 +244,9 @@ export default function Settings() {
 
             {/* Category Management Section */}
             <CategoryManagement />
+
+            {/* Your Assets Section */}
+            <YourAssetsSection />
 
             {/* Email Forwarding Section */}
             <div id="email-forwarding-section">

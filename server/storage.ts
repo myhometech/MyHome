@@ -12,6 +12,7 @@ import {
   featureFlagOverrides,
   featureFlagEvents,
   documentInsights,
+  userAssets,
   type User,
   type InsertUser,
   type Document,
@@ -36,6 +37,8 @@ import {
   type InsertFeatureFlagEvent,
   type DocumentInsight,
   type InsertDocumentInsight,
+  type UserAsset,
+  type InsertUserAsset,
 } from "@shared/schema";
 
 // Add blog post types
@@ -146,6 +149,11 @@ export interface IStorage {
   // TICKET 4: AI Insights Dashboard operations
   getInsights(userId: string, status?: string, type?: string, priority?: string): Promise<DocumentInsight[]>;
   updateInsightStatus(insightId: string, userId: string, status: 'open' | 'dismissed' | 'resolved'): Promise<DocumentInsight | undefined>;
+  
+  // User Assets operations
+  getUserAssets(userId: string): Promise<UserAsset[]>;
+  createUserAsset(asset: InsertUserAsset & { userId: string }): Promise<UserAsset>;
+  deleteUserAsset(id: number, userId: string): Promise<void>;
 }
 
 
@@ -1215,6 +1223,33 @@ export class DatabaseStorage implements IStorage {
         return new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime();
       })
       .slice(0, 4);
+  }
+
+  // User Assets operations
+  async getUserAssets(userId: string): Promise<UserAsset[]> {
+    return await db
+      .select()
+      .from(userAssets)
+      .where(eq(userAssets.userId, userId))
+      .orderBy(userAssets.type, userAssets.name);
+  }
+
+  async createUserAsset(asset: InsertUserAsset & { userId: string }): Promise<UserAsset> {
+    const [newAsset] = await db
+      .insert(userAssets)
+      .values({
+        ...asset,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newAsset;
+  }
+
+  async deleteUserAsset(id: number, userId: string): Promise<void> {
+    await db
+      .delete(userAssets)
+      .where(and(eq(userAssets.id, id), eq(userAssets.userId, userId)));
   }
 }
 

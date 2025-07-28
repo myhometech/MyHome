@@ -330,5 +330,31 @@ export type InsertDocumentShare = z.infer<typeof insertDocumentShareSchema>;
 export type EmailForward = typeof emailForwards.$inferSelect;
 export type InsertEmailForward = z.infer<typeof insertEmailForwardSchema>;
 
+// User Assets table for properties and vehicles
+export const userAssets = pgTable("user_assets", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  address: text("address").notNull(),
+  type: varchar("type", { length: 20 }).notNull(), // 'house' or 'car'
+  estimatedValue: integer("estimated_value"), // Optional estimated value in cents
+  notes: text("notes"), // Optional notes about the asset
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_user_assets_user").on(table.userId),
+  index("idx_user_assets_type").on(table.type),
+]);
+
+export type UserAsset = typeof userAssets.$inferSelect;
+export type InsertUserAsset = typeof userAssets.$inferInsert;
+
+export const insertUserAssetSchema = createInsertSchema(userAssets).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Re-export feature flag schemas
 export * from "./featureFlagSchema";

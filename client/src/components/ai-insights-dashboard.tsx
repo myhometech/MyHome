@@ -22,9 +22,9 @@ interface InsightsResponse {
 
 export function AIInsightsDashboard() {
   const [activeTab, setActiveTab] = useState('all');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [priorityFilter, setPriorityFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('priority');
 
   const {
@@ -33,7 +33,12 @@ export function AIInsightsDashboard() {
     error,
     refetch
   } = useQuery<InsightsResponse>({
-    queryKey: ['/api/insights', { status: statusFilter, type: typeFilter, priority: priorityFilter, sort: sortBy }],
+    queryKey: ['/api/insights', { 
+      status: statusFilter === 'all' ? '' : statusFilter, 
+      type: typeFilter === 'all' ? '' : typeFilter, 
+      priority: priorityFilter === 'all' ? '' : priorityFilter, 
+      sort: sortBy 
+    }],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
@@ -70,9 +75,9 @@ export function AIInsightsDashboard() {
   };
 
   const clearFilters = () => {
-    setStatusFilter('');
-    setTypeFilter('');
-    setPriorityFilter('');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setPriorityFilter('all');
     setSortBy('priority');
   };
 
@@ -179,7 +184,7 @@ export function AIInsightsDashboard() {
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="open">Open</SelectItem>
                   <SelectItem value="resolved">Resolved</SelectItem>
                   <SelectItem value="dismissed">Dismissed</SelectItem>
@@ -193,7 +198,7 @@ export function AIInsightsDashboard() {
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All types</SelectItem>
+                  <SelectItem value="all">All types</SelectItem>
                   <SelectItem value="action_items">Action Items</SelectItem>
                   <SelectItem value="key_dates">Key Dates</SelectItem>
                   <SelectItem value="financial_info">Financial Info</SelectItem>
@@ -210,7 +215,7 @@ export function AIInsightsDashboard() {
                   <SelectValue placeholder="All priorities" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All priorities</SelectItem>
+                  <SelectItem value="all">All priorities</SelectItem>
                   <SelectItem value="high">High</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="low">Low</SelectItem>

@@ -704,41 +704,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // EMERGENCY FALLBACK: Disable cloud storage existence check during billing issues
-      // This prevents automatic cleanup of document records when GCS billing is disabled
-      if (document.encryptionMetadata) {
-        try {
-          const metadata = JSON.parse(document.encryptionMetadata);
-          if (metadata.storageType === 'cloud' && metadata.storageKey) {
-            console.log(`⚠️ EMERGENCY MODE: Cloud storage temporarily unavailable for ${metadata.storageKey}`);
-            
-            // Instead of checking existence and cleaning up, return graceful error
-            return res.status(503).json({ 
-              message: "Document temporarily unavailable due to cloud storage maintenance. Please try again later.",
-              code: "STORAGE_MAINTENANCE",
-              documentId: documentId,
-              fileName: document.fileName
-            });
-          }
-        } catch (metadataError) {
-          console.error('Failed to parse encryption metadata:', metadataError);
-        }
-      }
-      
-      // Legacy file existence check for local files
-      else if (!fs.existsSync(document.filePath)) {
+      // Check for legacy local files that don't exist
+      if (!document.encryptionMetadata && !fs.existsSync(document.filePath)) {
         console.log(`Local file not found: ${document.filePath} for document ${documentId}`);
-        
-        // EMERGENCY FALLBACK: Preserve document records during maintenance
-        console.log(`⚠️ EMERGENCY MODE: Local file not found but preserving document record: ${documentId}`);
-        
-        return res.status(503).json({ 
-          message: "Document temporarily unavailable. Please try again later.",
-          code: "FILE_TEMPORARILY_UNAVAILABLE",
+        return res.status(404).json({ 
+          message: "Document file not found.",
+          code: "FILE_NOT_FOUND",
           documentId: documentId,
           fileName: document.fileName
         });
       }
+
 
       // Handle cloud storage documents (new system)
       if (document.isEncrypted && document.encryptionMetadata) {

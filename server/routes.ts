@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema } from "@shared/schema";
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
-import { answerDocumentQuestion, getExpiryAlerts } from "./chatbotService";
+import { answerDocumentQuestion } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
 import { aiInsightService } from "./aiInsightService";
 import { pdfConversionService } from "./pdfConversionService.js";
@@ -589,17 +589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Expiry alerts endpoint (must come before parameterized routes)
-  app.get('/api/documents/expiry-alerts', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const expiryData = await storage.getExpiryAlerts(userId);
-      res.json(expiryData);
-    } catch (error) {
-      console.error("Error fetching expiry alerts:", error);
-      res.status(500).json({ message: "Failed to fetch expiry alerts" });
-    }
-  });
+
 
   // Document stats (must come before parameterized routes)
   app.get('/api/documents/stats', requireAuth, async (req: any, res) => {
@@ -1872,16 +1862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/chatbot/expiry-summary', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const summary = await getExpiryAlerts(userId);
-      res.json({ summary });
-    } catch (error) {
-      console.error("Expiry summary error:", error);
-      res.status(500).json({ message: "Failed to get expiry summary" });
-    }
-  });
+
 
   // Reprocess document with date extraction (for testing existing documents)
   app.post('/api/documents/:id/reprocess-dates', requireAuth, async (req: any, res) => {

@@ -18,8 +18,7 @@ const mockStorage = {
   createCategory: vi.fn(),
   updateCategory: vi.fn(),
   deleteCategory: vi.fn(),
-  getDocumentStats: vi.fn(),
-  getExpiryAlerts: vi.fn()
+  getDocumentStats: vi.fn()
 }
 
 // Mock external services
@@ -39,7 +38,8 @@ describe('API Routes', () => {
     vi.clearAllMocks()
     app = express()
     app.use(express.json())
-    await registerRoutes(app)
+    // Skip the server return since we're only testing routes
+    await registerRoutes(app as any)
   })
 
   describe('Authentication Routes', () => {
@@ -268,23 +268,6 @@ describe('API Routes', () => {
       expect(response.body).toEqual(mockStats)
     })
 
-    it('GET /api/documents/expiry-alerts returns expiry information', async () => {
-      const mockAlerts = {
-        expired: [],
-        expiringSoon: [{
-          id: 1,
-          name: 'Document expiring soon',
-          expiryDate: '2025-02-01'
-        }]
-      }
 
-      mockStorage.getExpiryAlerts.mockResolvedValue(mockAlerts)
-
-      const response = await request(app)
-        .get('/api/documents/expiry-alerts')
-
-      expect(response.status).toBe(200)
-      expect(response.body).toEqual(mockAlerts)
-    })
   })
 })

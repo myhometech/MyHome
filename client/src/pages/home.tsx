@@ -9,7 +9,7 @@ import StatsGrid from "@/components/stats-grid";
 import CategoryFilter from "@/components/category-filter";
 import DocumentCard from "@/components/document-card";
 import MobileNav from "@/components/mobile-nav";
-import { ExpiryDashboard } from "@/components/expiry-dashboard";
+
 import Chatbot from "@/components/chatbot";
 
 import { EmailForwarding } from "@/components/email-forwarding";
@@ -249,8 +249,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Expiry Dashboard */}
-        <ExpiryDashboard />
+
 
         {/* Upload Zone */}
         <UploadZone onUpload={handleFileUpload} />

@@ -22,7 +22,7 @@ import Blog from "@/pages/blog";
 import BlogPost from "@/pages/blog-post";
 import ForgotPassword from "@/pages/forgot-password";
 
-import ExpiryDocuments from "@/pages/expiry-documents";
+
 import Settings from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
 import FeatureFlagsAdmin from "@/pages/admin/feature-flags";
@@ -64,9 +64,7 @@ function Router() {
           <Route path="/blog/:slug" component={BlogPost} />
           {/* Redirect protected routes to login */}
 
-          <Route path="/expiry-documents">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
+
           <Route path="/settings">
             {() => { setLocation("/login"); return null; }}
           </Route>
@@ -79,7 +77,7 @@ function Router() {
         <>
           <Route path="/" component={Home} />
 
-          <Route path="/expiry-documents" component={ExpiryDocuments} />
+
           <Route path="/settings" component={Settings} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />

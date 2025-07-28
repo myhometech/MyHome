@@ -1,6 +1,7 @@
 import fs from "fs";
 import { createWorker } from 'tesseract.js';
 import { extractExpiryDatesFromText, type ExtractedDate } from "./dateExtractionService";
+import { aiDateExtractionService, type ExtractedDate as AIExtractedDate } from "./aiDateExtractionService";
 import PDFParser from "pdf2json";
 import { storageProvider } from './storage/StorageService';
 import path from 'path';
@@ -628,18 +629,34 @@ export async function processDocumentWithDateExtraction(
     // Generate summary
     const summaryResult = await generateDocumentSummary(extractedText, documentName);
     
-    // Extract dates from the text (for both images and PDFs with extracted text)
+    // DOC-304: Enhanced date extraction using both OCR patterns and AI
     let extractedDates: ExtractedDate[] = [];
+    let aiDates: AIExtractedDate[] = [];
+    
     if ((isImageFile(mimeType) || isPDFFile(mimeType)) && extractedText && 
         extractedText !== 'No text detected' && 
         !extractedText.includes('extraction attempted but no readable text found')) {
-      extractedDates = await extractExpiryDatesFromText(documentName, extractedText);
+      
+      // Get OCR-based dates using pattern matching
+      const ocrDates = await extractExpiryDatesFromText(documentName, extractedText);
+      console.log(`DOC-304: OCR-based date extraction found ${ocrDates.length} dates`);
+      
+      // Get AI-based dates using GPT-4
+      try {
+        aiDates = await aiDateExtractionService.extractDatesFromText(extractedText, documentName);
+        console.log(`DOC-304: AI-based date extraction found ${aiDates.length} dates`);
+      } catch (aiError) {
+        console.error('DOC-304: AI date extraction failed, using OCR-only:', aiError);
+      }
+      
+      // Combine and prioritize dates by confidence
+      extractedDates = combineDateSources(ocrDates, aiDates, documentName);
     }
     
     // Update document with OCR and summary
     await storage.updateDocumentOCRAndSummary(documentId, userId, extractedText, summaryResult);
     
-    // If we found expiry dates, update the document with the most relevant one
+    // DOC-304: Update document with the highest confidence date from combined sources
     if (extractedDates.length > 0) {
       // Sort by confidence and take the highest confidence expiry date
       const bestDate = extractedDates
@@ -647,17 +664,86 @@ export async function processDocumentWithDateExtraction(
         .sort((a, b) => b.confidence - a.confidence)[0];
       
       if (bestDate) {
-        const expiryDate = bestDate.date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        const expiryDate = typeof bestDate.date === 'string' ? bestDate.date : bestDate.date.toISOString().split('T')[0];
         await storage.updateDocument(documentId, userId, { 
           expiryDate,
           name: documentName // Keep existing name
         });
-        console.log(`Auto-detected expiry date for ${documentName}: ${expiryDate} (${bestDate.context})`);
+        
+        const source = (bestDate as any).source || 'ocr';
+        console.log(`DOC-304: Auto-detected expiry date for ${documentName}: ${expiryDate} (source: ${source}, confidence: ${bestDate.confidence})`);
+        console.log(`DOC-304: Date context: ${bestDate.context || 'No context available'}`);
       }
+    } else {
+      console.log(`DOC-304: No expiry dates found for ${documentName}`);
     }
     
   } catch (error) {
     console.error(`Error processing document with date extraction:`, error);
     throw error;
   }
+}
+
+/**
+ * DOC-304: Combine OCR-based and AI-based date extraction results
+ * Prioritizes dates by confidence and removes duplicates
+ */
+function combineDateSources(
+  ocrDates: ExtractedDate[], 
+  aiDates: AIExtractedDate[], 
+  documentName: string
+): ExtractedDate[] {
+  const allDates: ExtractedDate[] = [];
+  const dateMap = new Map<string, ExtractedDate>();
+
+  // Add OCR dates with source tracking
+  for (const ocrDate of ocrDates) {
+    const dateKey = ocrDate.date.toISOString().split('T')[0];
+    const enhancedDate: ExtractedDate = {
+      ...ocrDate,
+      source: 'ocr' as any
+    };
+    
+    dateMap.set(`${dateKey}-${ocrDate.type}`, enhancedDate);
+  }
+
+  // Add AI dates, potentially overriding OCR dates if confidence is higher
+  for (const aiDate of aiDates) {
+    const dateKey = aiDate.date;
+    const mapKey = `${dateKey}-${aiDate.type}`;
+    
+    // Convert AI date format to match OCR format
+    const convertedDate: ExtractedDate = {
+      date: new Date(aiDate.date),
+      type: aiDate.type,
+      context: aiDate.context || `AI-extracted from ${documentName}`,
+      confidence: aiDate.confidence,
+      source: 'ai' as any
+    };
+
+    const existingDate = dateMap.get(mapKey);
+    if (!existingDate || aiDate.confidence > existingDate.confidence) {
+      dateMap.set(mapKey, convertedDate);
+      
+      if (existingDate) {
+        console.log(`DOC-304: AI date (confidence: ${aiDate.confidence}) replaced OCR date (confidence: ${existingDate.confidence}) for ${dateKey}`);
+      }
+    } else {
+      console.log(`DOC-304: OCR date (confidence: ${existingDate.confidence}) retained over AI date (confidence: ${aiDate.confidence}) for ${dateKey}`);
+    }
+  }
+
+  // Convert map back to array and sort by confidence
+  const combinedDates = Array.from(dateMap.values())
+    .sort((a, b) => b.confidence - a.confidence);
+
+  console.log(`DOC-304: Combined date extraction results:`, {
+    ocrDates: ocrDates.length,
+    aiDates: aiDates.length,
+    finalDates: combinedDates.length,
+    bestSource: combinedDates[0]?.source || 'none',
+    bestConfidence: combinedDates[0]?.confidence || 0
+  });
+
+  return combinedDates;
 }

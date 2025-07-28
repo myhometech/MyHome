@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { AlertTriangle, Clock, Info, CheckCircle, ArrowRight, Calendar, FileText } from "lucide-react";
+import { AlertTriangle, Clock, Info, CheckCircle, ArrowRight, Calendar, FileText, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { apiRequest } from "@/lib/queryClient";
 
 interface CriticalInsight {
   id: string;
@@ -72,6 +73,8 @@ function formatDueDate(dateString?: string) {
 }
 
 export default function CriticalInsightsDashboard() {
+  const queryClient = useQueryClient();
+  
   const { data: insights = [], isLoading, error } = useQuery<CriticalInsight[]>({
     queryKey: ['/api/insights/critical'],
     queryFn: async () => {
@@ -84,6 +87,21 @@ export default function CriticalInsightsDashboard() {
       return response.json();
     },
     refetchInterval: 60000, // Refresh every minute for critical insights
+  });
+
+  // TICKET 8: Dismiss insight mutation
+  const dismissInsightMutation = useMutation({
+    mutationFn: async (insightId: string) => {
+      return apiRequest(`/api/insights/${insightId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'dismissed' }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: () => {
+      // Invalidate critical insights query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/insights/critical'] });
+    }
   });
 
   if (isLoading) {
@@ -200,6 +218,16 @@ export default function CriticalInsightsDashboard() {
                       View
                     </Button>
                   </Link>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-xs px-2 py-1 text-gray-500 hover:text-gray-700"
+                    onClick={() => dismissInsightMutation.mutate(insight.id)}
+                    disabled={dismissInsightMutation.isPending}
+                  >
+                    <X className="w-3 h-3 mr-1" />
+                    Dismiss
+                  </Button>
                 </div>
               </div>
             </div>

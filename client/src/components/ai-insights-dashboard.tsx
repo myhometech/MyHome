@@ -21,11 +21,17 @@ interface InsightsResponse {
 }
 
 export function AIInsightsDashboard() {
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('open'); // TICKET 8: Default to open insights
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('priority');
+
+  // TICKET 8: Map activeTab to API status filter
+  const getAPIStatusFilter = () => {
+    if (activeTab === 'all') return statusFilter !== 'all' ? statusFilter : 'all';
+    return activeTab;
+  };
 
   const {
     data: insightsData,
@@ -33,10 +39,11 @@ export function AIInsightsDashboard() {
     error,
     refetch
   } = useQuery<InsightsResponse>({
-    queryKey: ['/api/insights', statusFilter, typeFilter, priorityFilter, sortBy],
+    queryKey: ['/api/insights', getAPIStatusFilter(), typeFilter, priorityFilter, sortBy],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      const apiStatus = getAPIStatusFilter();
+      if (apiStatus && apiStatus !== 'all') params.append('status', apiStatus);
       if (typeFilter && typeFilter !== 'all') params.append('type', typeFilter);
       if (priorityFilter && priorityFilter !== 'all') params.append('priority', priorityFilter);
       if (sortBy) params.append('sort', sortBy);
@@ -52,30 +59,30 @@ export function AIInsightsDashboard() {
 
   const insights = insightsData?.insights || [];
   
-  // Filter insights by tab
-  const getInsightsByTab = (tab: string) => {
-    switch (tab) {
-      case 'open':
-        return insights.filter(insight => insight.status === 'open' || !insight.status);
-      case 'resolved':
-        return insights.filter(insight => insight.status === 'resolved');
-      case 'dismissed':
-        return insights.filter(insight => insight.status === 'dismissed');
-      default:
-        return insights;
-    }
-  };
+  // TICKET 8: Since we're filtering at the API level, all returned insights match the active tab
+  const tabInsights = insights;
 
-  const tabInsights = getInsightsByTab(activeTab);
+  // Get counts for all status types (need separate queries for this)
+  const { data: allInsightsData } = useQuery<InsightsResponse>({
+    queryKey: ['/api/insights/counts'],
+    queryFn: async () => {
+      const response = await fetch('/api/insights?status=all', {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch insight counts');
+      return response.json();
+    },
+    refetchInterval: 30000,
+  });
 
-  // Count insights by status
-  const openCount = insights.filter(i => i.status === 'open' || !i.status).length;
-  const resolvedCount = insights.filter(i => i.status === 'resolved').length;
-  const dismissedCount = insights.filter(i => i.status === 'dismissed').length;
+  const allInsights = allInsightsData?.insights || [];
+  const openCount = allInsights.filter(i => i.status === 'open' || !i.status).length;
+  const resolvedCount = allInsights.filter(i => i.status === 'resolved').length;
+  const dismissedCount = allInsights.filter(i => i.status === 'dismissed').length;
 
-  // Count insights by priority
-  const highPriorityCount = insights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status)).length;
-  const mediumPriorityCount = insights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length;
+  // Count insights by priority (from all insights)
+  const highPriorityCount = allInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status)).length;
+  const mediumPriorityCount = allInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length;
 
   const handleStatusUpdate = (insightId: string, status: 'open' | 'dismissed' | 'resolved') => {
     // Optimistically update the local state
@@ -253,7 +260,7 @@ export function AIInsightsDashboard() {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="all" className="flex items-center space-x-2">
             <span>All</span>
-            <Badge variant="secondary" className="ml-1">{insights.length}</Badge>
+            <Badge variant="secondary" className="ml-1">{allInsights.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="open" className="flex items-center space-x-2">
             <span>Open</span>

@@ -164,6 +164,30 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### TICKET 8: Insight Dismissal Functionality - PRODUCTION READY (January 28, 2025)
+- **Achievement**: Successfully implemented comprehensive insight dismissal functionality enabling users to manually dismiss AI-generated insights so they no longer appear in homepage widget or /insights view by default
+- **Backend Implementation**:
+  - Added simplified `PATCH /api/insights/:id` endpoint accepting `{ "status": "dismissed" }` payload for easy dismissal
+  - Updated `/api/insights` endpoint to default to showing only `status=open` insights unless `?status=all` or `?status=dismissed` specified
+  - Enhanced critical insights endpoint to filter by `status=open` only, ensuring dismissed insights don't appear on homepage
+  - Maintained backward compatibility with existing `/api/insights/:id/status` endpoint for comprehensive status management
+- **Frontend Components**:
+  - **Critical Insights Dashboard**: Added dismiss buttons with X icon beside each insight's "View" button for homepage dismissal
+  - **AI Insights Dashboard**: Updated default tab to "Open" insights and improved API filtering to properly handle status-based tabs
+  - **InsightCard Component**: Already included dismiss functionality in dropdown menu (pre-existing)
+  - Enhanced query management with proper cache invalidation and optimistic updates for immediate UI feedback
+- **User Experience Features**:
+  - Non-destructive "Dismiss" text links with clear, accessible design as requested
+  - Immediate UI updates without page reload through React Query mutations
+  - Dismissed insights remain accessible via filter controls (All/Open/Dismissed tabs)
+  - Proper badge counts showing accurate insight numbers by status across all views
+- **Technical Implementation**:
+  - API-level filtering ensuring dismissed insights don't load unnecessarily for performance
+  - Dual query system for accurate count badges while maintaining filtered results
+  - Comprehensive error handling and loading states for smooth user experience
+  - Database status persistence with complete audit trail for insight lifecycle management
+- **Status**: ✅ PRODUCTION READY - All acceptance criteria met: dismissed insights hidden by default, dismiss buttons on both homepage and /insights page, persistent database storage, immediate UI updates, accessible non-destructive design
+
 ### TICKET 8: Critical Insights Dashboard Redesign - PRODUCTION READY (January 28, 2025)
 - **Achievement**: Successfully redesigned homepage AI insights into a focused "Critical Insights Dashboard" replacing the broad TopInsightsWidget with targeted, actionable insights display
 - **Backend Implementation**:

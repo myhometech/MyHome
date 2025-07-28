@@ -1152,12 +1152,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/insights', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const status = req.query.status as string;
+      // TICKET 8: Default to showing only open insights, allow 'all' or 'dismissed' via query
+      const status = req.query.status as string || 'open';
       const type = req.query.type as string;
       const priority = req.query.priority as string;
       const sort = req.query.sort as string;
 
-      const insights = await storage.getInsights(userId, status, type, priority);
+      const insights = await storage.getInsights(userId, status === 'open' ? 'open' : status, type, priority);
 
       res.json({
         insights,
@@ -1185,6 +1186,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error fetching critical insights:", error);
       captureError(error, req, 'critical_insights_fetch');
       res.status(500).json({ message: "Failed to fetch critical insights" });
+    }
+  });
+
+  // TICKET 8: Update insight (simplified endpoint)
+  app.patch('/api/insights/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const insightId = req.params.id;
+      const { status } = req.body;
+
+      if (!['open', 'dismissed', 'resolved'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be 'open', 'dismissed', or 'resolved'." });
+      }
+
+      const updatedInsight = await storage.updateInsightStatus(insightId, userId, status);
+      
+      if (!updatedInsight) {
+        return res.status(404).json({ message: "Insight not found" });
+      }
+
+      res.json(updatedInsight);
+
+    } catch (error) {
+      console.error("Error updating insight:", error);
+      captureError(error, req, 'insight_update');
+      res.status(500).json({ message: "Failed to update insight" });
     }
   });
 

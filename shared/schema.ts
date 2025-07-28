@@ -335,8 +335,16 @@ export const userAssets = pgTable("user_assets", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
-  address: text("address").notNull(),
   type: varchar("type", { length: 20 }).notNull(), // 'house' or 'car'
+  // House fields
+  address: text("address"), // For houses
+  postcode: varchar("postcode", { length: 20 }), // For houses
+  // Car fields  
+  make: varchar("make", { length: 100 }), // For cars
+  model: varchar("model", { length: 100 }), // For cars
+  year: integer("year"), // For cars
+  vin: varchar("vin", { length: 50 }), // For cars (optional)
+  // Common optional fields
   estimatedValue: integer("estimated_value"), // Optional estimated value in cents
   notes: text("notes"), // Optional notes about the asset
   createdAt: timestamp("created_at").defaultNow(),

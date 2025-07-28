@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,15 +8,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Home, Car, Plus, Trash2 } from "lucide-react";
 import * as z from "zod";
 
-const assetSchema = z.object({
+const houseSchema = z.object({
+  type: z.literal("house"),
   name: z.string().min(1, "Name is required"),
   address: z.string().min(1, "Address is required"),
-  type: z.enum(["house", "car"]),
+  postcode: z.string().min(1, "Postcode is required"),
 });
+
+const carSchema = z.object({
+  type: z.literal("car"),
+  name: z.string().min(1, "Name is required"),
+  make: z.string().min(1, "Make is required"),
+  model: z.string().min(1, "Model is required"),
+  year: z.number().int().gte(1900).lte(new Date().getFullYear()),
+  vin: z.string().optional(),
+});
+
+const assetSchema = z.discriminatedUnion("type", [houseSchema, carSchema]);
 
 type AssetForm = z.infer<typeof assetSchema>;
 
@@ -25,14 +38,45 @@ export function YourAssetsSection() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
 
+  const [selectedType, setSelectedType] = useState<"house" | "car">("house");
+
   const form = useForm<AssetForm>({
     resolver: zodResolver(assetSchema),
     defaultValues: {
+      type: "house",
       name: "",
       address: "",
-      type: "house",
+      postcode: "",
     },
   });
+
+  // Watch the type field to handle dynamic form changes
+  const watchedType = form.watch("type");
+
+  // Reset form when type changes
+  useEffect(() => {
+    if (watchedType !== selectedType) {
+      setSelectedType(watchedType);
+      // Reset all fields except type and name when switching
+      if (watchedType === "house") {
+        form.reset({
+          type: "house",
+          name: form.getValues("name"),
+          address: "",
+          postcode: "",
+        });
+      } else {
+        form.reset({
+          type: "car",
+          name: form.getValues("name"),
+          make: "",
+          model: "",
+          year: new Date().getFullYear(),
+          vin: "",
+        });
+      }
+    }
+  }, [watchedType, selectedType, form]);
 
   const { data: assets = [], isLoading } = useQuery({
     queryKey: ["/api/user-assets"],
@@ -102,17 +146,23 @@ export function YourAssetsSection() {
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <FormControl>
-                      <select {...field} className="w-full border rounded px-3 py-2 bg-background">
-                        <option value="house">House</option>
-                        <option value="car">Car</option>
-                      </select>
-                    </FormControl>
+                    <FormLabel>Asset Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select asset type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="house">🏠 House</SelectItem>
+                        <SelectItem value="car">🚗 Car</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={form.control}
                 name="name"
@@ -120,25 +170,110 @@ export function YourAssetsSection() {
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Family Home or Ford Fiesta" {...field} />
+                      <Input 
+                        placeholder={selectedType === "house" ? "e.g. Family Home" : "e.g. Ford Fiesta"} 
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. 123 Main Street" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
+              {/* House-specific fields */}
+              {selectedType === "house" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Address</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. 123 Main Street" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="postcode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Postcode</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. SW1A 1AA" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {/* Car-specific fields */}
+              {selectedType === "car" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="make"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Make</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Ford" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="model"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Model</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Fiesta" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="year"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Year</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="e.g. 2020" 
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="vin"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>VIN (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. 1HGBH41JXMN109186" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
               <div className="flex gap-2">
                 <Button type="submit" disabled={addAsset.isPending}>
                   {addAsset.isPending ? "Saving..." : "Save Asset"}
@@ -169,7 +304,17 @@ export function YourAssetsSection() {
                     {asset.type === "house" ? <Home className="h-4 w-4" /> : <Car className="h-4 w-4" />}
                     {asset.name}
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{asset.address}</p>
+                  {asset.type === "house" ? (
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      <p>{asset.address}</p>
+                      {asset.postcode && <p className="font-medium">{asset.postcode}</p>}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      <p>{asset.make} {asset.model} {asset.year && `(${asset.year})`}</p>
+                      {asset.vin && <p className="text-xs opacity-75">VIN: {asset.vin}</p>}
+                    </div>
+                  )}
                 </div>
                 <Button
                   variant="ghost"

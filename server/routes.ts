@@ -7,6 +7,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema } from "@shared/schema";
+import { z } from 'zod';
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 import { answerDocumentQuestion } from "./chatbotService";
 import { tagSuggestionService } from "./tagSuggestionService";
@@ -2721,13 +2722,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/user-assets', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const validatedData = insertUserAssetSchema.parse(req.body);
+      
+      // Validate the request with the discriminated union schema from the frontend
+      // This will check that house assets have address/postcode and car assets have make/model/year
+      const houseSchema = z.object({
+        type: z.literal("house"),
+        name: z.string().min(1),
+        address: z.string().min(1),
+        postcode: z.string().min(1),
+      });
+
+      const carSchema = z.object({
+        type: z.literal("car"),
+        name: z.string().min(1),
+        make: z.string().min(1),
+        model: z.string().min(1),
+        year: z.number().int().gte(1900).lte(new Date().getFullYear()),
+        vin: z.string().optional(),
+      });
+
+      const assetSchema = z.discriminatedUnion("type", [houseSchema, carSchema]);
+      const validatedData = assetSchema.parse(req.body);
+      
       const assetData = { ...validatedData, userId };
       const asset = await storage.createUserAsset(assetData);
       res.json(asset);
     } catch (error) {
       console.error("Error creating user asset:", error);
-      res.status(500).json({ message: "Failed to create user asset" });
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid asset data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to create user asset" });
+      }
     }
   });
 

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Home, Search, Bell, LogOut, Settings, Shield, Mail, Brain } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SmartSearch } from "@/components/smart-search";
 import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
@@ -19,6 +19,7 @@ interface HeaderProps {
 
 export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const { user } = useAuth();
+  const [location] = useLocation();
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   
   // Get notification count for imported documents
@@ -64,13 +65,36 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             <Link href="/">
               <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
                 <Home className="h-6 w-6 text-primary" />
                 <h1 className="text-xl font-bold text-slate-900">MyHome</h1>
               </div>
             </Link>
+            {/* TICKET 10: Add AI Insights to primary navigation */}
+            <nav className="hidden md:flex items-center space-x-2">
+              <Link href="/">
+                <Button 
+                  variant={location === "/" ? "default" : "ghost"} 
+                  size="sm" 
+                  className={location === "/" ? "" : "text-gray-600 hover:text-gray-900"}
+                >
+                  <Home className="h-4 w-4 mr-2" />
+                  Documents
+                </Button>
+              </Link>
+              <Link href="/insights">
+                <Button 
+                  variant={location === "/insights" ? "default" : "ghost"} 
+                  size="sm" 
+                  className={location === "/insights" ? "" : "text-gray-600 hover:text-gray-900"}
+                >
+                  <Brain className="h-4 w-4 mr-2" />
+                  Insights
+                </Button>
+              </Link>
+            </nav>
           </div>
           
           {/* Search Bar - Hidden on mobile */}
@@ -125,8 +149,26 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
             </div>
           </div>
 
-          {/* Mobile Search Button */}
+          {/* Mobile Navigation and Search */}
           <div className="flex items-center space-x-2 md:hidden">
+            <Link href="/">
+              <Button 
+                variant={location === "/" ? "default" : "ghost"} 
+                size="sm" 
+                className="p-2"
+              >
+                <Home className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/insights">
+              <Button 
+                variant={location === "/insights" ? "default" : "ghost"} 
+                size="sm" 
+                className="p-2"
+              >
+                <Brain className="h-4 w-4" />
+              </Button>
+            </Link>
             <Button 
               variant="ghost" 
               size="sm" 

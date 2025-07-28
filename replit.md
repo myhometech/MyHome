@@ -164,6 +164,22 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### TICKET 10: AI Insights Promoted to Primary Navigation - PRODUCTION READY (January 28, 2025)
+- **Achievement**: Successfully promoted AI Insights to primary navigation and added persistent homepage entry point for better feature discoverability as requested
+- **Navigation Enhancement**:
+  - Added "Insights" with Brain icon to main header navigation alongside "Documents"
+  - Implemented responsive design: full navigation on desktop, icon-only buttons on mobile
+  - Active page highlighting using location-based button variants for clear navigation state
+  - Positioned strategically near "Documents" for logical feature grouping
+- **Homepage Entry Point**:
+  - Enhanced TopInsightsWidget with friendly empty state instead of hiding when no insights
+  - Added "All clear!" message with encouraging copy: "No actions needed right now — but we're keeping an eye out for anything important"
+  - Prominent CTA button "Go to AI Insights Dashboard" with Brain icon linking to /insights
+  - Professional visual design with blue-colored circle and CheckCircle icon for positive messaging
+- **User Experience Impact**: AI Insights now highly discoverable through persistent top-level navigation and always-visible homepage entry point, educating users about the feature's ongoing value even when no active insights exist
+- **Technical Implementation**: Responsive navigation using Wouter location hooks, proper button variants for active states, mobile-optimized icon navigation
+- **Status**: ✅ PRODUCTION READY - AI Insights feature now prominent in main navigation with persistent homepage presence achieving maximum discoverability
+
 ### TICKET 8: Insight Dismissal Functionality - PRODUCTION READY (January 28, 2025)
 - **Achievement**: Successfully implemented comprehensive insight dismissal functionality enabling users to manually dismiss AI-generated insights so they no longer appear in homepage widget or /insights view by default
 - **Backend Implementation**:

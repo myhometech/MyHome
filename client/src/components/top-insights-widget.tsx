@@ -117,6 +117,7 @@ export default function TopInsightsWidget() {
 
   const insights = data?.insights || [];
 
+  // TICKET 10: Show friendly empty state with CTA instead of hiding widget
   if (insights.length === 0) {
     return (
       <Card className="w-full">
@@ -128,9 +129,19 @@ export default function TopInsightsWidget() {
         </CardHeader>
         <CardContent>
           <div className="text-center py-6">
-            <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-            <p className="text-gray-600 mb-2">No urgent insights right now</p>
-            <p className="text-sm text-gray-500">Upload documents to get AI-powered insights</p>
+            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-blue-500" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">All clear!</h3>
+            <p className="text-gray-600 mb-4">
+              No actions needed right now — but we're keeping an eye out for anything important.
+            </p>
+            <Link href="/insights">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Brain className="w-4 h-4 mr-2" />
+                Go to AI Insights Dashboard
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>

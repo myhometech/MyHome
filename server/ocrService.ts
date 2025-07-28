@@ -644,7 +644,7 @@ export async function processDocumentWithDateExtraction(
       
       // Get AI-based dates using GPT-4
       try {
-        aiDates = await aiDateExtractionService.extractDatesFromText(extractedText, documentName);
+        aiDates = await aiDateExtractionService.extractDatesFromText(extractedText, documentName, userId);
         console.log(`DOC-304: AI-based date extraction found ${aiDates.length} dates`);
       } catch (aiError) {
         console.error('DOC-304: AI date extraction failed, using OCR-only:', aiError);

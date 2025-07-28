@@ -26,21 +26,103 @@ export class AIDateExtractionService {
   }
 
   /**
-   * DOC-304: Extract dates from OCR text using GPT-4
+   * TICKET 15: Enhanced regex-based date extraction for common patterns
    */
-  async extractDatesFromText(text: string, documentName?: string): Promise<ExtractedDate[]> {
+  private extractDatesWithRegex(text: string): ExtractedDate[] {
+    const extractedDates: ExtractedDate[] = [];
+    const datePatterns = [
+      // Expiry patterns
+      { pattern: /expir(?:es?|y|ation)?\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/gi, type: 'expiry' as const },
+      { pattern: /exp(?:ires?|iry)?\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/gi, type: 'expiry' as const },
+      // Due patterns
+      { pattern: /due\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/gi, type: 'due' as const },
+      { pattern: /payment\s*due\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/gi, type: 'due' as const },
+      // Valid until patterns
+      { pattern: /valid\s*until\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/gi, type: 'valid_until' as const },
+      { pattern: /valid\s*through\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/gi, type: 'valid_until' as const },
+      // Renewal patterns
+      { pattern: /renew(?:al)?\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/gi, type: 'renewal' as const }
+    ];
+
+    for (const { pattern, type } of datePatterns) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const dateStr = match[1];
+        try {
+          // Parse and normalize date
+          const parsedDate = new Date(dateStr);
+          if (!isNaN(parsedDate.getTime()) && parsedDate.getFullYear() > 1900) {
+            const isoDate = parsedDate.toISOString().split('T')[0];
+            extractedDates.push({
+              type,
+              date: isoDate,
+              confidence: 0.85, // High confidence for regex matches
+              source: 'ai',
+              context: `Regex pattern: ${match[0]}`
+            });
+          }
+        } catch (error) {
+          // Skip invalid dates
+        }
+      }
+    }
+
+    return extractedDates;
+  }
+
+  /**
+   * DOC-304: Extract dates from OCR text using GPT-3.5-turbo with regex fallback (TICKET 15: Feature flag protected)
+   */
+  async extractDatesFromText(text: string, documentName?: string, userId?: string): Promise<ExtractedDate[]> {
     if (!this.isAvailable || !text?.trim()) {
       return [];
     }
 
     const requestId = Math.random().toString(36).substring(2, 8);
-    console.log(`[${requestId}] DOC-304: Starting AI date extraction for document: ${documentName}`);
+    console.log(`[${requestId}] DOC-304: Starting date extraction for document: ${documentName}`);
+
+    // TICKET 15: Try regex-based extraction first
+    const regexDates = this.extractDatesWithRegex(text);
+    if (regexDates.length > 0) {
+      console.log(`[${requestId}] DOC-304: Found ${regexDates.length} dates with regex patterns, skipping AI call`);
+      return regexDates;
+    }
+
+    console.log(`[${requestId}] DOC-304: No regex matches found, checking AI extraction availability`);
+
+    // TICKET 15: Check if AI date extraction is enabled for this user
+    if (userId) {
+      try {
+        const { featureFlagService } = await import('./featureFlagService');
+        const { storage } = await import('./storage');
+        
+        const user = await storage.getUser(userId);
+        if (user) {
+          const hasAIDateExtraction = await featureFlagService.isFeatureEnabled('ai_date_extraction', {
+            userId,
+            userTier: user.subscriptionTier as 'free' | 'premium',
+            sessionId: '', 
+            userAgent: '',
+            ipAddress: ''
+          });
+
+          if (!hasAIDateExtraction) {
+            console.log(`[${requestId}] DOC-304: AI date extraction disabled for user ${userId} - using regex results only`);
+            return regexDates; // Return empty array if no regex matches and AI disabled
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to check AI date extraction feature flag, proceeding with AI extraction:', error);
+      }
+    }
+
+    console.log(`[${requestId}] DOC-304: Using AI extraction`);
 
     try {
       const prompt = this.buildDateExtractionPrompt(text, documentName);
       
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-3.5-turbo", // TICKET 15: Cost optimization - downgraded from gpt-4o
         messages: [
           {
             role: "system",
@@ -82,7 +164,20 @@ export class AIDateExtractionService {
   }
 
   /**
-   * Build comprehensive prompt for GPT-4 date extraction
+   * TICKET 15: Truncate text to top/bottom 1000 characters for cost optimization
+   */
+  private truncateTextForAI(text: string): string {
+    if (text.length <= 2000) {
+      return text;
+    }
+    
+    const firstPart = text.substring(0, 1000);
+    const lastPart = text.substring(text.length - 1000);
+    return `${firstPart}\n\n...(truncated for cost optimization)...\n\n${lastPart}`;
+  }
+
+  /**
+   * Build comprehensive prompt for GPT-3.5-turbo date extraction
    */
   private buildDateExtractionPrompt(text: string, documentName?: string): string {
     return `Analyze this document text and extract important dates. Focus on dates that indicate when something expires, is due, needs renewal, or has a deadline.
@@ -91,7 +186,7 @@ Document name: ${documentName || 'Unknown'}
 
 Document text:
 """
-${text.substring(0, 2000)} ${text.length > 2000 ? '...(truncated)' : ''}
+${this.truncateTextForAI(text)}
 """
 
 Instructions:

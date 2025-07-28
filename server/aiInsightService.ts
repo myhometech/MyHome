@@ -37,7 +37,7 @@ class AIInsightService {
   }
 
   /**
-   * Generate comprehensive insights for a document
+   * Generate comprehensive insights for a document (TICKET 15: Feature flag protected)
    */
   async generateDocumentInsights(
     documentName: string,
@@ -47,6 +47,36 @@ class AIInsightService {
   ): Promise<InsightAnalysisResult> {
     if (!this.isAvailable || !this.openai) {
       throw new Error('AI Insight Service not available - OpenAI API key required');
+    }
+
+    // TICKET 15: Check if AI insights are enabled for this user
+    const { featureFlagService } = await import('./featureFlagService');
+    const { storage } = await import('./storage');
+    
+    try {
+      const user = await storage.getUser(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const hasAIInsights = await featureFlagService.isFeatureEnabled('ai_insights', {
+        userId,
+        userTier: user.subscriptionTier as 'free' | 'premium',
+        sessionId: '', 
+        userAgent: '',
+        ipAddress: ''
+      });
+
+      if (!hasAIInsights) {
+        console.log(`[DOC-501] AI Insights disabled for user ${userId} - returning empty result`);
+        return {
+          insights: [],
+          processingTime: 0,
+          aiServiceUsed: false
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to check AI insights feature flag, proceeding with default behavior:', error);
     }
 
     const startTime = Date.now();
@@ -71,7 +101,7 @@ class AIInsightService {
         ],
         response_format: { type: "json_object" },
         temperature: 0.1, // Low temperature for consistent analysis
-        max_tokens: 2000
+        max_tokens: 1500 // TICKET 15: Reduced from 2000 to cut token costs by 25%
       });
 
       const aiResponse = response.choices[0].message.content;

@@ -1507,30 +1507,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Main SendGrid webhook endpoint for GCS+SendGrid pipeline
+  // DOC-301: SendGrid webhook endpoint for email ingestion
   app.post('/api/email-ingest', async (req, res) => {
+    const startTime = Date.now();
+    const requestId = Math.random().toString(36).substring(2, 15);
+    
     try {
-      const { to, from, subject, text, html, attachments } = req.body;
-      
-      if (!to || !from) {
-        return res.status(400).json({ message: "Missing required email fields" });
+      // Log incoming webhook data for debugging
+      console.log(`[${requestId}] SendGrid webhook received:`, {
+        headers: {
+          'user-agent': req.get('user-agent'),
+          'x-forwarded-for': req.get('x-forwarded-for'),
+          'content-type': req.get('content-type'),
+          'sendgrid-id': req.get('x-sendgrid-event-id')
+        },
+        bodyKeys: Object.keys(req.body),
+        bodySize: JSON.stringify(req.body).length
+      });
+
+      // Validate SendGrid source
+      const isValidSendGridSource = validateSendGridSource(req);
+      if (!isValidSendGridSource) {
+        console.warn(`[${requestId}] Invalid SendGrid source rejected:`, {
+          ip: req.ip,
+          userAgent: req.get('user-agent'),
+          headers: req.headers
+        });
+        return res.status(403).json({ 
+          message: "Invalid source - not from SendGrid",
+          requestId 
+        });
       }
 
-      // Parse user from forwarding email address
+      // Extract email data from SendGrid webhook format
+      const { to, from, subject, text, html, attachments, headers } = req.body;
+      
+      // Validate required fields
+      if (!to || !from) {
+        console.error(`[${requestId}] Missing required email fields:`, { to, from });
+        return res.status(400).json({ 
+          message: "Missing required email fields (to, from)",
+          requestId 
+        });
+      }
+
+      // Log raw email metadata for support/debugging
+      const emailMetadata = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        to,
+        from,
+        subject: subject || '(no subject)',
+        textLength: text?.length || 0,
+        htmlLength: html?.length || 0,
+        attachmentCount: attachments?.length || 0,
+        headers: headers || {},
+        processingStarted: startTime
+      };
+      
+      console.log(`[${requestId}] Processing email metadata:`, emailMetadata);
+
+      // Parse user from forwarding email address (e.g., user123@inbox.myhome.com)
       const EmailService = (await import('./emailService')).EmailService;
       const emailService = new EmailService();
       const userId = await emailService.parseUserFromEmail(to);
       
       if (!userId) {
-        console.log('No user found for email address:', to);
-        return res.status(200).json({ message: 'Email processed but no user found' });
+        console.warn(`[${requestId}] No user found for email address:`, { 
+          to, 
+          from,
+          domain: to.split('@')[1] 
+        });
+        return res.status(200).json({ 
+          message: 'Email processed but no user found',
+          requestId,
+          to: to.replace(/^docs-[a-z0-9]+/, 'docs-***') // Mask for privacy
+        });
       }
 
       // Get user for processing
       const user = await storage.getUserById(userId);
       if (!user) {
-        return res.status(200).json({ message: 'User not found' });
+        console.error(`[${requestId}] User ID found but user record missing:`, { userId });
+        return res.status(200).json({ 
+          message: 'User mapping found but user record missing',
+          requestId 
+        });
       }
+
+      console.log(`[${requestId}] User association successful:`, {
+        userId: user.id,
+        userEmail: user.email.replace(/(.{3}).*(@.*)/, '$1***$2'), // Mask email for privacy
+        forwardingAddress: to.replace(/^docs-[a-z0-9]+/, 'docs-***')
+      });
+
+      // Process attachments and email content
+      const processedAttachments = attachments?.map((attachment: any, index: number) => ({
+        index,
+        filename: attachment.filename || `attachment_${index}`,
+        contentType: attachment.type || 'application/octet-stream',
+        size: attachment.content?.length || 0,
+        hasContent: !!attachment.content
+      })) || [];
+
+      console.log(`[${requestId}] Attachment analysis:`, {
+        totalAttachments: processedAttachments.length,
+        attachmentDetails: processedAttachments
+      });
 
       // Process the email using GCS+SendGrid pipeline
       const emailData = {
@@ -1538,25 +1621,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subject: subject || 'Forwarded Document',
         html,
         text,
-        attachments: attachments || []
+        attachments: attachments || [],
+        metadata: emailMetadata
       };
 
       const result = await emailService.processIncomingEmail(emailData, user.email);
       
-      res.status(200).json({
-        message: 'Email processed successfully via GCS+SendGrid pipeline',
+      const processingTime = Date.now() - startTime;
+      
+      console.log(`[${requestId}] Email processing completed:`, {
+        success: result.success,
         documentsCreated: result.documentsCreated,
-        success: result.success
+        processingTimeMs: processingTime,
+        userId: user.id
+      });
+
+      res.status(200).json({
+        message: 'Email processed successfully via SendGrid webhook',
+        requestId,
+        documentsCreated: result.documentsCreated,
+        success: result.success,
+        processingTimeMs: processingTime
       });
 
     } catch (error) {
-      console.error('Error processing email ingest:', error);
+      const processingTime = Date.now() - startTime;
+      console.error(`[${requestId}] Error processing SendGrid webhook:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        processingTimeMs: processingTime
+      });
+      
       res.status(500).json({ 
-        message: 'Error processing email via GCS+SendGrid pipeline',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        message: 'Error processing email via SendGrid webhook',
+        requestId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        processingTimeMs: processingTime
       });
     }
   });
+
+  // Helper function to validate SendGrid source
+  function validateSendGridSource(req: any): boolean {
+    // Method 1: Check User-Agent for SendGrid
+    const userAgent = req.get('user-agent') || '';
+    if (userAgent.includes('SendGrid')) {
+      return true;
+    }
+
+    // Method 2: Check for SendGrid-specific headers
+    const sendGridHeaders = [
+      'x-sendgrid-event-id',
+      'x-sendgrid-message-id',
+      'x-sendgrid-subscription-id'
+    ];
+    
+    for (const header of sendGridHeaders) {
+      if (req.get(header)) {
+        return true;
+      }
+    }
+
+    // Method 3: Check IP ranges (SendGrid's documented IP ranges)
+    const clientIP = req.ip || req.connection.remoteAddress || '';
+    const sendGridIPRanges = [
+      '167.89.', '168.245.', '169.45.', '173.193.',
+      '173.194.', '184.173.', '192.254.', '198.37.',
+      '198.61.', '199.255.', '208.115.'
+    ];
+    
+    const isFromSendGridIP = sendGridIPRanges.some(range => clientIP.startsWith(range));
+    if (isFromSendGridIP) {
+      return true;
+    }
+
+    // Method 4: For development/testing, allow localhost and development environments
+    if (process.env.NODE_ENV === 'development') {
+      const developmentSources = ['127.0.0.1', '::1', 'localhost'];
+      if (developmentSources.some(source => clientIP.includes(source))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
   // Chatbot endpoints
   app.post('/api/chatbot/ask', requireAuth, async (req: any, res) => {

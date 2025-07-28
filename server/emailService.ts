@@ -459,14 +459,38 @@ ${mapping.forwardingAddress}
    * Parse incoming email address to extract user ID
    */
   async parseUserFromEmail(toAddress: string): Promise<string | null> {
-    const domain = this.getEmailDomain();
-    const match = toAddress.match(new RegExp(`^docs-([a-z0-9]{12})@${domain.replace('.', '\\.')}$`));
-    if (!match) return null;
-    
     try {
-      const userHash = match[1];
-      return await this.reverseUserHash(userHash);
-    } catch {
+      // Support multiple domain formats for flexibility
+      const domains = [
+        this.getEmailDomain(),
+        'inbox.myhome.com', // DOC-301 example format
+        'homedocs.example.com', // Legacy format
+        'docs.replit.app' // Development format
+      ];
+      
+      for (const domain of domains) {
+        // Match formats: user123@inbox.myhome.com OR docs-hash@domain.com
+        const userIdMatch = toAddress.match(new RegExp(`^([a-z0-9]+)@${domain.replace('.', '\\.')}$`));
+        if (userIdMatch) {
+          const potentialUserId = userIdMatch[1];
+          // Check if this is a direct user ID or a docs- prefix
+          if (potentialUserId.startsWith('user') || potentialUserId.length > 10) {
+            return potentialUserId;
+          }
+        }
+        
+        // Match docs-hash format
+        const hashMatch = toAddress.match(new RegExp(`^docs-([a-z0-9]{6,12})@${domain.replace('.', '\\.')}$`));
+        if (hashMatch) {
+          const userHash = hashMatch[1];
+          const userId = await this.reverseUserHash(userHash);
+          if (userId) return userId;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error parsing user from email:', error);
       return null;
     }
   }

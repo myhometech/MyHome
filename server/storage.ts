@@ -157,6 +157,81 @@ export interface IStorage {
   getUserAssets(userId: string): Promise<UserAsset[]>;
   createUserAsset(asset: InsertUserAsset & { userId: string }): Promise<UserAsset>;
   deleteUserAsset(id: number, userId: string): Promise<void>;
+
+  // Admin operations
+  getAdminStats(): Promise<{
+    totalUsers: number;
+    activeUsers: number;
+    totalDocuments: number;
+    totalStorageBytes: number;
+    uploadsThisMonth: number;
+    newUsersThisMonth: number;
+  }>;
+  getAllUsersWithStats(): Promise<Array<{
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    role: string;
+    isActive: boolean;
+    documentCount: number;
+    storageUsed: number;
+    lastLoginAt: string | null;
+    createdAt: string;
+  }>>;
+  getSystemActivities(severity?: string): Promise<Array<{
+    id: number;
+    type: string;
+    description: string;
+    userId: string;
+    userEmail: string;
+    severity: string;
+    metadata?: Record<string, any>;
+    timestamp: string;
+  }>>;
+  updateUserStatus(userId: string, isActive: boolean): Promise<void>;
+  getSearchAnalytics(timeRange?: string, tierFilter?: string): Promise<{
+    totalSearches: number;
+    uniqueUsers: number;
+    noResultRate: number;
+    averageResultsPerQuery: number;
+    topQueries: Array<{
+      query: string;
+      count: number;
+      resultCount: number;
+      lastSearched: string;
+    }>;
+    searchesByTier: {
+      free: number;
+      premium: number;
+    };
+    searchesByTimeRange: Array<{
+      date: string;
+      searches: number;
+    }>;
+  }>;
+  getGCSUsage(): Promise<{
+    totalStorageGB: number;
+    totalStorageTB: number;
+    costThisMonth: number;
+    requestsThisMonth: number;
+    bandwidthGB: number;
+    trend: 'up' | 'down' | 'stable';
+    trendPercentage: number;
+  }>;
+  getOpenAIUsage(): Promise<{
+    totalTokens: number;
+    costThisMonth: number;
+    requestsThisMonth: number;
+    modelBreakdown: Array<{
+      model: string;
+      tokens: number;
+      cost: number;
+      requests: number;
+    }>;
+    trend: 'up' | 'down' | 'stable';
+    trendPercentage: number;
+  }>;
 }
 
 
@@ -767,7 +842,7 @@ export class DatabaseStorage implements IStorage {
     const uploadsThisMonth = allDocuments.filter(doc => 
       doc.uploadedAt && new Date(doc.uploadedAt) >= firstDayOfMonth
     ).length;
-    
+
     const newUsersThisMonth = allUsers.filter(user => 
       user.createdAt && new Date(user.createdAt) >= firstDayOfMonth
     ).length;
@@ -778,7 +853,7 @@ export class DatabaseStorage implements IStorage {
       totalDocuments,
       totalStorageBytes,
       uploadsThisMonth,
-      newUsersThisMonth,
+      newUsersThisMonth
     };
   }
 
@@ -791,8 +866,8 @@ export class DatabaseStorage implements IStorage {
     isActive: boolean;
     documentCount: number;
     storageUsed: number;
-    lastLoginAt: Date | null;
-    createdAt: Date | null;
+    lastLoginAt: string | null;
+    createdAt: string;
   }>> {
     const allUsers = await db.select().from(users);
     const allDocuments = await db.select().from(documents);
@@ -803,20 +878,29 @@ export class DatabaseStorage implements IStorage {
       const storageUsed = userDocs.reduce((sum, doc) => sum + doc.fileSize, 0);
       
       return {
-        ...user,
+        id: user.id,
+        email: user.email || '',
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        isActive: user.isActive,
         documentCount,
         storageUsed,
+        lastLoginAt: user.lastLoginAt?.toISOString() || null,
+        createdAt: user.createdAt?.toISOString() || new Date().toISOString()
       };
     });
   }
 
-  async getSystemActivities(): Promise<Array<{
+  async getSystemActivities(severity?: string): Promise<Array<{
     id: number;
-    type: 'user_registered' | 'document_uploaded' | 'user_login';
+    type: string;
     description: string;
     userId: string;
     userEmail: string;
-    timestamp: Date;
+    severity: string;
+    metadata?: Record<string, any>;
+    timestamp: string;
   }>> {
     const recentUsers = await db.select().from(users)
       .orderBy(desc(users.createdAt))
@@ -833,11 +917,13 @@ export class DatabaseStorage implements IStorage {
 
     const activities: Array<{
       id: number;
-      type: 'user_registered' | 'document_uploaded' | 'user_login';
+      type: string;
       description: string;
       userId: string;
       userEmail: string;
-      timestamp: Date;
+      severity: string;
+      metadata?: Record<string, any>;
+      timestamp: string;
     }> = [];
 
     // Add user registrations
@@ -848,8 +934,9 @@ export class DatabaseStorage implements IStorage {
           type: 'user_registered',
           description: `New user registered`,
           userId: user.id,
-          userEmail: user.email,
-          timestamp: user.createdAt,
+          userEmail: user.email || '',
+          severity: 'info',
+          timestamp: user.createdAt?.toISOString() || new Date().toISOString(),
         });
       }
     });
@@ -864,14 +951,24 @@ export class DatabaseStorage implements IStorage {
             type: 'document_uploaded',
             description: `Uploaded document: ${doc.name}`,
             userId: doc.userId,
-            userEmail: user.email,
-            timestamp: doc.uploadedAt,
+            userEmail: user.email || '',
+            severity: 'info',
+            timestamp: doc.uploadedAt?.toISOString() || new Date().toISOString(),
           });
         }
       }
     }
 
-    return activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 20);
+    const sortedActivities = activities.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    ).slice(0, 20);
+
+    // Filter by severity if provided
+    if (severity) {
+      return sortedActivities.filter(activity => activity.severity === severity);
+    }
+
+    return sortedActivities;
   }
   // Stripe operations
   async createStripeWebhook(webhook: InsertStripeWebhook): Promise<StripeWebhook> {
@@ -1253,6 +1350,136 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(userAssets)
       .where(and(eq(userAssets.id, id), eq(userAssets.userId, userId)));
+  }
+
+  // Missing admin methods implementation
+  async updateUserStatus(userId: string, isActive: boolean): Promise<void> {
+    await db
+      .update(users)
+      .set({ isActive })
+      .where(eq(users.id, userId));
+  }
+
+  async getSearchAnalytics(timeRange?: string, tierFilter?: string): Promise<{
+    totalSearches: number;
+    uniqueUsers: number;
+    noResultRate: number;
+    averageResultsPerQuery: number;
+    topQueries: Array<{
+      query: string;
+      count: number;
+      resultCount: number;
+      lastSearched: string;
+    }>;
+    searchesByTier: {
+      free: number;
+      premium: number;
+    };
+    searchesByTimeRange: Array<{
+      date: string;
+      searches: number;
+    }>;
+  }> {
+    // Mock implementation for now - in production this would query search logs
+    return {
+      totalSearches: 1250,
+      uniqueUsers: 45,
+      noResultRate: 0.12,
+      averageResultsPerQuery: 3.8,
+      topQueries: [
+        {
+          query: "insurance policy",
+          count: 125,
+          resultCount: 4,
+          lastSearched: new Date().toISOString(),
+        },
+        {
+          query: "tax documents",
+          count: 98,
+          resultCount: 8,
+          lastSearched: new Date().toISOString(),
+        },
+        {
+          query: "warranty",
+          count: 67,
+          resultCount: 3,
+          lastSearched: new Date().toISOString(),
+        }
+      ],
+      searchesByTier: {
+        free: 800,
+        premium: 450,
+      },
+      searchesByTimeRange: [
+        { date: new Date().toISOString(), searches: 45 },
+        { date: new Date(Date.now() - 86400000).toISOString(), searches: 38 },
+        { date: new Date(Date.now() - 172800000).toISOString(), searches: 52 },
+      ],
+    };
+  }
+
+  async getGCSUsage(): Promise<{
+    totalStorageGB: number;
+    totalStorageTB: number;
+    costThisMonth: number;
+    requestsThisMonth: number;
+    bandwidthGB: number;
+    trend: 'up' | 'down' | 'stable';
+    trendPercentage: number;
+  }> {
+    // Mock implementation - in production this would query GCS metrics
+    return {
+      totalStorageGB: 12.4,
+      totalStorageTB: 0.012,
+      costThisMonth: 2.45,
+      requestsThisMonth: 3250,
+      bandwidthGB: 8.7,
+      trend: 'up',
+      trendPercentage: 15.2,
+    };
+  }
+
+  async getOpenAIUsage(): Promise<{
+    totalTokens: number;
+    costThisMonth: number;
+    requestsThisMonth: number;
+    modelBreakdown: Array<{
+      model: string;
+      tokens: number;
+      cost: number;
+      requests: number;
+    }>;
+    trend: 'up' | 'down' | 'stable';
+    trendPercentage: number;
+  }> {
+    // Mock implementation - in production this would query OpenAI usage logs
+    return {
+      totalTokens: 125000,
+      costThisMonth: 18.75,
+      requestsThisMonth: 450,
+      modelBreakdown: [
+        {
+          model: 'gpt-4o',
+          tokens: 85000,
+          cost: 12.50,
+          requests: 280,
+        },
+        {
+          model: 'gpt-4o-mini',
+          tokens: 30000,
+          cost: 4.25,
+          requests: 120,
+        },
+        {
+          model: 'gpt-3.5-turbo',
+          tokens: 10000,
+          cost: 2.00,
+          requests: 50,
+        }
+      ],
+      trend: 'down',
+      trendPercentage: 8.3,
+    };
   }
 }
 

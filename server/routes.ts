@@ -1469,11 +1469,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/activities', requireAuth, requireAdmin, async (req: any, res) => {
     try {
-      const activities = await storage.getSystemActivities();
+      const { severity } = req.query;
+      const activities = await storage.getSystemActivities(severity as string);
       res.json(activities);
     } catch (error) {
       console.error("Error fetching activities:", error);
       res.status(500).json({ message: "Failed to fetch activities" });
+    }
+  });
+
+  // Admin user toggle endpoint
+  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { isActive } = req.body;
+      
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ message: "isActive must be a boolean" });
+      }
+      
+      await storage.updateUserStatus(userId, isActive);
+      res.json({ message: "User status updated successfully" });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
+  // Admin search analytics endpoint
+  app.get('/api/admin/search-analytics', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { timeRange, tierFilter } = req.query;
+      const analytics = await storage.getSearchAnalytics(timeRange as string, tierFilter as string);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching search analytics:", error);
+      res.status(500).json({ message: "Failed to fetch search analytics" });
+    }
+  });
+
+  // Admin GCS usage endpoint
+  app.get('/api/admin/usage/gcs', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const usage = await storage.getGCSUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching GCS usage:", error);
+      res.status(500).json({ message: "Failed to fetch GCS usage" });
+    }
+  });
+
+  // Admin OpenAI usage endpoint
+  app.get('/api/admin/usage/openai', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const usage = await storage.getOpenAIUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching OpenAI usage:", error);
+      res.status(500).json({ message: "Failed to fetch OpenAI usage" });
     }
   });
 

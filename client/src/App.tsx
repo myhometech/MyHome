@@ -24,6 +24,7 @@ import ForgotPassword from "@/pages/forgot-password";
 
 
 import Settings from "@/pages/settings";
+import AdminDashboard from "@/pages/admin";
 import FeatureFlagsAdmin from "@/pages/admin/feature-flags";
 import Pricing from "@/pages/pricing";
 import { InsightsPage } from "@/pages/insights";
@@ -80,7 +81,7 @@ function Router() {
           <Route path="/insights" component={InsightsPage} />
           <Route path="/document/:id" component={DocumentPage} />
           <Route path="/settings" component={Settings} />
-          {/* Legacy admin dashboard removed - /admin now returns 404 */}
+          <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
           <Route path="/pricing" component={Pricing} />
 

@@ -1431,16 +1431,23 @@ export class DatabaseStorage implements IStorage {
     trend: 'up' | 'down' | 'stable';
     trendPercentage: number;
   }> {
-    // Mock implementation - in production this would query GCS metrics
-    return {
-      totalStorageGB: 12.4,
-      totalStorageTB: 0.012,
-      costThisMonth: 2.45,
-      requestsThisMonth: 3250,
-      bandwidthGB: 8.7,
-      trend: 'up',
-      trendPercentage: 15.2,
-    };
+    // Real GCS metrics using Google Cloud Monitoring API
+    try {
+      const { gcsUsageService } = await import('./services/gcsUsageService');
+      return await gcsUsageService.getGCSUsage();
+    } catch (error) {
+      console.error('Failed to fetch real GCS usage:', error);
+      // Fallback to basic metrics on error
+      return {
+        totalStorageGB: 0,
+        totalStorageTB: 0,
+        costThisMonth: 0,
+        requestsThisMonth: 0,
+        bandwidthGB: 0,
+        trend: 'stable' as const,
+        trendPercentage: 0,
+      };
+    }
   }
 
   async getOpenAIUsage(): Promise<{

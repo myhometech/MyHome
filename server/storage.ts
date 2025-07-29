@@ -569,6 +569,10 @@ export class DatabaseStorage implements IStorage {
         encryptedDocumentKey: documents.encryptedDocumentKey,
         encryptionMetadata: documents.encryptionMetadata,
         isEncrypted: documents.isEncrypted,
+        gcsPath: documents.gcsPath,
+        uploadSource: documents.uploadSource,
+        status: documents.status,
+        categorizationSource: documents.categorizationSource,
       })
       .from(documents)
       .innerJoin(documentShares, eq(documents.id, documentShares.documentId))

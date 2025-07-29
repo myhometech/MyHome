@@ -1,28 +1,8 @@
-import { Pool, PoolClient } from 'pg';
+import { pool as neonPool } from './db';
 import CircuitBreaker from 'opossum';
+import type { PoolClient } from '@neondatabase/serverless';
 
-// Database connection pool with memory-optimized settings
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: process.env.NODE_ENV === 'production' ? 10 : 5, // Reduced for memory optimization
-  min: 1,
-  idleTimeoutMillis: 30000, // Close idle connections after 30s
-  connectionTimeoutMillis: 5000, // Timeout for new connections
-  statement_timeout: 10000, // Timeout for queries
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 0,
-  maxUses: 7500, // Retire connections after 7500 uses to prevent memory leaks
-  allowExitOnIdle: true // Allow process to exit when pool is idle
-});
-
-// Error handling for pool events
-pool.on('error', (err) => {
-  console.error('PostgreSQL pool error:', err);
-});
-
-pool.on('connect', (client) => {
-  console.log('New PostgreSQL client connected');
-});
+// Use the Neon pool from db.ts instead of creating a new one
 
 // Check if error is transient and worth retrying
 function isTransientError(error: any): boolean {
@@ -99,7 +79,7 @@ async function executeQuery<T = any>(
   operation: string = 'query'
 ): Promise<T> {
   return retryQuery(async () => {
-    const client = await pool.connect();
+    const client = await neonPool.connect();
     try {
       const result = await client.query(text, params);
       return result.rows as T;
@@ -172,7 +152,7 @@ export async function safeTransaction<T>(
   operation: string = 'transaction'
 ): Promise<T | null> {
   return retryQuery(async () => {
-    const client = await pool.connect();
+    const client = await neonPool.connect();
     try {
       await client.query('BEGIN');
       const result = await callback(client);
@@ -215,10 +195,10 @@ export async function checkDatabaseHealth(): Promise<{
 // Graceful shutdown
 export async function closeDatabaseConnections(): Promise<void> {
   console.log('Closing database connections...');
-  await pool.end();
+  await neonPool.end();
   console.log('Database connections closed');
 }
 
 // Export the pool for direct access when needed
-export { pool };
+export { neonPool as pool };
 export default safeQuery;

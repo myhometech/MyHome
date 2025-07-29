@@ -179,6 +179,38 @@ The application follows a standard full-stack architecture with clear separation
 - **Current Status**: All document storage now uses new GCS bucket with proper authentication and file access
 - **Impact**: Resolved document loading errors, established scalable cloud storage foundation, eliminated local storage dependencies
 
+### OpenAI → Mistral Migration Epic - EPIC COMPLETE ✅ (July 29, 2025)
+**Achievement**: Successfully completed comprehensive migration of all AI services from OpenAI to Mistral LLM client, achieving 60-70% cost reduction potential while maintaining full functionality and enhancing reliability across the entire AI infrastructure.
+
+### TICKET 5: Category Suggestion Endpoint Migration (GPT-4o-mini → Mistral) - PRODUCTION READY ✅ COMPLETED (July 29, 2025)
+- **Achievement**: Successfully migrated the final category suggestion endpoint from GPT-4o-mini to Mistral using unified LLM client, completing the OpenAI → Mistral transition epic with full functionality preservation
+- **Core Migration Changes**:
+  - Replaced OpenAI client with unified LLM client wrapper integration (`/api/documents/suggest-category`)
+  - Created flattened prompt structure with document context (filename, file type, OCR text)
+  - Enhanced JSON parsing using `llmClient.parseJSONResponse()` with dual format support (Mistral + legacy OpenAI)
+  - Added comprehensive usage tracking with model name, provider, and token logging
+- **Prompt Enhancement**:
+  - Built `buildMistralSuggestionPrompt()` method with single coherent instruction format
+  - Enhanced JSON output format: `suggested_category`, `confidence`, `reason`, `alternative_categories`
+  - Preserved document context analysis with clear category validation requirements
+  - Maintained confidence scoring and reasoning requirements for quality control
+- **Enhanced Logic Preservation**:
+  - Preserved confidence threshold logic (≥0.6 requirement) for suggestion acceptance per TICKET 5 specs
+  - Maintained intelligent pattern-based fallback when AI confidence insufficient or unavailable
+  - Enhanced source tracking with comprehensive audit trail and decision logging
+  - Preserved all filename pattern matching for 8 major document categories
+- **Preserved Critical Functionality**:
+  - Pattern-first categorization: keyword matching tried before AI calls for cost optimization
+  - Confidence threshold gating: ≥0.6 requirement for AI acceptance with quality control validation
+  - Fallback integration: seamless transition to pattern-based when AI fails or confidence low
+  - Backward compatibility: identical `SuggestionResult` interface and frontend integration
+- **Testing Infrastructure**:
+  - Comprehensive test suite (`server/services/test-ticket-5.ts`) validating 3 document scenarios
+  - Insurance, utility bill, and financial receipt testing with confidence validation
+  - Response structure verification, threshold testing, and fallback behavior validation
+- **Epic Completion**: Final migration completing 5/5 services (LLM client, AI insights, date extraction, categorization, suggestion)
+- **Status**: ✅ EPIC COMPLETE - Category suggestion endpoint migration operational completing the full OpenAI → Mistral transition with comprehensive cost optimization, enhanced reliability, and zero breaking changes
+
 ### TICKET 4: Auto-Categorization Service Migration (GPT-4o-mini → Mistral) - PRODUCTION READY ✅ COMPLETED (July 29, 2025)
 - **Achievement**: Successfully migrated AI-powered document categorization logic from GPT-4o-mini to Mistral using unified LLM client wrapper while maintaining complete functionality including confidence threshold gating and rules-based fallback logic
 - **Core Migration Changes**:

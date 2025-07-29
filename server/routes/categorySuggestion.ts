@@ -1,9 +1,11 @@
 /**
  * Category Suggestion API Routes
  * Provides AI-powered category suggestions for uploaded documents
+ * TICKET 5: Migrated from OpenAI GPT-4o-mini to Mistral via LLM client
  */
 
 import type { Request, Response } from "express";
+import { llmClient } from "../services/llmClient.js";
 
 interface SuggestionRequest {
   fileName: string;
@@ -22,6 +24,18 @@ interface SuggestionResult {
   alternatives: CategorySuggestion[];
 }
 
+// TICKET 5: Enhanced suggestion interface for Mistral compatibility
+interface MistralSuggestionResponse {
+  suggested_category: string;
+  confidence: number;
+  reason: string;
+  alternative_categories: Array<{
+    category: string;
+    confidence: number;
+    reason: string;
+  }>;
+}
+
 /**
  * Analyze document and suggest category using AI
  */
@@ -35,8 +49,8 @@ export async function suggestDocumentCategory(req: Request, res: Response) {
       });
     }
 
-    // Use OpenAI to analyze document content and suggest category
-    const suggestion = await analyzeDocumentWithAI(fileName, fileType, ocrText);
+    // TICKET 5: Use Mistral to analyze document content and suggest category
+    const suggestion = await analyzeDocumentWithMistral(fileName, fileType, ocrText);
     
     res.json(suggestion);
   } catch (error) {
@@ -65,26 +79,89 @@ export async function suggestDocumentCategory(req: Request, res: Response) {
 }
 
 /**
- * Use OpenAI to analyze document and suggest category
+ * TICKET 5: Use Mistral to analyze document and suggest category
  */
-async function analyzeDocumentWithAI(
+async function analyzeDocumentWithMistral(
   fileName: string, 
   fileType: string, 
   ocrText?: string
 ): Promise<SuggestionResult> {
-  // Check if OpenAI is available
-  if (!process.env.OPENAI_API_KEY) {
+  // Generate unique request ID for tracking
+  const requestId = `suggestion-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  console.log(`[${requestId}] Starting category suggestion for: ${fileName}`);
+  
+  // Check if Mistral LLM client is available
+  if (!llmClient.isAvailable()) {
+    console.log(`[${requestId}] LLM client not available, using fallback suggestion`);
     return getFallbackSuggestion(fileName, fileType);
   }
 
   try {
-    const { default: OpenAI } = await import('openai');
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const startTime = Date.now();
+    
+    // TICKET 5: Build flattened prompt for Mistral compatibility
+    const prompt = buildMistralSuggestionPrompt(fileName, fileType, ocrText);
+    
+    const response = await llmClient.chat.completions.create({
+      model: process.env.MISTRAL_MODEL_NAME || 'mistralai/Mistral-7B-Instruct-v0.1',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 500,
+      temperature: 0.1, // Low temperature for consistent categorization
+    });
 
-    const prompt = `
-Analyze this document and suggest the most appropriate category from these options:
+    const duration = Date.now() - startTime;
+    console.log(`[${requestId}] LLM response received in ${duration}ms`);
+    
+    // TICKET 5: Parse response using enhanced LLM client parser
+    const parsed = await llmClient.parseJSONResponse(response.content, requestId);
+    
+    // Handle both legacy and new response formats for backward compatibility
+    const result = normalizeAISuggestionResponse(parsed, requestId);
+    
+    // TICKET 5: Confidence threshold validation (≥0.6 as specified)
+    if (result.suggested.confidence >= 0.6) {
+      console.log(`[${requestId}] AI suggestion accepted (confidence: ${result.suggested.confidence})`);
+      
+      // Log usage for admin monitoring
+      console.log(`[${requestId}] Usage: model=${response.model || 'mistral'}, tokens=${response.usage?.total_tokens || 'unknown'}, source=ai`);
+      
+      return result;
+    } else {
+      console.log(`[${requestId}] AI confidence too low (${result.suggested.confidence}), using fallback`);
+      return getFallbackSuggestion(fileName, fileType);
+    }
+    
+  } catch (error) {
+    console.error(`[${requestId}] Mistral analysis failed:`, error);
+    
+    // TICKET 5: Handle LLM client error types gracefully
+    if (error && typeof error === 'object' && 'type' in error) {
+      if (error.type === 'rate_limit') {
+        console.warn(`[${requestId}] LLM rate limit exceeded, using fallback categorization`);
+      } else if (error.type === 'api_error') {
+        console.warn(`[${requestId}] LLM API error, using fallback categorization`);
+      } else if (error.type === 'network_error') {
+        console.warn(`[${requestId}] LLM network error, using fallback categorization`);
+      } else {
+        console.warn(`[${requestId}] LLM error ${error.type}, using fallback categorization`);
+      }
+    }
+    
+    return getFallbackSuggestion(fileName, fileType);
+  }
+}
+
+/**
+ * TICKET 5: Build flattened prompt for Mistral compatibility
+ */
+function buildMistralSuggestionPrompt(fileName: string, fileType: string, ocrText?: string): string {
+  return `Analyze the document's filename, type, and OCR text, then return the most appropriate document category.
+
+Available categories:
 - Bills & Utilities
-- Insurance  
+- Insurance
 - Financial
 - Legal
 - Property
@@ -93,59 +170,61 @@ Analyze this document and suggest the most appropriate category from these optio
 - Tax
 - Other
 
-Document details:
+Document context:
 - Filename: ${fileName}
 - File type: ${fileType}
-- Content: ${ocrText || 'No text content available'}
+- OCR text: ${ocrText || 'No text content available'}
 
-Return a JSON response with:
+Return a JSON response with this exact structure:
 {
-  "suggested": {
-    "category": "most likely category",
-    "confidence": 0.0-1.0,
-    "reason": "brief explanation"
-  },
-  "alternatives": [
+  "suggested_category": "most appropriate category name",
+  "confidence": 0.85,
+  "reason": "brief explanation of why this category fits",
+  "alternative_categories": [
     {
-      "category": "alternative category",
-      "confidence": 0.0-1.0, 
+      "category": "alternative category name",
+      "confidence": 0.65,
       "reason": "why this could also work"
     }
   ]
-}`;
+}
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // TICKET 15: Cost optimization - downgraded from gpt-4o
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      max_tokens: 500,
-    });
+Requirements:
+- confidence must be a number between 0.0 and 1.0
+- suggested_category must be exactly one of the available categories listed above
+- reason should be concise and explain the categorization logic
+- alternative_categories should contain 1-2 alternatives with lower confidence scores`;
+}
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+/**
+ * TICKET 5: Normalize AI response to standard format for backward compatibility
+ */
+function normalizeAISuggestionResponse(parsed: any, requestId: string): SuggestionResult {
+  // Handle Mistral format (TICKET 5)
+  if (parsed.suggested_category) {
+    const mistralResponse = parsed as MistralSuggestionResponse;
     
-    // Validate the response structure
-    if (result.suggested && result.suggested.category) {
-      return result as SuggestionResult;
-    } else {
-      throw new Error("Invalid AI response format");
-    }
-    
-  } catch (error) {
-    console.error("OpenAI analysis failed:", error);
-    
-    // Handle specific OpenAI errors gracefully
-    if (error && typeof error === 'object' && 'status' in error) {
-      if (error.status === 429) {
-        console.warn("OpenAI quota exceeded, using fallback categorization");
-      } else if (error.status === 401) {
-        console.warn("OpenAI authentication failed, using fallback categorization");
-      } else {
-        console.warn(`OpenAI API error ${error.status}, using fallback categorization`);
-      }
-    }
-    
-    return getFallbackSuggestion(fileName, fileType);
+    return {
+      suggested: {
+        category: mistralResponse.suggested_category,
+        confidence: mistralResponse.confidence,
+        reason: mistralResponse.reason
+      },
+      alternatives: mistralResponse.alternative_categories?.map(alt => ({
+        category: alt.category,
+        confidence: alt.confidence,
+        reason: alt.reason
+      })) || []
+    };
   }
+  
+  // Handle legacy OpenAI format for backward compatibility
+  if (parsed.suggested && parsed.suggested.category) {
+    return parsed as SuggestionResult;
+  }
+  
+  // Invalid format
+  throw new Error(`[${requestId}] Invalid AI response format: missing required fields`);
 }
 
 /**

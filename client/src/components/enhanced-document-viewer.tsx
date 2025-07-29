@@ -348,15 +348,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 </div>
               </div>
 
-              <div 
-                className="flex-1 p-3"
-                style={{ 
-                  overflow: 'auto',
-                  WebkitOverflowScrolling: 'touch',
-                  height: '0',
-                  minHeight: '300px'
-                }}
-              >
+              <div className="flex-1 p-3 overflow-y-scroll ios-scroll">
                 <div className="space-y-3">
                   {/* Basic Information */}
                   <Card className="border-0 shadow-none bg-white">
@@ -499,15 +491,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 </div>
               </div>
 
-              <div 
-                className="flex-1 p-3"
-                style={{ 
-                  overflow: 'auto',
-                  WebkitOverflowScrolling: 'touch',
-                  height: '0',
-                  minHeight: '300px'
-                }}
-              >
+              <div className="flex-1 p-3 overflow-y-scroll ios-scroll">
                 {fullDocument && (
                   <DocumentInsights 
                     documentId={document.id}

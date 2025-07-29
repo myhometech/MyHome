@@ -8,6 +8,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* iOS Mobile Scrolling Fix */
+.ios-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
 /* PDF Viewer Styles */
 .pdf-page canvas {
   border-radius: 4px;

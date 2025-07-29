@@ -4,7 +4,7 @@
 
 MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Unified Document Intelligence View Implementation (July 2025). Successfully created the unified Documents & Insights interface that seamlessly combines document management with intelligent insight prioritization. This new `/documents` route features enhanced DocumentCard+ components with inline insight display, critical insight auto-expansion, smart filtering by insight type/priority/status, and comprehensive priority-based sorting that surfaces critical documents first. The implementation maintains full backward compatibility while providing a single unified interface for document-insight workflows.
+**Latest Update**: Insights-First Interface Implementation (July 2025). Successfully restructured the application to prioritize actionable insights as the primary user experience. The new default landing page features an "Insights" tab that surfaces critical deadlines, AI summaries, and next actions, with a secondary "Document Library" tab for full document archive access. This UX strategy shifts focus toward actionable insights (the real user value) while preserving complete document management functionality. The interface includes a prominent "Add Document" button accessible from both tabs and maintains all filtering, search, and management capabilities.
 
 ## User Preferences
 

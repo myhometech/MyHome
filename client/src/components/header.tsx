@@ -80,30 +80,11 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                   size="sm" 
                   className={location === "/" ? "" : "text-gray-600 hover:text-gray-900"}
                 >
-                  <Home className="h-4 w-4 mr-2" />
-                  Home
-                </Button>
-              </Link>
-              <Link href="/documents">
-                <Button 
-                  variant={location === "/documents" ? "default" : "ghost"} 
-                  size="sm" 
-                  className={location === "/documents" ? "" : "text-gray-600 hover:text-gray-900"}
-                >
-                  <Brain className="h-4 w-4 mr-2" />
-                  Documents & Insights
-                </Button>
-              </Link>
-              <Link href="/insights">
-                <Button 
-                  variant={location === "/insights" ? "default" : "ghost"} 
-                  size="sm" 
-                  className={location === "/insights" ? "" : "text-gray-600 hover:text-gray-900"}
-                >
                   <Brain className="h-4 w-4 mr-2" />
                   Insights
                 </Button>
               </Link>
+
             </nav>
           </div>
           

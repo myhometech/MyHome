@@ -32,7 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { DocumentPreview } from "@/components/document-preview";
+import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
 import type { Category, Document } from "@shared/schema";
 
 interface DocumentInsight {
@@ -451,21 +451,26 @@ export default function InsightsFirstPage() {
       
       {/* Document Preview Dialog */}
       <Dialog open={showDocumentPreview} onOpenChange={setShowDocumentPreview}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>{selectedDocument?.name}</DialogTitle>
+        <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="text-lg font-semibold">{selectedDocument?.name}</DialogTitle>
             <DialogDescription>
               Document preview with AI insights and metadata
             </DialogDescription>
           </DialogHeader>
           {selectedDocument && (
-            <DocumentPreview 
-              document={selectedDocument} 
-              onUpdate={() => {
-                queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-                queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
-              }}
-            />
+            <div className="flex-1 overflow-hidden">
+              <EnhancedDocumentViewer 
+                document={selectedDocument} 
+                category={categories?.find(c => c.id === selectedDocument.categoryId)}
+                onClose={() => setShowDocumentPreview(false)}
+                onDownload={() => window.open(`/api/documents/${selectedDocument.id}/download`, '_blank')}
+                onUpdate={() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
+                }}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>

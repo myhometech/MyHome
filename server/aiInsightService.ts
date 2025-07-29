@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { llmClient } from './services/llmClient.js';
 
 interface DocumentInsight {
   id: string;
@@ -20,19 +20,15 @@ interface InsightAnalysisResult {
 }
 
 class AIInsightService {
-  private openai: OpenAI | null = null;
   private isAvailable: boolean = false;
 
   constructor() {
-    if (process.env.OPENAI_API_KEY) {
-      this.openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
-      this.isAvailable = true;
-      console.log('✅ AI Insight Service initialized with OpenAI API');
+    this.isAvailable = llmClient.isAvailable();
+    if (this.isAvailable) {
+      const status = llmClient.getStatus();
+      console.log(`✅ AI Insight Service initialized with ${status.provider} (${status.model})`);
     } else {
-      console.log('⚠️ AI Insight Service disabled - OpenAI API key not found');
-      this.isAvailable = false;
+      console.log('⚠️ AI Insight Service disabled - LLM API key not found');
     }
   }
 
@@ -45,8 +41,8 @@ class AIInsightService {
     mimeType: string,
     userId: string
   ): Promise<InsightAnalysisResult> {
-    if (!this.isAvailable || !this.openai) {
-      throw new Error('AI Insight Service not available - OpenAI API key required');
+    if (!this.isAvailable) {
+      throw new Error('AI Insight Service not available - LLM API key required');
     }
 
     // TICKET 15: Check if AI insights are enabled for this user
@@ -87,29 +83,23 @@ class AIInsightService {
     try {
       console.log(`[${requestId}] DOC-501: Starting insight analysis for document: ${documentName}`);
 
-      const prompt = this.buildInsightPrompt(documentName, extractedText, mimeType);
+      const flattened_prompt = this.buildMistralInsightPrompt(documentName, extractedText, mimeType);
       
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert document analyst. Analyze documents and provide structured insights in JSON format. Focus on actionable information, key dates, financial details, and compliance requirements."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
+      const response = await llmClient.chat.completions.create({
+        messages: [{ role: "user", content: flattened_prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1, // Low temperature for consistent analysis
         max_tokens: 1500 // TICKET 15: Reduced from 2000 to cut token costs by 25%
       });
 
-      const aiResponse = response.choices[0].message.content;
+      const aiResponse = response.content;
       if (!aiResponse) {
-        throw new Error('Empty response from OpenAI API');
+        throw new Error('Empty response from LLM API');
       }
+
+      // Log LLM usage for admin tracking
+      const status = llmClient.getStatus();
+      console.log(`[${requestId}] Model: ${status.model}, Provider: ${status.provider}, Tokens: ${response.usage?.total_tokens || 'unknown'}`)
 
       console.log(`[${requestId}] DOC-501: Received AI response (${aiResponse.length} chars)`);
 
@@ -130,8 +120,8 @@ class AIInsightService {
       const processingTime = Date.now() - startTime;
       console.error(`[${requestId}] DOC-501: Insight generation failed:`, error);
 
-      if (error.status === 429) {
-        throw new Error('OpenAI API quota exceeded. Please check your billing and usage limits.');
+      if (error.type === 'rate_limit') {
+        throw new Error('LLM API quota exceeded. Please check your billing and usage limits.');
       }
 
       throw new Error(`AI insight generation failed: ${error.message}`);
@@ -139,13 +129,15 @@ class AIInsightService {
   }
 
   /**
-   * Build comprehensive prompt for insight analysis
+   * Build flattened prompt for Mistral insight analysis (TICKET 2)
    */
-  private buildInsightPrompt(documentName: string, extractedText: string, mimeType: string): string {
+  private buildMistralInsightPrompt(documentName: string, extractedText: string, mimeType: string): string {
     const documentType = this.inferDocumentType(documentName, mimeType);
     const textPreview = extractedText.substring(0, 4000); // Limit text to avoid token limits
 
-    return `Analyze this document and provide structured insights in JSON format.
+    return `You are an expert document analyst. Analyze documents and provide structured insights in JSON format. Focus on actionable information, key dates, financial details, and compliance requirements.
+
+Analyze this document and provide structured insights in JSON format.
 
 Document Information:
 - Name: ${documentName}
@@ -199,7 +191,8 @@ Ensure all insights are actionable and provide real value to the user.`;
     recommendedActions: string[];
   } {
     try {
-      const parsed = JSON.parse(response);
+      // Use LLM client's robust JSON parsing (TICKET 2)
+      const parsed = llmClient.parseJSONResponse(response);
       
       const insights: DocumentInsight[] = (parsed.insights || []).map((insight: any, index: number) => ({
         id: insight.id || `insight-${Date.now()}-${index}`,

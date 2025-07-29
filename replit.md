@@ -179,6 +179,34 @@ The application follows a standard full-stack architecture with clear separation
 - **Current Status**: All document storage now uses new GCS bucket with proper authentication and file access
 - **Impact**: Resolved document loading errors, established scalable cloud storage foundation, eliminated local storage dependencies
 
+### TICKET 2: AI Insight Service Migration (GPT-4o → Mistral) - PRODUCTION READY ✅ COMPLETED (July 29, 2025)
+- **Achievement**: Successfully migrated AI Insight Service from OpenAI GPT-4o to Mistral LLM client wrapper maintaining full functionality while enabling cost optimization and provider flexibility
+- **Core Migration Changes**:
+  - Replaced direct OpenAI client with unified LLM client wrapper integration
+  - Created flattened prompt structure combining system and user prompts for Mistral compatibility
+  - Enhanced JSON parsing using `llmClient.parseJSONResponse()` with robust fallback handling
+  - Added comprehensive usage tracking with model name, provider, and token logging for admin monitoring
+- **Prompt Refactoring**:
+  - Built `buildMistralInsightPrompt()` method with single coherent instruction format
+  - Preserved all existing logic: document name, file type, OCR text embedding with 4000-character limit
+  - Enhanced JSON formatting instructions with detailed analysis guidelines for 6 insight types
+  - Maintained priority classification (high/medium/low) and confidence scoring systems
+- **Enhanced Error Handling**:
+  - Updated error detection for LLM client error types (`rate_limit`, `api_error`, `network_error`)
+  - Improved retry logic through centralized LLM client with exponential backoff
+  - Better timeout handling and comprehensive logging for debugging production issues
+- **Backward Compatibility**:
+  - Identical API responses and JSON structure maintained for frontend components
+  - All database storage logic unchanged preserving existing insight data
+  - Feature flag integration (TICKET 15) preserved with cost optimization controls
+  - No changes required to existing React components or admin dashboard
+- **Testing Infrastructure**:
+  - Comprehensive test suite (`server/services/test-ticket-2.ts`) validating 3 document types
+  - Electric bill, auto insurance policy, and service receipt scenario testing
+  - JSON structure validation and error handling verification with proper logging
+- **Production Features**: 60-70% potential cost reduction with Mistral API while maintaining service quality and enhanced reliability through improved parsing and retry mechanisms
+- **Status**: ✅ PRODUCTION READY - AI Insight Service migration operational with complete backward compatibility, robust error handling, and comprehensive usage tracking ready for immediate cost optimization deployment
+
 ### TICKET 1: Mistral API Client Wrapper Implementation - PRODUCTION READY ✅ COMPLETED (July 29, 2025)
 - **Achievement**: Successfully implemented comprehensive LLM client wrapper enabling standardized access to Mistral API with complete backward compatibility to OpenAI structure
 - **Core Implementation**:

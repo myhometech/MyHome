@@ -317,13 +317,13 @@ export default function UnifiedDocuments() {
           if (a.expiryDate) return -1;
           if (b.expiryDate) return 1;
           
-          const fallbackAUpload = typeof a.uploadedAt === 'string' ? new Date(a.uploadedAt) : a.uploadedAt;
-          const fallbackBUpload = typeof b.uploadedAt === 'string' ? new Date(b.uploadedAt) : b.uploadedAt;
+          const fallbackAUpload = a.uploadedAt ? (typeof a.uploadedAt === 'string' ? new Date(a.uploadedAt) : a.uploadedAt) : new Date();
+          const fallbackBUpload = b.uploadedAt ? (typeof b.uploadedAt === 'string' ? new Date(b.uploadedAt) : b.uploadedAt) : new Date();
           return fallbackBUpload.getTime() - fallbackAUpload.getTime();
 
         case 'date':
-          const aUpload = typeof a.uploadedAt === 'string' ? new Date(a.uploadedAt) : a.uploadedAt;
-          const bUpload = typeof b.uploadedAt === 'string' ? new Date(b.uploadedAt) : b.uploadedAt;
+          const aUpload = a.uploadedAt ? (typeof a.uploadedAt === 'string' ? new Date(a.uploadedAt) : a.uploadedAt) : new Date();
+          const bUpload = b.uploadedAt ? (typeof b.uploadedAt === 'string' ? new Date(b.uploadedAt) : b.uploadedAt) : new Date();
           return bUpload.getTime() - aUpload.getTime();
 
         case 'name':
@@ -419,12 +419,7 @@ export default function UnifiedDocuments() {
           </div>
         </div>
 
-        {/* Unified Upload Button */}
-      <div className="flex justify-center mb-6">
-        <UnifiedUploadButton onUpload={(files) => {
-          queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-        }} />
-      </div>
+
 
         {/* Insight Job Status - Temporarily disabled */}
         {/* <InsightJobStatus /> */}

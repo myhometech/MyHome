@@ -4,7 +4,7 @@
 
 MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Insights-First Interface Implementation (July 2025). Successfully restructured the application to prioritize actionable insights as the primary user experience. The new default landing page features an "Insights" tab that surfaces critical deadlines, AI summaries, and next actions, with a secondary "Document Library" tab for full document archive access. This UX strategy shifts focus toward actionable insights (the real user value) while preserving complete document management functionality. The interface includes a prominent "Add Document" button accessible from both tabs and maintains all filtering, search, and management capabilities.
+**Latest Update**: Compact Upload UI Implementation (July 2025). Successfully replaced large drag-and-drop upload zones with a streamlined interface prioritizing document display. Removed central upload areas from both Insights and Document Library tabs, keeping only the header "Add Document" button for file uploads. The new unified upload component supports click-to-upload, drag-and-drop, and mobile camera/scanner functionality in a compact dialog format. This UX optimization maximizes document visibility by moving upload functionality to header-level access while preserving all upload capabilities including file picker, camera scanning, and advanced document processing.
 
 ## User Preferences
 
@@ -164,6 +164,17 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 The application follows a standard full-stack architecture with clear separation of concerns, type safety throughout, and modern development practices for maintainability and scalability.
 
 ## Recent Changes
+
+### Compact Upload UI Implementation - COMPLETED ✅ (July 29, 2025)
+- **Achievement**: Successfully streamlined upload interface by removing large central upload zones and implementing compact upload functionality accessible via header button
+- **UI Optimization**:
+  - Removed large upload zones from both Insights and Document Library tabs for improved document visibility
+  - Created UnifiedUploadButton component with w-full max-w-md h-48 dimensions using shadcn/ui Card base
+  - Enhanced upload button with prominent "Choose Files" option alongside drag-and-drop, camera, and scanner functionality
+  - Preserved all existing upload capabilities: file validation, analytics tracking, feature flags, mobile integration
+- **User Experience Impact**: Documents now appear higher on the page with more screen real estate while maintaining full upload functionality through header-accessible dialog
+- **Technical Integration**: Fixed all TypeScript LSP errors, proper component interfaces for CameraScanner and AdvancedDocumentScanner, maintained upload logic and cache invalidation
+- **Status**: ✅ COMPLETED - Compact upload interface operational with streamlined UX prioritizing document display over upload prominence
 
 ### Real Google Cloud Storage Metrics Integration - PRODUCTION READY ✅ (July 29, 2025)
 - **Achievement**: Successfully implemented real-time Google Cloud Storage metrics integration using Cloud Monitoring API, replacing mock data with live usage tracking in Admin Dashboard

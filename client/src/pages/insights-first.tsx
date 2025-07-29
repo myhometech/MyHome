@@ -379,13 +379,7 @@ export default function InsightsFirstPage() {
               </CardContent>
             </Card>
 
-            {/* Unified Upload Button in Library */}
-            <div className="flex justify-center">
-              <UnifiedUploadButton onUpload={(files) => {
-                queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-                queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
-              }} />
-            </div>
+
 
             {/* Documents Display */}
             {documentsLoading ? (

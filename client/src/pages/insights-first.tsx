@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import Header from "@/components/header";
-import UploadZone from "@/components/upload-zone";
+import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
 import MobileNav from "@/components/mobile-nav";
 import { useFeatures } from "@/hooks/useFeatures";
@@ -103,7 +103,7 @@ export default function InsightsFirstPage() {
         <DialogHeader>
           <DialogTitle>Add Document</DialogTitle>
         </DialogHeader>
-        <UploadZone onUpload={(files) => {
+        <UnifiedUploadButton onUpload={(files) => {
           queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
           queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
           setShowUploadDialog(false);
@@ -379,11 +379,13 @@ export default function InsightsFirstPage() {
               </CardContent>
             </Card>
 
-            {/* Upload Zone in Library */}
-            <UploadZone onUpload={(files) => {
-              queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-              queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
-            }} />
+            {/* Unified Upload Button in Library */}
+            <div className="flex justify-center">
+              <UnifiedUploadButton onUpload={(files) => {
+                queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
+              }} />
+            </div>
 
             {/* Documents Display */}
             {documentsLoading ? (

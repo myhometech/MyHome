@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Header from "@/components/header";
-import UploadZone from "@/components/upload-zone";
+import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
 import MobileNav from "@/components/mobile-nav";
 import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
@@ -310,15 +310,21 @@ export default function UnifiedDocuments() {
           
           // Fallback to expiry date, then upload date
           if (a.expiryDate && b.expiryDate) {
-            return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+            const aExpiry = typeof a.expiryDate === 'string' ? new Date(a.expiryDate) : a.expiryDate;
+            const bExpiry = typeof b.expiryDate === 'string' ? new Date(b.expiryDate) : b.expiryDate;
+            return aExpiry.getTime() - bExpiry.getTime();
           }
           if (a.expiryDate) return -1;
           if (b.expiryDate) return 1;
           
-          return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+          const fallbackAUpload = typeof a.uploadedAt === 'string' ? new Date(a.uploadedAt) : a.uploadedAt;
+          const fallbackBUpload = typeof b.uploadedAt === 'string' ? new Date(b.uploadedAt) : b.uploadedAt;
+          return fallbackBUpload.getTime() - fallbackAUpload.getTime();
 
         case 'date':
-          return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+          const aUpload = typeof a.uploadedAt === 'string' ? new Date(a.uploadedAt) : a.uploadedAt;
+          const bUpload = typeof b.uploadedAt === 'string' ? new Date(b.uploadedAt) : b.uploadedAt;
+          return bUpload.getTime() - aUpload.getTime();
 
         case 'name':
           return a.name.localeCompare(b.name);
@@ -413,10 +419,12 @@ export default function UnifiedDocuments() {
           </div>
         </div>
 
-        {/* Upload Zone */}
-        <UploadZone onUpload={(files) => {
+        {/* Unified Upload Button */}
+      <div className="flex justify-center mb-6">
+        <UnifiedUploadButton onUpload={(files) => {
           queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
         }} />
+      </div>
 
         {/* Insight Job Status - Temporarily disabled */}
         {/* <InsightJobStatus /> */}
@@ -707,7 +715,8 @@ export default function UnifiedDocuments() {
                 key={document.id}
                 document={{
                   ...document,
-                  uploadedAt: document.uploadedAt ? new Date(document.uploadedAt).toISOString() : new Date().toISOString()
+                  uploadedAt: document.uploadedAt ? new Date(document.uploadedAt).toISOString() : new Date().toISOString(),
+                  expiryDate: document.expiryDate ? (typeof document.expiryDate === 'string' ? document.expiryDate : new Date(document.expiryDate).toISOString()) : null
                 }}
                 categories={categories}
                 viewMode={viewMode}

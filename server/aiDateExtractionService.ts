@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import { llmClient } from './services/llmClient.js';
 
 // DOC-304: AI-powered date extraction service
 export interface ExtractedDate {
@@ -10,18 +10,17 @@ export interface ExtractedDate {
 }
 
 export class AIDateExtractionService {
-  private openai!: OpenAI;
   private isAvailable: boolean = false;
 
   constructor() {
-    if (process.env.OPENAI_API_KEY) {
-      this.openai = new OpenAI({ 
-        apiKey: process.env.OPENAI_API_KEY 
-      });
-      this.isAvailable = true;
-      console.log('✅ AI Date Extraction Service initialized with OpenAI API');
+    // Check LLM client availability (TICKET 3)
+    const status = llmClient.getStatus();
+    this.isAvailable = status.available;
+    
+    if (this.isAvailable) {
+      console.log(`✅ AI Date Extraction Service initialized with ${status.provider} (${status.model})`);
     } else {
-      console.warn('⚠️ AI Date Extraction Service: OpenAI API key not available');
+      console.warn('⚠️ AI Date Extraction Service: LLM client not available');
     }
   }
 
@@ -119,26 +118,20 @@ export class AIDateExtractionService {
     console.log(`[${requestId}] DOC-304: Using AI extraction`);
 
     try {
-      const prompt = this.buildDateExtractionPrompt(text, documentName);
+      const flattened_prompt = this.buildMistralDateExtractionPrompt(text, documentName);
       
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo", // TICKET 15: Cost optimization - downgraded from gpt-4o
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert document analyzer specializing in extracting important dates from business documents. Analyze the provided text and identify key dates with their types and confidence levels."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
+      const response = await llmClient.chat.completions.create({
+        messages: [{ role: "user", content: flattened_prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
         max_tokens: 1000
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
+      const result = llmClient.parseJSONResponse(response.content);
+      
+      // Log LLM usage for admin tracking (TICKET 3)
+      const status = llmClient.getStatus();
+      console.log(`[${requestId}] Model: ${status.model}, Provider: ${status.provider}, Tokens: ${response.usage?.total_tokens || 'unknown'}`);
       
       console.log(`[${requestId}] DOC-304: AI response received:`, {
         datesFound: result.dates?.length || 0,
@@ -177,10 +170,14 @@ export class AIDateExtractionService {
   }
 
   /**
-   * Build comprehensive prompt for GPT-3.5-turbo date extraction
+   * Build flattened prompt for Mistral date extraction (TICKET 3)
    */
-  private buildDateExtractionPrompt(text: string, documentName?: string): string {
-    return `Analyze this document text and extract important dates. Focus on dates that indicate when something expires, is due, needs renewal, or has a deadline.
+  private buildMistralDateExtractionPrompt(text: string, documentName?: string): string {
+    return `You are an expert document analyzer specializing in extracting important dates from business documents. Analyze the provided text and identify key dates with their types and confidence levels.
+
+Your task is to extract due, expiry, or renewal dates from a document's text. Return dates as YYYY-MM-DD and use structured JSON format.
+
+Analyze this document text and extract important dates. Focus on dates that indicate when something expires, is due, needs renewal, or has a deadline.
 
 Document name: ${documentName || 'Unknown'}
 
@@ -199,7 +196,7 @@ Instructions:
 
 2. For each date found, determine:
    - The exact date in ISO 8601 format (YYYY-MM-DD)
-   - The type of date (expiry, due, renewal, valid_until, expires)
+   - The type of date (expiry_date, due_date, renewal_date)
    - Confidence level (0.0 to 1.0) based on clarity and context
    - Brief context explaining where/how the date was found
 
@@ -211,31 +208,31 @@ Instructions:
 4. Prioritize dates that appear near relevant keywords and in structured formats
 
 Return your analysis as JSON in this exact format:
-{
-  "dates": [
-    {
-      "type": "expiry",
-      "date": "2024-12-31",
-      "confidence": 0.95,
-      "context": "Policy expires December 31, 2024"
-    }
-  ],
-  "reasoning": "Brief explanation of your analysis and why these dates were selected"
-}`;
+[
+  {
+    "type": "expiry_date",
+    "date": "2025-12-31",
+    "confidence": 0.85,
+    "context": "Payment due on or before August 15, 2025"
+  }
+]`;
   }
 
   /**
-   * Parse and validate AI response
+   * Parse and validate AI response (TICKET 3: Updated for Mistral array format)
    */
   private parseAIResponse(result: any, requestId: string): ExtractedDate[] {
     const extractedDates: ExtractedDate[] = [];
 
-    if (!result.dates || !Array.isArray(result.dates)) {
+    // Handle both array format (Mistral) and object format (legacy)
+    const datesArray = Array.isArray(result) ? result : (result.dates || []);
+    
+    if (!Array.isArray(datesArray)) {
       console.warn(`[${requestId}] DOC-304: Invalid AI response format - no dates array`);
       return extractedDates;
     }
 
-    for (const dateObj of result.dates) {
+    for (const dateObj of datesArray) {
       try {
         // Validate required fields
         if (!dateObj.type || !dateObj.date || typeof dateObj.confidence !== 'number') {
@@ -250,20 +247,23 @@ Return your analysis as JSON in this exact format:
           continue;
         }
 
-        // Validate date type
-        const validTypes = ['expiry', 'due', 'renewal', 'valid_until', 'expires'];
+        // Validate and normalize date type (TICKET 3: Handle Mistral format)
+        const validTypes = ['expiry', 'due', 'renewal', 'valid_until', 'expires', 'expiry_date', 'due_date', 'renewal_date'];
         if (!validTypes.includes(dateObj.type)) {
           console.warn(`[${requestId}] DOC-304: Invalid date type: ${dateObj.type}`);
           continue;
         }
+        
+        // Normalize date types from Mistral format to legacy format
+        const normalizedType = dateObj.type.replace('_date', '') as ExtractedDate['type'];
 
         // Validate confidence range
         const confidence = Math.max(0, Math.min(1, dateObj.confidence));
 
-        // Only include dates with reasonable confidence
+        // Only include dates with reasonable confidence (TICKET 3: preserve ≥0.5 threshold)
         if (confidence >= 0.5) {
           extractedDates.push({
-            type: dateObj.type,
+            type: normalizedType,
             date: dateObj.date,
             confidence,
             source: 'ai',
@@ -271,7 +271,7 @@ Return your analysis as JSON in this exact format:
           });
 
           console.log(`[${requestId}] DOC-304: Valid date extracted:`, {
-            type: dateObj.type,
+            type: normalizedType,
             date: dateObj.date,
             confidence,
             context: dateObj.context?.substring(0, 50) + '...' || 'No context'
@@ -306,7 +306,7 @@ Return your analysis as JSON in this exact format:
 
     return {
       available: false,
-      reason: 'OpenAI API key not configured'
+      reason: 'LLM client not configured'
     };
   }
 }

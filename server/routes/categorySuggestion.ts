@@ -103,12 +103,15 @@ async function analyzeDocumentWithMistral(
     // TICKET 5: Build flattened prompt for Mistral compatibility
     const prompt = buildMistralSuggestionPrompt(fileName, fileType, ocrText);
     
-    const response = await llmClient.chat.completions.create({
+    const response = await llmClient.createChatCompletion({
       model: process.env.MISTRAL_MODEL_NAME || 'mistralai/Mistral-7B-Instruct-v0.1',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
       max_tokens: 500,
       temperature: 0.1, // Low temperature for consistent categorization
+    }, {
+      userId: 'anonymous', // Category suggestions can be anonymous
+      route: '/api/documents/suggest-category'
     });
 
     const duration = Date.now() - startTime;

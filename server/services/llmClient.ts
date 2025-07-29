@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { llmUsageLogger, type LlmUsageContext } from '../llmUsageLogger';
 
 // Types for LLM requests and responses
 export interface LLMMessage {
@@ -75,7 +76,7 @@ export class LLMClient {
   /**
    * Generate chat completion with automatic retry and error handling
    */
-  async createChatCompletion(request: LLMRequest): Promise<LLMResponse> {
+  async createChatCompletion(request: LLMRequest, context?: LlmUsageContext): Promise<LLMResponse> {
     if (!this.config.apiKey) {
       throw this.createError('API key not configured', 'api_error', 401);
     }
@@ -86,10 +87,33 @@ export class LLMClient {
     let lastError: LLMError | null = null;
 
     for (let attempt = 1; attempt <= this.config.maxRetries; attempt++) {
+      const startTime = Date.now();
       try {
         const response = await this.makeRequest(request, requestId);
+        const durationMs = Date.now() - startTime;
         
         console.log(`[${requestId}] LLM Success: ${response.content.length} chars, ${response.usage?.total_tokens || 0} tokens`);
+        
+        // Log usage to database if context provided
+        if (context && response.usage) {
+          const provider = this.config.baseURL?.includes('together') ? 'together.ai' : 'mistral';
+          const model = request.model || this.config.defaultModel;
+          const costUsd = provider === 'together.ai' ? 
+            llmUsageLogger.calculateMistralCost(response.usage.total_tokens) :
+            undefined;
+            
+          await llmUsageLogger.logUsage({
+            ...context,
+            provider,
+            model,
+          }, {
+            tokensUsed: response.usage.total_tokens,
+            durationMs,
+            status: 'success',
+            costUsd,
+          });
+        }
+        
         return response;
 
       } catch (error) {
@@ -97,6 +121,24 @@ export class LLMClient {
         
         if (attempt === this.config.maxRetries || !this.shouldRetry(lastError)) {
           console.error(`[${requestId}] LLM Failed after ${attempt} attempts:`, lastError.message);
+          
+          // Log failed usage if context provided
+          if (context) {
+            const provider = this.config.baseURL?.includes('together') ? 'together.ai' : 'mistral';
+            const model = request.model || this.config.defaultModel;
+            const durationMs = Date.now() - startTime;
+            
+            await llmUsageLogger.logUsage({
+              ...context,
+              provider,
+              model,
+            }, {
+              tokensUsed: 0,
+              durationMs,
+              status: 'error',
+            });
+          }
+          
           throw lastError;
         }
 

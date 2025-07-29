@@ -20,6 +20,7 @@ import { emailService } from './emailService';
 import { StorageService, storageProvider } from './storage/StorageService';
 import { backupRoutes } from './routes/backup.js';
 import advancedScanningRoutes from './routes/advancedScanning.js';
+import { llmUsageRoutes } from './routes/llmUsageRoutes.js';
 import { securityHeaders, rateLimiter, corsOptions, securityLogger } from './middleware/security.js';
 import { enhancedHealthCheck } from './middleware/healthCheck.js';
 import cors from 'cors';
@@ -2745,6 +2746,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Advanced scanning routes
   app.use('/api/scanning', advancedScanningRoutes);
+
+  // LLM usage analytics routes (admin only)
+  app.use('/api/admin/llm-usage', llmUsageRoutes);
 
   // Memory management routes
   const memoryRoutes = (await import('./api/memory.js')).default;

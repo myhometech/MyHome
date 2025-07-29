@@ -229,11 +229,14 @@ export class CategorizationService {
     console.log(`[${requestId}] Sending AI categorization request to Mistral`);
 
     try {
-      const response = await llmClient.chat.completions.create({
+      const response = await llmClient.createChatCompletion({
         messages: [{ role: "user", content: flattened_prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1, // Low temperature for consistent categorization
         max_tokens: 300
+      }, {
+        userId: context.userId,
+        route: '/api/documents/categorize'
       });
 
       const aiResponse = response.content;

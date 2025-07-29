@@ -32,8 +32,16 @@ export function CloudUsageCards() {
     queryKey: ['/api/admin/usage/gcs'],
   });
 
-  const { data: openaiUsage, isLoading: openaiLoading } = useQuery<OpenAIUsage>({
-    queryKey: ['/api/admin/usage/openai'],
+  const { data: llmUsage, isLoading: llmLoading } = useQuery({
+    queryKey: ['/api/admin/llm-usage/analytics'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/llm-usage/analytics?timeRange=30d');
+      if (!response.ok) {
+        throw new Error('Failed to fetch LLM analytics');
+      }
+      return response.json();
+    },
+    refetchInterval: 60000, // Refresh every minute
   });
 
   const formatCurrency = (amount: number) => {
@@ -75,7 +83,7 @@ export function CloudUsageCards() {
     }
   };
 
-  if (gcsLoading || openaiLoading) {
+  if (gcsLoading || llmLoading) {
     return <div className="text-center py-4">Loading cloud usage data...</div>;
   }
 
@@ -161,11 +169,11 @@ export function CloudUsageCards() {
         </div>
       </div>
 
-      {/* OpenAI Usage Section */}
+      {/* LLM Usage Section */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Brain className="h-5 w-5 text-green-500" />
-          <h3 className="text-lg font-semibold">OpenAI Usage</h3>
+          <h3 className="text-lg font-semibold">Mistral LLM Usage</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -176,14 +184,13 @@ export function CloudUsageCards() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {openaiUsage ? formatNumber(openaiUsage.totalTokens) : "0"}
+                {llmUsage ? formatNumber(llmUsage.totalTokens) : "0"}
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                {openaiUsage && getTrendIcon(openaiUsage.trend)}
-                <span className={getTrendColor(openaiUsage?.trend || 'stable')}>
-                  {openaiUsage?.trendPercentage ? `${openaiUsage.trendPercentage}%` : '0%'}
+                <span className="text-green-500">
+                  {llmUsage?.successRate ? `${llmUsage.successRate.toFixed(1)}%` : '0%'} success
                 </span>
-                this month
+                last 30 days
               </div>
             </CardContent>
           </Card>
@@ -195,7 +202,7 @@ export function CloudUsageCards() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {openaiUsage ? formatCurrency(openaiUsage.costThisMonth) : "$0.00"}
+                {llmUsage ? formatCurrency(llmUsage.totalCost) : "$0.00"}
               </div>
               <p className="text-xs text-muted-foreground">
                 This month
@@ -210,7 +217,7 @@ export function CloudUsageCards() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {openaiUsage ? formatNumber(openaiUsage.requestsThisMonth) : "0"}
+                {llmUsage ? formatNumber(llmUsage.totalRequests) : "0"}
               </div>
               <p className="text-xs text-muted-foreground">
                 This month
@@ -220,21 +227,21 @@ export function CloudUsageCards() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Top Model</CardTitle>
+              <CardTitle className="text-sm font-medium">Top Provider</CardTitle>
               <Badge variant="outline" className="text-xs">
-                {openaiUsage?.modelBreakdown?.[0]?.model || "N/A"}
+                {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 ? Object.keys(llmUsage.byProvider)[0] : "N/A"}
               </Badge>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {openaiUsage?.modelBreakdown?.[0]?.cost ? 
-                  formatCurrency(openaiUsage.modelBreakdown[0].cost) : 
+                {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 ? 
+                  formatCurrency(Object.values(llmUsage.byProvider)[0].cost) : 
                   "$0.00"
                 }
               </div>
               <p className="text-xs text-muted-foreground">
-                {openaiUsage?.modelBreakdown?.[0]?.requests ? 
-                  `${formatNumber(openaiUsage.modelBreakdown[0].requests)} requests` : 
+                {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 ? 
+                  `${formatNumber(Object.values(llmUsage.byProvider)[0].requests)} requests` : 
                   "No requests"
                 }
               </p>
@@ -242,32 +249,32 @@ export function CloudUsageCards() {
           </Card>
         </div>
 
-        {/* Model Breakdown */}
-        {openaiUsage?.modelBreakdown && openaiUsage.modelBreakdown.length > 0 && (
+        {/* Provider Breakdown */}
+        {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>OpenAI Model Breakdown</CardTitle>
+              <CardTitle>LLM Provider Breakdown</CardTitle>
               <CardDescription>
-                Usage and costs by AI model this month
+                Usage and costs by AI provider last 30 days
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {openaiUsage.modelBreakdown.map((model, index) => (
+                {Object.entries(llmUsage.byProvider).map(([provider, data]: [string, any], index) => (
                   <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <Brain className="h-5 w-5 text-green-500" />
                       <div>
-                        <div className="font-medium">{model.model}</div>
+                        <div className="font-medium">{provider}</div>
                         <div className="text-sm text-muted-foreground">
-                          {formatNumber(model.tokens)} tokens • {formatNumber(model.requests)} requests
+                          {formatNumber(data.tokens)} tokens • {formatNumber(data.requests)} requests
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold">{formatCurrency(model.cost)}</div>
+                      <div className="font-bold">{formatCurrency(data.cost)}</div>
                       <div className="text-sm text-muted-foreground">
-                        {((model.cost / (openaiUsage.costThisMonth || 1)) * 100).toFixed(1)}% of total
+                        {((data.cost / (llmUsage.totalCost || 1)) * 100).toFixed(1)}% of total
                       </div>
                     </div>
                   </div>

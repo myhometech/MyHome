@@ -11,6 +11,7 @@ import {
   unique,
   uuid,
   date,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -254,11 +255,40 @@ export const insertStripeWebhookSchema = createInsertSchema(stripeWebhooks).omit
   processedAt: true,
 });
 
+// TICKET 1: LLM Usage Logging Table
+export const llmUsageLogs = pgTable("llm_usage_logs", {
+  id: serial("id").primaryKey(),
+  requestId: text("request_id").notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // e.g., 'together.ai', 'openai'
+  model: text("model").notNull(), // e.g., 'mistralai/Mistral-7B-Instruct', 'gpt-4o'
+  tokensUsed: integer("tokens_used").notNull(),
+  costUsd: numeric("cost_usd", { precision: 10, scale: 4 }), // optional: estimate from token rate
+  durationMs: integer("duration_ms"),
+  status: text("status", { enum: ["success", "error"] }).notNull(),
+  route: text("route"), // e.g., '/api/insight/generate'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  // Indexes for performance on filterable fields
+  index("idx_llm_usage_created_at").on(table.createdAt),
+  index("idx_llm_usage_user_id").on(table.userId),
+  index("idx_llm_usage_model").on(table.model),
+  index("idx_llm_usage_provider").on(table.provider),
+  index("idx_llm_usage_status").on(table.status),
+]);
 
+export const insertLlmUsageLogSchema = createInsertSchema(llmUsageLogs).omit({
+  id: true,
+  createdAt: true,
+});
 
 // Stripe webhook types
 export type StripeWebhook = typeof stripeWebhooks.$inferSelect;
 export type InsertStripeWebhook = z.infer<typeof insertStripeWebhookSchema>;
+
+// TICKET 1: LLM Usage Log types
+export type LlmUsageLog = typeof llmUsageLogs.$inferSelect;
+export type InsertLlmUsageLog = z.infer<typeof insertLlmUsageLogSchema>;
 
 // Types  
 export type User = typeof users.$inferSelect;

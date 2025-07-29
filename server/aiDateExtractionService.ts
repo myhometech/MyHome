@@ -120,11 +120,14 @@ export class AIDateExtractionService {
     try {
       const flattened_prompt = this.buildMistralDateExtractionPrompt(text, documentName);
       
-      const response = await llmClient.chat.completions.create({
+      const response = await llmClient.createChatCompletion({
         messages: [{ role: "user", content: flattened_prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
         max_tokens: 1000
+      }, {
+        userId,
+        route: '/api/documents/process'
       });
 
       const result = llmClient.parseJSONResponse(response.content);

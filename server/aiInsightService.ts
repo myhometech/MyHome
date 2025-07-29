@@ -85,11 +85,14 @@ class AIInsightService {
 
       const flattened_prompt = this.buildMistralInsightPrompt(documentName, extractedText, mimeType);
       
-      const response = await llmClient.chat.completions.create({
+      const response = await llmClient.createChatCompletion({
         messages: [{ role: "user", content: flattened_prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1, // Low temperature for consistent analysis
         max_tokens: 1500 // TICKET 15: Reduced from 2000 to cut token costs by 25%
+      }, {
+        userId,
+        route: '/api/insights/generate'
       });
 
       const aiResponse = response.content;

@@ -27,13 +27,15 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table - email/password authentication only
+// User storage table - supports email/password and OAuth authentication
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique().notNull(),
+  email: varchar("email"), // Made nullable for OAuth providers that don't provide email
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
-  passwordHash: varchar("password_hash").notNull(),
+  passwordHash: varchar("password_hash"), // Made nullable for OAuth-only accounts
+  authProvider: varchar("auth_provider", { length: 20 }).default("email").notNull(), // 'email', 'google', 'apple', 'twitter'
+  providerId: varchar("provider_id"), // External user ID from OAuth provider (nullable)
   role: varchar("role", { length: 20 }).default("user").notNull(), // 'user' or 'admin'
   subscriptionTier: varchar("subscription_tier", { length: 20 }).default("free").notNull(), // 'free' or 'premium'
   stripeCustomerId: varchar("stripe_customer_id").unique(),
@@ -44,7 +46,12 @@ export const users = pgTable("users", {
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  // Unique constraint for OAuth providers: no duplicate provider accounts
+  unique("unique_provider_account").on(table.authProvider, table.providerId),
+  // Unique constraint for email accounts (when email is provided)
+  unique("unique_email_account").on(table.email),
+]);
 
 // Document categories
 export const categories = pgTable("categories", {
@@ -189,6 +196,25 @@ export const loginSchema = z.object({
 });
 
 export const registerSchema = z.object({
+  email: z.string().email("Invalid email address").optional(),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  firstName: z.string().min(1, "First name is required").optional(),
+  lastName: z.string().min(1, "Last name is required").optional(),
+  authProvider: z.enum(["email", "google", "apple", "twitter"]).default("email"),
+  providerId: z.string().optional(),
+});
+
+// OAuth registration schema for provider-based signups
+export const oauthRegisterSchema = z.object({
+  email: z.string().email("Invalid email address").optional(),
+  firstName: z.string().min(1, "First name is required").optional(),
+  lastName: z.string().min(1, "Last name is required").optional(),
+  authProvider: z.enum(["google", "apple", "twitter"]),
+  providerId: z.string().min(1, "Provider ID is required"),
+});
+
+// Email registration schema for traditional email/password signups
+export const emailRegisterSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   firstName: z.string().min(1, "First name is required").optional(),
@@ -239,6 +265,11 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
+export type OAuthRegisterData = z.infer<typeof oauthRegisterSchema>;
+export type EmailRegisterData = z.infer<typeof emailRegisterSchema>;
+
+// Auth provider enum for type safety
+export type AuthProvider = "email" | "google" | "apple" | "twitter";
 
 // DOC-305: Enhanced expiry reminders with AI suggestion support
 export const expiryReminders = pgTable("expiry_reminders", {

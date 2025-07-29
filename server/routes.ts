@@ -23,6 +23,8 @@ import advancedScanningRoutes from './routes/advancedScanning.js';
 import { securityHeaders, rateLimiter, corsOptions, securityLogger } from './middleware/security.js';
 import { enhancedHealthCheck } from './middleware/healthCheck.js';
 import cors from 'cors';
+import passport from './passport';
+import authRoutes from './authRoutes';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -135,18 +137,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup simple authentication
   setupSimpleAuth(app);
 
+  // Initialize Passport middleware
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // OAuth authentication routes
+  app.use('/auth', authRoutes);
+
   // Authentication routes
   app.post('/api/auth/register', async (req: any, res) => {
     try {
       const data = registerSchema.parse(req.body);
       
-      // Check if user already exists
-      const existingUser = await AuthService.findUserByEmail(data.email);
+      // Check if user already exists (only check email provider to avoid conflicts)
+      const existingUser = await AuthService.findUserByEmailAndProvider(data.email!, "email");
       if (existingUser) {
         return res.status(400).json({ message: "User already exists with this email" });
       }
 
-      const user = await AuthService.createEmailUser(data);
+      const user = await AuthService.createEmailUser({
+        email: data.email!,
+        password: data.password!,
+        firstName: data.firstName,
+        lastName: data.lastName
+      });
       
       // Initialize default categories for new user
       const defaultCategories = [
@@ -1835,7 +1849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[${requestId}] User association successful:`, {
         userId: user.id,
-        userEmail: user.email.replace(/(.{3}).*(@.*)/, '$1***$2'), // Mask email for privacy
+        userEmail: user.email?.replace(/(.{3}).*(@.*)/, '$1***$2') || 'no-email', // Mask email for privacy
         forwardingAddress: to.replace(/^docs-[a-z0-9]+/, 'docs-***')
       });
 
@@ -1883,7 +1897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: emailMetadata
       };
 
-      const result = await emailService.processIncomingEmail(emailData, user.email);
+      const result = await emailService.processIncomingEmail(emailData, user.email || 'no-email');
       
       // Combine results from email content and attachments
       const totalDocumentsCreated = (result.documentsCreated || 0) + attachmentResults.totalProcessed;

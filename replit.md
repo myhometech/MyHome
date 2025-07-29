@@ -4,7 +4,7 @@
 
 MyHome is a comprehensive document management application for homeowners to organize property-related documents. The project includes a complete web application (React + Node.js) and a native iOS app with advanced camera scanning capabilities. Both versions sync through a shared backend API with PostgreSQL database and simple authentication.
 
-**Latest Update**: Consolidated navigation and editing system improvements (January 2025). Removed duplicate MyHome navigation areas and combined them into single header with integrated search functionality. Eliminated "My Documents" and "Shared with Me" sections as requested. Implemented completely inline document editing - Edit dropdown action now only enables inline editing without modal popups, while View action opens modal for viewing document details. Enhanced PDF OCR with intelligent summary generation including bill amounts extraction.
+**Latest Update**: Unified Document Intelligence View Implementation (July 2025). Successfully created the unified Documents & Insights interface that seamlessly combines document management with intelligent insight prioritization. This new `/documents` route features enhanced DocumentCard+ components with inline insight display, critical insight auto-expansion, smart filtering by insight type/priority/status, and comprehensive priority-based sorting that surfaces critical documents first. The implementation maintains full backward compatibility while providing a single unified interface for document-insight workflows.
 
 ## User Preferences
 
@@ -31,6 +31,7 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 - **UI Framework**: Radix UI components with Tailwind CSS styling
 - **Component Library**: shadcn/ui for consistent design system
 - **Feature Management**: Subscription-based feature flagging system with FeatureGate components
+- **Unified Interface**: UnifiedDocumentCard component combining document management with intelligent insight display, auto-expanding critical insights, and priority-based sorting
 
 ### iOS Native Architecture
 - **Framework**: SwiftUI for iOS 16.0+

@@ -44,14 +44,15 @@ export function CloudUsageCards() {
     refetchInterval: 60000, // Refresh every minute
   });
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | undefined) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    }).format(amount);
+    }).format(amount || 0);
   };
 
-  const formatNumber = (num: number) => {
+  const formatNumber = (num: number | undefined) => {
+    if (!num || isNaN(num)) return "0";
     if (num >= 1000000) {
       return `${(num / 1000000).toFixed(1)}M`;
     }
@@ -235,13 +236,13 @@ export function CloudUsageCards() {
             <CardContent>
               <div className="text-2xl font-bold">
                 {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 ? 
-                  formatCurrency(Object.values(llmUsage.byProvider)[0].cost) : 
+                  formatCurrency((Object.values(llmUsage.byProvider)[0] as any)?.cost) : 
                   "$0.00"
                 }
               </div>
               <p className="text-xs text-muted-foreground">
                 {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 ? 
-                  `${formatNumber(Object.values(llmUsage.byProvider)[0].requests)} requests` : 
+                  `${formatNumber((Object.values(llmUsage.byProvider)[0] as any)?.requests)} requests` : 
                   "No requests"
                 }
               </p>

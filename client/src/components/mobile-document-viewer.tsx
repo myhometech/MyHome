@@ -20,7 +20,9 @@ import {
   MoreVertical,
   FileText,
   Image as ImageIcon,
-  AlertCircle
+  AlertCircle,
+  Monitor,
+  RotateCcw
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -103,6 +105,35 @@ function useSwipeGestures(
   return { onTouchStart, onTouchMove, onTouchEnd };
 }
 
+// Telemetry logging helper
+function logTelemetry(action: string, metadata?: Record<string, any>) {
+  const timestamp = new Date().toISOString();
+  console.log(`📊 Mobile Viewer Telemetry: ${action}`, {
+    timestamp,
+    documentId: metadata?.documentId,
+    ...metadata
+  });
+}
+
+// Auto-fit calculation helper
+function calculateAutoFitZoom(
+  documentWidth: number,
+  documentHeight: number,
+  containerWidth: number,
+  containerHeight: number,
+  mode: 'width' | 'height' = 'width',
+  padding: number = 32
+): number {
+  const availableWidth = containerWidth - padding;
+  const availableHeight = containerHeight - padding;
+  
+  if (mode === 'width') {
+    return Math.min(availableWidth / documentWidth, 3); // Cap at 3x zoom
+  } else {
+    return Math.min(availableHeight / documentHeight, 3);
+  }
+}
+
 export function MobileDocumentViewer({ 
   document, 
   category, 
@@ -120,8 +151,16 @@ export function MobileDocumentViewer({
   const [editName, setEditName] = useState(document.name);
   const [showControls, setShowControls] = useState(true);
   
+  // New state for auto-fit functionality
+  const [autoFitZoom, setAutoFitZoom] = useState<number | null>(null);
+  const [fitMode, setFitMode] = useState<'width' | 'height' | 'custom'>('width');
+  const [hasUserZoomed, setHasUserZoomed] = useState(false);
+  const [documentDimensions, setDocumentDimensions] = useState<{width: number, height: number} | null>(null);
+  
   const viewerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -135,6 +174,95 @@ export function MobileDocumentViewer({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Auto-fit zoom calculation and application
+  const applyAutoFitZoom = useCallback(() => {
+    if (!isMobile || hasUserZoomed || !documentDimensions || !viewerRef.current) return;
+    
+    const containerRect = viewerRef.current.getBoundingClientRect();
+    const autoZoom = calculateAutoFitZoom(
+      documentDimensions.width,
+      documentDimensions.height,
+      containerRect.width,
+      containerRect.height,
+      fitMode === 'custom' ? 'width' : fitMode,
+      64 // padding for controls
+    );
+    
+    if (autoZoom !== zoom) {
+      setAutoFitZoom(autoZoom);
+      setZoom(autoZoom);
+      logTelemetry('auto_fit_applied', {
+        documentId: document.id,
+        autoZoom: autoZoom.toFixed(2),
+        fitMode,
+        documentDimensions,
+        containerDimensions: { width: containerRect.width, height: containerRect.height }
+      });
+    }
+  }, [isMobile, hasUserZoomed, documentDimensions, fitMode, zoom, document.id]);
+
+  // Detect document dimensions when content loads
+  const handleImageLoad = useCallback((event: Event) => {
+    const img = event.target as HTMLImageElement;
+    if (img.naturalWidth && img.naturalHeight) {
+      const dimensions = { width: img.naturalWidth, height: img.naturalHeight };
+      setDocumentDimensions(dimensions);
+      logTelemetry('document_dimensions_detected', {
+        documentId: document.id,
+        type: 'image',
+        dimensions
+      });
+    }
+  }, [document.id]);
+
+  const handleIframeLoad = useCallback(() => {
+    // For PDFs, we'll use standard A4 dimensions as fallback since iframe content is sandboxed
+    const standardA4 = { width: 595, height: 842 }; // A4 in points
+    setDocumentDimensions(standardA4);
+    logTelemetry('document_dimensions_detected', {
+      documentId: document.id,
+      type: 'pdf',
+      dimensions: standardA4,
+      note: 'Using standard A4 dimensions for PDF'
+    });
+  }, [document.id]);
+
+  // Apply auto-fit when dimensions change
+  useEffect(() => {
+    if (documentDimensions && !hasUserZoomed) {
+      applyAutoFitZoom();
+    }
+  }, [documentDimensions, applyAutoFitZoom, hasUserZoomed]);
+
+  // Telemetry for viewer lifecycle
+  useEffect(() => {
+    const startTime = Date.now();
+    logTelemetry('viewer_opened', { 
+      documentId: document.id, 
+      mimeType: document.mimeType,
+      fileSize: document.fileSize 
+    });
+
+    return () => {
+      const viewDuration = Date.now() - startTime;
+      logTelemetry('viewer_closed', { 
+        documentId: document.id, 
+        viewDuration: viewDuration / 1000,
+        abandoned: viewDuration < 10000 // Less than 10 seconds
+      });
+    };
+  }, [document.id, document.mimeType, document.fileSize]);
+
+  // Enhanced gesture tracking
+  const enhancedSwipeGestures = useSwipeGestures(
+    () => {
+      logTelemetry('swipe_left', { documentId: document.id });
+    },
+    () => {
+      logTelemetry('swipe_right', { documentId: document.id });
+    }
+  );
 
   // Add a safety timeout to prevent hanging  
   useEffect(() => {
@@ -273,20 +401,70 @@ export function MobileDocumentViewer({
   };
 
   const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.25, 3));
+    const newZoom = Math.min(zoom + 0.25, 3);
+    setZoom(newZoom);
+    setHasUserZoomed(true);
+    setFitMode('custom');
+    logTelemetry('zoom_in', { documentId: document.id, newZoom, previousZoom: zoom });
   };
 
   const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.25, 0.5));
+    const newZoom = Math.max(zoom - 0.25, 0.5);
+    setZoom(newZoom);
+    setHasUserZoomed(true);
+    setFitMode('custom');
+    logTelemetry('zoom_out', { documentId: document.id, newZoom, previousZoom: zoom });
   };
 
   const handleRotate = () => {
-    setRotation(prev => (prev + 90) % 360);
+    const newRotation = (rotation + 90) % 360;
+    setRotation(newRotation);
+    logTelemetry('rotate', { documentId: document.id, newRotation, previousRotation: rotation });
   };
 
   const resetView = () => {
     setZoom(1);
     setRotation(0);
+    setHasUserZoomed(false);
+    setFitMode('width');
+    logTelemetry('reset_view', { documentId: document.id });
+  };
+
+  // New fit mode functions
+  const fitToWidth = () => {
+    if (documentDimensions && viewerRef.current) {
+      const containerRect = viewerRef.current.getBoundingClientRect();
+      const newZoom = calculateAutoFitZoom(
+        documentDimensions.width,
+        documentDimensions.height,
+        containerRect.width,
+        containerRect.height,
+        'width',
+        64
+      );
+      setZoom(newZoom);
+      setFitMode('width');
+      setHasUserZoomed(true);
+      logTelemetry('fit_to_width', { documentId: document.id, autoZoom: newZoom });
+    }
+  };
+
+  const fitToHeight = () => {
+    if (documentDimensions && viewerRef.current) {
+      const containerRect = viewerRef.current.getBoundingClientRect();
+      const newZoom = calculateAutoFitZoom(
+        documentDimensions.width,
+        documentDimensions.height,
+        containerRect.width,
+        containerRect.height,
+        'height',
+        64
+      );
+      setZoom(newZoom);
+      setFitMode('height');
+      setHasUserZoomed(true);
+      logTelemetry('fit_to_height', { documentId: document.id, autoZoom: newZoom });
+    }
   };
 
   const toggleControls = () => {
@@ -325,9 +503,10 @@ export function MobileDocumentViewer({
       return (
         <div 
           className="flex items-center justify-center h-full overflow-auto bg-gray-900"
-          {...swipeGestures}
+          {...enhancedSwipeGestures}
         >
           <img
+            ref={imageRef}
             src={getPreviewUrl()}
             alt={document.name}
             className="max-w-full max-h-full object-contain transition-transform duration-200"
@@ -335,7 +514,10 @@ export function MobileDocumentViewer({
               transform: `scale(${zoom}) rotate(${rotation}deg)`,
               touchAction: 'pan-x pan-y',
             }}
-            onLoad={() => setIsLoading(false)}
+            onLoad={(e) => {
+              setIsLoading(false);
+              handleImageLoad(e.nativeEvent);
+            }}
             onError={() => {
               setError('Failed to load image');
               setIsLoading(false);
@@ -350,16 +532,20 @@ export function MobileDocumentViewer({
       return (
         <div 
           className="h-full bg-gray-200"
-          {...swipeGestures}
+          {...enhancedSwipeGestures}
         >
           <iframe
+            ref={iframeRef}
             src={getPreviewUrl()}
             className="w-full h-full border-0"
             style={{ 
               transform: `scale(${zoom})`,
               transformOrigin: 'top left',
             }}
-            onLoad={() => setIsLoading(false)}
+            onLoad={() => {
+              setIsLoading(false);
+              handleIframeLoad();
+            }}
             onError={() => {
               setError('Failed to load PDF');
               setIsLoading(false);
@@ -508,20 +694,47 @@ export function MobileDocumentViewer({
           transition-transform duration-300
           ${showControls || !isMobile ? 'translate-y-0' : 'translate-y-full'}
         `}>
-          <div className="flex items-center justify-center gap-2 p-4">
+          <div className="flex items-center justify-center gap-1 p-3 flex-wrap">
             {(isImage() || isPDF()) && (
               <>
+                {/* Fit Mode Buttons */}
+                <Button
+                  variant={fitMode === 'width' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={fitToWidth}
+                  className={`text-white hover:bg-white/20 p-2 text-xs ${
+                    fitMode === 'width' ? 'bg-white/30' : ''
+                  }`}
+                  title="Fit to Width"
+                >
+                  <Monitor className="w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant={fitMode === 'height' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={fitToHeight}
+                  className={`text-white hover:bg-white/20 p-2 text-xs ${
+                    fitMode === 'height' ? 'bg-white/30' : ''
+                  }`}
+                  title="Fit to Height"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+
+                {/* Zoom Controls */}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleZoomOut}
                   disabled={zoom <= 0.5}
                   className="text-white hover:bg-white/20 p-2"
+                  title="Zoom Out"
                 >
-                  <ZoomOut className="w-5 h-5" />
+                  <ZoomOut className="w-4 h-4" />
                 </Button>
                 
-                <div className="text-white text-sm px-3 py-1 bg-white/20 rounded">
+                <div className="text-white text-xs px-2 py-1 bg-white/20 rounded min-w-[3rem] text-center">
                   {Math.round(zoom * 100)}%
                 </div>
                 
@@ -531,18 +744,21 @@ export function MobileDocumentViewer({
                   onClick={handleZoomIn}
                   disabled={zoom >= 3}
                   className="text-white hover:bg-white/20 p-2"
+                  title="Zoom In"
                 >
-                  <ZoomIn className="w-5 h-5" />
+                  <ZoomIn className="w-4 h-4" />
                 </Button>
 
+                {/* Additional Controls */}
                 {isImage() && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleRotate}
                     className="text-white hover:bg-white/20 p-2"
+                    title="Rotate"
                   >
-                    <RotateCw className="w-5 h-5" />
+                    <RotateCw className="w-4 h-4" />
                   </Button>
                 )}
 
@@ -551,19 +767,16 @@ export function MobileDocumentViewer({
                   size="sm"
                   onClick={resetView}
                   className="text-white hover:bg-white/20 p-2 text-xs"
+                  title="Reset View"
                 >
                   Reset
                 </Button>
 
-                {(document as any).fullscreenEnabled && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleFullscreen}
-                    className="text-white hover:bg-white/20 p-2"
-                  >
-                    {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-                  </Button>
+                {/* Auto-fit indicator */}
+                {autoFitZoom && !hasUserZoomed && (
+                  <div className="text-white/70 text-xs px-2 py-1 bg-blue-500/30 rounded">
+                    Auto
+                  </div>
                 )}
               </>
             )}

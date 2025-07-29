@@ -257,6 +257,13 @@ export class LLMClient {
   }
 
   /**
+   * Alias for isAvailable() for backward compatibility
+   */
+  isConfigured(): boolean {
+    return this.isAvailable();
+  }
+
+  /**
    * Get service configuration for debugging
    */
   getStatus(): { available: boolean; model: string; provider: string; reason?: string } {

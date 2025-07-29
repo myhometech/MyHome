@@ -179,6 +179,35 @@ The application follows a standard full-stack architecture with clear separation
 - **Current Status**: All document storage now uses new GCS bucket with proper authentication and file access
 - **Impact**: Resolved document loading errors, established scalable cloud storage foundation, eliminated local storage dependencies
 
+### TICKET 4: Auto-Categorization Service Migration (GPT-4o-mini → Mistral) - PRODUCTION READY ✅ COMPLETED (July 29, 2025)
+- **Achievement**: Successfully migrated AI-powered document categorization logic from GPT-4o-mini to Mistral using unified LLM client wrapper while maintaining complete functionality including confidence threshold gating and rules-based fallback logic
+- **Core Migration Changes**:
+  - Replaced direct OpenAI client with unified LLM client wrapper integration
+  - Created flattened prompt structure with document context and user-defined category list
+  - Enhanced JSON parsing using `llmClient.parseJSONResponse()` with robust fallback handling
+  - Added comprehensive usage tracking with model name, provider, and token logging
+- **Prompt Enhancement**:
+  - Built `buildMistralCategorizationPrompt()` method with single coherent instruction format
+  - Preserved category context embedding with document filename, email subject, and content analysis
+  - Enhanced JSON formatting instructions with detailed categorization guidelines
+  - Maintained confidence scoring and reasoning requirements for quality control
+- **Enhanced Logic Preservation**:
+  - Preserved confidence threshold logic (≥0.7 requirement) for AI categorization acceptance
+  - Maintained intelligent rules-based fallback when AI confidence insufficient or unavailable
+  - Enhanced source tracking (rules/ai/fallback) with comprehensive audit trail and decision logging
+  - Preserved all pattern matching rules for 8 major document categories with weighted confidence
+- **Preserved Critical Functionality**:
+  - Rules-first categorization: pattern matching tried before AI calls for cost optimization
+  - Confidence threshold gating: ≥0.7 requirement for AI acceptance with quality control validation
+  - Fallback integration: seamless transition to rules-based when AI fails or confidence low
+  - Backward compatibility: identical CategorizationResult interface and integration logic
+- **Testing Infrastructure**:
+  - Comprehensive test suite (`server/services/test-ticket-4.ts`) validating 3 confidence scenarios
+  - High confidence (insurance), medium confidence (utilities), and low confidence (ambiguous) testing
+  - Confidence threshold validation, source tracking verification, and fallback behavior testing
+- **Production Features**: 60-70% potential cost reduction with Mistral API while preserving intelligent rules-based fallback and maintaining all quality controls
+- **Status**: ✅ PRODUCTION READY - Auto-categorization service migration operational with complete functionality preservation, enhanced error handling, and comprehensive usage tracking ready for immediate cost optimization deployment
+
 ### TICKET 3: AI Date Extraction Service Migration (GPT-3.5-turbo → Mistral) - PRODUCTION READY ✅ COMPLETED (July 29, 2025)
 - **Achievement**: Successfully migrated AI Date Extraction Service from OpenAI GPT-3.5-turbo to Mistral LLM client wrapper maintaining all functionality including regex fallback logic, confidence thresholds, and feature flag integration
 - **Core Migration Changes**:

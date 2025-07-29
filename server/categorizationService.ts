@@ -1,9 +1,9 @@
 /**
  * DOC-303: Auto-Categorize Documents via Rules and AI Fallback
- * Enhanced categorization system with GPT-4 fallback for improved accuracy
+ * Enhanced categorization system with Mistral fallback for improved accuracy (TICKET 4)
  */
 
-import OpenAI from 'openai';
+import { llmClient } from './services/llmClient.js';
 import { storage } from './storage';
 import type { Category } from '@shared/schema';
 
@@ -24,14 +24,18 @@ interface CategorizationContext {
 }
 
 export class CategorizationService {
-  private openai: OpenAI;
   private categoriesCache: Map<string, Category[]> = new Map();
 
   constructor() {
-    // Initialize OpenAI with GPT-4
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    // TICKET 4: Using unified LLM client (Mistral via Together.ai)
+    console.log('✅ Categorization Service initialized with LLM client');
+  }
+
+  /**
+   * Check if AI categorization is available
+   */
+  private get isAIAvailable(): boolean {
+    return llmClient.isAvailable();
   }
 
   /**
@@ -53,13 +57,13 @@ export class CategorizationService {
     // Step 2: Fallback to AI-based categorization
     console.log(`[${requestId}] Rules-based categorization insufficient (confidence: ${rulesResult.confidence}), trying AI fallback`);
     
-    if (!process.env.OPENAI_API_KEY) {
-      console.warn(`[${requestId}] OpenAI API key not available, using fallback categorization`);
+    if (!this.isAIAvailable) {
+      console.warn(`[${requestId}] LLM client not configured, using fallback categorization`);
       return {
         categoryId: rulesResult.categoryId,
         source: 'fallback',
         confidence: rulesResult.confidence,
-        reasoning: 'OpenAI API key not available'
+        reasoning: 'LLM client not configured'
       };
     }
 
@@ -213,50 +217,43 @@ export class CategorizationService {
   }
 
   /**
-   * DOC-303: AI-based categorization using GPT-4
+   * DOC-303: AI-based categorization using Mistral (TICKET 4)
    */
   private async applyAIBasedCategorization(context: CategorizationContext, requestId: string): Promise<CategorizationResult> {
     const categories = await this.getUserCategories(context.userId);
     const categoryNames = categories.map(c => c.name).join(', ');
 
-    // Construct comprehensive prompt for GPT-4
-    const prompt = this.buildAIPrompt(context, categoryNames);
+    // Construct flattened prompt for Mistral
+    const flattened_prompt = this.buildMistralCategorizationPrompt(context, categoryNames);
     
-    console.log(`[${requestId}] Sending AI categorization request to GPT-4o`);
+    console.log(`[${requestId}] Sending AI categorization request to Mistral`);
 
     try {
-      // Use GPT-4o-mini for document categorization (cost optimization - TICKET 15)
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a document categorization expert. Analyze the provided document information and categorize it using only the available categories. Respond with valid JSON only."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
+      const response = await llmClient.chat.completions.create({
+        messages: [{ role: "user", content: flattened_prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1, // Low temperature for consistent categorization
         max_tokens: 300
       });
 
-      const aiResponse = response.choices[0].message.content;
+      const aiResponse = response.content;
       if (!aiResponse) {
-        throw new Error('Empty response from OpenAI');
+        throw new Error('Empty response from LLM client');
       }
+
+      // Log LLM usage for admin tracking (TICKET 4)
+      const status = llmClient.getStatus();
+      console.log(`[${requestId}] Model: ${status.model}, Provider: ${status.provider}, Tokens: ${response.usage?.total_tokens || 'unknown'}`);
 
       // Log the AI interaction for audit trail
       console.log(`[${requestId}] AI response received:`, {
-        prompt: prompt.substring(0, 200) + '...',
+        prompt: flattened_prompt.substring(0, 200) + '...',
         response: aiResponse,
         tokensUsed: response.usage?.total_tokens || 0
       });
 
-      // Parse AI response
-      const parsed = JSON.parse(aiResponse);
+      // Parse AI response using LLM client's enhanced parser
+      const parsed = llmClient.parseJSONResponse(aiResponse);
       const suggestedCategory = parsed.category;
       const confidence = parsed.confidence || 0.7;
       const reasoning = parsed.reasoning || 'AI-based categorization';
@@ -288,16 +285,20 @@ export class CategorizationService {
       }
 
     } catch (error) {
-      console.error(`[${requestId}] OpenAI API error:`, error);
+      console.error(`[${requestId}] LLM client error:`, error);
       throw error;
     }
   }
 
   /**
-   * Build comprehensive prompt for AI categorization
+   * Build flattened prompt for Mistral categorization (TICKET 4)
    */
-  private buildAIPrompt(context: CategorizationContext, categoryNames: string): string {
-    return `Categorize this document using ONLY one of these available categories: ${categoryNames}
+  private buildMistralCategorizationPrompt(context: CategorizationContext, categoryNames: string): string {
+    return `You are a document categorization expert. Analyze the provided document information and categorize it using only the available categories. Respond with valid JSON only.
+
+Given the document name, email subject, and content, return the best matching document category from the user's list.
+
+Available Categories: ${categoryNames}
 
 Document Information:
 - Filename: ${context.filename}
@@ -306,7 +307,7 @@ ${context.emailSubject ? `- Email Subject: ${context.emailSubject}` : ''}
 ${context.extractedText ? `- Content Preview: ${context.extractedText.substring(0, 300)}...` : ''}
 
 Requirements:
-1. Choose ONLY from the provided categories: ${categoryNames}
+1. Choose ONLY from these available categories: ${categoryNames}
 2. If none fit perfectly, choose the closest match
 3. Provide a confidence score between 0.0 and 1.0
 4. Explain your reasoning briefly

@@ -8,12 +8,77 @@
 @tailwind components;
 @tailwind utilities;
 
-/* iOS Mobile Scrolling Fix */
+/* iOS Mobile Scrolling Comprehensive Fixes */
 .ios-scroll {
   -webkit-overflow-scrolling: touch;
   overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  scroll-behavior: smooth;
+}
+
+/* Mobile-responsive heights using dvh for iOS Safari support */
+.mobile-modal-height {
+  height: calc(100dvh - 8rem);
+  max-height: calc(100dvh - 8rem);
+}
+
+@supports not (height: 100dvh) {
+  .mobile-modal-height {
+    height: calc(100vh - 8rem);
+    max-height: calc(100vh - 8rem);
+  }
+}
+
+/* Safe area support for devices with notches */
+.safe-area-padding {
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Enhanced insights scrolling container */
+.insights-scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-padding-top: 1rem;
+  touch-action: pan-y;
+}
+
+/* Smooth insight card animations */
+.insight-card-enter {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.insight-card-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Text wrapping and spacing improvements */
+.insight-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  line-height: 1.5;
+}
+
+/* Back to top button */
+.back-to-top-button {
+  position: fixed;
+  bottom: calc(2rem + env(safe-area-inset-bottom));
+  right: 1rem;
+  z-index: 50;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.back-to-top-button.hidden {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
 }
 
 /* PDF Viewer Styles */

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,8 @@ import {
   MoreHorizontal,
   Image,
   Brain,
-  AlertTriangle
+  AlertTriangle,
+  ArrowUp
 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -73,6 +74,8 @@ interface Category {
 }
 
 export function EnhancedDocumentViewer({ document, category: propCategory, onClose, onDownload, onUpdate }: EnhancedDocumentViewerProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -208,7 +211,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
     
     // For images, preload to ensure they work
     if (isImage()) {
-      const img = new Image();
+      const img = new (globalThis as any).Image();
       img.onload = () => {
         setIsLoading(false);
         clearTimeout(safetyTimeout);
@@ -348,7 +351,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 </div>
               </div>
 
-              <div className="flex-1 p-3 overflow-y-scroll ios-scroll">
+              <div className="flex-1 p-3 ios-scroll">
                 <div className="space-y-3">
                   {/* Basic Information */}
                   <Card className="border-0 shadow-none bg-white">
@@ -491,7 +494,14 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 </div>
               </div>
 
-              <div className="flex-1 p-3 overflow-y-scroll ios-scroll">
+              <div 
+                ref={scrollContainerRef}
+                className="flex-1 p-3 mobile-modal-height insights-scroll-container safe-area-padding"
+                onScroll={(e) => {
+                  const scrollTop = e.currentTarget.scrollTop;
+                  setShowBackToTop(scrollTop > 200);
+                }}
+              >
                 {fullDocument && (
                   <DocumentInsights 
                     documentId={document.id}
@@ -503,6 +513,23 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </Tabs>
         </div>
       </div>
+
+      {/* Back to Top Button */}
+      {showBackToTop && (
+        <Button
+          className={`back-to-top-button ${showBackToTop ? '' : 'hidden'}`}
+          size="sm"
+          onClick={() => {
+            scrollContainerRef.current?.scrollTo({
+              top: 0,
+              behavior: 'smooth'
+            });
+          }}
+          variant="outline"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

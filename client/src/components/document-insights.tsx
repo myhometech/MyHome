@@ -204,129 +204,96 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            AI Document Insights
-          </div>
-          <Button 
-            onClick={handleGenerateInsights} 
-            disabled={isGenerating || generateInsightsMutation.isPending}
-            size="sm"
-            variant="outline"
-          >
-            {isGenerating || generateInsightsMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Brain className="mr-2 h-4 w-4" />
-                {insights.length > 0 ? 'Regenerate' : 'Generate'} Insights
-              </>
-            )}
-          </Button>
-        </CardTitle>
-        <CardDescription>
-          AI-powered analysis and actionable insights extracted from {documentName}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {insights.length === 0 ? (
-          <div className="text-center py-8">
-            <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 mb-4">No insights generated yet</p>
-            <p className="text-sm text-gray-500 mb-6">
-              Click "Generate Insights" to analyze this document with AI and extract key information, action items, and important details
-            </p>
-            <Button onClick={handleGenerateInsights} disabled={isGenerating}>
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Brain className="mr-2 h-4 w-4" />
-                  Generate AI Insights
-                </>
-              )}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {insights.map((insight: DocumentInsight) => {
-              const config = insightTypeConfig[insight.type];
-              const priorityStyle = priorityConfig[insight.priority];
-              const IconComponent = config.icon;
-              
-              return (
-                <div key={insight.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Badge className={config.color}>
-                        <IconComponent className="h-3 w-3 mr-1" />
-                        {config.label}
-                      </Badge>
-                      <Badge variant="outline" className={priorityStyle.color}>
-                        {priorityStyle.label}
-                      </Badge>
-                      <Badge variant="secondary">
-                        {Math.round(insight.confidence * 100)}% confidence
-                      </Badge>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteInsight(insight.id)}
-                      disabled={deleteInsightMutation.isPending}
-                      className="text-gray-500 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">{insight.title}</h4>
-                    <p className="text-gray-700 text-sm leading-relaxed">{insight.content}</p>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Clock className="h-3 w-3" />
-                    {new Date(insight.createdAt).toLocaleDateString()} at {new Date(insight.createdAt).toLocaleTimeString()}
-                  </div>
-                </div>
-              );
-            })}
+    <div className="space-y-4">
+      {/* Header with Generate Button */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Brain className="h-4 w-4 text-blue-600" />
+          <span className="text-sm font-medium">AI Analysis</span>
+        </div>
+        <Button 
+          onClick={handleGenerateInsights} 
+          disabled={isGenerating || generateInsightsMutation.isPending}
+          size="sm"
+          variant="outline"
+          className="text-xs"
+        >
+          {isGenerating || generateInsightsMutation.isPending ? (
+            <>
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Brain className="mr-1 h-3 w-3" />
+              {insights.length > 0 ? 'Regenerate' : 'Generate'}
+            </>
+          )}
+        </Button>
+      </div>
 
-            <Separator />
+      {/* Content Area */}
+      {insights.length === 0 ? (
+        <div className="text-center py-8">
+          <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 mb-4 text-sm">No insights generated yet</p>
+          <p className="text-xs text-gray-500 mb-6">
+            Click "Generate" to analyze this document with AI and extract key information, action items, and important details
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {insights.map((insight: DocumentInsight, index: number) => {
+            const config = insightTypeConfig[insight.type];
+            const priorityStyle = priorityConfig[insight.priority];
+            const IconComponent = config.icon;
             
-            <div className="text-center">
-              <Button 
-                onClick={handleGenerateInsights} 
-                disabled={isGenerating || generateInsightsMutation.isPending}
-                variant="outline"
-                size="sm"
+            return (
+              <div 
+                key={insight.id} 
+                className="border-0 shadow-none bg-white rounded-lg p-4 space-y-3 mb-4 insight-content"
+                style={{
+                  animationDelay: `${index * 100}ms`
+                }}
               >
-                {isGenerating || generateInsightsMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Regenerating...
-                  </>
-                ) : (
-                  <>
-                    <Brain className="mr-2 h-4 w-4" />
-                    Regenerate All Insights
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className={`${config.color} text-xs`}>
+                      <IconComponent className="h-3 w-3 mr-1" />
+                      {config.label}
+                    </Badge>
+                    <Badge variant="outline" className={`${priorityStyle.color} text-xs`}>
+                      {priorityStyle.label}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {Math.round(insight.confidence * 100)}% confidence
+                    </Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteInsight(insight.id)}
+                    disabled={deleteInsightMutation.isPending}
+                    className="text-gray-500 hover:text-red-600 h-6 w-6 p-0"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2 text-sm">{insight.title}</h4>
+                  <p className="text-gray-700 text-sm leading-relaxed insight-content">{insight.content}</p>
+                </div>
+                
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Clock className="h-3 w-3" />
+                  {new Date(insight.createdAt).toLocaleDateString()} at {new Date(insight.createdAt).toLocaleTimeString()}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

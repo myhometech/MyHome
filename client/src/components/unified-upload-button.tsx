@@ -337,10 +337,27 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
       >
         <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
           <CloudUpload className="h-8 w-8 text-gray-400 mb-3" />
-          <h3 className="text-sm font-medium mb-2">Click or Drag Files to Upload</h3>
+          <h3 className="text-sm font-medium mb-2">Upload Documents</h3>
           <p className="text-xs text-gray-500 mb-4">
             PDF, JPG, PNG, WebP (max 10MB)
           </p>
+          
+          {/* Primary Choose Files Button */}
+          <Button 
+            variant="default" 
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleFileUpload();
+            }}
+            className="mb-3 text-xs"
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            Choose Files
+          </Button>
+          
+          <div className="text-xs text-gray-400 mb-2">or</div>
+          
           <div className="flex gap-2">
             <Button 
               variant="outline" 

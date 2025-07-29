@@ -312,8 +312,8 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         </div>
 
         {/* Document Properties Panel - Mobile Tab Layout */}
-        <div className="lg:w-1/3 lg:border-l bg-gray-50 flex flex-col">
-          <Tabs defaultValue="properties" className="flex-1 flex flex-col">
+        <div className="lg:w-1/3 lg:border-l bg-gray-50 flex flex-col min-h-0">
+          <Tabs defaultValue="properties" className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
               <TabsTrigger value="properties" className="text-xs">
                 <Info className="w-3 h-3 mr-1" />
@@ -325,7 +325,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="properties" className="flex-1 m-0">
+            <TabsContent value="properties" className="flex-1 m-0 flex flex-col">
               <div className="flex items-center justify-between p-3 border-b bg-white">
                 <div className="flex items-center gap-2">
                   <Info className="w-4 h-4 text-blue-600" />
@@ -348,7 +348,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 p-3">
+              <div className="flex-1 overflow-auto p-3">
                 <div className="space-y-3">
                   {/* Basic Information */}
                   <Card className="border-0 shadow-none bg-white">
@@ -480,10 +480,10 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                     </div>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             </TabsContent>
 
-            <TabsContent value="insights" className="flex-1 m-0">
+            <TabsContent value="insights" className="flex-1 m-0 flex flex-col">
               <div className="flex items-center justify-between p-3 border-b bg-white">
                 <div className="flex items-center gap-2">
                   <Brain className="w-4 h-4 text-blue-600" />
@@ -491,14 +491,14 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 p-3">
+              <div className="flex-1 overflow-auto p-3" style={{ WebkitOverflowScrolling: 'touch' }}>
                 {fullDocument && (
                   <DocumentInsights 
                     documentId={document.id}
                     documentName={fullDocument.name}
                   />
                 )}
-              </ScrollArea>
+              </div>
             </TabsContent>
           </Tabs>
         </div>

@@ -88,6 +88,7 @@ interface UnifiedDocumentCardProps {
   onUpdate?: () => void;
   showInsights?: boolean;
   autoExpandCritical?: boolean;
+  onClick?: () => void;
 }
 
 const insightTypeConfig = {
@@ -143,7 +144,8 @@ export default function UnifiedDocumentCard({
   onToggleSelection,
   onUpdate,
   showInsights = true,
-  autoExpandCritical = true
+  autoExpandCritical = true,
+  onClick
 }: UnifiedDocumentCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -354,7 +356,18 @@ export default function UnifiedDocumentCard({
 
   return (
     <>
-      <Card className={`group hover:shadow-md transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""}`}>
+      <Card 
+        className={`group hover:shadow-md transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer`}
+        onClick={() => {
+          if (bulkMode) {
+            onToggleSelection?.();
+          } else if (onClick) {
+            onClick();
+          } else {
+            setShowModal(true);
+          }
+        }}
+      >
         <CardContent className="p-4">
           {/* Bulk selection checkbox */}
           {bulkMode && (
@@ -425,12 +438,24 @@ export default function UnifiedDocumentCard({
               {!isEditing && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setShowModal(true)}>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      if (onClick) {
+                        onClick();
+                      } else {
+                        setShowModal(true);
+                      }
+                    }}>
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </DropdownMenuItem>

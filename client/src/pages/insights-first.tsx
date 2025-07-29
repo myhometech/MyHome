@@ -31,7 +31,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { DocumentPreview } from "@/components/document-preview";
 import type { Category, Document } from "@shared/schema";
 
 interface DocumentInsight {
@@ -52,6 +53,8 @@ export default function InsightsFirstPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("insights");
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [insightTypeFilter, setInsightTypeFilter] = useState<string>("all");
@@ -301,7 +304,17 @@ export default function InsightsFirstPage() {
                         </div>
                         
                         <div className="flex gap-2 ml-4">
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              const doc = documents.find(d => d.id === insight.documentId);
+                              if (doc) {
+                                setSelectedDocument(doc);
+                                setShowDocumentPreview(true);
+                              }
+                            }}
+                          >
                             View Document
                           </Button>
                           <Button size="sm" variant="ghost">
@@ -419,6 +432,10 @@ export default function InsightsFirstPage() {
                       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
                       queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
                     }}
+                    onClick={() => {
+                      setSelectedDocument(document);
+                      setShowDocumentPreview(true);
+                    }}
                     showInsights={false} // No inline insights in library view
                     autoExpandCritical={false}
                   />
@@ -431,6 +448,27 @@ export default function InsightsFirstPage() {
 
       <MobileNav />
       <UploadDialog />
+      
+      {/* Document Preview Dialog */}
+      <Dialog open={showDocumentPreview} onOpenChange={setShowDocumentPreview}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>{selectedDocument?.name}</DialogTitle>
+            <DialogDescription>
+              Document preview with AI insights and metadata
+            </DialogDescription>
+          </DialogHeader>
+          {selectedDocument && (
+            <DocumentPreview 
+              document={selectedDocument} 
+              onUpdate={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

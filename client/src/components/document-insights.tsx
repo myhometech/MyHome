@@ -69,23 +69,20 @@ interface DocumentInsightsProps {
 
 export function DocumentInsights({ documentId, documentName }: DocumentInsightsProps) {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [tierFilter, setTierFilter] = useState<'all' | 'primary' | 'secondary'>('primary'); // INSIGHT-102: Default to primary
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch existing insights with tier filtering
+  // INSIGHT-102: Fetch only primary insights (no secondary access)
   const { data: insightData, isLoading, error } = useQuery({
-    queryKey: ['/api/documents', documentId, 'insights', tierFilter],
+    queryKey: ['/api/documents', documentId, 'insights', 'primary'],
     queryFn: async () => {
-      const tierParam = tierFilter === 'all' ? '' : `?tier=${tierFilter}`;
-      const response = await fetch(`/api/documents/${documentId}/insights${tierParam}`);
+      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary`);
       if (!response.ok) throw new Error('Failed to fetch insights');
       return await response.json();
     }
   });
 
   const insights = insightData?.insights || [];
-  const tierBreakdown = insightData?.tierBreakdown;
 
   // Generate new insights mutation
   const generateInsightsMutation = useMutation({
@@ -217,58 +214,40 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
 
   return (
     <div className="space-y-4">
-      {/* Header with Generate Button and Tier Filter */}
+      {/* Header with Generate Button */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Brain className="h-4 w-4 text-blue-600" />
-          <span className="text-sm font-medium">AI Analysis</span>
-          {/* INSIGHT-102: Show tier breakdown */}
-          {tierBreakdown && (
-            <span className="text-xs text-gray-500">
-              ({tierBreakdown.primary} primary, {tierBreakdown.secondary} secondary)
-            </span>
+          <span className="text-sm font-medium">Key Insights</span>
+        </div>
+        <Button 
+          onClick={handleGenerateInsights} 
+          disabled={isGenerating || generateInsightsMutation.isPending}
+          size="sm"
+          variant="outline"
+          className="text-xs"
+        >
+          {isGenerating || generateInsightsMutation.isPending ? (
+            <>
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Brain className="mr-1 h-3 w-3" />
+              {insights.length > 0 ? 'Regenerate' : 'Generate'}
+            </>
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* INSIGHT-102: Tier Filter */}
-          <select 
-            value={tierFilter} 
-            onChange={(e) => setTierFilter(e.target.value as 'all' | 'primary' | 'secondary')}
-            className="text-xs border rounded px-2 py-1 bg-white"
-          >
-            <option value="primary">Primary Only</option>
-            <option value="secondary">Secondary Only</option>
-            <option value="all">All Insights</option>
-          </select>
-          <Button 
-            onClick={handleGenerateInsights} 
-            disabled={isGenerating || generateInsightsMutation.isPending}
-            size="sm"
-            variant="outline"
-            className="text-xs"
-          >
-            {isGenerating || generateInsightsMutation.isPending ? (
-              <>
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Brain className="mr-1 h-3 w-3" />
-                {insights.length > 0 ? 'Regenerate' : 'Generate'}
-              </>
-            )}
-          </Button>
-        </div>
+        </Button>
       </div>
 
       {/* Content Area */}
       {insights.length === 0 ? (
         <div className="text-center py-8">
           <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 mb-4 text-sm">No insights generated yet</p>
+          <p className="text-gray-600 mb-4 text-sm">No key insights detected for this document</p>
           <p className="text-xs text-gray-500 mb-6">
-            Click "Generate" to analyze this document with AI and extract key information, action items, and important details
+            Click "Generate" to analyze this document with AI and extract actionable insights, deadlines, and important details
           </p>
         </div>
       ) : (
@@ -295,19 +274,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
                     <Badge variant="outline" className={`${priorityStyle.color} text-xs`}>
                       {priorityStyle.label}
                     </Badge>
-                    {/* INSIGHT-102: Show tier badge */}
-                    {insight.tier && (
-                      <Badge 
-                        variant="outline"
-                        className={`text-xs ${
-                          insight.tier === 'primary' 
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
-                            : 'bg-slate-100 text-slate-800 border-slate-200'
-                        }`}
-                      >
-                        {insight.tier === 'primary' ? 'Primary' : 'Secondary'}
-                      </Badge>
-                    )}
+
                     <Badge variant="secondary" className="text-xs">
                       {Math.round(insight.confidence * 100)}% confidence
                     </Badge>

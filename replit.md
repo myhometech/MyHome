@@ -165,6 +165,23 @@ The application follows a standard full-stack architecture with clear separation
 
 ## Recent Changes
 
+### INSIGHT-102: Tiered Insight Classification UI Implementation - PRODUCTION READY ✅ (July 30, 2025)
+- **Achievement**: Successfully implemented primary-only insight display system restricting users to actionable insights while completely hiding secondary background information
+- **Backend Integration**:
+  - Enhanced database schema with tier, insight_version, and generated_at fields for comprehensive insight classification
+  - Updated AI service prompts to classify insights as primary (costs, dates, deadlines) vs secondary (background, metadata) using Mistral
+  - Implemented backend API tier filtering in storage layer and document insights routes supporting tier parameter
+  - Enhanced both direct insight generation routes and job queue processing to save and handle tier classification data
+- **Frontend Implementation**:
+  - Modified DocumentInsights component to fetch only primary tier insights with no secondary access
+  - Removed all tier switching UI, toggles, and filter dropdowns as specified in updated requirements
+  - Added graceful fallback message "No key insights detected for this document" when no primary insights exist
+  - Simplified header to show "Key Insights" instead of generic "AI Analysis" for clarity
+  - Maintained all existing insight dismissal and audit functionality without regression
+- **User Experience Impact**: Users now see only actionable, high-value insights (primary tier) without distraction from background information, creating a focused insights-first document viewing experience
+- **Technical Compliance**: Complete adherence to INSIGHT-102 specification - secondary insights are completely inaccessible through UI with no toggles or switching mechanisms
+- **Status**: ✅ PRODUCTION READY - Primary-only insight filtering operational with clean UI focused on actionable intelligence, meeting all acceptance criteria for restricted insight access
+
 ### Compact Upload UI Implementation - COMPLETED ✅ (July 29, 2025)
 - **Achievement**: Successfully streamlined upload interface by removing large central upload zones and implementing compact upload functionality accessible via header button
 - **UI Optimization**:

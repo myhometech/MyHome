@@ -57,43 +57,67 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
   const startCamera = useCallback(async () => {
     try {
       setError(null);
+      clearError(); // Clear any previous OCR errors
       
       // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera not supported on this device/browser');
       }
       
-      // Try different camera configurations for better iPhone compatibility
+      // Android-specific: Check for HTTPS requirement
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        throw new Error('Camera requires HTTPS connection on Android devices');
+      }
+      
+      // Android Camera Fix: Try progressive fallback with Android-optimized constraints
       let stream: MediaStream;
       
       try {
-        // First try with back camera (environment)
+        // Android-optimized: Start with environment camera with Android-friendly constraints
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { exact: 'environment' },
-            width: { ideal: 1920, max: 1920 },
-            height: { ideal: 1080, max: 1080 }
+            width: { ideal: 1280, min: 640, max: 1920 },
+            height: { ideal: 720, min: 480, max: 1080 },
+            frameRate: { ideal: 30, max: 60 }
           }
         });
+        console.log('✅ Android: Back camera initialized successfully');
       } catch (backCameraError) {
-        console.log('Back camera not available, trying any camera:', backCameraError);
+        console.log('🔄 Android: Back camera failed, trying fallback:', backCameraError);
         
         try {
-          // Fallback to any available camera
+          // Android fallback: Any available camera with flexible constraints
           stream = await navigator.mediaDevices.getUserMedia({
             video: {
-              facingMode: 'environment', // Prefer back camera but don't require
-              width: { ideal: 1280, max: 1920 },
-              height: { ideal: 720, max: 1080 }
+              facingMode: 'environment', // Prefer back but don't require
+              width: { ideal: 1280, min: 320 },
+              height: { ideal: 720, min: 240 },
+              frameRate: { ideal: 30 }
             }
           });
+          console.log('✅ Android: Fallback camera initialized');
         } catch (anyLameraError) {
-          console.log('Any camera failed, trying basic constraints:', anyLameraError);
+          console.log('🔄 Android: Fallback failed, trying minimal constraints:', anyLameraError);
           
-          // Final fallback with minimal constraints
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: true
-          });
+          try {
+            // Android minimal: Basic video only
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { 
+                width: { min: 320 },
+                height: { min: 240 }
+              }
+            });
+            console.log('✅ Android: Minimal camera constraints successful');
+          } catch (minimalError) {
+            console.log('🔄 Android: Minimal failed, trying simplest approach:', minimalError);
+            
+            // Android last resort: Boolean true only
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: true
+            });
+            console.log('✅ Android: Boolean video constraint successful');
+          }
         }
       }
       

@@ -9,7 +9,7 @@ import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema } from "@shared/schema";
 import { z } from 'zod';
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
-import { answerDocumentQuestion } from "./chatbotService";
+
 import { tagSuggestionService } from "./tagSuggestionService";
 import { aiInsightService } from "./aiInsightService";
 import { pdfConversionService } from "./pdfConversionService.js";
@@ -2042,36 +2042,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     return false;
   }
-
-  // Chatbot endpoints
-  app.post('/api/chatbot/ask', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { question } = req.body;
-
-      console.log(`Chatbot request from user ${userId}: "${question}"`);
-
-      if (!question || typeof question !== 'string' || question.trim().length === 0) {
-        return res.status(400).json({ message: "Question is required" });
-      }
-
-      // Check if OpenAI API key is available
-      if (!process.env.OPENAI_API_KEY) {
-        console.error("OpenAI API key not found in environment variables");
-        return res.status(500).json({ message: "AI service is not configured. Please contact support." });
-      }
-
-      const response = await answerDocumentQuestion(userId, question.trim());
-      console.log(`Chatbot response for user ${userId}: success`);
-      res.json(response);
-    } catch (error) {
-      console.error("Chatbot error:", error);
-      res.status(500).json({ 
-        message: error instanceof Error ? error.message : "Failed to process your question" 
-      });
-    }
-  });
-
 
 
   // Reprocess document with date extraction (for testing existing documents)

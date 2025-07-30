@@ -10,7 +10,7 @@ import CategoryFilter from "@/components/category-filter";
 import DocumentCard from "@/components/document-card";
 import MobileNav from "@/components/mobile-nav";
 
-import Chatbot from "@/components/chatbot";
+
 
 import { EmailForwarding } from "@/components/email-forwarding";
 import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
@@ -38,7 +38,7 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
 
@@ -513,17 +513,7 @@ export default function Home() {
 
       <MobileNav />
 
-      {/* Floating Chatbot Button */}
-      <Button
-        onClick={() => setIsChatbotOpen(true)}
-        className="fixed bottom-20 md:bottom-6 right-6 rounded-full w-14 h-14 shadow-lg bg-primary hover:bg-blue-700 z-40"
-        size="icon"
-      >
-        <MessageCircle className="h-6 w-6" />
-      </Button>
 
-      {/* Chatbot Modal */}
-      <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
     </div>
   );
 }

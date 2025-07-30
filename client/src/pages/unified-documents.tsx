@@ -729,7 +729,6 @@ export default function UnifiedDocuments() {
         )}
       </main>
 
-      <MobileNav />
     </div>
   );
 }

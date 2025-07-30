@@ -154,7 +154,6 @@ export default function InsightsFirstPage() {
             </CardContent>
           </Card>
         </main>
-        <MobileNav />
       </div>
     );
   }

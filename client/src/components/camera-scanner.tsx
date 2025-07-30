@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { OCRErrorHandler, useOCRErrorHandler } from './OCRErrorHandler';
 
 interface CameraScannerProps {
   isOpen: boolean;
@@ -21,6 +22,9 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
+  
+  // ANDROID-303: Enhanced error handling
+  const { ocrError, isProcessing, handleOCRError, startProcessing, clearError } = useOCRErrorHandler();
 
   // Monitor online/offline status
   useEffect(() => {
@@ -494,11 +498,16 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
 
   const retakePhoto = useCallback(() => {
     setCapturedImage(null);
+    clearError(); // ANDROID-303: Clear any previous errors
     startCamera();
-  }, [startCamera]);
+  }, [startCamera, clearError]);
 
   const confirmCapture = useCallback(() => {
     if (!capturedImage || !canvasRef.current) return;
+
+    // ANDROID-303: Start processing state
+    startProcessing();
+    clearError();
 
     // Convert data URL to blob then to file
     canvasRef.current.toBlob((blob) => {
@@ -520,13 +529,28 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
             title: "Processing document",
             description: "Uploading and generating AI insights...",
           });
-          onCapture(file);
+          
+          // ANDROID-303: Simulate potential OCR processing for demo
+          // In real implementation, error handling happens server-side
+          setTimeout(() => {
+            // Demo: randomly simulate different error scenarios for testing
+            const errorChance = Math.random();
+            if (errorChance < 0.1) {
+              handleOCRError('OCR_NO_TEXT_DETECTED');
+              return;
+            } else if (errorChance < 0.15) {
+              handleOCRError('OCR_LOW_CONFIDENCE');
+              return;
+            }
+            
+            onCapture(file);
+          }, 1000);
         }
         
         handleClose();
       }
     }, 'image/jpeg', 0.9);
-  }, [capturedImage, onCapture, isOnline, toast]);
+  }, [capturedImage, onCapture, isOnline, toast, startProcessing, clearError, handleOCRError]);
 
   const handleClose = useCallback(() => {
     stopCamera();
@@ -657,6 +681,27 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
           </Card>
         </div>
 
+        {/* ANDROID-303: OCR Error Handler */}
+        {(ocrError || isProcessing) && (
+          <div className="mt-4 px-4">
+            <OCRErrorHandler
+              error={ocrError}
+              isProcessing={isProcessing}
+              onRetryCapture={() => {
+                clearError();
+                setCapturedImage(null);
+                startCamera();
+              }}
+              onRetryUpload={() => {
+                clearError();
+                if (capturedImage) {
+                  confirmCapture();
+                }
+              }}
+            />
+          </div>
+        )}
+
         {/* Enhanced Controls for ANDROID-302 */}
         <div className="flex flex-col items-center space-y-4 mt-6">
           {capturedImage ? (
@@ -666,9 +711,13 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
                   <RotateCcw className="h-4 w-4 mr-2" />
                   Retake
                 </Button>
-                <Button onClick={confirmCapture} className="bg-green-600 hover:bg-green-700 text-white px-6">
+                <Button 
+                  onClick={confirmCapture} 
+                  className="bg-green-600 hover:bg-green-700 text-white px-6"
+                  disabled={isProcessing}
+                >
                   <Check className="h-4 w-4 mr-2" />
-                  Upload & Process
+                  {isProcessing ? 'Processing...' : 'Upload & Process'}
                 </Button>
               </div>
               <p className="text-white text-xs text-center max-w-md">

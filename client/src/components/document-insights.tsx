@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { OCRErrorHandler } from './OCRErrorHandler';
 import { 
   Brain, 
   CheckCircle, 
@@ -182,31 +183,24 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   }
 
   if (error) {
+    // ANDROID-303: Handle insight generation errors and provide appropriate feedback
+    const errorMessage = error?.message || 'Unknown error';
+    const isInsightError = errorMessage.includes('INSIGHT_') || errorMessage.includes('insight');
+    
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5" />
-            AI Document Insights
+            Key Insights
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <p className="text-gray-600 mb-4">Failed to load insights</p>
-            <Button onClick={handleGenerateInsights} disabled={isGenerating}>
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Brain className="mr-2 h-4 w-4" />
-                  Generate AI Insights
-                </>
-              )}
-            </Button>
-          </div>
+          <OCRErrorHandler
+            error={isInsightError ? 'INSIGHT_GENERATION_FAILED' : 'OCR_PROCESSING_FAILED'}
+            documentName={documentName}
+            onRetryUpload={() => handleGenerateInsights()}
+          />
         </CardContent>
       </Card>
     );

@@ -175,7 +175,9 @@ async function extractTextWithTesseract(filePathOrGCSKey: string): Promise<strin
       
       console.log(`OCR completed with confidence: ${confidence}%`);
       
+      // ANDROID-303: Enhanced error detection and fallback handling
       if (!text || text.trim() === '') {
+        console.warn(`❌ OCR failed: No text detected (confidence: ${confidence}%)`);
         // Clean up temporary file and worker
         if (tempFilePath && isGCSFile) {
           try {
@@ -185,7 +187,14 @@ async function extractTextWithTesseract(filePathOrGCSKey: string): Promise<strin
           }
         }
         await worker.terminate();
-        return 'No text detected in scanned document';
+        throw new Error('OCR_NO_TEXT_DETECTED');
+      }
+      
+      // ANDROID-303: Check for low confidence OCR results
+      if (confidence < 30) {
+        console.warn(`⚠️ OCR low confidence: ${confidence}% - text may be unreliable`);
+        // Still return text but flag as low confidence
+        throw new Error('OCR_LOW_CONFIDENCE');
       }
       
       // Clean up the extracted text for better readability
@@ -268,7 +277,15 @@ export async function extractTextFromImage(filePathOrGCSKey: string, mimeType?: 
     return extractedText;
   } catch (error: any) {
     console.error("Tesseract OCR extraction failed:", error);
-    throw new Error(`Failed to extract text from image: ${error?.message || 'Unknown error'}`);
+    
+    // ANDROID-303: Enhanced error classification for better user feedback
+    if (error.message === 'OCR_NO_TEXT_DETECTED') {
+      throw new Error('OCR_NO_TEXT_DETECTED');
+    } else if (error.message === 'OCR_LOW_CONFIDENCE') {
+      throw new Error('OCR_LOW_CONFIDENCE');
+    } else {
+      throw new Error(`OCR_PROCESSING_FAILED: ${error?.message || 'Unknown error'}`);
+    }
   }
 }
 
@@ -571,19 +588,39 @@ function extractPremium(text: string): string | null {
   return null;
 }
 
-export async function processDocumentOCRAndSummary(filePathOrGCSKey: string, fileName: string, mimeType?: string): Promise<{extractedText: string, summary: string}> {
+export async function processDocumentOCRAndSummary(filePathOrGCSKey: string, fileName: string, mimeType?: string): Promise<{extractedText: string, summary: string, ocrStatus?: string}> {
   try {
     console.log(`Processing OCR and summary for: ${fileName}`);
     
     let extractedText = '';
+    let ocrStatus = 'success';
     
     // Extract text based on file type
     if (isImageFile(mimeType || '')) {
-      extractedText = await extractTextFromImage(filePathOrGCSKey, mimeType);
+      try {
+        extractedText = await extractTextFromImage(filePathOrGCSKey, mimeType);
+      } catch (ocrError: any) {
+        // ANDROID-303: Handle OCR failures with specific error types
+        if (ocrError.message === 'OCR_NO_TEXT_DETECTED') {
+          ocrStatus = 'no_text_detected';
+          extractedText = '';
+        } else if (ocrError.message === 'OCR_LOW_CONFIDENCE') {
+          ocrStatus = 'low_confidence';
+          extractedText = 'Text detected but quality is poor';
+        } else {
+          ocrStatus = 'processing_failed';
+          extractedText = '';
+        }
+        console.warn(`OCR issue for ${fileName}: ${ocrError.message}`);
+      }
     } else if (isPDFFile(mimeType || '')) {
       extractedText = await extractTextFromPDF(filePathOrGCSKey);
+      if (extractedText.includes('PDF text extraction failed')) {
+        ocrStatus = 'pdf_processing_failed';
+      }
     } else {
-      extractedText = 'No text detected';
+      extractedText = '';
+      ocrStatus = 'unsupported_format';
     }
     
     // Generate summary based on extracted text and filename
@@ -591,13 +628,15 @@ export async function processDocumentOCRAndSummary(filePathOrGCSKey: string, fil
     
     return {
       extractedText,
-      summary
+      summary,
+      ocrStatus
     };
   } catch (error: any) {
     console.error("OCR and summary processing failed:", error);
     return {
-      extractedText: 'OCR processing failed',
-      summary: `Document: ${fileName}. Automatic processing failed.`
+      extractedText: '',
+      summary: `Document: ${fileName}. Automatic processing failed.`,
+      ocrStatus: 'processing_failed'
     };
   }
 }

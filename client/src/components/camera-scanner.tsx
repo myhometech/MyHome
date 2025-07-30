@@ -515,6 +515,11 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
             description: "Document will be uploaded when connection is restored.",
           });
         } else {
+          // Show processing notification for ANDROID-302 enhancement
+          toast({
+            title: "Processing document",
+            description: "Uploading and generating AI insights...",
+          });
           onCapture(file);
         }
         
@@ -578,9 +583,26 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
                     alt="Captured document" 
                     className="w-full h-auto rounded-lg"
                   />
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <div className="text-white text-center">
-                      <p className="text-sm mb-2">Document captured successfully</p>
+                  {/* Enhanced preview overlay with ANDROID-302 functionality */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex flex-col justify-end p-4">
+                    <div className="text-white">
+                      <div className="flex items-center mb-2">
+                        <Check className="h-4 w-4 text-green-400 mr-2" />
+                        <span className="text-sm font-medium">Document captured</span>
+                      </div>
+                      <p className="text-xs text-gray-300 mb-3">
+                        Ready to upload for OCR processing and AI insight generation
+                      </p>
+                      <div className="flex items-center text-xs text-blue-300">
+                        <div className="flex items-center mr-4">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full mr-1"></div>
+                          OCR & Text Extraction
+                        </div>
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-blue-400 rounded-full mr-1"></div>
+                          AI Insights Generation
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -635,27 +657,37 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
           </Card>
         </div>
 
-        {/* Controls */}
-        <div className="flex justify-center items-center space-x-4 mt-6">
+        {/* Enhanced Controls for ANDROID-302 */}
+        <div className="flex flex-col items-center space-y-4 mt-6">
           {capturedImage ? (
             <>
-              <Button variant="outline" onClick={retakePhoto} className="bg-white">
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Retake
-              </Button>
-              <Button onClick={confirmCapture} className="bg-primary text-white">
-                <Check className="h-4 w-4 mr-2" />
-                Use This Photo
-              </Button>
+              <div className="flex items-center space-x-4">
+                <Button variant="outline" onClick={retakePhoto} className="bg-white">
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Retake
+                </Button>
+                <Button onClick={confirmCapture} className="bg-green-600 hover:bg-green-700 text-white px-6">
+                  <Check className="h-4 w-4 mr-2" />
+                  Upload & Process
+                </Button>
+              </div>
+              <p className="text-white text-xs text-center max-w-md">
+                Auto-processing will extract text and generate AI insights
+              </p>
             </>
           ) : isStreaming ? (
-            <Button 
-              onClick={capturePhoto}
-              size="lg"
-              className="bg-white text-black hover:bg-gray-100 rounded-full w-16 h-16"
-            >
-              <Camera className="h-8 w-8" />
-            </Button>
+            <>
+              <Button 
+                onClick={capturePhoto}
+                size="lg"
+                className="bg-white text-black hover:bg-gray-100 rounded-full w-16 h-16"
+              >
+                <Camera className="h-8 w-8" />
+              </Button>
+              <p className="text-white text-xs text-center max-w-md">
+                Tap to capture • Auto-OCR and insight generation enabled
+              </p>
+            </>
           ) : null}
         </div>
 

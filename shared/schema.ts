@@ -345,6 +345,10 @@ export const documentInsights = pgTable("document_insights", {
   processingTime: integer("processing_time"), // Time taken to generate insight (ms)
   aiModel: varchar("ai_model", { length: 50 }).default("gpt-4o"),
   source: varchar("source", { length: 20 }).default("ai"), // 'ai', 'manual', 'rule-based'
+  // INSIGHT-101: Tiered insight classification
+  tier: varchar("tier", { length: 20 }).default("primary"), // 'primary', 'secondary'
+  insightVersion: varchar("insight_version", { length: 10 }).default("v2.0"), // Version tracking for insight generation
+  generatedAt: timestamp("generated_at").defaultNow(), // Timestamp for insight generation
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -357,6 +361,8 @@ export const documentInsights = pgTable("document_insights", {
   // TICKET 4: New indexes for dashboard
   index("idx_insights_user_status").on(table.userId, table.status),
   index("idx_insights_due_date").on(table.dueDate),
+  // INSIGHT-101: Index for tier filtering
+  index("idx_insights_tier").on(table.tier),
 ]);
 
 export type InsertDocumentInsight = typeof documentInsights.$inferInsert;

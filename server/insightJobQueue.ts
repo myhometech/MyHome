@@ -281,7 +281,11 @@ class InsightJobQueue {
           metadata: JSON.stringify(insight.metadata || {}),
           processingTime: result.processingTime,
           aiModel: model,
-          source: 'ai'
+          source: 'ai',
+          // INSIGHT-101: Add tier classification
+          tier: insight.tier,
+          insightVersion: 'v2.0',
+          generatedAt: new Date()
         });
       }
 

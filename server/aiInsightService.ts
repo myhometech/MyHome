@@ -7,6 +7,8 @@ interface DocumentInsight {
   content: string;
   confidence: number;
   priority: 'low' | 'medium' | 'high';
+  // INSIGHT-101: Add tier classification
+  tier: 'primary' | 'secondary';
   metadata?: Record<string, any>;
   createdAt: Date;
 }
@@ -140,7 +142,7 @@ class AIInsightService {
 
     return `You are an expert document analyst. Analyze documents and provide structured insights in JSON format. Focus on actionable information, key dates, financial details, and compliance requirements.
 
-Analyze this document and provide structured insights in JSON format.
+INSIGHT-101: Classify insights into PRIMARY (critical/actionable) or SECONDARY (background/metadata) tiers.
 
 Document Information:
 - Name: ${documentName}
@@ -159,6 +161,7 @@ Please analyze and return a JSON object with this exact structure:
       "content": "Detailed insight content",
       "confidence": 0.9,
       "priority": "low|medium|high",
+      "tier": "primary|secondary",
       "metadata": {}
     }
   ],
@@ -175,6 +178,10 @@ Analysis Guidelines:
 4. FINANCIAL_INFO: Extract amounts, costs, payment terms, account numbers
 5. CONTACTS: Identify people, companies, phone numbers, emails
 6. COMPLIANCE: Note any regulatory requirements, certifications, or legal obligations
+
+TIER CLASSIFICATION (INSIGHT-101):
+- PRIMARY tier: Costs, payment dates, expiration dates, legal deadlines, urgent actions, financial amounts, compliance requirements
+- SECONDARY tier: Background information, metadata, definitions, general context, document issuer details
 
 Prioritize insights by importance:
 - HIGH: Urgent deadlines, large financial amounts, compliance requirements
@@ -204,6 +211,8 @@ Ensure all insights are actionable and provide real value to the user.`;
         content: insight.content || '',
         confidence: Math.max(0, Math.min(1, insight.confidence || 0.5)),
         priority: this.validatePriority(insight.priority),
+        // INSIGHT-101: Add tier classification with validation
+        tier: this.validateTier(insight.tier),
         metadata: insight.metadata || {},
         createdAt: new Date()
       }));
@@ -221,6 +230,14 @@ Ensure all insights are actionable and provide real value to the user.`;
       console.error(`[${requestId}] DOC-501: Failed to parse AI response:`, parseError);
       throw new Error('Failed to parse AI insight response');
     }
+  }
+
+  /**
+   * INSIGHT-101: Validate tier classification
+   */
+  private validateTier(tier: string): 'primary' | 'secondary' {
+    const validTiers = ['primary', 'secondary'];
+    return validTiers.includes(tier?.toLowerCase()) ? tier.toLowerCase() as 'primary' | 'secondary' : 'primary';
   }
 
   /**

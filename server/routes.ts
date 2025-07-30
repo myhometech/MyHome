@@ -1071,7 +1071,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           metadata: insight.metadata || {},
           processingTime: insights.processingTime,
           aiModel: 'gpt-4o',
-          source: 'ai'
+          source: 'ai',
+          // INSIGHT-101: Add tier classification
+          tier: insight.tier,
+          insightVersion: 'v2.0',
+          generatedAt: new Date()
         });
       }
 
@@ -1098,11 +1102,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // DOC-501: Get existing insights for a document
+  // INSIGHT-102: Get existing insights for a document with tier filtering
   app.get('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
+      const tier = req.query.tier as string; // INSIGHT-102: Optional tier filter ('primary', 'secondary')
       
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -1113,8 +1118,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const insights = await storage.getDocumentInsights(documentId, userId);
-      res.json(insights);
+      const insights = await storage.getDocumentInsights(documentId, userId, tier);
+      
+      res.json({
+        success: true,
+        insights,
+        documentId,
+        totalCount: insights.length,
+        tier: tier || 'all',
+        // INSIGHT-102: Include tier breakdown
+        tierBreakdown: {
+          primary: insights.filter(i => i.tier === 'primary').length,
+          secondary: insights.filter(i => i.tier === 'secondary').length
+        }
+      });
 
     } catch (error) {
       console.error("Error fetching document insights:", error);

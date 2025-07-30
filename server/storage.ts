@@ -1174,17 +1174,32 @@ export class DatabaseStorage implements IStorage {
     return newInsight;
   }
 
-  async getDocumentInsights(documentId: number, userId: string): Promise<DocumentInsight[]> {
+  // INSIGHT-102: Get insights for specific document with tier filtering
+  async getDocumentInsights(documentId: number, userId: string, tier?: string): Promise<DocumentInsight[]> {
+    const conditions = [
+      eq(documentInsights.documentId, documentId),
+      eq(documentInsights.userId, userId),
+      eq(documentInsights.status, 'open') // Only show active insights
+    ];
+    
+    // INSIGHT-102: Filter by tier if specified
+    if (tier) {
+      conditions.push(eq(documentInsights.tier, tier));
+    }
+
     return await db
       .select()
       .from(documentInsights)
-      .where(
-        and(
-          eq(documentInsights.documentId, documentId),
-          eq(documentInsights.userId, userId)
-        )
-      )
-      .orderBy(documentInsights.priority, documentInsights.createdAt);
+      .where(and(...conditions))
+      .orderBy(
+        sql`CASE ${documentInsights.priority}
+          WHEN 'high' THEN 1
+          WHEN 'medium' THEN 2
+          WHEN 'low' THEN 3
+        END`,
+        documentInsights.dueDate,
+        desc(documentInsights.createdAt)
+      );
   }
 
   async deleteDocumentInsight(documentId: number, userId: string, insightId: string): Promise<void> {
@@ -1200,7 +1215,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // TICKET 4: AI Insights Dashboard operations
-  async getInsights(userId: string, status?: string, type?: string, priority?: string): Promise<DocumentInsight[]> {
+  async getInsights(userId: string, status?: string, type?: string, priority?: string, tier?: string): Promise<DocumentInsight[]> {
     const conditions = [eq(documentInsights.userId, userId)];
     
     if (status) {
@@ -1211,6 +1226,10 @@ export class DatabaseStorage implements IStorage {
     }
     if (priority) {
       conditions.push(eq(documentInsights.priority, priority));
+    }
+    // INSIGHT-101: Add tier filtering
+    if (tier) {
+      conditions.push(eq(documentInsights.tier, tier));
     }
 
     return await db

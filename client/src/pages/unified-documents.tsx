@@ -6,7 +6,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import Header from "@/components/header";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
-import MobileNav from "@/components/mobile-nav";
+
 import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
 import { useFeatures } from "@/hooks/useFeatures";
 import { 
@@ -398,7 +398,6 @@ export default function UnifiedDocuments() {
             </CardContent>
           </Card>
         </main>
-        <MobileNav />
       </div>
     );
   }

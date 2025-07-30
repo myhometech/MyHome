@@ -8,7 +8,7 @@ import UploadZone from "@/components/upload-zone";
 
 import CategoryFilter from "@/components/category-filter";
 import DocumentCard from "@/components/document-card";
-import MobileNav from "@/components/mobile-nav";
+
 
 
 
@@ -510,9 +510,6 @@ export default function Home() {
           </div>
         </div>
       </main>
-
-      <MobileNav />
-
 
     </div>
   );

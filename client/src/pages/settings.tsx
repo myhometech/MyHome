@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/header";
-import MobileNav from "@/components/mobile-nav";
+
 import { EmailForwarding } from "@/components/email-forwarding";
 import SubscriptionPlans from "@/components/SubscriptionPlans";
 import CategoryManagement from "@/components/category-management";
@@ -413,7 +413,6 @@ export default function Settings() {
         </Tabs>
       </main>
 
-      <MobileNav />
     </div>
   );
 }

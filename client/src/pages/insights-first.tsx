@@ -5,7 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import Header from "@/components/header";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
-import MobileNav from "@/components/mobile-nav";
+
 import { useFeatures } from "@/hooks/useFeatures";
 import { 
   Brain, 
@@ -442,7 +442,6 @@ export default function InsightsFirstPage() {
         </Tabs>
       </main>
 
-      <MobileNav />
       <UploadDialog />
       
       {/* Document Preview Dialog */}

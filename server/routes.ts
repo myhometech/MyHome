@@ -2817,6 +2817,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ANDROID-303: OCR Error Handling and Analytics Routes
   setupOCRErrorRoutes(app);
+  
+  // Add Canny JWT routes
+  const cannyRoutes = await import('./routes/cannyRoutes.js');
+  app.use('/api', cannyRoutes.default);
 
   app.use(sentryErrorHandler());
 

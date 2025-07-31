@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
 import { 
   HelpCircle, 
   Mail, 
@@ -31,70 +32,117 @@ export function Support() {
   const { user } = useAuth();
   const [cannyLoaded, setCannyLoaded] = useState(false);
   const [cannyError, setCannyError] = useState(false);
+  const [cannyToken, setCannyToken] = useState<string | null>(null);
+
+  // Function to get JWT token for Canny SSO
+  const getCannyToken = async () => {
+    try {
+      const response = await fetch('/api/canny-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include session cookies
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.token;
+      } else {
+        console.error('Failed to get Canny token:', response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Failed to get Canny token:', error);
+      return null;
+    }
+  };
 
   useEffect(() => {
-    // Load Canny script
-    const script = document.createElement('script');
-    script.src = 'https://canny.io/sdk.js';
-    script.async = true;
-    script.onload = () => {
-      try {
-        if (window.Canny) {
-          // Get Canny configuration from environment variables
-          const cannyBoardToken = import.meta.env.VITE_CANNY_BOARD_TOKEN;
-          const cannyAppId = import.meta.env.VITE_CANNY_APP_ID;
-          
-          if (!cannyBoardToken || !cannyAppId) {
-            console.warn('Canny configuration missing. Please set VITE_CANNY_BOARD_TOKEN and VITE_CANNY_APP_ID environment variables.');
-            setCannyError(true);
-            return;
-          }
+    // Load Canny script and optionally get JWT token
+    const initializeCanny = async () => {
+      const script = document.createElement('script');
+      script.src = 'https://canny.io/sdk.js';
+      script.async = true;
+      
+      script.onload = async () => {
+        try {
+          if (window.Canny) {
+            // Get Canny configuration from environment variables
+            const cannyBoardToken = import.meta.env.VITE_CANNY_BOARD_TOKEN;
+            const cannyAppId = import.meta.env.VITE_CANNY_APP_ID;
+            const useJWT = import.meta.env.VITE_CANNY_USE_JWT === 'true';
+            
+            if (!cannyBoardToken || !cannyAppId) {
+              console.warn('Canny configuration missing. Please set VITE_CANNY_BOARD_TOKEN and VITE_CANNY_APP_ID environment variables.');
+              setCannyError(true);
+              return;
+            }
 
-          // Initialize Canny
-          window.Canny('render', {
-            boardToken: cannyBoardToken,
-            basePath: null, // Use default Canny URL
-            ssoToken: null, // For SSO integration if needed
-          });
+            let ssoToken = null;
+            
+            // Get JWT token if JWT SSO is enabled and user is authenticated
+            if (useJWT && user) {
+              ssoToken = await getCannyToken();
+              setCannyToken(ssoToken);
+            }
 
-          // Identify user if authenticated
-          if (user) {
-            const typedUser = user as any; // Type assertion for user object
-            window.Canny('identify', {
-              appID: cannyAppId,
-              user: {
-                email: typedUser.email || '',
-                name: `${typedUser.firstName || ''} ${typedUser.lastName || ''}`.trim() || typedUser.email || 'User',
-                id: typedUser.id || '',
-                // Add any additional user data for Canny analytics
-                created: typedUser.createdAt || new Date().toISOString(),
-                // Add user role for feedback categorization
-                role: typedUser.role || 'user',
-              },
+            // Initialize Canny
+            window.Canny('render', {
+              boardToken: cannyBoardToken,
+              basePath: null, // Use default Canny URL
+              ssoToken: ssoToken, // Use JWT token if available
             });
+
+            // If not using JWT, identify user with session data (fallback)
+            if (!useJWT && user) {
+              const typedUser = user as any; // Type assertion for user object
+              window.Canny('identify', {
+                appID: cannyAppId,
+                user: {
+                  email: typedUser.email || '',
+                  name: `${typedUser.firstName || ''} ${typedUser.lastName || ''}`.trim() || typedUser.email || 'User',
+                  id: typedUser.id || '',
+                  // Add any additional user data for Canny analytics
+                  created: typedUser.createdAt || new Date().toISOString(),
+                  // Add user role for feedback categorization
+                  role: typedUser.role || 'user',
+                },
+              });
+            }
+            
+            setCannyLoaded(true);
           }
-          
-          setCannyLoaded(true);
+        } catch (error) {
+          console.error('Error initializing Canny:', error);
+          setCannyError(true);
         }
-      } catch (error) {
-        console.error('Error initializing Canny:', error);
+      };
+      
+      script.onerror = () => {
+        console.error('Failed to load Canny script');
         setCannyError(true);
-      }
-    };
-    script.onerror = () => {
-      console.error('Failed to load Canny script');
-      setCannyError(true);
+      };
+
+      document.head.appendChild(script);
+
+      return () => {
+        // Cleanup script on unmount
+        if (document.head.contains(script)) {
+          document.head.removeChild(script);
+        }
+      };
     };
 
-    document.head.appendChild(script);
-
-    return () => {
-      // Cleanup script on unmount
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
-    };
+    initializeCanny();
   }, [user]);
+
+  // Cleanup function moved outside useEffect to avoid warnings
+  useEffect(() => {
+    return () => {
+      // Component cleanup - Canny script cleanup handled in initializeCanny
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

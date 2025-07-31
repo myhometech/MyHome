@@ -191,6 +191,33 @@ The application follows a standard full-stack architecture with clear separation
 - **User Experience Impact**: Users now receive clear guidance when OCR fails instead of silent failures, with actionable steps to resolve issues and retry processing
 - **Status**: ✅ PRODUCTION READY - Complete error handling and fallback system operational with comprehensive user guidance, analytics tracking, and system stability improvements
 
+### TICKET 4: JWT-Signed Canny SSO Implementation - PRODUCTION READY ✅ (July 31, 2025)
+- **Achievement**: Successfully implemented optional JWT-signed Canny SSO for enhanced security and user attribution
+- **Backend JWT Infrastructure**:
+  - Created `/api/canny-token` endpoint for short-lived JWT generation (15 minutes expiry)
+  - Implemented `/api/canny-token/verify` endpoint for token validation and debugging
+  - Secure JWT payload with issuer, audience, and user subject for proper attribution
+  - Authentication-only access ensuring tokens are issued exclusively to authenticated users
+  - Comprehensive error handling for JWT validation and generation failures
+- **Frontend JWT Integration**:
+  - Dynamic JWT token fetching with `VITE_CANNY_USE_JWT` configuration toggle
+  - Automatic token retrieval and SSO integration when JWT mode enabled
+  - Fallback to session-based identification when JWT disabled for backward compatibility
+  - Token state management and error handling for seamless user experience
+- **Security Features**:
+  - Short-lived tokens (15 minutes) minimizing security exposure window
+  - Secure JWT signing with configurable `CANNY_JWT_SECRET` or fallback to `SESSION_SECRET`
+  - User-bound tokens with proper issuer/audience validation for Canny integration
+  - Authentication requirement preventing token generation for unauthenticated users
+- **Configuration Management**:
+  - Environment variable `VITE_CANNY_USE_JWT=true/false` for JWT mode toggle
+  - Backend `CANNY_JWT_SECRET` configuration for JWT signing security
+  - Seamless integration with existing Canny board token and app ID configuration
+  - Comprehensive testing suite validating all JWT SSO components
+- **User Experience Impact**: Enhanced security for feedback attribution while maintaining backward compatibility, with secure token-based authentication eliminating client-side user data exposure
+- **Technical Implementation**: Complete JWT lifecycle management from generation to verification with comprehensive error handling and fallback mechanisms
+- **Status**: ✅ PRODUCTION READY - JWT-signed Canny SSO operational with secure token generation, comprehensive testing (6/6 tests passing), and seamless integration ready for immediate deployment
+
 ### TICKET 1 & 2: Support Page with Canny Feedback Integration - PRODUCTION READY ✅ (July 31, 2025)
 - **Achievement**: Successfully implemented comprehensive support center with embedded Canny feedback widget and help resources
 - **User Menu Integration**:

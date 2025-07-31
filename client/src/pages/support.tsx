@@ -40,23 +40,36 @@ export function Support() {
     script.onload = () => {
       try {
         if (window.Canny) {
+          // Get Canny configuration from environment variables
+          const cannyBoardToken = import.meta.env.VITE_CANNY_BOARD_TOKEN;
+          const cannyAppId = import.meta.env.VITE_CANNY_APP_ID;
+          
+          if (!cannyBoardToken || !cannyAppId) {
+            console.warn('Canny configuration missing. Please set VITE_CANNY_BOARD_TOKEN and VITE_CANNY_APP_ID environment variables.');
+            setCannyError(true);
+            return;
+          }
+
           // Initialize Canny
           window.Canny('render', {
-            boardToken: 'your-canny-board-token', // Replace with actual token
+            boardToken: cannyBoardToken,
             basePath: null, // Use default Canny URL
             ssoToken: null, // For SSO integration if needed
           });
 
           // Identify user if authenticated
           if (user) {
+            const typedUser = user as any; // Type assertion for user object
             window.Canny('identify', {
-              appID: 'your-canny-app-id', // Replace with actual app ID
+              appID: cannyAppId,
               user: {
-                email: user.email,
-                name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-                id: user.id,
-                // Add any additional user data
-                created: user.createdAt,
+                email: typedUser.email || '',
+                name: `${typedUser.firstName || ''} ${typedUser.lastName || ''}`.trim() || typedUser.email || 'User',
+                id: typedUser.id || '',
+                // Add any additional user data for Canny analytics
+                created: typedUser.createdAt || new Date().toISOString(),
+                // Add user role for feedback categorization
+                role: typedUser.role || 'user',
               },
             });
           }

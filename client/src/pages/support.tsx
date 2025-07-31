@@ -2,6 +2,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
 import { 
   HelpCircle, 
   Mail, 
@@ -12,20 +16,165 @@ import {
   ExternalLink,
   Phone,
   Clock,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle
 } from "lucide-react";
 
+// Declare Canny types for TypeScript
+declare global {
+  interface Window {
+    Canny: any;
+  }
+}
+
 export function Support() {
+  const { user } = useAuth();
+  const [cannyLoaded, setCannyLoaded] = useState(false);
+  const [cannyError, setCannyError] = useState(false);
+
+  useEffect(() => {
+    // Load Canny script
+    const script = document.createElement('script');
+    script.src = 'https://canny.io/sdk.js';
+    script.async = true;
+    script.onload = () => {
+      try {
+        if (window.Canny) {
+          // Initialize Canny
+          window.Canny('render', {
+            boardToken: 'your-canny-board-token', // Replace with actual token
+            basePath: null, // Use default Canny URL
+            ssoToken: null, // For SSO integration if needed
+          });
+
+          // Identify user if authenticated
+          if (user) {
+            window.Canny('identify', {
+              appID: 'your-canny-app-id', // Replace with actual app ID
+              user: {
+                email: user.email,
+                name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+                id: user.id,
+                // Add any additional user data
+                created: user.createdAt,
+              },
+            });
+          }
+          
+          setCannyLoaded(true);
+        }
+      } catch (error) {
+        console.error('Error initializing Canny:', error);
+        setCannyError(true);
+      }
+    };
+    script.onerror = () => {
+      console.error('Failed to load Canny script');
+      setCannyError(true);
+    };
+
+    document.head.appendChild(script);
+
+    return () => {
+      // Cleanup script on unmount
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+    };
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Support Center</h1>
           <p className="text-lg text-gray-600">
-            Get help with your document management and find answers to common questions
+            Submit feedback, get help, and find answers to common questions
           </p>
         </div>
+
+        {/* Main Content with Tabs */}
+        <Tabs defaultValue="feedback" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="feedback" className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Submit Feedback
+            </TabsTrigger>
+            <TabsTrigger value="help" className="flex items-center gap-2">
+              <HelpCircle className="h-4 w-4" />
+              Help & Support
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Feedback Tab */}
+          <TabsContent value="feedback" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-blue-600" />
+                  Share Your Feedback
+                </CardTitle>
+                <CardDescription>
+                  Help us improve MyHome by sharing your ideas, reporting bugs, or requesting new features
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Canny Widget Container */}
+                <div className="min-h-[600px] w-full">
+                  {cannyError && (
+                    <Alert className="mb-4">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Unable to load feedback widget. You can still submit feedback directly at:{" "}
+                        <a 
+                          href="https://myhome.canny.io" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline font-medium"
+                        >
+                          myhome.canny.io
+                        </a>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {!cannyLoaded && !cannyError && (
+                    <div className="flex items-center justify-center h-96">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-500">Loading feedback widget...</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Canny widget will render here */}
+                  <div data-canny className={cannyLoaded ? 'block' : 'hidden'}></div>
+                  
+                  {/* Fallback link */}
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-2">
+                      Having trouble with the widget? Submit feedback directly:
+                    </p>
+                    <Button variant="outline" asChild>
+                      <a 
+                        href="https://myhome.canny.io" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Open Feedback Portal
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Help Tab */}
+          <TabsContent value="help" className="space-y-6">
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -227,22 +376,24 @@ export function Support() {
           </CardContent>
         </Card>
 
-        {/* Contact Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-600 mb-4">
-            Still need help? Our support team is here to assist you.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button>
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Start Live Chat
-            </Button>
-            <Button variant="outline">
-              <Mail className="mr-2 h-4 w-4" />
-              Email Support
-            </Button>
-          </div>
-        </div>
+            {/* Contact Footer */}
+            <div className="mt-8 text-center">
+              <p className="text-gray-600 mb-4">
+                Still need help? Our support team is here to assist you.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Start Live Chat
+                </Button>
+                <Button variant="outline">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Email Support
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

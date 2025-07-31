@@ -36,10 +36,24 @@ export function setupSimpleAuth(app: Express) {
 }
 
 export const requireAuth: RequestHandler = (req: any, res, next) => {
-  if (!req.session?.user) {
+  // Check both session-based auth (simpleAuth) and passport auth
+  const sessionUser = req.session?.user;
+  const passportUser = req.user;
+  
+  // Use either auth method
+  const user = sessionUser || passportUser;
+  
+  if (!user) {
     return res.status(401).json({ message: "Authentication required" });
   }
   
-  req.user = req.session.user;
+  // Ensure req.user is set for both auth methods
+  req.user = user;
+  
+  // Also ensure session compatibility
+  if (!req.session?.user && user) {
+    req.session.user = user;
+  }
+  
   next();
 };

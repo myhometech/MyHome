@@ -31,6 +31,7 @@ import { InsightsPage } from "@/pages/insights";
 import DocumentPage from "@/pages/document";
 import UnifiedDocuments from "@/pages/unified-documents";
 import InsightsFirstPage from "@/pages/insights-first";
+import { Support } from "@/pages/support";
 
 
 function Router() {
@@ -72,6 +73,9 @@ function Router() {
           <Route path="/settings">
             {() => { setLocation("/login"); return null; }}
           </Route>
+          <Route path="/support">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
           <Route path="/admin">
             {() => { setLocation("/login"); return null; }}
           </Route>
@@ -84,6 +88,7 @@ function Router() {
           <Route path="/insights" component={InsightsPage} />
           <Route path="/document/:id" component={DocumentPage} />
           <Route path="/settings" component={Settings} />
+          <Route path="/support" component={Support} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
           <Route path="/pricing" component={Pricing} />

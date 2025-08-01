@@ -212,72 +212,76 @@ export default function InsightsFirstPage() {
         <div className="space-y-6">
           {/* Priority-Based Insight Navigation Buttons */}
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">AI Insights</h3>
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold">AI Insights</h3>
               </div>
               
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant={insightStatusFilter === 'open' && insightPriorityFilter === 'all' ? 'default' : 'outline'}
-                  className="flex items-center gap-2"
+                  size="sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5"
                   onClick={() => {
                     setInsightStatusFilter('open');
                     setInsightPriorityFilter('all');
                     setInsightTypeFilter('all');
                   }}
                 >
-                  <ListTodo className="h-4 w-4" />
-                  <span>Open Items</span>
-                  <Badge variant="secondary" className="ml-1">
+                  <ListTodo className="h-5 w-5" />
+                  <span className="font-medium">Open Items</span>
+                  <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs">
                     {allInsights.filter(i => i.status === 'open' || !i.status).length}
                   </Badge>
                 </Button>
 
                 <Button
                   variant={insightPriorityFilter === 'high' ? 'default' : 'outline'}
-                  className="flex items-center gap-2 border-red-200 bg-red-50 hover:bg-red-100"
+                  size="sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 border-red-200 bg-red-50 hover:bg-red-100"
                   onClick={() => {
                     setInsightPriorityFilter('high');
                     setInsightStatusFilter('open');
                     setInsightTypeFilter('all');
                   }}
                 >
-                  <AlertTriangle className="h-4 w-4" />
-                  <span>High Priority</span>
-                  <Badge variant="secondary" className="ml-1">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <span className="font-medium">High Priority</span>
+                  <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs">
                     {allInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status)).length}
                   </Badge>
                 </Button>
 
                 <Button
                   variant={insightPriorityFilter === 'medium' ? 'default' : 'outline'}
-                  className="flex items-center gap-2 border-yellow-200 bg-yellow-50 hover:bg-yellow-100"
+                  size="sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 border-yellow-200 bg-yellow-50 hover:bg-yellow-100"
                   onClick={() => {
                     setInsightPriorityFilter('medium');
                     setInsightStatusFilter('open');
                     setInsightTypeFilter('all');
                   }}
                 >
-                  <Clock className="h-4 w-4" />
-                  <span>Medium Priority</span>
-                  <Badge variant="secondary" className="ml-1">
+                  <Clock className="h-5 w-5 text-yellow-600" />
+                  <span className="font-medium">Medium Priority</span>
+                  <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs">
                     {allInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length}
                   </Badge>
                 </Button>
 
                 <Button
                   variant={insightStatusFilter === 'resolved' ? 'default' : 'outline'}
-                  className="flex items-center gap-2 border-green-200 bg-green-50 hover:bg-green-100"
+                  size="sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 border-green-200 bg-green-50 hover:bg-green-100"
                   onClick={() => {
                     setInsightStatusFilter('resolved');
                     setInsightPriorityFilter('all');
                     setInsightTypeFilter('all');
                   }}
                 >
-                  <CheckCircle className="h-4 w-4" />
-                  <span>Resolved</span>
-                  <Badge variant="secondary" className="ml-1">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="font-medium">Resolved</span>
+                  <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs">
                     {allInsights.filter(i => i.status === 'resolved').length}
                   </Badge>
                 </Button>
@@ -410,20 +414,21 @@ export default function InsightsFirstPage() {
 
           {/* Document Category Navigation Buttons */}
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Document Categories</h3>
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold">Document Categories</h3>
               </div>
               
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant={selectedCategory === null ? 'default' : 'outline'}
-                  className="flex items-center gap-2"
+                  size="sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5"
                   onClick={() => setSelectedCategory(null)}
                 >
-                  <FolderOpen className="h-4 w-4" />
-                  <span>All Documents</span>
-                  <Badge variant="secondary" className="ml-1">
+                  <FolderOpen className="h-5 w-5" />
+                  <span className="font-medium">All Documents</span>
+                  <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs">
                     {documents.length}
                   </Badge>
                 </Button>
@@ -434,12 +439,13 @@ export default function InsightsFirstPage() {
                     <Button
                       key={category.id}
                       variant={selectedCategory === category.id ? 'default' : 'outline'}
-                      className="flex items-center gap-2"
+                      size="sm"
+                      className="flex items-center gap-1.5 px-3 py-1.5"
                       onClick={() => setSelectedCategory(category.id)}
                     >
-                      <FolderOpen className="h-4 w-4" />
-                      <span>{category.name}</span>
-                      <Badge variant="secondary" className="ml-1">
+                      <FolderOpen className="h-5 w-5" />
+                      <span className="font-medium">{category.name}</span>
+                      <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs">
                         {categoryDocs.length}
                       </Badge>
                     </Button>

@@ -283,22 +283,7 @@ export default function InsightsFirstPage() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-4 text-gray-600">Loading insights...</p>
               </div>
-            ) : insights.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">All Clear!</h3>
-                  <p className="text-gray-600 mb-4">
-                    No {insightStatusFilter !== 'all' ? insightStatusFilter : ''} insights right now. 
-                    Upload documents to generate AI insights.
-                  </p>
-                  <Button onClick={() => setShowUploadDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Document
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
+            ) : insights.length > 0 && (
               <div className="space-y-4">
                 {insights.map((insight) => (
                   <Card key={insight.id} className="hover:shadow-md transition-shadow">

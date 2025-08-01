@@ -1831,6 +1831,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEST TICKET 2: Redirect endpoint for SendGrid DNS compatibility
+  // Permanent redirect from expected DNS path to actual implementation
+  app.all('/api/email/inbound', (req, res) => {
+    const requestId = Math.random().toString(36).substring(2, 15);
+    console.log(`[${requestId}] Redirecting SendGrid webhook from /api/email/inbound → /api/email-ingest`);
+    
+    // Use 307 (Temporary Redirect) to preserve POST method and body
+    res.redirect(307, '/api/email-ingest');
+  });
+
   // DOC-301: SendGrid webhook endpoint for email ingestion
   app.post('/api/email-ingest', async (req, res) => {
     const startTime = Date.now();

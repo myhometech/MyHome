@@ -52,8 +52,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   const [, setLocation] = useLocation();
   const { hasFeature } = useFeatures();
   
-  // Main tab state (insights vs documents)
-  const [mainTab, setMainTab] = useState('insights');
+  // No longer using tabs - insights and documents are in single view
   
   // Insights filters and view state
   const [activeTab, setActiveTab] = useState('open');
@@ -81,9 +80,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
       const filterParam = urlParams.get('filter');
       const tabParam = urlParams.get('tab');
       
-      if (tabParam && ['insights', 'documents'].includes(tabParam)) {
-        setMainTab(tabParam);
-      }
+      // No longer using tab state
       
       if (filterParam) {
         switch (filterParam) {
@@ -109,9 +106,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   }, []);
 
   // Update URL when filters change
-  const updateURL = (tab: string, filter?: string) => {
+  const updateURL = (filter?: string) => {
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', tab);
     if (filter) {
       url.searchParams.set('filter', filter);
     } else {
@@ -159,16 +155,14 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     },
   });
 
-  // Fetch documents for documents tab
+  // Fetch documents for document library
   const { data: documents = [], isLoading: documentsLoading } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
-    enabled: mainTab === 'documents',
   });
 
   // Fetch categories
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
-    enabled: mainTab === 'documents',
   });
 
   const insights = insightsData?.insights || [];
@@ -183,8 +177,6 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle dashboard card clicks
   const handleDashboardCardClick = (filterType: string, filterValue: string, label: string) => {
-    setMainTab('insights');
-    
     // Apply the filter
     if (filterType === 'priority') {
       setPriorityFilter(filterValue);
@@ -199,7 +191,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     
     // Update URL
     const urlFilter = filterType === 'priority' ? `${filterValue}-priority` : filterValue;
-    updateURL('insights', urlFilter);
+    updateURL(urlFilter);
   };
 
   // Clear all filters
@@ -209,7 +201,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     setPriorityFilter('all');
     setSortBy('priority');
     setActiveDashboardFilter(null);
-    updateURL(mainTab);
+    updateURL();
   };
 
   // Handle status updates
@@ -343,24 +335,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         </div>
       )}
 
-      {/* Main Tabbed Interface */}
-      <Tabs value={mainTab} onValueChange={(value) => {
-        setMainTab(value);
-        updateURL(value, activeDashboardFilter ? `${activeDashboardFilter.value}${activeDashboardFilter.type === 'priority' ? '-priority' : ''}` : undefined);
-      }}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="insights" className="flex items-center gap-2">
-            <Brain className="h-4 w-4" />
-            Insights ({insights.length})
-          </TabsTrigger>
-          <TabsTrigger value="documents" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Document Library ({filteredDocuments.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Insights Tab */}
-        <TabsContent value="insights" className="space-y-4">
+      {/* AI Insights Section */}
+      <div className="space-y-4">
           {/* Insights Filters */}
           <Card>
             <CardHeader>
@@ -507,10 +483,17 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
               </CardContent>
             </Card>
           )}
-        </TabsContent>
+      </div>
 
-        {/* Documents Tab */}
-        <TabsContent value="documents" className="space-y-4">
+      {/* Document Library Section */}
+      <div className="space-y-4">
+        <div className="flex items-center space-x-3 pt-6 border-t">
+          <FileText className="h-8 w-8 text-blue-600" />
+          <div>
+            <h2 className="text-2xl font-bold">Document Library</h2>
+            <p className="text-gray-600">Manage and organize your documents</p>
+          </div>
+        </div>
           {/* Upload Zone */}
           <UploadZone onUpload={() => {}} />
 
@@ -559,9 +542,10 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                   key={document.id}
                   document={{
                     ...document,
-                    uploadedAt: document.uploadedAt ? new Date(document.uploadedAt).toISOString() : ""
+                    uploadedAt: document.uploadedAt ? new Date(document.uploadedAt).toISOString() : "",
+                    expiryDate: document.expiryDate ? new Date(document.expiryDate).toISOString() : null
                   }}
-                  onDocumentClick={(doc: any) => setLocation(`/document/${doc.id}`)}
+                  onClick={() => setLocation(`/document/${document.id}`)}
                   viewMode={viewMode}
                 />
               ))}
@@ -582,8 +566,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }

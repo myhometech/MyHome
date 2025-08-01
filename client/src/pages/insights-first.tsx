@@ -92,7 +92,12 @@ export default function InsightsFirstPage() {
     queryKey: ["/api/insights", insightStatusFilter, insightTypeFilter !== "all" ? insightTypeFilter : undefined, insightPriorityFilter !== "all" ? insightPriorityFilter : undefined, sortBy],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (insightStatusFilter && insightStatusFilter !== 'all') params.append('status', insightStatusFilter);
+      // Only add status filter if it's not "all"
+      if (insightStatusFilter && insightStatusFilter !== 'all') {
+        params.append('status', insightStatusFilter);
+      } else if (insightStatusFilter === 'all') {
+        params.append('status', 'all');
+      }
       if (insightTypeFilter && insightTypeFilter !== 'all') params.append('type', insightTypeFilter);
       if (insightPriorityFilter && insightPriorityFilter !== 'all') params.append('priority', insightPriorityFilter);
       if (sortBy) params.append('sort', sortBy);

@@ -27,6 +27,7 @@ import { setupOCRErrorRoutes } from './routes/ocrErrorRoutes.js';
 import cors from 'cors';
 import passport from './passport';
 import authRoutes from './authRoutes';
+import busboy from 'busboy';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -1841,8 +1842,230 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.redirect(307, '/api/email-ingest');
   });
 
-  // DOC-301: SendGrid webhook endpoint for email ingestion
-  app.post('/api/email-ingest', async (req, res) => {
+  // TEST TICKET 3: Multipart/form-data parsing middleware for SendGrid compatibility
+  const parseMultipartFormData = (req: any, res: any, next: any) => {
+    const contentType = req.get('content-type') || '';
+    
+    // If content-type is JSON, proceed normally
+    if (contentType.includes('application/json')) {
+      return next();
+    }
+    
+    // If content-type is multipart/form-data, parse with busboy
+    if (contentType.includes('multipart/form-data')) {
+      const requestId = Math.random().toString(36).substring(2, 15);
+      console.log(`[${requestId}] Parsing multipart/form-data from SendGrid`);
+      
+      // Store original request for debugging
+      let rawBody = '';
+      req.on('data', (chunk: Buffer) => {
+        rawBody += chunk.toString();
+      });
+      
+      const bb = busboy({ headers: req.headers });
+      const fields: any = {};
+      const attachments: any[] = [];
+      let filesProcessing = 0;
+      
+      // Handle form fields
+      bb.on('field', (name: string, value: string) => {
+        console.log(`[${requestId}] Form field: ${name} = ${value?.substring(0, 100)}${value?.length > 100 ? '...' : ''}`);
+        fields[name] = value;
+      });
+      
+      // Handle file attachments
+      bb.on('file', (name: string, file: any, info: any) => {
+        const { filename, mimeType } = info;
+        console.log(`[${requestId}] File attachment: ${filename} (${mimeType})`);
+        filesProcessing++;
+        
+        const chunks: Buffer[] = [];
+        file.on('data', (chunk: Buffer) => chunks.push(chunk));
+        file.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          attachments.push({
+            filename: filename || `attachment_${Date.now()}`,
+            type: mimeType || 'application/octet-stream',
+            content: buffer.toString('base64')
+          });
+          filesProcessing--;
+          
+          // If all files processed and form is finished, proceed
+          if (filesProcessing === 0 && req._multipartFinished) {
+            completeMultipartParsing();
+          }
+        });
+      });
+      
+      const completeMultipartParsing = () => {
+        console.log(`[${requestId}] Multipart parsing complete:`, {
+          fieldCount: Object.keys(fields).length,
+          attachmentCount: attachments.length,
+          fieldNames: Object.keys(fields)
+        });
+        
+        // Convert form fields to expected JSON structure
+        req.body = {
+          to: fields.to,
+          from: fields.from || fields.sender,
+          subject: fields.subject,
+          text: fields.text,
+          html: fields.html,
+          attachments: attachments.length > 0 ? attachments : undefined,
+          headers: fields.headers ? (typeof fields.headers === 'string' ? JSON.parse(fields.headers) : fields.headers) : {}
+        };
+        
+        console.log(`[${requestId}] Converted multipart to JSON:`, {
+          to: req.body.to,
+          from: req.body.from,
+          subject: req.body.subject,
+          hasText: !!req.body.text,
+          attachmentCount: req.body.attachments?.length || 0
+        });
+        
+        next();
+      };
+      
+      bb.on('finish', () => {
+        req._multipartFinished = true;
+        if (filesProcessing === 0) {
+          completeMultipartParsing();
+        }
+      });
+      
+      bb.on('error', (err: Error) => {
+        console.error(`[${requestId}] Multipart parsing error:`, err);
+        console.error(`[${requestId}] Raw body sample:`, rawBody.substring(0, 500));
+        res.status(400).json({ 
+          message: "Failed to parse multipart form data",
+          error: err.message,
+          requestId 
+        });
+      });
+      
+      // Stream the request directly to busboy
+      
+      req.pipe(bb);
+    } else {
+      // Unsupported content type
+      console.warn(`Unsupported content-type for email ingestion: ${contentType}`);
+      res.status(400).json({ 
+        message: "Unsupported content-type. Expected application/json or multipart/form-data" 
+      });
+    }
+  };
+
+  // TEST TICKET 3: Create multipart-specific endpoint for testing
+  app.post('/api/email-ingest-multipart', (req: any, res: any) => {
+    const contentType = req.get('content-type') || '';
+    const requestId = Math.random().toString(36).substring(2, 15);
+    
+    if (!contentType.includes('multipart/form-data')) {
+      return res.status(400).json({ 
+        message: "This endpoint only accepts multipart/form-data",
+        requestId 
+      });
+    }
+    
+    console.log(`[${requestId}] Processing multipart/form-data from SendGrid`);
+    
+    const bb = busboy({ headers: req.headers });
+    const fields: any = {};
+    const attachments: any[] = [];
+    let filesProcessing = 0;
+    
+    // Handle form fields
+    bb.on('field', (name: string, value: string) => {
+      console.log(`[${requestId}] Form field: ${name} = ${value?.substring(0, 100)}${value?.length > 100 ? '...' : ''}`);
+      fields[name] = value;
+    });
+    
+    // Handle file attachments
+    bb.on('file', (name: string, file: any, info: any) => {
+      const { filename, mimeType } = info;
+      console.log(`[${requestId}] File attachment: ${filename} (${mimeType})`);
+      filesProcessing++;
+      
+      const chunks: Buffer[] = [];
+      file.on('data', (chunk: Buffer) => chunks.push(chunk));
+      file.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        attachments.push({
+          filename: filename || `attachment_${Date.now()}`,
+          type: mimeType || 'application/octet-stream',
+          content: buffer.toString('base64')
+        });
+        filesProcessing--;
+        
+        // If all files processed and form is finished, complete processing
+        if (filesProcessing === 0 && req._multipartFinished) {
+          completeMultipartProcessing();
+        }
+      });
+    });
+    
+    const completeMultipartProcessing = () => {
+      console.log(`[${requestId}] Multipart parsing complete:`, {
+        fieldCount: Object.keys(fields).length,
+        attachmentCount: attachments.length,
+        fieldNames: Object.keys(fields)
+      });
+      
+      // Convert form fields to expected JSON structure
+      const emailData = {
+        to: fields.to,
+        from: fields.from || fields.sender,
+        subject: fields.subject,
+        text: fields.text,
+        html: fields.html,
+        attachments: attachments.length > 0 ? attachments : undefined,
+        headers: fields.headers ? (typeof fields.headers === 'string' ? JSON.parse(fields.headers) : fields.headers) : {}
+      };
+      
+      console.log(`[${requestId}] Converted multipart to JSON:`, {
+        to: emailData.to,
+        from: emailData.from,
+        subject: emailData.subject,
+        hasText: !!emailData.text,
+        attachmentCount: emailData.attachments?.length || 0
+      });
+      
+      // Simulate successful processing
+      res.json({
+        message: "Multipart email processed successfully",
+        requestId,
+        emailData: {
+          to: emailData.to,
+          from: emailData.from,
+          subject: emailData.subject,
+          textLength: emailData.text?.length || 0,
+          attachmentCount: emailData.attachments?.length || 0
+        },
+        success: true
+      });
+    };
+    
+    bb.on('finish', () => {
+      req._multipartFinished = true;
+      if (filesProcessing === 0) {
+        completeMultipartProcessing();
+      }
+    });
+    
+    bb.on('error', (err: Error) => {
+      console.error(`[${requestId}] Multipart parsing error:`, err);
+      res.status(400).json({ 
+        message: "Failed to parse multipart form data",
+        error: err.message,
+        requestId 
+      });
+    });
+    
+    req.pipe(bb);
+  });
+
+  // DOC-301: SendGrid webhook endpoint for email ingestion (with multipart support)
+  app.post('/api/email-ingest', parseMultipartFormData, async (req, res) => {
     const startTime = Date.now();
     const requestId = Math.random().toString(36).substring(2, 15);
     

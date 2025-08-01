@@ -30,7 +30,79 @@ import UploadZone from '@/components/upload-zone';
 import { useFeatures } from '@/hooks/useFeatures';
 import type { Category, Document, DocumentInsight } from '@shared/schema';
 
+// Compact insight button component for button-style layout
+interface CompactInsightButtonProps {
+  insight: DocumentInsight;
+  onStatusUpdate: (insightId: string, status: 'open' | 'dismissed' | 'resolved') => void;
+}
 
+function CompactInsightButton({ insight, onStatusUpdate }: CompactInsightButtonProps) {
+  // Icon mapping for different insight types
+  const getInsightIcon = (type: string) => {
+    switch (type) {
+      case 'action_items': return <AlertCircle className="h-4 w-4" />;
+      case 'key_dates': return <Clock className="h-4 w-4" />;
+      case 'financial_info': return <TrendingUp className="h-4 w-4" />;
+      case 'contacts': return <FileText className="h-4 w-4" />;
+      case 'compliance': return <CheckCircle className="h-4 w-4" />;
+      case 'summary': return <Brain className="h-4 w-4" />;
+      default: return <FileText className="h-4 w-4" />;
+    }
+  };
+
+  // Priority color mapping
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100';
+      case 'medium': return 'border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100';
+      case 'low': return 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100';
+      default: return 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100';
+    }
+  };
+
+  // Status indicator
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'resolved': return 'bg-green-500';
+      case 'dismissed': return 'bg-gray-500';
+      default: return 'bg-blue-500';
+    }
+  };
+
+  return (
+    <div 
+      className={`relative inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${getPriorityColor(insight.priority || 'medium')}`}
+      onClick={() => {
+        // Toggle between open and resolved status when clicked
+        const newStatus = insight.status === 'resolved' ? 'open' : 'resolved';
+        onStatusUpdate(insight.id.toString(), newStatus);
+      }}
+    >
+      {/* Status indicator dot */}
+      <div 
+        className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${getStatusColor(insight.status || 'open')}`} 
+        title={`Status: ${insight.status || 'open'}`}
+      />
+      
+      {/* Insight icon */}
+      <div className="flex-shrink-0">
+        {getInsightIcon(insight.type || 'summary')}
+      </div>
+      
+      {/* Insight title */}
+      <span className="truncate max-w-[200px]" title={insight.title}>
+        {insight.title}
+      </span>
+      
+      {/* Priority badge */}
+      {insight.priority === 'high' && (
+        <div className="flex-shrink-0">
+          <div className="w-1.5 h-1.5 bg-red-500 rounded-full" title="High Priority" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface InsightsResponse {
   insights: DocumentInsight[];
@@ -205,8 +277,25 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   };
 
   // Handle status updates
-  const handleStatusUpdate = (insightId: string, status: 'open' | 'dismissed' | 'resolved') => {
-    refetch();
+  const handleStatusUpdate = async (insightId: string, status: 'open' | 'dismissed' | 'resolved') => {
+    try {
+      const response = await fetch(`/api/insights/${insightId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update insight status');
+      }
+
+      // Refetch insights to update the UI
+      refetch();
+    } catch (error) {
+      console.error('Error updating insight status:', error);
+    }
   };
 
   // Filter documents for document tab
@@ -455,15 +544,19 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
               priorityFilter={priorityFilter} 
             />
           ) : insights.length > 0 ? (
-            <div className="space-y-4">
-              {insights.map((insight) => (
-                <InsightCard
-                  key={insight.id}
-                  insight={insight}
-                  onStatusUpdate={handleStatusUpdate}
-                />
-              ))}
-            </div>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex flex-wrap gap-3">
+                  {insights.map((insight) => (
+                    <CompactInsightButton
+                      key={insight.id}
+                      insight={insight}
+                      onStatusUpdate={handleStatusUpdate}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardContent className="p-8 text-center">

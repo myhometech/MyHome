@@ -2185,8 +2185,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (attachments && attachments.length > 0) {
         const { attachmentProcessor } = await import('./attachmentProcessor');
+        
+        // DOC-302: Map SendGrid attachment format to AttachmentProcessor format
+        const formattedAttachments = attachments.map((attachment: any) => ({
+          filename: attachment.filename || `attachment_${Date.now()}`,
+          content: attachment.content, // Base64 string from SendGrid
+          contentType: attachment.type || 'application/octet-stream', // Map 'type' -> 'contentType'
+          size: attachment.content?.length || 0
+        }));
+        
         attachmentResults = await attachmentProcessor.processEmailAttachments(
-          attachments,
+          formattedAttachments,
           user.id,
           { from, subject: subject || 'Email Document', requestId }
         );

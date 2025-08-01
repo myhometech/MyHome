@@ -59,7 +59,7 @@ export default function InsightsFirstPage() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [insightTypeFilter, setInsightTypeFilter] = useState<string>("all");
   const [insightPriorityFilter, setInsightPriorityFilter] = useState<string>("all");
-  const [insightStatusFilter, setInsightStatusFilter] = useState<string>("open");
+  const [insightStatusFilter, setInsightStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("priority");
 
   const { hasFeature } = useFeatures();
@@ -263,10 +263,10 @@ export default function InsightsFirstPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="open">Open</SelectItem>
                       <SelectItem value="resolved">Resolved</SelectItem>
                       <SelectItem value="dismissed">Dismissed</SelectItem>
-                      <SelectItem value="all">All Status</SelectItem>
                     </SelectContent>
                   </Select>
 

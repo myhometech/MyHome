@@ -11,6 +11,10 @@ import {
   Filter, 
   List, 
   Calendar as CalendarIcon,
+  Calendar,
+  DollarSign,
+  Users,
+  Shield,
   X,
   Grid,
   FileText,
@@ -257,13 +261,29 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
               </div>
             ) : insights.length > 0 ? (
               <div className="flex flex-wrap gap-3">
-                {insights.map((insight) => (
-                  <CompactInsightButton
-                    key={insight.id}
-                    insight={insight}
-                    onStatusUpdate={handleStatusUpdate}
-                  />
-                ))}
+                {/* Group insights by type and create category buttons */}
+                {Array.from(new Set(insights.map(i => i.type))).map((type) => {
+                  const typeInsights = insights.filter(i => i.type === type);
+                  const count = typeInsights.length;
+                  const hasHighPriority = typeInsights.some(i => i.priority === 'high');
+                  
+                  return (
+                    <Button
+                      key={type}
+                      variant="outline"
+                      className={`flex items-center gap-2 ${hasHighPriority ? 'border-red-200 bg-red-50 hover:bg-red-100' : ''}`}
+                    >
+                      {type === 'action_items' && <CheckCircle className="h-4 w-4" />}
+                      {type === 'key_dates' && <Calendar className="h-4 w-4" />}
+                      {type === 'financial_info' && <DollarSign className="h-4 w-4" />}
+                      {type === 'contacts' && <Users className="h-4 w-4" />}
+                      {type === 'compliance' && <Shield className="h-4 w-4" />}
+                      {type === 'summary' && <FileText className="h-4 w-4" />}
+                      <span className="capitalize">{type.replace('_', ' ')}</span>
+                      <Badge variant="secondary" className="ml-1">{count}</Badge>
+                    </Button>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8">

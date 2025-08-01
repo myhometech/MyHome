@@ -127,7 +127,6 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // No longer using tabs - insights and documents are in single view
   
   // Insights filters and view state
-  const [activeTab, setActiveTab] = useState('open');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -190,8 +189,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Map filters for API calls
   const getAPIStatusFilter = () => {
-    if (activeTab === 'all') return statusFilter !== 'all' ? statusFilter : 'all';
-    return activeTab;
+    return statusFilter !== 'all' ? statusFilter : 'all';
   };
 
   // Fetch all insights for dashboard summary
@@ -239,6 +237,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   const insights = insightsData?.insights || [];
   const allInsights = allInsightsData?.insights || [];
+  
+  // Debug logging
+  console.log('Current insights:', insights);
+  console.log('Current statusFilter:', statusFilter);
+  console.log('Current API call params:', { statusFilter, typeFilter, priorityFilter, sortBy });
   
   // Calculate dashboard statistics
   const openCount = allInsights.filter(i => i.status === 'open' || !i.status).length;
@@ -638,7 +641,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                     uploadedAt: document.uploadedAt ? new Date(document.uploadedAt).toISOString() : "",
                     expiryDate: document.expiryDate ? new Date(document.expiryDate).toISOString() : null
                   }}
-                  onClick={() => setLocation(`/document/${document.id}`)}
+
                   viewMode={viewMode}
                 />
               ))}

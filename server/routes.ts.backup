@@ -16,7 +16,7 @@ import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
 import { featureFlagService } from './featureFlagService';
 import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQuery } from './monitoring';
-
+import { emailService } from './emailService';
 import { StorageService, storageProvider } from './storage/StorageService';
 import { backupRoutes } from './routes/backup.js';
 import advancedScanningRoutes from './routes/advancedScanning.js';
@@ -27,6 +27,7 @@ import { setupOCRErrorRoutes } from './routes/ocrErrorRoutes.js';
 import cors from 'cors';
 import passport from './passport';
 import authRoutes from './authRoutes';
+import busboy from 'busboy';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -1721,6 +1722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email forwarding endpoints - Using new GCS+SendGrid pipeline
   
   // Import Stripe route handlers
   const { 
@@ -1834,6 +1836,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/email/forwarding-address', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
+      const EmailService = (await import('./emailService')).EmailService;
+      const emailService = new EmailService();
+      const forwardingData = await emailService.getForwardingAddress(userId);
+      res.json(forwardingData);
     } catch (error) {
       console.error("Error getting forwarding address:", error);
       res.status(500).json({ message: "Failed to get forwarding address" });
@@ -1872,7 +1878,489 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get email forwarding history
+  app.get('/api/email/history', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const emailHistory = await storage.getEmailForwards(userId);
+      res.json(emailHistory);
+    } catch (error) {
+      console.error("Error fetching email history:", error);
+      res.status(500).json({ message: "Failed to fetch email history" });
+    }
+  });
 
+
+
+
+
+  // TEST TICKET 3: Create multipart-specific endpoint for testing
+  app.post('/api/email-ingest-multipart', (req: any, res: any) => {
+    const contentType = req.get('content-type') || '';
+    const requestId = Math.random().toString(36).substring(2, 15);
+    
+    if (!contentType.includes('multipart/form-data')) {
+      return res.status(400).json({ 
+        message: "This endpoint only accepts multipart/form-data",
+        requestId 
+      });
+    }
+    
+    console.log(`[${requestId}] Processing multipart/form-data from SendGrid`);
+    
+    const bb = busboy({ headers: req.headers });
+    const fields: any = {};
+    const attachments: any[] = [];
+    let filesProcessing = 0;
+    
+    // Handle form fields
+    bb.on('field', (name: string, value: string) => {
+      console.log(`[${requestId}] Form field: ${name} = ${value?.substring(0, 100)}${value?.length > 100 ? '...' : ''}`);
+      fields[name] = value;
+    });
+    
+    // Handle file attachments
+    bb.on('file', (name: string, file: any, info: any) => {
+      const { filename, mimeType } = info;
+      console.log(`[${requestId}] File attachment: ${filename} (${mimeType})`);
+      filesProcessing++;
+      
+      const chunks: Buffer[] = [];
+      file.on('data', (chunk: Buffer) => chunks.push(chunk));
+      file.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        attachments.push({
+          filename: filename || `attachment_${Date.now()}`,
+          type: mimeType || 'application/octet-stream',
+          content: buffer.toString('base64')
+        });
+        filesProcessing--;
+        
+        // If all files processed and form is finished, complete processing
+        if (filesProcessing === 0 && req._multipartFinished) {
+          completeMultipartProcessing();
+        }
+      });
+    });
+    
+    const completeMultipartProcessing = () => {
+      console.log(`[${requestId}] Multipart parsing complete:`, {
+        fieldCount: Object.keys(fields).length,
+        attachmentCount: attachments.length,
+        fieldNames: Object.keys(fields)
+      });
+      
+      // Convert form fields to expected JSON structure
+      const emailData = {
+        to: fields.to,
+        from: fields.from || fields.sender,
+        subject: fields.subject,
+        text: fields.text,
+        html: fields.html,
+        attachments: attachments.length > 0 ? attachments : undefined,
+        headers: fields.headers ? (typeof fields.headers === 'string' ? JSON.parse(fields.headers) : fields.headers) : {}
+      };
+      
+      console.log(`[${requestId}] Converted multipart to JSON:`, {
+        to: emailData.to,
+        from: emailData.from,
+        subject: emailData.subject,
+        hasText: !!emailData.text,
+        attachmentCount: emailData.attachments?.length || 0
+      });
+      
+      // Simulate successful processing
+      res.json({
+        message: "Multipart email processed successfully",
+        requestId,
+        emailData: {
+          to: emailData.to,
+          from: emailData.from,
+          subject: emailData.subject,
+          textLength: emailData.text?.length || 0,
+          attachmentCount: emailData.attachments?.length || 0
+        },
+        success: true
+      });
+    };
+    
+    bb.on('finish', () => {
+      req._multipartFinished = true;
+      if (filesProcessing === 0) {
+        completeMultipartProcessing();
+      }
+    });
+    
+    bb.on('error', (err: Error) => {
+      console.error(`[${requestId}] Multipart parsing error:`, err);
+      res.status(400).json({ 
+        message: "Failed to parse multipart form data",
+        error: err.message,
+        requestId 
+      });
+    });
+    
+    req.pipe(bb);
+  });
+
+  // DOC-301: SendGrid webhook endpoint for email ingestion (with multipart support)
+  app.post('/api/email-ingest', parseMultipartFormData, async (req, res) => {
+    const startTime = Date.now();
+    const requestId = Math.random().toString(36).substring(2, 15);
+    
+    try {
+      // TICKET 2: Enhanced payload format and attachment field logging
+      const contentType = req.get('content-type') || 'unknown';
+      const bodyKeys = Object.keys(req.body || {});
+      const bodySize = JSON.stringify(req.body || {}).length;
+      
+      // TICKET 2: Analyze attachment field structure
+      const attachmentFieldAnalysis = analyzeAttachmentFields(req.body);
+      
+      console.log(`[${requestId}] SendGrid webhook received:`, {
+        headers: {
+          'user-agent': req.get('user-agent'),
+          'x-forwarded-for': req.get('x-forwarded-for'),
+          'content-type': contentType,
+          'sendgrid-id': req.get('x-sendgrid-event-id')
+        },
+        payload: {
+          contentType: contentType,
+          bodyKeys: bodyKeys,
+          bodySize: bodySize,
+          isMultipart: contentType.includes('multipart'),
+          isJson: contentType.includes('application/json')
+        },
+        attachmentFields: attachmentFieldAnalysis
+      });
+
+      // Validate SendGrid source
+      const isValidSendGridSource = validateSendGridSource(req);
+      if (!isValidSendGridSource) {
+        console.warn(`[${requestId}] Invalid SendGrid source rejected:`, {
+          ip: req.ip,
+          userAgent: req.get('user-agent'),
+          headers: req.headers
+        });
+        return res.status(403).json({ 
+          message: "Invalid source - not from SendGrid",
+          requestId 
+        });
+      }
+
+      // Extract email data from SendGrid webhook format
+      const { to, from, subject, text, html, attachments, headers } = req.body;
+      
+      // Validate required fields
+      if (!to || !from) {
+        console.error(`[${requestId}] Missing required email fields:`, { to, from });
+        return res.status(400).json({ 
+          message: "Missing required email fields (to, from)",
+          requestId 
+        });
+      }
+
+      // Log raw email metadata for support/debugging
+      const emailMetadata = {
+        requestId,
+        timestamp: new Date().toISOString(),
+        to,
+        from,
+        subject: subject || '(no subject)',
+        textLength: text?.length || 0,
+        htmlLength: html?.length || 0,
+        attachmentCount: attachments?.length || 0,
+        headers: headers || {},
+        processingStarted: startTime
+      };
+      
+      console.log(`[${requestId}] Processing email metadata:`, emailMetadata);
+
+      // Parse user from forwarding email address (e.g., user123@inbox.myhome.com)
+      const EmailService = (await import('./emailService')).EmailService;
+      const emailService = new EmailService();
+      const userId = await emailService.parseUserFromEmail(to);
+      
+      if (!userId) {
+        console.warn(`[${requestId}] No user found for email address:`, { 
+          to, 
+          from,
+          domain: to.split('@')[1] 
+        });
+        return res.status(200).json({ 
+          message: 'Email processed but no user found',
+          requestId,
+          to: to.replace(/^docs-[a-z0-9]+/, 'docs-***') // Mask for privacy
+        });
+      }
+
+      // Get user for processing
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        console.error(`[${requestId}] User ID found but user record missing:`, { userId });
+        return res.status(200).json({ 
+          message: 'User mapping found but user record missing',
+          requestId 
+        });
+      }
+
+      console.log(`[${requestId}] User association successful:`, {
+        userId: user.id,
+        userEmail: user.email?.replace(/(.{3}).*(@.*)/, '$1***$2') || 'no-email', // Mask email for privacy
+        forwardingAddress: to.replace(/^docs-[a-z0-9]+/, 'docs-***')
+      });
+
+      // Process attachments and email content
+      const processedAttachments = attachments?.map((attachment: any, index: number) => ({
+        index,
+        filename: attachment.filename || `attachment_${index}`,
+        contentType: attachment.type || 'application/octet-stream',
+        size: attachment.content?.length || 0,
+        hasContent: !!attachment.content
+      })) || [];
+
+      console.log(`[${requestId}] Attachment analysis:`, {
+        totalAttachments: processedAttachments.length,
+        attachmentDetails: processedAttachments
+      });
+
+      // DOC-302: Process attachments with comprehensive validation and GCS upload
+      let attachmentResults: {
+        processedAttachments: any[];
+        totalProcessed: number;
+        totalFailed: number;
+      } = {
+        processedAttachments: [],
+        totalProcessed: 0,
+        totalFailed: 0
+      };
+
+      if (attachments && attachments.length > 0) {
+        const { attachmentProcessor } = await import('./attachmentProcessor');
+        
+        // DOC-302: Map SendGrid attachment format to AttachmentProcessor format
+        const formattedAttachments = attachments.map((attachment: any) => ({
+          filename: attachment.filename || `attachment_${Date.now()}`,
+          content: attachment.content, // Base64 string from SendGrid
+          contentType: attachment.type || 'application/octet-stream', // Map 'type' -> 'contentType'
+          size: attachment.content?.length || 0
+        }));
+        
+        attachmentResults = await attachmentProcessor.processEmailAttachments(
+          formattedAttachments,
+          user.id,
+          { from, subject: subject || 'Email Document', requestId }
+        );
+      }
+
+      // Process the email content using existing GCS+SendGrid pipeline
+      const emailData = {
+        from,
+        subject: subject || 'Forwarded Document',
+        html,
+        text,
+        attachments: [], // Attachments handled separately by DOC-302 processor
+        metadata: emailMetadata
+      };
+
+      const result = await emailService.processIncomingEmail(emailData, user.email || 'no-email');
+      
+      // Combine results from email content and attachments
+      const totalDocumentsCreated = (result.documentsCreated || 0) + attachmentResults.totalProcessed;
+      
+      const processingTime = Date.now() - startTime;
+      
+      console.log(`[${requestId}] Email processing completed:`, {
+        success: result.success,
+        emailDocumentsCreated: result.documentsCreated || 0,
+        attachmentsProcessed: attachmentResults.totalProcessed,
+        attachmentsFailed: attachmentResults.totalFailed,
+        totalDocumentsCreated,
+        processingTimeMs: processingTime,
+        userId: user.id
+      });
+
+      // TICKET 1: Enhanced response logic for security-blocked attachments
+      const hasSecurityBlocked = attachmentResults.processedAttachments?.some(
+        (attachment: any) => attachment.error?.includes('Dangerous file') || 
+                            attachment.error?.includes('blocked')
+      );
+      
+      const hasOnlyAttachments = (!html || html.trim() === '') && 
+                                (!text || text.trim() === '') && 
+                                attachments && attachments.length > 0;
+      
+      // If email only contained attachments and all were blocked for security reasons
+      if (hasOnlyAttachments && attachmentResults.totalFailed > 0 && hasSecurityBlocked) {
+        return res.status(403).json({
+          message: 'Email rejected: All attachments blocked due to security policy',
+          requestId,
+          error: 'SECURITY_BLOCKED',
+          attachmentResults: {
+            processed: attachmentResults.totalProcessed,
+            failed: attachmentResults.totalFailed,
+            details: attachmentResults.processedAttachments
+          },
+          processingTimeMs: processingTime
+        });
+      }
+      
+      // Standard successful processing response
+      res.status(200).json({
+        message: 'Email processed successfully via SendGrid webhook',
+        requestId,
+        documentsCreated: totalDocumentsCreated,
+        attachmentResults: {
+          processed: attachmentResults.totalProcessed,
+          failed: attachmentResults.totalFailed,
+          details: attachmentResults.processedAttachments
+        },
+        success: result.success && attachmentResults.totalFailed === 0,
+        processingTimeMs: processingTime
+      });
+
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(`[${requestId}] Error processing SendGrid webhook:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        processingTimeMs: processingTime
+      });
+      
+      res.status(500).json({ 
+        message: 'Error processing email via SendGrid webhook',
+        requestId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        processingTimeMs: processingTime
+      });
+    }
+  });
+
+  // TICKET 2: Helper function to analyze attachment field structure
+  function analyzeAttachmentFields(body: any): {
+    attachmentsField: {
+      present: boolean;
+      type: string;
+      count: number;
+      structure: string;
+    };
+    individualFields: {
+      count: number;
+      patterns: string[];
+      fields: string[];
+    };
+    summary: string;
+  } {
+    if (!body) {
+      return {
+        attachmentsField: { present: false, type: 'none', count: 0, structure: 'no-body' },
+        individualFields: { count: 0, patterns: [], fields: [] },
+        summary: 'No request body received'
+      };
+    }
+
+    const analysis = {
+      attachmentsField: { present: false, type: 'none', count: 0, structure: 'none' },
+      individualFields: { count: 0, patterns: [], fields: [] },
+      summary: ''
+    };
+
+    // Check for 'attachments' array field (standard JSON format)
+    if (body.attachments) {
+      analysis.attachmentsField.present = true;
+      
+      if (Array.isArray(body.attachments)) {
+        analysis.attachmentsField.type = 'array';
+        analysis.attachmentsField.count = body.attachments.length;
+        analysis.attachmentsField.structure = body.attachments.map((att: any, idx: number) => {
+          const keys = Object.keys(att || {});
+          return `[${idx}]: {${keys.join(', ')}}`;
+        }).join('; ');
+      } else {
+        analysis.attachmentsField.type = typeof body.attachments;
+        analysis.attachmentsField.count = 1;
+        analysis.attachmentsField.structure = `single-${typeof body.attachments}`;
+      }
+    }
+
+    // Check for individual attachment fields (multipart format: attachment1, attachment2, etc.)
+    const attachmentFieldPattern = /^attachment\d*$/i;
+    const individualAttachmentFields = Object.keys(body).filter(key => 
+      attachmentFieldPattern.test(key) || key.toLowerCase().includes('attachment')
+    );
+
+    if (individualAttachmentFields.length > 0) {
+      analysis.individualFields.count = individualAttachmentFields.length;
+      analysis.individualFields.fields = individualAttachmentFields;
+      analysis.individualFields.patterns = [
+        ...new Set(individualAttachmentFields.map(field => {
+          if (/^attachment\d+$/i.test(field)) return 'attachment[N]';
+          if (/^attachment$/i.test(field)) return 'attachment';
+          return 'attachment-variant';
+        }))
+      ];
+    }
+
+    // Generate summary
+    const summaryParts = [];
+    if (analysis.attachmentsField.present) {
+      summaryParts.push(`attachments[]: ${analysis.attachmentsField.count} items`);
+    }
+    if (analysis.individualFields.count > 0) {
+      summaryParts.push(`individual fields: ${analysis.individualFields.count} (${analysis.individualFields.patterns.join(', ')})`);
+    }
+    if (summaryParts.length === 0) {
+      summaryParts.push('no attachment fields detected');
+    }
+
+    analysis.summary = summaryParts.join('; ');
+    return analysis;
+  }
+
+  // Helper function to validate SendGrid source
+  function validateSendGridSource(req: any): boolean {
+    // Method 1: Check User-Agent for SendGrid
+    const userAgent = req.get('user-agent') || '';
+    if (userAgent.includes('SendGrid')) {
+      return true;
+    }
+
+    // Method 2: Check for SendGrid-specific headers
+    const sendGridHeaders = [
+      'x-sendgrid-event-id',
+      'x-sendgrid-message-id',
+      'x-sendgrid-subscription-id'
+    ];
+    
+    for (const header of sendGridHeaders) {
+      if (req.get(header)) {
+        return true;
+      }
+    }
+
+    // Method 3: Check IP ranges (SendGrid's documented IP ranges)
+    const clientIP = req.ip || req.connection.remoteAddress || '';
+    const sendGridIPRanges = [
+      '167.89.', '168.245.', '169.45.', '173.193.',
+      '173.194.', '184.173.', '192.254.', '198.37.',
+      '198.61.', '199.255.', '208.115.'
+    ];
+    
+    const isFromSendGridIP = sendGridIPRanges.some(range => clientIP.startsWith(range));
+    if (isFromSendGridIP) {
+      return true;
+    }
+
+    // Method 4: For development/testing, allow localhost and development environments
+    if (process.env.NODE_ENV === 'development') {
+      const developmentSources = ['127.0.0.1', '::1', 'localhost'];
+      if (developmentSources.some(source => clientIP.includes(source))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
 
   // Reprocess document with date extraction (for testing existing documents)
@@ -1993,6 +2481,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       
       // Use existing email service to get forwarding address
+      const { EmailService } = await import('./emailService');
+      const emailService = new EmailService();
+      const forwardingData = await emailService.getForwardingAddress(userId);
+      
       res.json({
         address: forwardingData.address,
         instructions: "Forward emails with attachments from your verified email address to automatically store and categorize them.",

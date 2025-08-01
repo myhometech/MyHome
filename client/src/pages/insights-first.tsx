@@ -51,7 +51,7 @@ interface DocumentInsight {
 export default function InsightsFirstPage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("insights");
+  // No longer using tabs - unified view
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [showDocumentPreview, setShowDocumentPreview] = useState(false);
@@ -179,29 +179,58 @@ export default function InsightsFirstPage() {
           </Button>
         </div>
 
-        {/* Tabs Interface */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="insights" className="flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              Insights
-              {insights.filter(i => i.status === 'open').length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {insights.filter(i => i.status === 'open').length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="library" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Document Library
-              <Badge variant="outline" className="ml-2">
-                {documents.length}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
+        {/* AI Insights Section */}
+        <div className="space-y-6">
+          {/* Priority Dashboard Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setInsightStatusFilter('open')}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Open Items</p>
+                    <p className="text-2xl font-bold text-blue-600">{insights.filter(i => i.status === 'open').length}</p>
+                  </div>
+                  <ListTodo className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Insights Tab */}
-          <TabsContent value="insights" className="space-y-6">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {setInsightPriorityFilter('high'); setInsightStatusFilter('open');}}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">High Priority</p>
+                    <p className="text-2xl font-bold text-red-600">{insights.filter(i => i.priority === 'high' && i.status === 'open').length}</p>
+                  </div>
+                  <AlertTriangle className="h-8 w-8 text-red-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {setInsightPriorityFilter('medium'); setInsightStatusFilter('open');}}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Medium Priority</p>
+                    <p className="text-2xl font-bold text-yellow-600">{insights.filter(i => i.priority === 'medium' && i.status === 'open').length}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setInsightStatusFilter('resolved')}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Resolved</p>
+                    <p className="text-2xl font-bold text-green-600">{insights.filter(i => i.status === 'resolved').length}</p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
             {/* Insight Filters */}
             <Card>
               <CardContent className="p-4">
@@ -326,10 +355,17 @@ export default function InsightsFirstPage() {
                 ))}
               </div>
             )}
-          </TabsContent>
+        </div>
 
-          {/* Document Library Tab */}
-          <TabsContent value="library" className="space-y-6">
+        {/* Document Library Section */}
+        <div className="space-y-6">
+          <div className="flex items-center space-x-3 pt-6 border-t">
+            <FileText className="h-8 w-8 text-blue-600" />
+            <div>
+              <h2 className="text-2xl font-bold">Document Library</h2>
+              <p className="text-gray-600">Manage and organize your documents</p>
+            </div>
+          </div>
             {/* Library Controls */}
             <Card>
               <CardContent className="p-4">
@@ -437,8 +473,7 @@ export default function InsightsFirstPage() {
                 ))}
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+        </div>
       </main>
 
       <UploadDialog />

@@ -218,7 +218,6 @@ export default function InsightsFirstPage() {
 
         {/* AI Insights Summary Dashboard */}
         <InsightsSummaryDashboard 
-          insights={allInsights} 
           onFilterChange={handleDashboardFilterChange}
         />
 

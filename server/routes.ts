@@ -1181,6 +1181,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TICKET 19: Get insight metrics for dashboard
+  app.get('/api/insights/metrics', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Get all insights for calculations
+      const allInsights = await storage.getInsights(userId);
+      
+      // Calculate metrics
+      const openInsights = allInsights.filter(i => i.status === 'open' || !i.status);
+      const highPriority = allInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
+      const resolvedInsights = allInsights.filter(i => i.status === 'resolved');
+      
+      // Type-specific metrics (open only)
+      const actionItems = allInsights.filter(i => i.type === 'action_items' && (i.status === 'open' || !i.status));
+      const keyDates = allInsights.filter(i => i.type === 'key_dates' && (i.status === 'open' || !i.status));
+      const compliance = allInsights.filter(i => i.type === 'compliance' && (i.status === 'open' || !i.status));
+      
+      // Upcoming deadlines (within 30 days)
+      const today = new Date();
+      const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+      const upcomingDeadlines = allInsights.filter(i => {
+        if (!i.dueDate || i.status !== 'open') return false;
+        const dueDate = new Date(i.dueDate);
+        return dueDate >= today && dueDate <= thirtyDaysFromNow;
+      });
+
+      res.json({
+        total: allInsights.length,
+        open: openInsights.length,
+        highPriority: highPriority.length,
+        resolved: resolvedInsights.length,
+        actionItems: actionItems.length,
+        keyDates: keyDates.length,
+        compliance: compliance.length,
+        upcomingDeadlines: upcomingDeadlines.length,
+        byType: {
+          summary: allInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status)).length,
+          action_items: actionItems.length,
+          key_dates: keyDates.length,
+          financial_info: allInsights.filter(i => i.type === 'financial_info' && (i.status === 'open' || !i.status)).length,
+          contacts: allInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status)).length,
+          compliance: compliance.length
+        },
+        byPriority: {
+          high: highPriority.length,
+          medium: allInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length,
+          low: allInsights.filter(i => i.priority === 'low' && (i.status === 'open' || !i.status)).length
+        }
+      });
+
+    } catch (error) {
+      console.error("Error fetching insight metrics:", error);
+      captureError(error as Error, req);
+      res.status(500).json({ message: "Failed to fetch insight metrics" });
+    }
+  });
+
   // TICKET 8: Get critical insights for homepage dashboard
   app.get('/api/insights/critical', requireAuth, async (req: any, res) => {
     try {

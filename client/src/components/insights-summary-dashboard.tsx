@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,24 +29,83 @@ interface DocumentInsight {
   documentName?: string;
 }
 
+interface InsightMetrics {
+  total: number;
+  open: number;
+  highPriority: number;
+  resolved: number;
+  actionItems: number;
+  keyDates: number;
+  compliance: number;
+  upcomingDeadlines: number;
+  byType: {
+    summary: number;
+    action_items: number;
+    key_dates: number;
+    financial_info: number;
+    contacts: number;
+    compliance: number;
+  };
+  byPriority: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+}
+
 interface InsightsSummaryDashboardProps {
-  insights: DocumentInsight[];
   onFilterChange: (filter: { status?: string; priority?: string; type?: string }) => void;
 }
 
-export default function InsightsSummaryDashboard({ insights, onFilterChange }: InsightsSummaryDashboardProps) {
-  // Calculate summary metrics
-  const totalInsights = insights.length;
-  const openInsights = insights.filter(i => i.status === 'open' || !i.status);
-  const highPriority = insights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
-  const mediumPriority = insights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status));
-  const resolvedInsights = insights.filter(i => i.status === 'resolved');
-  
-  // Type breakdowns
-  const actionItems = insights.filter(i => i.type === 'action_items' && (i.status === 'open' || !i.status));
-  const keyDates = insights.filter(i => i.type === 'key_dates' && (i.status === 'open' || !i.status));
-  const financial = insights.filter(i => i.type === 'financial_info' && (i.status === 'open' || !i.status));
-  const compliance = insights.filter(i => i.type === 'compliance' && (i.status === 'open' || !i.status));
+export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSummaryDashboardProps) {
+  // Fetch metrics from dedicated endpoint for better performance
+  const { data: metrics, isLoading, error } = useQuery<InsightMetrics>({
+    queryKey: ["/api/insights/metrics"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: false,
+  });
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-3">
+          <Brain className="h-8 w-8 text-purple-600" />
+          <div>
+            <h1 className="text-2xl font-bold">AI Insights Dashboard</h1>
+            <p className="text-gray-600">Loading metrics...</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i}>
+              <CardContent className="p-3">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !metrics) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-3">
+          <Brain className="h-8 w-8 text-purple-600" />
+          <div>
+            <h1 className="text-2xl font-bold">AI Insights Dashboard</h1>
+            <p className="text-gray-600">Unable to load metrics</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -65,7 +125,7 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Open Items</p>
-                <p className="text-2xl font-bold">{openInsights.length}</p>
+                <p className="text-2xl font-bold">{metrics.open}</p>
               </div>
               <div className="h-12 w-12 bg-blue-50 rounded-lg flex items-center justify-center">
                 <ListTodo className="h-6 w-6 text-blue-600" />
@@ -88,7 +148,7 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">High Priority</p>
-                <p className="text-2xl font-bold text-red-600">{highPriority.length}</p>
+                <p className="text-2xl font-bold text-red-600">{metrics.highPriority}</p>
               </div>
               <div className="h-12 w-12 bg-red-50 rounded-lg flex items-center justify-center">
                 <AlertTriangle className="h-6 w-6 text-red-600" />
@@ -105,13 +165,62 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
           </CardContent>
         </Card>
 
+        {/* Upcoming Deadlines */}
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Upcoming Deadlines</p>
+                <p className="text-2xl font-bold text-purple-600">{metrics.upcomingDeadlines}</p>
+              </div>
+              <div className="h-12 w-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Clock className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2 text-xs"
+              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' })}
+            >
+              View Deadlines
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Compliance Risks */}
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Compliance Risks</p>
+                <p className="text-2xl font-bold text-red-600">{metrics.compliance}</p>
+              </div>
+              <div className="h-12 w-12 bg-red-50 rounded-lg flex items-center justify-center">
+                <Shield className="h-6 w-6 text-red-600" />
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2 text-xs"
+              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'compliance' })}
+            >
+              View Compliance
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Secondary Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Action Items */}
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Action Items</p>
-                <p className="text-2xl font-bold text-orange-600">{actionItems.length}</p>
+                <p className="text-2xl font-bold text-orange-600">{metrics.actionItems}</p>
               </div>
               <div className="h-12 w-12 bg-orange-50 rounded-lg flex items-center justify-center">
                 <CheckCircle className="h-6 w-6 text-orange-600" />
@@ -128,13 +237,59 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
           </CardContent>
         </Card>
 
+        {/* Key Dates */}
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Key Dates</p>
+                <p className="text-2xl font-bold text-purple-600">{metrics.keyDates}</p>
+              </div>
+              <div className="h-12 w-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2 text-xs"
+              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' })}
+            >
+              View Dates
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Financial */}
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Financial Info</p>
+                <p className="text-2xl font-bold text-green-600">{metrics.byType.financial_info}</p>
+              </div>
+              <div className="h-12 w-12 bg-green-50 rounded-lg flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2 text-xs"
+              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'financial_info' })}
+            >
+              View Financial
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Resolved */}
         <Card>
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Resolved</p>
-                <p className="text-2xl font-bold text-green-600">{resolvedInsights.length}</p>
+                <p className="text-2xl font-bold text-green-600">{metrics.resolved}</p>
               </div>
               <div className="h-12 w-12 bg-green-50 rounded-lg flex items-center justify-center">
                 <TrendingUp className="h-6 w-6 text-green-600" />
@@ -158,7 +313,7 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-base font-semibold">Insights by Category</h3>
             <Badge variant="secondary" className="px-1.5 py-0.5 text-xs">
-              {totalInsights} Total
+              {metrics.total} Total
             </Badge>
           </div>
           
@@ -171,7 +326,7 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
             >
               <CheckCircle className="h-4 w-4 text-orange-600" />
               <span className="text-xs">Actions</span>
-              <Badge variant="secondary" className="text-xs">{actionItems.length}</Badge>
+              <Badge variant="secondary" className="text-xs">{metrics.byType.action_items}</Badge>
             </Button>
 
             <Button
@@ -182,7 +337,7 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
             >
               <Calendar className="h-4 w-4 text-purple-600" />
               <span className="text-xs">Dates</span>
-              <Badge variant="secondary" className="text-xs">{keyDates.length}</Badge>
+              <Badge variant="secondary" className="text-xs">{metrics.byType.key_dates}</Badge>
             </Button>
 
             <Button
@@ -193,7 +348,7 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
             >
               <DollarSign className="h-4 w-4 text-green-600" />
               <span className="text-xs">Financial</span>
-              <Badge variant="secondary" className="text-xs">{financial.length}</Badge>
+              <Badge variant="secondary" className="text-xs">{metrics.byType.financial_info}</Badge>
             </Button>
 
             <Button
@@ -204,7 +359,7 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
             >
               <Shield className="h-4 w-4 text-red-600" />
               <span className="text-xs">Compliance</span>
-              <Badge variant="secondary" className="text-xs">{compliance.length}</Badge>
+              <Badge variant="secondary" className="text-xs">{metrics.byType.compliance}</Badge>
             </Button>
 
             <Button
@@ -215,9 +370,7 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
             >
               <Users className="h-4 w-4 text-indigo-600" />
               <span className="text-xs">Contacts</span>
-              <Badge variant="secondary" className="text-xs">
-                {insights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status)).length}
-              </Badge>
+              <Badge variant="secondary" className="text-xs">{metrics.byType.contacts}</Badge>
             </Button>
 
             <Button
@@ -228,9 +381,7 @@ export default function InsightsSummaryDashboard({ insights, onFilterChange }: I
             >
               <FileText className="h-4 w-4 text-blue-600" />
               <span className="text-xs">Summaries</span>
-              <Badge variant="secondary" className="text-xs">
-                {insights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status)).length}
-              </Badge>
+              <Badge variant="secondary" className="text-xs">{metrics.byType.summary}</Badge>
             </Button>
           </div>
         </CardContent>

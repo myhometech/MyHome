@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/header";
 
-import { EmailForwarding } from "@/components/email-forwarding";
+
 import SubscriptionPlans from "@/components/SubscriptionPlans";
 import CategoryManagement from "@/components/category-management";
 import { YourAssetsSection } from "@/components/YourAssetsSection";
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Mail, Bell, Shield, HelpCircle, Copy, ExternalLink, CreditCard } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -34,15 +34,7 @@ export default function Settings() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // DOC-306: Get user's forwarding email address for profile display
-  const { data: forwardingInfo, isLoading: forwardingLoading } = useQuery<{
-    address: string | null;
-    instructions: string;
-    isConfigured?: boolean;
-  }>({
-    queryKey: ["/api/user/email-forwarding-address"],
-    enabled: isAuthenticated,
-  });
+
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -75,21 +67,7 @@ export default function Settings() {
     return (user as any)?.email || "User";
   };
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({
-        title: "Copied!",
-        description: "Email address copied to clipboard",
-      });
-    } catch (error) {
-      toast({
-        title: "Copy failed",
-        description: "Could not copy to clipboard",
-        variant: "destructive",
-      });
-    }
-  };
+
 
   if (isLoading) {
     return (
@@ -186,59 +164,6 @@ export default function Settings() {
                     Edit Profile
                   </Button>
                 </div>
-
-                {/* Document Import Email Address */}
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-blue-600 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">📧 Your Document Import Email</h4>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Forward emails with documents to this unique address to automatically import them
-                    </p>
-                    
-                    {forwardingLoading ? (
-                      <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                        <span className="text-sm text-gray-600">Loading your email address...</span>
-                      </div>
-                    ) : forwardingInfo?.address ? (
-                      <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <code className="flex-1 text-sm font-mono text-blue-800 bg-white px-2 py-1 rounded border">
-                          {forwardingInfo.address}
-                        </code>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => copyToClipboard(forwardingInfo.address!)}
-                          className="shrink-0"
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                        <span className="text-sm text-amber-800">Pending setup...</span>
-                      </div>
-                    )}
-                    
-                    <div className="mt-2 flex gap-2">
-                      <Button 
-                        variant="link" 
-                        size="sm" 
-                        className="h-auto p-0 text-xs text-blue-600"
-                        onClick={() => {
-                          const emailSection = document.getElementById('email-forwarding-section');
-                          emailSection?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        View Instructions & Test
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
@@ -248,10 +173,7 @@ export default function Settings() {
             {/* Your Assets Section */}
             <YourAssetsSection />
 
-            {/* Email Forwarding Section */}
-            <div id="email-forwarding-section">
-              <EmailForwarding />
-            </div>
+
           </TabsContent>
 
           {/* Billing Tab */}
@@ -265,7 +187,7 @@ export default function Settings() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-green-700 dark:text-green-300">
-                  You have full access to all premium features including unlimited documents, AI analysis, and email forwarding.
+                  You have full access to all premium features including unlimited documents and AI analysis.
                 </CardContent>
               </Card>
             )}

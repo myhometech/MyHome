@@ -1830,15 +1830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user's forwarding email address
-  app.get('/api/email/forwarding-address', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-    } catch (error) {
-      console.error("Error getting forwarding address:", error);
-      res.status(500).json({ message: "Failed to get forwarding address" });
-    }
-  });
+
 
 
   
@@ -1987,26 +1979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // DOC-306: Get user's email forwarding address for profile display
-  app.get('/api/user/email-forwarding-address', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      
-      // Use existing email service to get forwarding address
-      res.json({
-        address: forwardingData.address,
-        instructions: "Forward emails with attachments from your verified email address to automatically store and categorize them.",
-        isConfigured: true
-      });
-    } catch (error) {
-      console.error("DOC-306: Error fetching email forwarding address:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch forwarding address",
-        address: null,
-        instructions: "Unable to load forwarding address at this time."
-      });
-    }
-  });
+
 
   app.post('/api/expiry-reminders', requireAuth, async (req: any, res) => {
     try {

@@ -321,32 +321,7 @@ export default function Home() {
 
 
 
-        {/* Discrete Email Forwarding Option */}
-        <FeatureGate feature="emailForwarding" hideCompletely={true}>
-          <Card className="mb-6 border-blue-200 bg-blue-50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Mail className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-blue-900">Email Import</h3>
-                    <p className="text-sm text-blue-700">Forward emails to automatically import documents</p>
-                  </div>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setLocation('/settings?tab=email')}
-                  className="border-blue-300 text-blue-700 hover:bg-blue-100"
-                >
-                  Setup Email Import
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </FeatureGate>
+
 
 
 

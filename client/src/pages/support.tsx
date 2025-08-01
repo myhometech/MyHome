@@ -374,13 +374,7 @@ export function Support() {
                 <ExternalLink className="h-4 w-4 text-gray-400" />
               </div>
               
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                <div className="flex items-center space-x-3">
-                  <Mail className="h-4 w-4 text-gray-600" />
-                  <span className="text-sm font-medium">Email Forwarding Setup</span>
-                </div>
-                <ExternalLink className="h-4 w-4 text-gray-400" />
-              </div>
+
             </CardContent>
           </Card>
         </div>

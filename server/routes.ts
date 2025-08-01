@@ -2070,16 +2070,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const requestId = Math.random().toString(36).substring(2, 15);
     
     try {
-      // Log incoming webhook data for debugging
+      // TICKET 2: Enhanced payload format and attachment field logging
+      const contentType = req.get('content-type') || 'unknown';
+      const bodyKeys = Object.keys(req.body || {});
+      const bodySize = JSON.stringify(req.body || {}).length;
+      
+      // TICKET 2: Analyze attachment field structure
+      const attachmentFieldAnalysis = analyzeAttachmentFields(req.body);
+      
       console.log(`[${requestId}] SendGrid webhook received:`, {
         headers: {
           'user-agent': req.get('user-agent'),
           'x-forwarded-for': req.get('x-forwarded-for'),
-          'content-type': req.get('content-type'),
+          'content-type': contentType,
           'sendgrid-id': req.get('x-sendgrid-event-id')
         },
-        bodyKeys: Object.keys(req.body),
-        bodySize: JSON.stringify(req.body).length
+        payload: {
+          contentType: contentType,
+          bodyKeys: bodyKeys,
+          bodySize: bodySize,
+          isMultipart: contentType.includes('multipart'),
+          isJson: contentType.includes('application/json')
+        },
+        attachmentFields: attachmentFieldAnalysis
       });
 
       // Validate SendGrid source
@@ -2283,6 +2296,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // TICKET 2: Helper function to analyze attachment field structure
+  function analyzeAttachmentFields(body: any): {
+    attachmentsField: {
+      present: boolean;
+      type: string;
+      count: number;
+      structure: string;
+    };
+    individualFields: {
+      count: number;
+      patterns: string[];
+      fields: string[];
+    };
+    summary: string;
+  } {
+    if (!body) {
+      return {
+        attachmentsField: { present: false, type: 'none', count: 0, structure: 'no-body' },
+        individualFields: { count: 0, patterns: [], fields: [] },
+        summary: 'No request body received'
+      };
+    }
+
+    const analysis = {
+      attachmentsField: { present: false, type: 'none', count: 0, structure: 'none' },
+      individualFields: { count: 0, patterns: [], fields: [] },
+      summary: ''
+    };
+
+    // Check for 'attachments' array field (standard JSON format)
+    if (body.attachments) {
+      analysis.attachmentsField.present = true;
+      
+      if (Array.isArray(body.attachments)) {
+        analysis.attachmentsField.type = 'array';
+        analysis.attachmentsField.count = body.attachments.length;
+        analysis.attachmentsField.structure = body.attachments.map((att: any, idx: number) => {
+          const keys = Object.keys(att || {});
+          return `[${idx}]: {${keys.join(', ')}}`;
+        }).join('; ');
+      } else {
+        analysis.attachmentsField.type = typeof body.attachments;
+        analysis.attachmentsField.count = 1;
+        analysis.attachmentsField.structure = `single-${typeof body.attachments}`;
+      }
+    }
+
+    // Check for individual attachment fields (multipart format: attachment1, attachment2, etc.)
+    const attachmentFieldPattern = /^attachment\d*$/i;
+    const individualAttachmentFields = Object.keys(body).filter(key => 
+      attachmentFieldPattern.test(key) || key.toLowerCase().includes('attachment')
+    );
+
+    if (individualAttachmentFields.length > 0) {
+      analysis.individualFields.count = individualAttachmentFields.length;
+      analysis.individualFields.fields = individualAttachmentFields;
+      analysis.individualFields.patterns = [
+        ...new Set(individualAttachmentFields.map(field => {
+          if (/^attachment\d+$/i.test(field)) return 'attachment[N]';
+          if (/^attachment$/i.test(field)) return 'attachment';
+          return 'attachment-variant';
+        }))
+      ];
+    }
+
+    // Generate summary
+    const summaryParts = [];
+    if (analysis.attachmentsField.present) {
+      summaryParts.push(`attachments[]: ${analysis.attachmentsField.count} items`);
+    }
+    if (analysis.individualFields.count > 0) {
+      summaryParts.push(`individual fields: ${analysis.individualFields.count} (${analysis.individualFields.patterns.join(', ')})`);
+    }
+    if (summaryParts.length === 0) {
+      summaryParts.push('no attachment fields detected');
+    }
+
+    analysis.summary = summaryParts.join('; ');
+    return analysis;
+  }
 
   // Helper function to validate SendGrid source
   function validateSendGridSource(req: any): boolean {

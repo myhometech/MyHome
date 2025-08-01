@@ -10,17 +10,33 @@ import { join } from 'path';
 import type { InsertDocument } from '@shared/schema';
 import { storage } from './storage';
 
-// DOC-302: Supported file types and size limits
+// TICKET 1: Enhanced validation rules and security limits
 const SUPPORTED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
   'image/jpg', 
   'image/png',
+  'image/webp',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // DOCX
 ];
 
-const SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.docx'];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+const SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.docx'];
+
+// TICKET 1: Security - blocked dangerous file types
+const BLOCKED_EXTENSIONS = ['.exe', '.bat', '.scr', '.vbs', '.js', '.ps1', '.cmd', '.com', '.pif', '.jar'];
+const BLOCKED_MIME_TYPES = [
+  'application/x-executable',
+  'application/x-msdownload',
+  'application/x-dosexec',
+  'text/javascript',
+  'application/javascript',
+  'application/x-java-archive',
+  'application/x-bat'
+];
+
+// TICKET 1: Size limits with clear validation
+const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB in bytes (SendGrid webhook limit)
+const MAX_TOTAL_PAYLOAD_SIZE = 30 * 1024 * 1024; // 30MB total for all attachments
 
 interface ProcessedAttachment {
   success: boolean;
@@ -102,16 +118,31 @@ export class AttachmentProcessor {
   }
 
   /**
-   * DOC-302: Process individual attachment with validation, GCS upload, and metadata storage
+   * TICKET 1: Enhanced attachment processing with comprehensive validation and logging
    */
   private async processAttachment(
     attachment: AttachmentData,
     userId: string,
     emailMetadata: { from: string; subject: string; requestId: string }
   ): Promise<ProcessedAttachment> {
-    // Step 1: Validate file type
-    const validation = this.validateAttachment(attachment);
+    const { requestId } = emailMetadata;
+    
+    // TICKET 1: Step 1 - Validate attachment presence and basic structure
+    if (!attachment.filename || !attachment.content) {
+      const error = `Missing required fields: filename=${!!attachment.filename}, content=${!!attachment.content}`;
+      console.error(`[${requestId}] ❌ Attachment validation failed: ${error}`);
+      return {
+        success: false,
+        filename: attachment.filename || 'unknown',
+        error: `Attachment validation failed: ${error}`,
+        fileSize: 0
+      };
+    }
+
+    // TICKET 1: Step 2 - Comprehensive validation with detailed logging
+    const validation = this.validateAttachment(attachment, requestId);
     if (!validation.isValid) {
+      console.error(`[${requestId}] ❌ Rejected attachment: ${attachment.filename} (reason: ${validation.error})`);
       return {
         success: false,
         filename: attachment.filename,
@@ -120,74 +151,91 @@ export class AttachmentProcessor {
       };
     }
 
-    // Step 2: Sanitize and normalize filename
+    console.log(`[${requestId}] ✅ Attachment validation passed: ${attachment.filename} (${attachment.contentType}, ${this.formatFileSize(attachment.size || 0)})`);
+    
+    // TICKET 1: Step 3 - Base64 decoding with error handling
+    let decodedContent: Buffer;
+    try {
+      decodedContent = this.decodeAttachmentContent(attachment.content, requestId);
+      console.log(`[${requestId}] ✅ Base64 decoding successful: ${attachment.filename} (decoded size: ${this.formatFileSize(decodedContent.length)})`);
+    } catch (error) {
+      const errorMessage = `Base64 decoding failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      console.error(`[${requestId}] ❌ ${errorMessage} for ${attachment.filename}`);
+      return {
+        success: false,
+        filename: attachment.filename,
+        error: errorMessage,
+        fileSize: attachment.size || 0
+      };
+    }
+
+    // TICKET 1: Step 4 - Verify decoded content size matches expected size
+    if (decodedContent.length > MAX_FILE_SIZE) {
+      const error = `Decoded file too large: ${this.formatFileSize(decodedContent.length)} > ${this.formatFileSize(MAX_FILE_SIZE)} limit`;
+      console.error(`[${requestId}] ❌ ${error} for ${attachment.filename}`);
+      return {
+        success: false,
+        filename: attachment.filename,
+        error,
+        fileSize: decodedContent.length
+      };
+    }
+
+    // TICKET 1: Continue with validated and decoded content
+    // Step 5: Sanitize and normalize filename
     const sanitizedFilename = this.sanitizeFilename(attachment.filename);
     const timestampedFilename = this.addTimestamp(sanitizedFilename);
 
-    // Step 3: Convert content to Buffer if needed
-    let fileBuffer: Buffer;
-    if (typeof attachment.content === 'string') {
-      // Assume base64 encoded content from SendGrid
-      fileBuffer = Buffer.from(attachment.content, 'base64');
-    } else {
-      fileBuffer = attachment.content;
-    }
-
-    // Step 4: Generate unique GCS object path
+    // Step 6: Generate unique GCS object path
     const gcsPath = this.generateGCSPath(userId, timestampedFilename);
 
     try {
-      // Step 5: Upload to local storage (GCS fallback)
-      await this.uploadToGCS(gcsPath, fileBuffer, attachment.contentType);
+      // TICKET 1: Step 7 - Upload to local storage (GCS fallback)
+      await this.uploadToGCS(gcsPath, decodedContent, attachment.contentType);
 
       // Generate local file path for metadata storage
       const filename = gcsPath.split('/').pop() || `attachment_${Date.now()}`;
       const localFilePath = `/home/runner/workspace/uploads/${filename}`;
 
-      // Step 6: Store metadata in PostgreSQL
+      console.log(`[${requestId}] ✅ File upload successful: ${attachment.filename} -> ${localFilePath}`);
+
+      // TICKET 1: Step 8 - Store metadata in PostgreSQL
       const documentId = await this.storeDocumentMetadata({
         userId,
         filename: sanitizedFilename,
         originalFilename: attachment.filename,
         gcsPath: localFilePath, // Store local path for now
         mimeType: attachment.contentType,
-        fileSize: fileBuffer.length,
+        fileSize: decodedContent.length,
         emailMetadata
       });
+
+      console.log(`[${requestId}] ✅ Document metadata stored: ID ${documentId} for ${attachment.filename}`);
 
       return {
         success: true,
         documentId,
         filename: sanitizedFilename,
         gcsPath: localFilePath,
-        fileSize: fileBuffer.length
+        fileSize: decodedContent.length
       };
 
     } catch (error) {
-      console.error(`[${emailMetadata.requestId}] Error processing attachment ${attachment.filename}:`, error);
+      console.error(`[${requestId}] ❌ Error processing attachment ${attachment.filename}:`, error);
       return {
         success: false,
         filename: attachment.filename,
         error: error instanceof Error ? error.message : 'Upload or storage error',
-        fileSize: fileBuffer.length
+        fileSize: decodedContent.length
       };
     }
   }
 
   /**
-   * DOC-302: Validate attachment file type and size
+   * TICKET 1: Enhanced comprehensive attachment validation with security checks
    */
-  private validateAttachment(attachment: AttachmentData): { isValid: boolean; error?: string } {
-    // Debug logging to see what we're receiving
-    console.log('AttachmentProcessor validation:', {
-      filename: attachment.filename,
-      contentType: attachment.contentType,
-      hasContentType: !!attachment.contentType,
-      contentTypeType: typeof attachment.contentType,
-      attachmentKeys: Object.keys(attachment)
-    });
-    
-    // Validate content type exists
+  private validateAttachment(attachment: AttachmentData, requestId: string): { isValid: boolean; error?: string } {
+    // TICKET 1: Validate content type exists
     if (!attachment.contentType) {
       return {
         isValid: false,
@@ -195,16 +243,33 @@ export class AttachmentProcessor {
       };
     }
 
-    // Validate file type by MIME type
-    if (!SUPPORTED_MIME_TYPES.includes(attachment.contentType.toLowerCase())) {
+    // TICKET 1: Security - Check for blocked dangerous file types by MIME type
+    if (BLOCKED_MIME_TYPES.includes(attachment.contentType.toLowerCase())) {
       return {
         isValid: false,
-        error: `Unsupported file type: ${attachment.contentType}. Allowed: PDF, JPG, PNG, DOCX`
+        error: `Dangerous file type blocked: ${attachment.contentType}`
       };
     }
 
-    // Validate file extension
+    // TICKET 1: Validate file type by MIME type
+    if (!SUPPORTED_MIME_TYPES.includes(attachment.contentType.toLowerCase())) {
+      return {
+        isValid: false,
+        error: `Unsupported file type: ${attachment.contentType}. Allowed: PDF, JPG, PNG, WEBP, DOCX`
+      };
+    }
+
+    // TICKET 1: Extract and validate file extension
     const extension = attachment.filename.toLowerCase().substring(attachment.filename.lastIndexOf('.'));
+    
+    // TICKET 1: Security - Check for blocked dangerous extensions
+    if (BLOCKED_EXTENSIONS.includes(extension)) {
+      return {
+        isValid: false,
+        error: `Dangerous file extension blocked: ${extension}`
+      };
+    }
+
     if (!SUPPORTED_EXTENSIONS.includes(extension)) {
       return {
         isValid: false,
@@ -212,24 +277,86 @@ export class AttachmentProcessor {
       };
     }
 
-    // Calculate file size
-    let fileSize: number;
+    // TICKET 1: Calculate and validate file size (base64 estimation)
+    let estimatedFileSize: number;
     if (typeof attachment.content === 'string') {
-      // Base64 encoded - calculate actual size
-      fileSize = Math.ceil(attachment.content.length * 0.75); // Base64 is ~33% larger
+      // Base64 encoded - calculate actual size (base64 is ~33% larger)
+      estimatedFileSize = Math.ceil(attachment.content.length * 0.75);
     } else {
-      fileSize = attachment.content.length;
+      estimatedFileSize = attachment.content.length;
     }
 
-    // Validate file size
-    if (fileSize > MAX_FILE_SIZE) {
+    // TICKET 1: Check individual file size limit
+    if (estimatedFileSize > MAX_FILE_SIZE) {
       return {
         isValid: false,
-        error: `File too large: ${Math.round(fileSize / 1024 / 1024)}MB. Maximum allowed: 10MB`
+        error: `Attachment too large: ${this.formatFileSize(estimatedFileSize)} > ${this.formatFileSize(MAX_FILE_SIZE)} limit`
       };
     }
 
-    return { isValid: true };
+    console.log(`[${requestId}] 🔍 Attachment validation details: ${attachment.filename} (${attachment.contentType}, estimated: ${this.formatFileSize(estimatedFileSize)})`);
+
+    return {
+      isValid: true
+    };
+  }
+
+  /**
+   * TICKET 1: Robust base64 decoding with error handling
+   */
+  private decodeAttachmentContent(content: Buffer | string, requestId: string): Buffer {
+    if (Buffer.isBuffer(content)) {
+      return content;
+    }
+
+    if (typeof content !== 'string') {
+      throw new Error('Invalid content type - expected string or Buffer');
+    }
+
+    try {
+      // TICKET 1: Clean and validate base64 string
+      const cleanContent = content.replace(/\s/g, ''); // Remove all whitespace
+      
+      // Basic base64 validation
+      if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleanContent)) {
+        throw new Error('Invalid base64 format - contains illegal characters');
+      }
+
+      // Check for proper base64 length
+      if (cleanContent.length % 4 !== 0) {
+        throw new Error('Invalid base64 format - incorrect padding');
+      }
+
+      const decoded = Buffer.from(cleanContent, 'base64');
+      
+      // Verify decoding worked (decoded content should be smaller than base64)
+      if (decoded.length === 0 && cleanContent.length > 0) {
+        throw new Error('Base64 decoding resulted in empty buffer');
+      }
+
+      return decoded;
+
+    } catch (error) {
+      console.error(`[${requestId}] Base64 decoding failed:`, {
+        contentLength: content.length,
+        contentPreview: content.substring(0, 100),
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * TICKET 1: Format file size for human-readable logging
+   */
+  private formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const size = bytes / Math.pow(1024, i);
+    
+    return `${size.toFixed(1)} ${sizes[i]}`;
   }
 
   /**

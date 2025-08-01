@@ -2228,6 +2228,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user.id
       });
 
+      // TICKET 1: Enhanced response logic for security-blocked attachments
+      const hasSecurityBlocked = attachmentResults.processedAttachments?.some(
+        (attachment: any) => attachment.error?.includes('Dangerous file') || 
+                            attachment.error?.includes('blocked')
+      );
+      
+      const hasOnlyAttachments = (!html || html.trim() === '') && 
+                                (!text || text.trim() === '') && 
+                                attachments && attachments.length > 0;
+      
+      // If email only contained attachments and all were blocked for security reasons
+      if (hasOnlyAttachments && attachmentResults.totalFailed > 0 && hasSecurityBlocked) {
+        return res.status(403).json({
+          message: 'Email rejected: All attachments blocked due to security policy',
+          requestId,
+          error: 'SECURITY_BLOCKED',
+          attachmentResults: {
+            processed: attachmentResults.totalProcessed,
+            failed: attachmentResults.totalFailed,
+            details: attachmentResults.processedAttachments
+          },
+          processingTimeMs: processingTime
+        });
+      }
+      
+      // Standard successful processing response
       res.status(200).json({
         message: 'Email processed successfully via SendGrid webhook',
         requestId,

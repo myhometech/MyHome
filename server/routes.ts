@@ -1153,7 +1153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TICKET 9: Support filtering insights with due dates for calendar view
       const hasDueDate = req.query.has_due_date === 'true';
 
-      let insights = await storage.getInsights(userId, status === 'open' ? 'open' : status, type, priority);
+      let insights = await storage.getInsights(userId, status === 'all' ? undefined : status, type, priority);
 
       // TICKET 9: Filter insights with due dates if requested
       if (hasDueDate) {

@@ -8,7 +8,7 @@ import UnifiedDocumentCard from "@/components/unified-document-card";
 
 import { useFeatures } from "@/hooks/useFeatures";
 import { 
-  Brain, 
+  Lightbulb, 
   FileText, 
   Plus, 
   Search, 
@@ -76,7 +76,18 @@ export default function InsightsFirstPage() {
     retry: false,
   });
 
-  // Fetch insights
+  // Fetch all insights for dashboard totals (unfiltered)
+  const { data: allInsightsResponse } = useQuery<{insights: DocumentInsight[], total: number}>({
+    queryKey: ["/api/insights", "all"],
+    queryFn: async () => {
+      const response = await fetch('/api/insights?status=all');
+      if (!response.ok) throw new Error('Failed to fetch all insights');
+      return response.json();
+    },
+    retry: false,
+  });
+
+  // Fetch filtered insights for display
   const { data: insightsResponse, isLoading: insightsLoading } = useQuery<{insights: DocumentInsight[], total: number}>({
     queryKey: ["/api/insights", insightStatusFilter, insightTypeFilter !== "all" ? insightTypeFilter : undefined, insightPriorityFilter !== "all" ? insightPriorityFilter : undefined, sortBy],
     queryFn: async () => {
@@ -94,6 +105,7 @@ export default function InsightsFirstPage() {
   });
 
   const insights = insightsResponse?.insights || [];
+  const allInsights = allInsightsResponse?.insights || [];
 
   // Filter documents for library tab
   const filteredDocuments = documents.filter(doc => {
@@ -145,7 +157,7 @@ export default function InsightsFirstPage() {
       case 'financial_info': return <DollarSign className="h-4 w-4" />;
       case 'contacts': return <Users className="h-4 w-4" />;
       case 'compliance': return <Shield className="h-4 w-4" />;
-      default: return <Brain className="h-4 w-4" />;
+      default: return <Lightbulb className="h-4 w-4" />;
     }
   };
 
@@ -177,7 +189,7 @@ export default function InsightsFirstPage() {
         {/* Header with Add Document Button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Brain className="h-8 w-8 text-blue-600" />
+            <Lightbulb className="h-8 w-8 text-blue-600" />
             <div>
               <h1 className="text-2xl font-bold">Insights & Documents</h1>
               <p className="text-gray-600">AI-powered insights with full document access</p>
@@ -199,7 +211,7 @@ export default function InsightsFirstPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Open Items</p>
-                    <p className="text-2xl font-bold text-blue-600">{insights.filter(i => i.status === 'open').length}</p>
+                    <p className="text-2xl font-bold text-blue-600">{allInsights.filter(i => i.status === 'open' || !i.status).length}</p>
                   </div>
                   <ListTodo className="h-8 w-8 text-blue-600" />
                 </div>
@@ -211,7 +223,7 @@ export default function InsightsFirstPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">High Priority</p>
-                    <p className="text-2xl font-bold text-red-600">{insights.filter(i => i.priority === 'high' && i.status === 'open').length}</p>
+                    <p className="text-2xl font-bold text-red-600">{allInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status)).length}</p>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-red-600" />
                 </div>
@@ -223,7 +235,7 @@ export default function InsightsFirstPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Medium Priority</p>
-                    <p className="text-2xl font-bold text-yellow-600">{insights.filter(i => i.priority === 'medium' && i.status === 'open').length}</p>
+                    <p className="text-2xl font-bold text-yellow-600">{allInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length}</p>
                   </div>
                   <Clock className="h-8 w-8 text-yellow-600" />
                 </div>
@@ -235,7 +247,7 @@ export default function InsightsFirstPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Resolved</p>
-                    <p className="text-2xl font-bold text-green-600">{insights.filter(i => i.status === 'resolved').length}</p>
+                    <p className="text-2xl font-bold text-green-600">{allInsights.filter(i => i.status === 'resolved').length}</p>
                   </div>
                   <CheckCircle className="h-8 w-8 text-green-600" />
                 </div>

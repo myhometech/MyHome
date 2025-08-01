@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Home, Search, Bell, LogOut, Settings, Shield, Mail, HelpCircle } from "lucide-react";
+import { Home, Search, Bell, LogOut, Settings, Shield, Mail, HelpCircle, Lightbulb } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SmartSearch } from "@/components/smart-search";
@@ -80,7 +80,7 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                   size="sm" 
                   className={location === "/" ? "" : "text-gray-600 hover:text-gray-900"}
                 >
-                  <Brain className="h-4 w-4 mr-2" />
+                  <Lightbulb className="h-4 w-4 mr-2" />
                   Insights
                 </Button>
               </Link>
@@ -157,7 +157,7 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 size="sm" 
                 className="p-2"
               >
-                <Brain className="h-4 w-4" />
+                <Lightbulb className="h-4 w-4" />
               </Button>
             </Link>
             <Button 

@@ -25,7 +25,8 @@ import {
   Grid,
   List,
   SortAsc,
-  FolderOpen
+  FolderOpen,
+  Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -213,8 +214,16 @@ export default function InsightsFirstPage() {
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       
       <main className="container mx-auto px-4 py-8 space-y-6">
-        {/* Header with Add Document Button */}
-        <div className="flex items-center justify-end">
+        {/* Header with MyHome Title and Add Document Button */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Brain className="h-8 w-8 text-purple-600" />
+            <div>
+              <h1 className="text-2xl font-bold">MyHome</h1>
+              <p className="text-gray-600">Smart insights from your document library</p>
+            </div>
+          </div>
+          
           <Button onClick={() => setShowUploadDialog(true)} size="lg" className="bg-blue-600 hover:bg-blue-700">
             <Plus className="h-4 w-4 mr-2" />
             Add Document
@@ -224,6 +233,7 @@ export default function InsightsFirstPage() {
         {/* AI Insights Summary Dashboard */}
         <InsightsSummaryDashboard 
           onFilterChange={handleDashboardFilterChange}
+          hideHeader={true}
         />
 
         {/* AI Insights Section */}

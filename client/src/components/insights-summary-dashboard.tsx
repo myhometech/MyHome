@@ -55,9 +55,10 @@ interface InsightMetrics {
 
 interface InsightsSummaryDashboardProps {
   onFilterChange: (filter: { status?: string; priority?: string; type?: string }) => void;
+  hideHeader?: boolean;
 }
 
-export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSummaryDashboardProps) {
+export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }: InsightsSummaryDashboardProps) {
   // Fetch metrics from dedicated endpoint for better performance
   const { data: metrics, isLoading, error } = useQuery<InsightMetrics>({
     queryKey: ["/api/insights/metrics"],
@@ -69,13 +70,15 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center space-x-3">
-          <Brain className="h-8 w-8 text-purple-600" />
-          <div>
-            <h1 className="text-2xl font-bold">AI Insights Dashboard</h1>
-            <p className="text-gray-600">Loading metrics...</p>
+        {!hideHeader && (
+          <div className="flex items-center space-x-3">
+            <Brain className="h-8 w-8 text-purple-600" />
+            <div>
+              <h1 className="text-2xl font-bold">MyHome</h1>
+              <p className="text-gray-600">Loading metrics...</p>
+            </div>
           </div>
-        </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
             <Card key={i}>
@@ -96,26 +99,30 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
   if (error || !metrics) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center space-x-3">
-          <Brain className="h-8 w-8 text-purple-600" />
-          <div>
-            <h1 className="text-2xl font-bold">MyHome</h1>
-            <p className="text-gray-600">Unable to load metrics</p>
+        {!hideHeader && (
+          <div className="flex items-center space-x-3">
+            <Brain className="h-8 w-8 text-purple-600" />
+            <div>
+              <h1 className="text-2xl font-bold">MyHome</h1>
+              <p className="text-gray-600">Unable to load metrics</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-3">
-        <Brain className="h-8 w-8 text-purple-600" />
-        <div>
-          <h1 className="text-2xl font-bold">MyHome</h1>
-          <p className="text-gray-600">Smart insights from your document library</p>
+      {!hideHeader && (
+        <div className="flex items-center space-x-3">
+          <Brain className="h-8 w-8 text-purple-600" />
+          <div>
+            <h1 className="text-2xl font-bold">MyHome</h1>
+            <p className="text-gray-600">Smart insights from your document library</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Summary Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -114,11 +114,24 @@ export default function InsightsFirstPage() {
   const insights = insightsResponse?.insights || [];
   const allInsights = allInsightsResponse?.insights || [];
 
-  // Handler for dashboard filter changes
+  // Handler for dashboard filter changes with smooth scrolling
   const handleDashboardFilterChange = (filter: { status?: string; priority?: string; type?: string }) => {
+    // Update filters
     if (filter.status) setInsightStatusFilter(filter.status);
     if (filter.priority) setInsightPriorityFilter(filter.priority);
     if (filter.type) setInsightTypeFilter(filter.type);
+    
+    // Smooth scroll to insights section
+    setTimeout(() => {
+      const insightsSection = document.querySelector('[data-insights-section]');
+      if (insightsSection) {
+        insightsSection.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+      }
+    }, 100); // Small delay to ensure state updates have triggered
   };
 
   // Filter documents for library tab
@@ -222,7 +235,7 @@ export default function InsightsFirstPage() {
         />
 
         {/* AI Insights Section */}
-        <div className="space-y-6">
+        <div className="space-y-6" data-insights-section>
           {/* Priority-Based Insight Navigation Buttons */}
           <Card>
             <CardContent className="p-3">

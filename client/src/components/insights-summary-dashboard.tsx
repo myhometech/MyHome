@@ -120,8 +120,8 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
       {/* Summary Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Open Insights */}
-        <Card>
-          <CardContent className="p-3">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'all' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Open Items</p>
@@ -135,7 +135,10 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
               variant="ghost"
               size="sm"
               className="w-full mt-2 text-xs"
-              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'all' })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFilterChange({ status: 'open', priority: 'all', type: 'all' });
+              }}
             >
               View All Open
             </Button>
@@ -143,8 +146,8 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
         </Card>
 
         {/* High Priority */}
-        <Card>
-          <CardContent className="p-3">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'high', type: 'all' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">High Priority</p>
@@ -158,7 +161,10 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
               variant="ghost"
               size="sm"
               className="w-full mt-2 text-xs"
-              onClick={() => onFilterChange({ status: 'open', priority: 'high', type: 'all' })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFilterChange({ status: 'open', priority: 'high', type: 'all' });
+              }}
             >
               View High Priority
             </Button>
@@ -166,8 +172,8 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
         </Card>
 
         {/* Upcoming Deadlines */}
-        <Card>
-          <CardContent className="p-3">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Upcoming Deadlines</p>
@@ -181,7 +187,10 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
               variant="ghost"
               size="sm"
               className="w-full mt-2 text-xs"
-              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' });
+              }}
             >
               View Deadlines
             </Button>
@@ -189,8 +198,8 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
         </Card>
 
         {/* Compliance Risks */}
-        <Card>
-          <CardContent className="p-3">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'compliance' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Compliance Risks</p>
@@ -204,7 +213,10 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
               variant="ghost"
               size="sm"
               className="w-full mt-2 text-xs"
-              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'compliance' })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFilterChange({ status: 'open', priority: 'all', type: 'compliance' });
+              }}
             >
               View Compliance
             </Button>
@@ -215,8 +227,8 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
       {/* Secondary Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Action Items */}
-        <Card>
-          <CardContent className="p-3">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'action_items' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Action Items</p>
@@ -230,7 +242,10 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
               variant="ghost"
               size="sm"
               className="w-full mt-2 text-xs"
-              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'action_items' })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFilterChange({ status: 'open', priority: 'all', type: 'action_items' });
+              }}
             >
               View Actions
             </Button>
@@ -238,8 +253,8 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
         </Card>
 
         {/* Key Dates */}
-        <Card>
-          <CardContent className="p-3">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Key Dates</p>
@@ -253,7 +268,10 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
               variant="ghost"
               size="sm"
               className="w-full mt-2 text-xs"
-              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' });
+              }}
             >
               View Dates
             </Button>
@@ -261,8 +279,8 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
         </Card>
 
         {/* Financial */}
-        <Card>
-          <CardContent className="p-3">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'financial_info' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Financial Info</p>
@@ -276,7 +294,10 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
               variant="ghost"
               size="sm"
               className="w-full mt-2 text-xs"
-              onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'financial_info' })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFilterChange({ status: 'open', priority: 'all', type: 'financial_info' });
+              }}
             >
               View Financial
             </Button>
@@ -284,8 +305,8 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
         </Card>
 
         {/* Resolved */}
-        <Card>
-          <CardContent className="p-3">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'resolved', priority: 'all', type: 'all' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Resolved</p>
@@ -299,7 +320,10 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
               variant="ghost"
               size="sm"
               className="w-full mt-2 text-xs"
-              onClick={() => onFilterChange({ status: 'resolved', priority: 'all', type: 'all' })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onFilterChange({ status: 'resolved', priority: 'all', type: 'all' });
+              }}
             >
               View Resolved
             </Button>

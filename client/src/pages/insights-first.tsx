@@ -5,6 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import Header from "@/components/header";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
+import InsightsSummaryDashboard from "@/components/insights-summary-dashboard";
 
 import { useFeatures } from "@/hooks/useFeatures";
 import { 
@@ -113,6 +114,13 @@ export default function InsightsFirstPage() {
   const insights = insightsResponse?.insights || [];
   const allInsights = allInsightsResponse?.insights || [];
 
+  // Handler for dashboard filter changes
+  const handleDashboardFilterChange = (filter: { status?: string; priority?: string; type?: string }) => {
+    if (filter.status) setInsightStatusFilter(filter.status);
+    if (filter.priority) setInsightPriorityFilter(filter.priority);
+    if (filter.type) setInsightTypeFilter(filter.type);
+  };
+
   // Filter documents for library tab
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = !searchQuery || 
@@ -207,6 +215,12 @@ export default function InsightsFirstPage() {
             Add Document
           </Button>
         </div>
+
+        {/* AI Insights Summary Dashboard */}
+        <InsightsSummaryDashboard 
+          insights={allInsights} 
+          onFilterChange={handleDashboardFilterChange}
+        />
 
         {/* AI Insights Section */}
         <div className="space-y-6">

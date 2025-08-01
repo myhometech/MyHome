@@ -79,6 +79,17 @@ export default function InsightsFirstPage() {
   // Fetch insights
   const { data: insightsResponse, isLoading: insightsLoading } = useQuery<{insights: DocumentInsight[], total: number}>({
     queryKey: ["/api/insights", insightStatusFilter, insightTypeFilter !== "all" ? insightTypeFilter : undefined, insightPriorityFilter !== "all" ? insightPriorityFilter : undefined, sortBy],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (insightStatusFilter && insightStatusFilter !== 'all') params.append('status', insightStatusFilter);
+      if (insightTypeFilter && insightTypeFilter !== 'all') params.append('type', insightTypeFilter);
+      if (insightPriorityFilter && insightPriorityFilter !== 'all') params.append('priority', insightPriorityFilter);
+      if (sortBy) params.append('sort', sortBy);
+
+      const response = await fetch(`/api/insights?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch insights');
+      return response.json();
+    },
     retry: false,
   });
 

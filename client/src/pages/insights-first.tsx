@@ -214,15 +214,7 @@ export default function InsightsFirstPage() {
       
       <main className="container mx-auto px-4 py-8 space-y-6">
         {/* Header with Add Document Button */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Lightbulb className="h-8 w-8 text-blue-600" />
-            <div>
-              <h1 className="text-2xl font-bold">Insights & Documents</h1>
-              <p className="text-gray-600">AI-powered insights with full document access</p>
-            </div>
-          </div>
-          
+        <div className="flex items-center justify-end">
           <Button onClick={() => setShowUploadDialog(true)} size="lg" className="bg-blue-600 hover:bg-blue-700">
             <Plus className="h-4 w-4 mr-2" />
             Add Document

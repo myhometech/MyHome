@@ -99,7 +99,7 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
         <div className="flex items-center space-x-3">
           <Brain className="h-8 w-8 text-purple-600" />
           <div>
-            <h1 className="text-2xl font-bold">AI Insights Dashboard</h1>
+            <h1 className="text-2xl font-bold">MyHome</h1>
             <p className="text-gray-600">Unable to load metrics</p>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function InsightsSummaryDashboard({ onFilterChange }: InsightsSum
       <div className="flex items-center space-x-3">
         <Brain className="h-8 w-8 text-purple-600" />
         <div>
-          <h1 className="text-2xl font-bold">AI Insights Dashboard</h1>
+          <h1 className="text-2xl font-bold">MyHome</h1>
           <p className="text-gray-600">Smart insights from your document library</p>
         </div>
       </div>

@@ -16,7 +16,7 @@ import { EmailForwarding } from "@/components/email-forwarding";
 import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
 import { useFeatures } from "@/hooks/useFeatures";
 import { useState } from "react";
-import { Grid, List, SortAsc, MessageCircle, Search, CheckSquare, Square, Trash2, FolderOpen, Share2, X, Mail } from "lucide-react";
+import { Grid, List, SortAsc, MessageCircle, Search, CheckSquare, Square, Trash2, FolderOpen, Share2, X, Mail, Calendar, DollarSign, Users, Shield, CheckCircle, FileText, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,7 +28,67 @@ import { ShareDocumentDialog } from "@/components/share-document-dialog";
 import { BatchTagManager } from "@/components/batch-tag-manager";
 import CriticalInsightsDashboard from "@/components/critical-insights-dashboard";
 import { InsightJobStatus } from "@/components/InsightJobStatus";
-import type { Category, Document } from "@shared/schema";
+import { Badge } from "@/components/ui/badge";
+import type { Category, Document, DocumentInsight } from "@shared/schema";
+
+// Simple Insight Category Buttons Component
+function InsightCategoryButtons() {
+  const { data: insightsData, isLoading } = useQuery<{insights: DocumentInsight[]}>({
+    queryKey: ['/api/insights', 'all'],
+    queryFn: async () => {
+      const response = await fetch('/api/insights?status=all');
+      if (!response.ok) throw new Error('Failed to fetch insights');
+      return response.json();
+    },
+  });
+
+  const insights = insightsData?.insights || [];
+
+  if (isLoading || insights.length === 0) {
+    return null; // Don't show anything if loading or no insights
+  }
+
+  // Group insights by type
+  const insightsByType = insights.reduce((acc, insight) => {
+    if (!acc[insight.type]) acc[insight.type] = [];
+    acc[insight.type].push(insight);
+    return acc;
+  }, {} as Record<string, DocumentInsight[]>);
+
+  return (
+    <Card className="w-full">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">AI Insights</h3>
+        </div>
+        
+        <div className="flex flex-wrap gap-3">
+          {Object.entries(insightsByType).map(([type, typeInsights]) => {
+            const count = typeInsights.length;
+            const hasHighPriority = typeInsights.some(i => i.priority === 'high');
+            
+            return (
+              <Button
+                key={type}
+                variant="outline"
+                className={`flex items-center gap-2 ${hasHighPriority ? 'border-red-200 bg-red-50 hover:bg-red-100' : ''}`}
+              >
+                {type === 'action_items' && <CheckCircle className="h-4 w-4" />}
+                {type === 'key_dates' && <Calendar className="h-4 w-4" />}
+                {type === 'financial_info' && <DollarSign className="h-4 w-4" />}
+                {type === 'contacts' && <Users className="h-4 w-4" />}
+                {type === 'compliance' && <Shield className="h-4 w-4" />}
+                {type === 'summary' && <FileText className="h-4 w-4" />}
+                <span className="capitalize">{type.replace('_', ' ')}</span>
+                <Badge variant="secondary" className="ml-1">{count}</Badge>
+              </Button>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Home() {
   const { toast } = useToast();
@@ -237,6 +297,11 @@ export default function Home() {
               className="pl-10"
             />
           </div>
+        </div>
+
+        {/* Simple Horizontal Insight Category Buttons */}
+        <div className="mb-6">
+          <InsightCategoryButtons />
         </div>
 
         {/* Critical Insights Dashboard - Prioritized at top */}

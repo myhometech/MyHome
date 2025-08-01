@@ -295,42 +295,44 @@ export default function InsightsFirstPage() {
                 <p className="mt-4 text-gray-600">Loading insights...</p>
               </div>
             ) : insights.length > 0 && (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {insights.map((insight) => (
-                  <Card key={insight.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            {getInsightIcon(insight.type)}
-                            <Badge className={getPriorityColor(insight.priority)}>
-                              {insight.priority.toUpperCase()}
-                            </Badge>
-                            <Badge variant="outline">
-                              {insight.type.replace('_', ' ').toUpperCase()}
-                            </Badge>
-                            {insight.dueDate && (
-                              <Badge variant="secondary" className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {new Date(insight.dueDate).toLocaleDateString()}
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <h3 className="font-semibold text-lg mb-2">{insight.title}</h3>
-                          <p className="text-gray-600 mb-3">{insight.content}</p>
-                          
-                          {insight.documentName && (
-                            <div className="text-sm text-gray-500">
-                              Document: {insight.documentName}
-                            </div>
-                          )}
+                  <Card key={insight.id} className="hover:shadow-md transition-shadow h-fit">
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {getInsightIcon(insight.type)}
+                          <Badge className={`${getPriorityColor(insight.priority)} text-xs px-2 py-1`}>
+                            {insight.priority.toUpperCase()}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs px-2 py-1">
+                            {insight.type.replace('_', ' ').toUpperCase()}
+                          </Badge>
                         </div>
                         
-                        <div className="flex gap-2 ml-4">
+                        {insight.dueDate && (
+                          <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                            <Clock className="h-3 w-3" />
+                            {new Date(insight.dueDate).toLocaleDateString()}
+                          </Badge>
+                        )}
+                        
+                        <div>
+                          <h3 className="font-semibold text-base mb-2 line-clamp-2">{insight.title}</h3>
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-3">{insight.content}</p>
+                        </div>
+                        
+                        {insight.documentName && (
+                          <div className="text-xs text-gray-500 truncate">
+                            Document: {insight.documentName}
+                          </div>
+                        )}
+                        
+                        <div className="flex gap-2 pt-2">
                           <Button 
                             size="sm" 
                             variant="outline"
+                            className="flex-1 text-xs"
                             onClick={() => {
                               const doc = documents.find(d => d.id === insight.documentId);
                               if (doc) {
@@ -339,9 +341,9 @@ export default function InsightsFirstPage() {
                               }
                             }}
                           >
-                            View Document
+                            View Doc
                           </Button>
-                          <Button size="sm" variant="ghost">
+                          <Button size="sm" variant="ghost" className="flex-1 text-xs">
                             Dismiss
                           </Button>
                         </div>

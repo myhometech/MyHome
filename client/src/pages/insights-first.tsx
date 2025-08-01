@@ -209,58 +209,39 @@ export default function InsightsFirstPage() {
 
         {/* AI Insights Section */}
         <div className="space-y-6">
-          {/* Priority Dashboard Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setInsightStatusFilter('open')}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Open Items</p>
-                    <p className="text-2xl font-bold text-blue-600">{allInsights.filter(i => i.status === 'open' || !i.status).length}</p>
-                  </div>
-                  <ListTodo className="h-8 w-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {setInsightPriorityFilter('high'); setInsightStatusFilter('open');}}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">High Priority</p>
-                    <p className="text-2xl font-bold text-red-600">{allInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status)).length}</p>
-                  </div>
-                  <AlertTriangle className="h-8 w-8 text-red-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {setInsightPriorityFilter('medium'); setInsightStatusFilter('open');}}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Medium Priority</p>
-                    <p className="text-2xl font-bold text-yellow-600">{allInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length}</p>
-                  </div>
-                  <Clock className="h-8 w-8 text-yellow-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setInsightStatusFilter('resolved')}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Resolved</p>
-                    <p className="text-2xl font-bold text-green-600">{allInsights.filter(i => i.status === 'resolved').length}</p>
-                  </div>
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-            {/* Insight Filters */}
-            <Card>
+          {/* Simple Horizontal Insight Category Buttons */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">AI Insights</h3>
+              </div>
+              
+              <div className="flex flex-wrap gap-3">
+                {/* Group insights by type and create category buttons */}
+                {Array.from(new Set(allInsights.map(i => i.type))).map((type) => {
+                  const typeInsights = allInsights.filter(i => i.type === type);
+                  const count = typeInsights.length;
+                  const hasHighPriority = typeInsights.some(i => i.priority === 'high');
+                  
+                  return (
+                    <Button
+                      key={type}
+                      variant="outline"
+                      className={`flex items-center gap-2 ${hasHighPriority ? 'border-red-200 bg-red-50 hover:bg-red-100' : ''}`}
+                      onClick={() => setInsightTypeFilter(type)}
+                    >
+                      {getInsightIcon(type)}
+                      <span className="capitalize">{type.replace('_', ' ')}</span>
+                      <Badge variant="secondary" className="ml-1">{count}</Badge>
+                    </Button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Insight Filters */}
+          <Card>
               <CardContent className="p-4">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Select value={insightStatusFilter} onValueChange={setInsightStatusFilter}>

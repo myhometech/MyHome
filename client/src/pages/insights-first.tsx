@@ -209,7 +209,7 @@ export default function InsightsFirstPage() {
 
         {/* AI Insights Section */}
         <div className="space-y-6">
-          {/* Simple Horizontal Insight Category Buttons */}
+          {/* Priority-Based Insight Navigation Buttons */}
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
@@ -217,25 +217,69 @@ export default function InsightsFirstPage() {
               </div>
               
               <div className="flex flex-wrap gap-3">
-                {/* Group insights by type and create category buttons */}
-                {Array.from(new Set(allInsights.map(i => i.type))).map((type) => {
-                  const typeInsights = allInsights.filter(i => i.type === type);
-                  const count = typeInsights.length;
-                  const hasHighPriority = typeInsights.some(i => i.priority === 'high');
-                  
-                  return (
-                    <Button
-                      key={type}
-                      variant="outline"
-                      className={`flex items-center gap-2 ${hasHighPriority ? 'border-red-200 bg-red-50 hover:bg-red-100' : ''}`}
-                      onClick={() => setInsightTypeFilter(type)}
-                    >
-                      {getInsightIcon(type)}
-                      <span className="capitalize">{type.replace('_', ' ')}</span>
-                      <Badge variant="secondary" className="ml-1">{count}</Badge>
-                    </Button>
-                  );
-                })}
+                <Button
+                  variant={insightStatusFilter === 'open' && insightPriorityFilter === 'all' ? 'default' : 'outline'}
+                  className="flex items-center gap-2"
+                  onClick={() => {
+                    setInsightStatusFilter('open');
+                    setInsightPriorityFilter('all');
+                    setInsightTypeFilter('all');
+                  }}
+                >
+                  <ListTodo className="h-4 w-4" />
+                  <span>Open Items</span>
+                  <Badge variant="secondary" className="ml-1">
+                    {allInsights.filter(i => i.status === 'open' || !i.status).length}
+                  </Badge>
+                </Button>
+
+                <Button
+                  variant={insightPriorityFilter === 'high' ? 'default' : 'outline'}
+                  className="flex items-center gap-2 border-red-200 bg-red-50 hover:bg-red-100"
+                  onClick={() => {
+                    setInsightPriorityFilter('high');
+                    setInsightStatusFilter('open');
+                    setInsightTypeFilter('all');
+                  }}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>High Priority</span>
+                  <Badge variant="secondary" className="ml-1">
+                    {allInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status)).length}
+                  </Badge>
+                </Button>
+
+                <Button
+                  variant={insightPriorityFilter === 'medium' ? 'default' : 'outline'}
+                  className="flex items-center gap-2 border-yellow-200 bg-yellow-50 hover:bg-yellow-100"
+                  onClick={() => {
+                    setInsightPriorityFilter('medium');
+                    setInsightStatusFilter('open');
+                    setInsightTypeFilter('all');
+                  }}
+                >
+                  <Clock className="h-4 w-4" />
+                  <span>Medium Priority</span>
+                  <Badge variant="secondary" className="ml-1">
+                    {allInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length}
+                  </Badge>
+                </Button>
+
+                <Button
+                  variant={insightStatusFilter === 'resolved' ? 'default' : 'outline'}
+                  className="flex items-center gap-2 border-green-200 bg-green-50 hover:bg-green-100"
+                  onClick={() => {
+                    setInsightStatusFilter('resolved');
+                    setInsightPriorityFilter('all');
+                    setInsightTypeFilter('all');
+                  }}
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  <span>Resolved</span>
+                  <Badge variant="secondary" className="ml-1">
+                    {allInsights.filter(i => i.status === 'resolved').length}
+                  </Badge>
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -362,8 +406,50 @@ export default function InsightsFirstPage() {
               <p className="text-gray-600">Manage and organize your documents</p>
             </div>
           </div>
-            {/* Library Controls */}
-            <Card>
+
+          {/* Document Category Navigation Buttons */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Document Categories</h3>
+              </div>
+              
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant={selectedCategory === null ? 'default' : 'outline'}
+                  className="flex items-center gap-2"
+                  onClick={() => setSelectedCategory(null)}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  <span>All Documents</span>
+                  <Badge variant="secondary" className="ml-1">
+                    {documents.length}
+                  </Badge>
+                </Button>
+
+                {categories.map((category) => {
+                  const categoryDocs = documents.filter(doc => doc.categoryId === category.id);
+                  return (
+                    <Button
+                      key={category.id}
+                      variant={selectedCategory === category.id ? 'default' : 'outline'}
+                      className="flex items-center gap-2"
+                      onClick={() => setSelectedCategory(category.id)}
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      <span>{category.name}</span>
+                      <Badge variant="secondary" className="ml-1">
+                        {categoryDocs.length}
+                      </Badge>
+                    </Button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Library Controls */}
+          <Card>
               <CardContent className="p-4">
                 <div className="flex flex-col lg:flex-row gap-4">
                   <div className="relative flex-1">

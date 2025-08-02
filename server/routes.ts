@@ -259,6 +259,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Logout failed" });
     }
   });
+
+  // Password reset request route
+  app.post('/api/auth/forgot-password', async (req: any, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const result = await AuthService.generatePasswordResetToken(email);
+      
+      if (result.success) {
+        // In a real application, you would send an email here
+        // For now, we'll just log the token and return success
+        console.log(`Password reset token for ${email}: ${result.token}`);
+        
+        res.json({ 
+          message: "If an account with this email exists, password reset instructions have been sent.",
+          success: true
+        });
+      } else {
+        // Always return success message for security (don't reveal if email exists)
+        res.json({ 
+          message: "If an account with this email exists, password reset instructions have been sent.",
+          success: true
+        });
+      }
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Failed to process request" });
+    }
+  });
+
+  // Verify reset token route
+  app.get('/api/auth/verify-reset-token/:token', async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      
+      const result = await AuthService.verifyPasswordResetToken(token);
+      
+      if (result.valid) {
+        res.json({ valid: true, message: result.message });
+      } else {
+        res.status(400).json({ valid: false, message: result.message });
+      }
+    } catch (error) {
+      console.error("Token verification error:", error);
+      res.status(500).json({ valid: false, message: "Failed to verify token" });
+    }
+  });
+
+  // Reset password with token route
+  app.post('/api/auth/reset-password', async (req: any, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+
+      const result = await AuthService.resetPasswordWithToken(token, password);
+      
+      if (result.success) {
+        res.json({ success: true, message: result.message });
+      } else {
+        res.status(400).json({ success: false, message: result.message });
+      }
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ success: false, message: "Failed to reset password" });
+    }
+  });
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);

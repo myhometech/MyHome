@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { users, type User, type InsertUser, type AuthProvider, type OAuthRegisterData } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
+import { update } from "drizzle-orm";
 
 export class AuthService {
   // Hash password for storage
@@ -147,5 +148,127 @@ export class AuthService {
   static async isEmailAccountExists(email: string): Promise<boolean> {
     const user = await this.findUserByEmailAndProvider(email, "email");
     return !!user;
+  }
+
+  // Generate password reset token
+  static async generatePasswordResetToken(email: string): Promise<{ success: boolean; token?: string; message: string }> {
+    try {
+      // Find user by email and ensure they use email authentication
+      const user = await this.findUserByEmailAndProvider(email, "email");
+      
+      if (!user) {
+        return { 
+          success: false, 
+          message: "No account found with this email address" 
+        };
+      }
+
+      // Generate secure random token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+      // Update user with reset token
+      await db
+        .update(users)
+        .set({
+          passwordResetToken: resetToken,
+          passwordResetTokenExpiry: resetTokenExpiry,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, user.id));
+
+      return {
+        success: true,
+        token: resetToken,
+        message: "Password reset token generated successfully"
+      };
+    } catch (error) {
+      console.error("Error generating password reset token:", error);
+      return {
+        success: false,
+        message: "Failed to generate reset token. Please try again."
+      };
+    }
+  }
+
+  // Verify password reset token
+  static async verifyPasswordResetToken(token: string): Promise<{ valid: boolean; user?: User; message: string }> {
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.passwordResetToken, token),
+            eq(users.authProvider, "email")
+          )
+        );
+
+      if (!user) {
+        return {
+          valid: false,
+          message: "Invalid reset token"
+        };
+      }
+
+      if (!user.passwordResetTokenExpiry || new Date() > user.passwordResetTokenExpiry) {
+        return {
+          valid: false,
+          message: "Reset token has expired"
+        };
+      }
+
+      return {
+        valid: true,
+        user,
+        message: "Token is valid"
+      };
+    } catch (error) {
+      console.error("Error verifying password reset token:", error);
+      return {
+        valid: false,
+        message: "Failed to verify token"
+      };
+    }
+  }
+
+  // Reset password with token
+  static async resetPasswordWithToken(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      // First verify the token
+      const tokenVerification = await this.verifyPasswordResetToken(token);
+      
+      if (!tokenVerification.valid || !tokenVerification.user) {
+        return {
+          success: false,
+          message: tokenVerification.message
+        };
+      }
+
+      // Hash the new password
+      const newPasswordHash = await this.hashPassword(newPassword);
+
+      // Update user with new password and clear reset token
+      await db
+        .update(users)
+        .set({
+          passwordHash: newPasswordHash,
+          passwordResetToken: null,
+          passwordResetTokenExpiry: null,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, tokenVerification.user.id));
+
+      return {
+        success: true,
+        message: "Password reset successfully"
+      };
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      return {
+        success: false,
+        message: "Failed to reset password. Please try again."
+      };
+    }
   }
 }

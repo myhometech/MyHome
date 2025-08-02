@@ -40,9 +40,21 @@ export default function ForgotPassword() {
     setError(null);
 
     try {
-      // For now, we'll just show a success message since email service is not configured
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      setSuccess(true);
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: data.email }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setSuccess(true);
+      } else {
+        setError(result.message || "Failed to send reset email. Please try again.");
+      }
     } catch (error) {
       setError("Failed to send reset email. Please try again.");
     } finally {

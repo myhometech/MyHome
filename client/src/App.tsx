@@ -21,6 +21,7 @@ import Register from "@/pages/register";
 import Blog from "@/pages/blog";
 import BlogPost from "@/pages/blog-post";
 import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 
 
 import Settings from "@/pages/settings";
@@ -64,6 +65,7 @@ function Router() {
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
           <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/reset-password" component={ResetPassword} />
           <Route path="/pricing" component={Pricing} />
           <Route path="/blog" component={Blog} />
           <Route path="/blog/:slug" component={BlogPost} />

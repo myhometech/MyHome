@@ -442,8 +442,8 @@ export const manualTrackedEvents = pgTable("manual_tracked_events", {
   dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
   repeatInterval: varchar("repeat_interval", { length: 20 }), // 'monthly', 'quarterly', 'annually'
   notes: text("notes"),
-  linkedAssetId: uuid("linked_asset_id").references(() => userAssets.id, { onDelete: "set null" }),
-  linkedDocumentIds: uuid("linked_document_ids").array().default([]), // Array of document IDs
+  linkedAssetId: integer("linked_asset_id").references(() => userAssets.id, { onDelete: "set null" }),
+  linkedDocumentIds: integer("linked_document_ids").array().default([]), // Array of document IDs
   createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -470,7 +470,7 @@ export const insertManualTrackedEventSchema = createInsertSchema(manualTrackedEv
     return parsedDate >= today;
   }, "Due date must be today or in the future"),
   repeatInterval: z.enum(["monthly", "quarterly", "annually"]).optional(),
-  linkedDocumentIds: z.array(z.string().uuid()).max(10, "Maximum 10 linked documents allowed").optional(),
+  linkedDocumentIds: z.array(z.number().int()).max(10, "Maximum 10 linked documents allowed").optional(),
   notes: z.string().optional(),
   source: z.enum(["manual", "document"]).default("manual"),
   status: z.enum(["active", "dismissed"]).default("active"),

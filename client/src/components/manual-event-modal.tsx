@@ -57,18 +57,14 @@ export function ManualEventModal({
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Categories for the dropdown
+  // Categories for the dropdown (mapped to schema values)
   const categories = [
-    'Insurance Renewal',
-    'Tax Deadline',
-    'Maintenance Due',
-    'License Renewal',
-    'Contract Expiry',
-    'Warranty Expiry',
-    'Inspection Due',
-    'Payment Due',
-    'Registration Renewal',
-    'Other'
+    { label: 'Insurance Renewal', value: 'insurance' },
+    { label: 'Vehicle Registration', value: 'vehicle' },
+    { label: 'Utilities Bill', value: 'utilities' },
+    { label: 'Mortgage Payment', value: 'mortgage' },
+    { label: 'Maintenance Due', value: 'maintenance' },
+    { label: 'Other', value: 'other' }
   ];
 
   // Repeat options
@@ -334,8 +330,8 @@ export function ManualEventModal({
                     </FormControl>
                     <SelectContent>
                       {categories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
                         </SelectItem>
                       ))}
                     </SelectContent>

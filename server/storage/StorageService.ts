@@ -20,15 +20,7 @@ export class StorageService {
       return StorageService.instance;
     }
 
-    const storageType = process.env.STORAGE_TYPE || 'local';
-    
-    // TEMPORARY: Force local storage due to GCS bucket name parsing issue
-    if (storageType.toLowerCase() === 'gcs' || storageType.toLowerCase() === 'google') {
-      console.warn('⚠️ Temporarily forcing local storage due to GCS configuration issues');
-      StorageService.instance = StorageService.createLocalStorage();
-      console.log('Storage provider initialized: local (forced fallback)');
-      return StorageService.instance;
-    }
+    const storageType = process.env.STORAGE_TYPE || 'gcs';
 
     switch (storageType.toLowerCase()) {
       case 'gcs':

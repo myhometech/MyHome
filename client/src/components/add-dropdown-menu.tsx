@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import UnifiedUploadButton from "@/components/unified-upload-button";
+import { ManualEventModal } from "@/components/manual-event-modal";
 
 interface AddDropdownMenuProps {
   /** Optional context for prefilling modals (e.g., selected house/vehicle) */
@@ -120,42 +121,18 @@ export function AddDropdownMenu({
             <DialogTitle>Upload Documents</DialogTitle>
           </DialogHeader>
           <div className="mt-4">
-            <UnifiedUploadButton 
-              onUploadComplete={() => {
-                setShowUploadDialog(false);
-              }}
-            />
+            <UnifiedUploadButton onUpload={() => setShowUploadDialog(false)} />
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Manual Date Creation Dialog - Placeholder for TICKET F2 */}
-      <Dialog open={showManualDateDialog} onOpenChange={setShowManualDateDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Important Date</DialogTitle>
-          </DialogHeader>
-          <div className="mt-4 p-6 text-center text-gray-600">
-            <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-lg font-medium mb-2">Coming Soon</p>
-            <p className="text-sm">
-              Manual date creation will be available in the next update.
-              {selectedAssetName && (
-                <span className="block mt-2 text-blue-600">
-                  Context: {selectedAssetName}
-                </span>
-              )}
-            </p>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowManualDateDialog(false)}
-              className="mt-4"
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Manual Event Modal */}
+      <ManualEventModal
+        isOpen={showManualDateDialog}
+        onClose={() => setShowManualDateDialog(false)}
+        selectedAssetId={selectedAssetId}
+        selectedAssetName={selectedAssetName}
+      />
     </>
   );
 }

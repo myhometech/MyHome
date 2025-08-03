@@ -6,7 +6,7 @@ import { AuthService } from "./authService";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema } from "@shared/schema";
 import { z } from 'zod';
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 
@@ -2245,6 +2245,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+
+  // ===== MANUAL TRACKED EVENTS ROUTES (TICKET B1) =====
+  
+  // Get all manual tracked events for the authenticated user
+  app.get('/api/manual-events', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const events = await storage.getManualTrackedEvents(userId);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching manual tracked events:", error);
+      res.status(500).json({ message: "Failed to fetch manual tracked events" });
+    }
+  });
+
+  // Get a specific manual tracked event
+  app.get('/api/manual-events/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const eventId = req.params.id;
+      
+      const event = await storage.getManualTrackedEvent(eventId, userId);
+      if (!event) {
+        return res.status(404).json({ message: "Manual tracked event not found" });
+      }
+      
+      res.json(event);
+    } catch (error) {
+      console.error("Error fetching manual tracked event:", error);
+      res.status(500).json({ message: "Failed to fetch manual tracked event" });
+    }
+  });
+
+  // Create a new manual tracked event
+  app.post('/api/manual-events', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Validate request body
+      const validatedData = insertManualTrackedEventSchema.parse(req.body);
+      
+      const event = await storage.createManualTrackedEvent({
+        ...validatedData,
+        createdBy: userId,
+      });
+      
+      res.status(201).json(event);
+    } catch (error: any) {
+      console.error("Error creating manual tracked event:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create manual tracked event" });
+    }
+  });
+
+  // Update a manual tracked event
+  app.put('/api/manual-events/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const eventId = req.params.id;
+      
+      // Validate request body (allowing partial updates)
+      const validatedData = insertManualTrackedEventSchema.partial().parse(req.body);
+      
+      const event = await storage.updateManualTrackedEvent(eventId, userId, validatedData);
+      if (!event) {
+        return res.status(404).json({ message: "Manual tracked event not found" });
+      }
+      
+      res.json(event);
+    } catch (error: any) {
+      console.error("Error updating manual tracked event:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update manual tracked event" });
+    }
+  });
+
+  // Delete a manual tracked event
+  app.delete('/api/manual-events/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const eventId = req.params.id;
+      
+      await storage.deleteManualTrackedEvent(eventId, userId);
+      res.json({ message: "Manual tracked event deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting manual tracked event:", error);
+      res.status(500).json({ message: "Failed to delete manual tracked event" });
+    }
+  });
+
+  // ===== MANUAL EVENT NOTIFICATION ROUTES (TICKET B2) =====
+  
+  // Manually trigger notifications for the authenticated user (testing endpoint)
+  app.post('/api/manual-events/trigger-notifications', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { manualEventNotificationService } = await import('./manualEventNotificationService');
+      
+      await manualEventNotificationService.triggerUserNotifications(userId);
+      res.json({ message: "Notifications triggered successfully" });
+    } catch (error) {
+      console.error("Error triggering notifications:", error);
+      res.status(500).json({ message: "Failed to trigger notifications" });
+    }
+  });
+
+  // Check if a specific event should trigger notifications today
+  app.get('/api/manual-events/:id/notification-check', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const eventId = req.params.id;
+      const { manualEventNotificationService } = await import('./manualEventNotificationService');
+      
+      const shouldNotify = await manualEventNotificationService.checkEventNotification(eventId, userId);
+      res.json({ shouldNotify, eventId });
+    } catch (error) {
+      console.error("Error checking event notification:", error);
+      res.status(500).json({ message: "Failed to check event notification" });
+    }
+  });
 
   // ===== FEATURE FLAG ADMIN ROUTES =====
   

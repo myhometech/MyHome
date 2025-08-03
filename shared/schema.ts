@@ -434,5 +434,52 @@ export const insertUserAssetSchema = createInsertSchema(userAssets).omit({
   updatedAt: true,
 });
 
+// Manual Tracked Events table (TICKET B1)
+export const manualTrackedEvents = pgTable("manual_tracked_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: varchar("title", { length: 255 }).notNull(),
+  category: varchar("category", { length: 20 }).notNull(), // 'insurance', 'vehicle', 'utilities', 'mortgage', 'maintenance', 'other'
+  dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
+  repeatInterval: varchar("repeat_interval", { length: 20 }), // 'monthly', 'quarterly', 'annually'
+  notes: text("notes"),
+  linkedAssetId: uuid("linked_asset_id").references(() => userAssets.id, { onDelete: "set null" }),
+  linkedDocumentIds: uuid("linked_document_ids").array().default([]), // Array of document IDs
+  createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  source: varchar("source", { length: 20 }).default("manual").notNull(), // 'manual' | 'document'
+  status: varchar("status", { length: 20 }).default("active").notNull(), // 'active' | 'dismissed'
+}, (table) => [
+  index("idx_manual_events_user").on(table.createdBy),
+  index("idx_manual_events_due_date").on(table.dueDate),
+  index("idx_manual_events_category").on(table.category),
+  index("idx_manual_events_status").on(table.status),
+]);
+
+// Manual Tracked Event types and schemas
+export type ManualTrackedEvent = typeof manualTrackedEvents.$inferSelect;
+export type InsertManualTrackedEvent = typeof manualTrackedEvents.$inferInsert;
+
+export const insertManualTrackedEventSchema = createInsertSchema(manualTrackedEvents, {
+  title: z.string().min(1, "Title is required").max(255, "Title too long"),
+  category: z.enum(["insurance", "vehicle", "utilities", "mortgage", "maintenance", "other"]),
+  dueDate: z.string().refine((date) => {
+    const parsedDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return parsedDate >= today;
+  }, "Due date must be today or in the future"),
+  repeatInterval: z.enum(["monthly", "quarterly", "annually"]).optional(),
+  linkedDocumentIds: z.array(z.string().uuid()).max(10, "Maximum 10 linked documents allowed").optional(),
+  notes: z.string().optional(),
+  source: z.enum(["manual", "document"]).default("manual"),
+  status: z.enum(["active", "dismissed"]).default("active"),
+}).omit({
+  id: true,
+  createdBy: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Re-export feature flag schemas
 export * from "./featureFlagSchema";

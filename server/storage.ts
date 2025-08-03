@@ -13,6 +13,7 @@ import {
   featureFlagEvents,
   documentInsights,
   userAssets,
+  manualTrackedEvents,
   type User,
   type InsertUser,
   type Document,
@@ -39,6 +40,8 @@ import {
   type InsertDocumentInsight,
   type UserAsset,
   type InsertUserAsset,
+  type ManualTrackedEvent,
+  type InsertManualTrackedEvent,
 } from "@shared/schema";
 
 // Add blog post types
@@ -157,6 +160,13 @@ export interface IStorage {
   getUserAssets(userId: string): Promise<UserAsset[]>;
   createUserAsset(asset: InsertUserAsset & { userId: string }): Promise<UserAsset>;
   deleteUserAsset(id: number, userId: string): Promise<void>;
+
+  // Manual Tracked Events operations (TICKET B1)
+  getManualTrackedEvents(userId: string): Promise<ManualTrackedEvent[]>;
+  getManualTrackedEvent(id: string, userId: string): Promise<ManualTrackedEvent | undefined>;
+  createManualTrackedEvent(event: InsertManualTrackedEvent & { createdBy: string }): Promise<ManualTrackedEvent>;
+  updateManualTrackedEvent(id: string, userId: string, updates: Partial<InsertManualTrackedEvent>): Promise<ManualTrackedEvent | undefined>;
+  deleteManualTrackedEvent(id: string, userId: string): Promise<void>;
 
   // Admin operations
   getAdminStats(): Promise<{
@@ -1510,6 +1520,130 @@ export class DatabaseStorage implements IStorage {
       trend: 'down',
       trendPercentage: 8.3,
     };
+  }
+
+  // Manual Tracked Events operations (TICKET B1)
+  async getManualTrackedEvents(userId: string): Promise<ManualTrackedEvent[]> {
+    try {
+      return await db
+        .select()
+        .from(manualTrackedEvents)
+        .where(eq(manualTrackedEvents.createdBy, userId))
+        .orderBy(desc(manualTrackedEvents.dueDate));
+    } catch (error) {
+      console.error("Error fetching manual tracked events:", error);
+      return [];
+    }
+  }
+
+  async getManualTrackedEvent(id: string, userId: string): Promise<ManualTrackedEvent | undefined> {
+    try {
+      const [event] = await db
+        .select()
+        .from(manualTrackedEvents)
+        .where(and(eq(manualTrackedEvents.id, id), eq(manualTrackedEvents.createdBy, userId)));
+      return event || undefined;
+    } catch (error) {
+      console.error("Error fetching manual tracked event:", error);
+      return undefined;
+    }
+  }
+
+  async createManualTrackedEvent(event: InsertManualTrackedEvent & { createdBy: string }): Promise<ManualTrackedEvent> {
+    // Validate linked document ownership if provided
+    if (event.linkedDocumentIds && event.linkedDocumentIds.length > 0) {
+      const documentOwnershipCheck = await db
+        .select({ id: documents.id })
+        .from(documents)
+        .where(and(
+          inArray(documents.id, event.linkedDocumentIds.map(id => parseInt(id))),
+          eq(documents.userId, event.createdBy)
+        ));
+      
+      if (documentOwnershipCheck.length !== event.linkedDocumentIds.length) {
+        throw new Error("Invalid document ownership - some linked documents don't belong to the user");
+      }
+    }
+
+    // Validate linked asset ownership if provided
+    if (event.linkedAssetId) {
+      const assetOwnershipCheck = await db
+        .select({ id: userAssets.id })
+        .from(userAssets)
+        .where(and(
+          eq(userAssets.id, parseInt(event.linkedAssetId)),
+          eq(userAssets.userId, event.createdBy)
+        ));
+      
+      if (assetOwnershipCheck.length === 0) {
+        throw new Error("Invalid asset ownership - linked asset doesn't belong to the user");
+      }
+    }
+
+    const [newEvent] = await db
+      .insert(manualTrackedEvents)
+      .values({
+        ...event,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newEvent;
+  }
+
+  async updateManualTrackedEvent(id: string, userId: string, updates: Partial<InsertManualTrackedEvent>): Promise<ManualTrackedEvent | undefined> {
+    // Validate ownership first
+    const existingEvent = await this.getManualTrackedEvent(id, userId);
+    if (!existingEvent) {
+      return undefined;
+    }
+
+    // Validate linked document ownership if being updated
+    if (updates.linkedDocumentIds && updates.linkedDocumentIds.length > 0) {
+      const documentOwnershipCheck = await db
+        .select({ id: documents.id })
+        .from(documents)
+        .where(and(
+          inArray(documents.id, updates.linkedDocumentIds.map(id => parseInt(id))),
+          eq(documents.userId, userId)
+        ));
+      
+      if (documentOwnershipCheck.length !== updates.linkedDocumentIds.length) {
+        throw new Error("Invalid document ownership - some linked documents don't belong to the user");
+      }
+    }
+
+    // Validate linked asset ownership if being updated
+    if (updates.linkedAssetId) {
+      const assetOwnershipCheck = await db
+        .select({ id: userAssets.id })
+        .from(userAssets)
+        .where(and(
+          eq(userAssets.id, parseInt(updates.linkedAssetId)),
+          eq(userAssets.userId, userId)
+        ));
+      
+      if (assetOwnershipCheck.length === 0) {
+        throw new Error("Invalid asset ownership - linked asset doesn't belong to the user");
+      }
+    }
+
+    const [updatedEvent] = await db
+      .update(manualTrackedEvents)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(manualTrackedEvents.id, id), eq(manualTrackedEvents.createdBy, userId)))
+      .returning();
+    
+    return updatedEvent || undefined;
+  }
+
+  async deleteManualTrackedEvent(id: string, userId: string): Promise<void> {
+    await db
+      .delete(manualTrackedEvents)
+      .where(and(eq(manualTrackedEvents.id, id), eq(manualTrackedEvents.createdBy, userId)));
   }
 }
 

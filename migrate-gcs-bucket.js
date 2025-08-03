@@ -2,7 +2,7 @@
 
 /**
  * GCS Bucket Migration Script
- * Migrates documents from old bucket to new bucket (myhome-docs-prod)
+ * Migrates documents from old bucket to new bucket (myhometech-storage)
  */
 
 import { Storage } from '@google-cloud/storage';
@@ -23,7 +23,7 @@ const storage = new Storage({
   projectId: process.env.GCS_PROJECT_ID
 });
 
-const newBucketName = process.env.GCS_BUCKET_NAME; // myhome-docs-prod
+const newBucketName = process.env.GCS_BUCKET_NAME; // myhometech-storage
 const oldBucketName = 'myhome-storage-backup'; // Previous bucket name
 
 console.log(`🔧 Migration will move files from ${oldBucketName} to ${newBucketName}`);

@@ -66,10 +66,11 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 - **Categories**: Core, Advanced, AI, Automation, Collaboration.
 
 ### File Management
-- **Storage**: Local filesystem with configurable upload directory, integrated with Google Cloud Storage for scalable cloud storage.
+- **Storage**: Google Cloud Storage (myhometech-storage bucket) with automatic bucket creation and management.
 - **Supported Formats**: PDF, JPEG, PNG, WebP (and iPhone-specific formats like HEIC, HEIF, TIFF, BMP).
 - **File Size Limit**: 10MB per file for email ingestion; 50MB for multi-page document scans.
 - **Security**: File type validation, secure filename generation, AES-256-GCM encryption for all uploaded documents.
+- **Cloud Integration**: Automated backups to myhometech-backups bucket with configurable retention.
 
 ### Document Organization
 - **Categories**: Predefined and user-creatable categories.

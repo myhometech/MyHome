@@ -1196,7 +1196,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const insights = await storage.getDocumentInsights(documentId, userId, tier);
+      const allInsights = await storage.getDocumentInsights(documentId, userId, tier);
+      
+      // Filter out unwanted insight types at API level
+      const insights = allInsights.filter(insight => 
+        !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
+      );
       
       res.json({
         success: true,
@@ -1257,8 +1262,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           linkedDocumentIds: event.linkedDocumentIds
         }));
 
+      // Filter out unwanted insight types at API level
+      const filteredAIInsights = insights.filter(insight => 
+        !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
+      );
+
       // Combine AI insights and manual events
-      const allInsights = [...insights, ...manualInsights];
+      const allInsights = [...filteredAIInsights, ...manualInsights];
 
       // TICKET 9: Filter insights with due dates if requested
       const filteredInsights = hasDueDate 
@@ -1294,6 +1304,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all insights for calculations
       const allInsights = await storage.getInsights(userId);
       
+      // Filter out unwanted insight types at API level
+      const filteredAIInsights = allInsights.filter(insight => 
+        !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
+      );
+      
       // Include manual events as high priority insights
       const manualEvents = await storage.getManualTrackedEvents(userId);
       const manualInsights = manualEvents
@@ -1306,18 +1321,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }));
       
       // Combine all insights
-      const combinedInsights = [...allInsights, ...manualInsights];
+      const combinedInsights = [...filteredAIInsights, ...manualInsights];
       
       // Calculate metrics
       const openInsights = combinedInsights.filter(i => i.status === 'open' || !i.status);
       const highPriority = combinedInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
       const resolvedInsights = combinedInsights.filter(i => i.status === 'resolved');
       
-      // Type-specific metrics (open only)
-      const actionItems = combinedInsights.filter(i => i.type === 'action_items' && (i.status === 'open' || !i.status));
-      const keyDates = combinedInsights.filter(i => i.type === 'key_dates' && (i.status === 'open' || !i.status));
-      const compliance = combinedInsights.filter(i => i.type === 'compliance' && (i.status === 'open' || !i.status));
+      // Type-specific metrics (open only) - exclude unwanted types
       const manualEventCount = combinedInsights.filter(i => i.type === 'manual_event' && (i.status === 'open' || !i.status));
+      const summaryInsights = combinedInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status));
+      const contactInsights = combinedInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status));
       
       // Upcoming deadlines (within 30 days)
       const today = new Date();
@@ -1333,18 +1347,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         open: openInsights.length,
         highPriority: highPriority.length,
         resolved: resolvedInsights.length,
-        actionItems: actionItems.length,
-        keyDates: keyDates.length,
-        compliance: compliance.length,
         manualEvents: manualEventCount.length,
         upcomingDeadlines: upcomingDeadlines.length,
         byType: {
-          summary: combinedInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status)).length,
-          action_items: actionItems.length,
-          key_dates: keyDates.length,
-          financial_info: combinedInsights.filter(i => i.type === 'financial_info' && (i.status === 'open' || !i.status)).length,
-          contacts: combinedInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status)).length,
-          compliance: compliance.length,
+          summary: summaryInsights.length,
+          contacts: contactInsights.length,
           manual_event: manualEventCount.length
         },
         byPriority: {

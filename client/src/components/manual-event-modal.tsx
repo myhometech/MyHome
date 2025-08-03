@@ -226,6 +226,8 @@ export function ManualEventModal({
         credentials: 'include',
         body: JSON.stringify({
           ...data,
+          dueDate: data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate,
+          repeatInterval: data.repeat === 'none' ? null : data.repeat,
           linkedAssetId: data.linkedAssetId && data.linkedAssetId !== 'none' ? parseInt(data.linkedAssetId) : null,
           linkedDocumentIds: data.linkedDocumentIds || [],
         }),

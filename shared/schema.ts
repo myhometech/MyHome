@@ -463,11 +463,10 @@ export type InsertManualTrackedEvent = typeof manualTrackedEvents.$inferInsert;
 export const insertManualTrackedEventSchema = createInsertSchema(manualTrackedEvents, {
   title: z.string().min(1, "Title is required").max(255, "Title too long"),
   category: z.enum(["insurance", "vehicle", "utilities", "mortgage", "maintenance", "other"]),
-  dueDate: z.string().refine((date) => {
-    const parsedDate = new Date(date);
+  dueDate: z.string().transform((str) => new Date(str)).refine((date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return parsedDate >= today;
+    return date >= today;
   }, "Due date must be today or in the future"),
   repeatInterval: z.enum(["monthly", "quarterly", "annually"]).optional(),
   linkedDocumentIds: z.array(z.number().int()).max(10, "Maximum 10 linked documents allowed").optional(),

@@ -170,8 +170,11 @@ export default function UnifiedDocumentCard({
     enabled: showInsights,
   });
 
-  // Calculate insight summary
-  const openInsights = insights.filter(i => i.status === 'open');
+  // Calculate insight summary - filter out unwanted types
+  const openInsights = insights.filter(i => 
+    i.status === 'open' && 
+    !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(i.type)
+  );
   const criticalInsights = openInsights.filter(i => i.priority === 'high');
   const highestPriorityInsight = openInsights.sort((a, b) => {
     const priorityOrder = { high: 3, medium: 2, low: 1 };
@@ -557,7 +560,7 @@ export default function UnifiedDocumentCard({
                     <div className="text-xs text-gray-500 p-2">Loading insights...</div>
                   ) : (
                     openInsights.map((insight) => {
-                      const config = insightTypeConfig[insight.type];
+                      const config = insightTypeConfig[insight.type] || insightTypeConfig.summary;
                       const priorityStyle = priorityConfig[insight.priority];
                       const IconComponent = config.icon;
                       

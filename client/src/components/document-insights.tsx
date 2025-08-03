@@ -50,11 +50,7 @@ interface InsightResponse {
 
 const insightTypeConfig = {
   summary: { icon: FileText, label: 'Summary', color: 'bg-blue-100 text-blue-800' },
-  action_items: { icon: ListTodo, label: 'Action Items', color: 'bg-orange-100 text-orange-800' },
-  key_dates: { icon: Calendar, label: 'Key Dates', color: 'bg-purple-100 text-purple-800' },
-  financial_info: { icon: DollarSign, label: 'Financial Info', color: 'bg-green-100 text-green-800' },
-  contacts: { icon: Users, label: 'Contacts', color: 'bg-indigo-100 text-indigo-800' },
-  compliance: { icon: Shield, label: 'Compliance', color: 'bg-red-100 text-red-800' }
+  contacts: { icon: Users, label: 'Contacts', color: 'bg-indigo-100 text-indigo-800' }
 };
 
 const priorityConfig = {
@@ -246,8 +242,10 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
         </div>
       ) : (
         <div className="space-y-4">
-          {insights.map((insight: DocumentInsight, index: number) => {
-            const config = insightTypeConfig[insight.type];
+          {insights.filter((insight: DocumentInsight) => 
+            !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
+          ).map((insight: DocumentInsight, index: number) => {
+            const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
             const priorityStyle = priorityConfig[insight.priority];
             const IconComponent = config.icon;
             

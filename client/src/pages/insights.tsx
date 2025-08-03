@@ -72,14 +72,15 @@ export function InsightsPage() {
 
   const insights = insightsData?.insights || [];
 
-  // Filter insights based on filters
+  // Filter insights based on filters and exclude unwanted types
   const filteredInsights = insights.filter(insight => {
     const matchesStatus = statusFilter === 'all' || insight.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || insight.priority === priorityFilter;
     const matchesSearch = searchQuery === "" || 
       insight.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       insight.content.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesPriority && matchesSearch;
+    const notExcludedType = !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type);
+    return matchesStatus && matchesPriority && matchesSearch && notExcludedType;
   });
 
   // Filter manual events based on search

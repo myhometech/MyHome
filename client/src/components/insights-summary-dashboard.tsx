@@ -204,61 +204,6 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
           </CardContent>
         </Card>
 
-        {/* Documents Processed */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'all', priority: 'all', type: 'summary' })}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Document Summaries</p>
-                <p className="text-2xl font-bold text-blue-600">{metrics.byType?.summary || 0}</p>
-              </div>
-              <div className="h-12 w-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                <FileText className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full mt-2 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onFilterChange({ status: 'all', priority: 'all', type: 'summary' });
-              }}
-            >
-              View Summaries
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Additional Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Contacts */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'contacts' })}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Contact Info</p>
-                <p className="text-2xl font-bold text-indigo-600">{metrics.byType?.contacts || 0}</p>
-              </div>
-              <div className="h-12 w-12 bg-indigo-50 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-indigo-600" />
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full mt-2 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onFilterChange({ status: 'open', priority: 'all', type: 'contacts' });
-              }}
-            >
-              View Contacts
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Resolved */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
           <CardContent className="p-3" onClick={() => onFilterChange({ status: 'resolved', priority: 'all', type: 'all' })}>
@@ -285,6 +230,8 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
           </CardContent>
         </Card>
       </div>
+
+
 
 
     </div>

@@ -1230,16 +1230,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasDueDate = req.query.has_due_date === 'true';
 
       let insights = await storage.getInsights(userId, status === 'all' ? undefined : status, type, priority);
+      
+      // Get manual events and convert them to insights format
+      const manualEvents = await storage.getManualTrackedEvents(userId);
+      const manualInsights = manualEvents
+        .filter(event => status === 'all' || event.status === 'active')
+        .map(event => ({
+          id: `manual-${event.id}`,
+          insightId: `manual-${event.id}`,
+          documentId: null,
+          userId: event.createdBy,
+          type: 'manual_event',
+          priority: 'high', // All manual events are high priority
+          tier: 'core',
+          title: event.title,
+          content: event.notes || `${event.category} reminder`,
+          actionText: 'View Details',
+          dueDate: event.dueDate,
+          status: event.status === 'active' ? 'open' : 'dismissed',
+          createdAt: event.createdAt,
+          updatedAt: event.updatedAt,
+          source: 'manual',
+          category: event.category,
+          repeatInterval: event.repeatInterval,
+          linkedAssetId: event.linkedAssetId,
+          linkedDocumentIds: event.linkedDocumentIds
+        }));
+
+      // Combine AI insights and manual events
+      const allInsights = [...insights, ...manualInsights];
 
       // TICKET 9: Filter insights with due dates if requested
-      if (hasDueDate) {
-        insights = insights.filter(insight => insight.dueDate && insight.dueDate !== null);
-      }
+      const filteredInsights = hasDueDate 
+        ? allInsights.filter(insight => insight.dueDate && insight.dueDate !== null)
+        : allInsights;
 
       // Enhanced insight format for calendar support - keep camelCase for consistency
-      const enhancedInsights = insights.map(insight => ({
+      const enhancedInsights = filteredInsights.map(insight => ({
         ...insight,
-        actionUrl: `/document/${insight.documentId}`,
+        actionUrl: insight.type === 'manual_event' ? `/insights` : `/document/${insight.documentId}`,
         // Ensure dueDate is in YYYY-MM-DD format for calendar
         dueDate: insight.dueDate ? (typeof insight.dueDate === 'string' ? insight.dueDate.split('T')[0] : (insight.dueDate as Date).toISOString().split('T')[0]) : null
       }));
@@ -1265,46 +1294,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all insights for calculations
       const allInsights = await storage.getInsights(userId);
       
+      // Include manual events as high priority insights
+      const manualEvents = await storage.getManualTrackedEvents(userId);
+      const manualInsights = manualEvents
+        .filter(event => event.status === 'active')
+        .map(event => ({
+          ...event,
+          priority: 'high' as const,
+          status: 'open' as const,
+          type: 'manual_event' as const
+        }));
+      
+      // Combine all insights
+      const combinedInsights = [...allInsights, ...manualInsights];
+      
       // Calculate metrics
-      const openInsights = allInsights.filter(i => i.status === 'open' || !i.status);
-      const highPriority = allInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
-      const resolvedInsights = allInsights.filter(i => i.status === 'resolved');
+      const openInsights = combinedInsights.filter(i => i.status === 'open' || !i.status);
+      const highPriority = combinedInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
+      const resolvedInsights = combinedInsights.filter(i => i.status === 'resolved');
       
       // Type-specific metrics (open only)
-      const actionItems = allInsights.filter(i => i.type === 'action_items' && (i.status === 'open' || !i.status));
-      const keyDates = allInsights.filter(i => i.type === 'key_dates' && (i.status === 'open' || !i.status));
-      const compliance = allInsights.filter(i => i.type === 'compliance' && (i.status === 'open' || !i.status));
+      const actionItems = combinedInsights.filter(i => i.type === 'action_items' && (i.status === 'open' || !i.status));
+      const keyDates = combinedInsights.filter(i => i.type === 'key_dates' && (i.status === 'open' || !i.status));
+      const compliance = combinedInsights.filter(i => i.type === 'compliance' && (i.status === 'open' || !i.status));
+      const manualEventCount = combinedInsights.filter(i => i.type === 'manual_event' && (i.status === 'open' || !i.status));
       
       // Upcoming deadlines (within 30 days)
       const today = new Date();
       const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
-      const upcomingDeadlines = allInsights.filter(i => {
+      const upcomingDeadlines = combinedInsights.filter(i => {
         if (!i.dueDate || i.status !== 'open') return false;
         const dueDate = new Date(i.dueDate);
         return dueDate >= today && dueDate <= thirtyDaysFromNow;
       });
 
       res.json({
-        total: allInsights.length,
+        total: combinedInsights.length,
         open: openInsights.length,
         highPriority: highPriority.length,
         resolved: resolvedInsights.length,
         actionItems: actionItems.length,
         keyDates: keyDates.length,
         compliance: compliance.length,
+        manualEvents: manualEventCount.length,
         upcomingDeadlines: upcomingDeadlines.length,
         byType: {
-          summary: allInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status)).length,
+          summary: combinedInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status)).length,
           action_items: actionItems.length,
           key_dates: keyDates.length,
-          financial_info: allInsights.filter(i => i.type === 'financial_info' && (i.status === 'open' || !i.status)).length,
-          contacts: allInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status)).length,
-          compliance: compliance.length
+          financial_info: combinedInsights.filter(i => i.type === 'financial_info' && (i.status === 'open' || !i.status)).length,
+          contacts: combinedInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status)).length,
+          compliance: compliance.length,
+          manual_event: manualEventCount.length
         },
         byPriority: {
           high: highPriority.length,
-          medium: allInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length,
-          low: allInsights.filter(i => i.priority === 'low' && (i.status === 'open' || !i.status)).length
+          medium: combinedInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length,
+          low: combinedInsights.filter(i => i.priority === 'low' && (i.status === 'open' || !i.status)).length
         }
       });
 

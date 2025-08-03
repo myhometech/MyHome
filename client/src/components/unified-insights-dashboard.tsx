@@ -28,12 +28,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { InsightCard } from '@/components/insight-card';
 import { InsightsCalendar } from '@/components/insights-calendar';
+import { ManualEventCard, CompactManualEventCard } from '@/components/manual-event-card';
 import DocumentCard from '@/components/document-card';
 import CategoryFilter from '@/components/category-filter';
 import UploadZone from '@/components/upload-zone';
 import AddDropdownMenu from '@/components/add-dropdown-menu';
 import { useFeatures } from '@/hooks/useFeatures';
 import type { Category, Document, DocumentInsight } from '@shared/schema';
+
+// Manual Event interface for TypeScript
+interface ManualEvent {
+  id: string;
+  title: string;
+  category: string;
+  dueDate: string;
+  repeat: 'none' | 'monthly' | 'quarterly' | 'annually';
+  linkedAssetId?: number;
+  linkedDocumentIds?: number[];
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface UserAsset {
+  id: number;
+  name: string;
+  type: 'house' | 'car';
+}
 
 // Compact insight button component for button-style layout
 interface CompactInsightButtonProps {
@@ -169,6 +191,26 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     queryKey: ["/api/categories"],
   });
 
+  // Fetch manual events
+  const { data: manualEvents = [], isLoading: manualEventsLoading } = useQuery<ManualEvent[]>({
+    queryKey: ['/api/manual-events'],
+    queryFn: async () => {
+      const response = await fetch('/api/manual-events', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch manual events');
+      return response.json();
+    },
+  });
+
+  // Fetch user assets for linking manual events to assets
+  const { data: userAssets = [] } = useQuery<UserAsset[]>({
+    queryKey: ['/api/user-assets'],
+    queryFn: async () => {
+      const response = await fetch('/api/user-assets', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch user assets');
+      return response.json();
+    },
+  });
+
   const insights = insightsData?.insights || [];
   
 
@@ -255,42 +297,86 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
               </Button>
             </div>
             
-            {isLoading ? (
+            {isLoading || manualEventsLoading ? (
               <div className="text-center py-8">
                 <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
                 <p>Loading insights...</p>
               </div>
-            ) : insights.length > 0 ? (
-              <div className="flex flex-wrap gap-3">
-                {/* Group insights by type and create category buttons */}
-                {Array.from(new Set(insights.map(i => i.type))).map((type) => {
-                  const typeInsights = insights.filter(i => i.type === type);
-                  const count = typeInsights.length;
-                  const hasHighPriority = typeInsights.some(i => i.priority === 'high');
-                  
-                  return (
-                    <Button
-                      key={type}
-                      variant="outline"
-                      className={`flex items-center gap-2 ${hasHighPriority ? 'border-red-200 bg-red-50 hover:bg-red-100' : ''}`}
-                    >
-                      {type === 'action_items' && <CheckCircle className="h-4 w-4" />}
-                      {type === 'key_dates' && <Calendar className="h-4 w-4" />}
-                      {type === 'financial_info' && <DollarSign className="h-4 w-4" />}
-                      {type === 'contacts' && <Users className="h-4 w-4" />}
-                      {type === 'compliance' && <Shield className="h-4 w-4" />}
-                      {type === 'summary' && <FileText className="h-4 w-4" />}
-                      <span className="capitalize">{type.replace('_', ' ')}</span>
-                      <Badge variant="secondary" className="ml-1">{count}</Badge>
-                    </Button>
-                  );
-                })}
-              </div>
             ) : (
-              <div className="text-center py-8">
-                <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Insights Found</h3>
-                <p className="text-gray-600">Upload some documents to start generating AI insights.</p>
+              <div className="space-y-6">
+                {/* AI Document Insights */}
+                {insights.length > 0 && (
+                  <div>
+                    <h4 className="text-md font-medium mb-3 text-gray-700">Document Insights</h4>
+                    <div className="flex flex-wrap gap-3">
+                      {Array.from(new Set(insights.map(i => i.type))).map((type) => {
+                        const typeInsights = insights.filter(i => i.type === type);
+                        const count = typeInsights.length;
+                        const hasHighPriority = typeInsights.some(i => i.priority === 'high');
+                        
+                        return (
+                          <Button
+                            key={type}
+                            variant="outline"
+                            className={`flex items-center gap-2 ${hasHighPriority ? 'border-red-200 bg-red-50 hover:bg-red-100' : ''}`}
+                          >
+                            {type === 'action_items' && <CheckCircle className="h-4 w-4" />}
+                            {type === 'key_dates' && <Calendar className="h-4 w-4" />}
+                            {type === 'financial_info' && <DollarSign className="h-4 w-4" />}
+                            {type === 'contacts' && <Users className="h-4 w-4" />}
+                            {type === 'compliance' && <Shield className="h-4 w-4" />}
+                            {type === 'summary' && <FileText className="h-4 w-4" />}
+                            <span className="capitalize">{type.replace('_', ' ')}</span>
+                            <Badge variant="secondary" className="ml-1">{count}</Badge>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Manual Events */}
+                {manualEvents.length > 0 && (
+                  <div>
+                    <h4 className="text-md font-medium mb-3 text-gray-700">Manual Events</h4>
+                    <div className="flex flex-wrap gap-3">
+                      {manualEvents.slice(0, 6).map((event) => {
+                        const linkedAsset = event.linkedAssetId 
+                          ? userAssets.find(asset => asset.id === event.linkedAssetId)
+                          : undefined;
+                        
+                        return (
+                          <CompactManualEventCard
+                            key={event.id}
+                            event={event}
+                            linkedAsset={linkedAsset}
+                          />
+                        );
+                      })}
+                      {manualEvents.length > 6 && (
+                        <Button
+                          variant="outline"
+                          className="border-dashed"
+                          onClick={() => setLocation('/insights')}
+                        >
+                          +{manualEvents.length - 6} more events
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {insights.length === 0 && manualEvents.length === 0 && (
+                  <div className="text-center py-8">
+                    <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Insights or Events Found</h3>
+                    <p className="text-gray-600 mb-4">Upload documents to generate AI insights or create manual events for important dates.</p>
+                    <div className="flex justify-center">
+                      <AddDropdownMenu />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

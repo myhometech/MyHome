@@ -468,7 +468,7 @@ export const insertManualTrackedEventSchema = createInsertSchema(manualTrackedEv
     today.setHours(0, 0, 0, 0);
     return date >= today;
   }, "Due date must be today or in the future"),
-  repeatInterval: z.enum(["monthly", "quarterly", "annually"]).optional(),
+  repeatInterval: z.enum(["monthly", "quarterly", "annually"]).nullable().optional(),
   linkedDocumentIds: z.array(z.number().int()).max(10, "Maximum 10 linked documents allowed").optional(),
   notes: z.string().optional(),
   source: z.enum(["manual", "document"]).default("manual"),

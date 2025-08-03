@@ -178,16 +178,16 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
           </CardContent>
         </Card>
 
-        {/* Upcoming Deadlines */}
+        {/* Manual Events */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' })}>
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'manual_event' })}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Upcoming Deadlines</p>
-                <p className="text-2xl font-bold text-purple-600">{metrics.upcomingDeadlines}</p>
+                <p className="text-sm font-medium text-gray-600">Manual Events</p>
+                <p className="text-2xl font-bold text-green-600">{metrics.manualEvents}</p>
               </div>
-              <div className="h-12 w-12 bg-purple-50 rounded-lg flex items-center justify-center">
-                <Clock className="h-6 w-6 text-purple-600" />
+              <div className="h-12 w-12 bg-green-50 rounded-lg flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-green-600" />
               </div>
             </div>
             <Button
@@ -196,24 +196,24 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
               className="w-full mt-2 text-xs"
               onClick={(e) => {
                 e.stopPropagation();
-                onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' });
+                onFilterChange({ status: 'open', priority: 'all', type: 'manual_event' });
               }}
             >
-              View Deadlines
+              View Events
             </Button>
           </CardContent>
         </Card>
 
-        {/* Compliance Risks */}
+        {/* Documents Processed */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'compliance' })}>
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'all', priority: 'all', type: 'summary' })}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Compliance Risks</p>
-                <p className="text-2xl font-bold text-red-600">{metrics.compliance}</p>
+                <p className="text-sm font-medium text-gray-600">Document Summaries</p>
+                <p className="text-2xl font-bold text-blue-600">{metrics.byType?.summary || 0}</p>
               </div>
-              <div className="h-12 w-12 bg-red-50 rounded-lg flex items-center justify-center">
-                <Shield className="h-6 w-6 text-red-600" />
+              <div className="h-12 w-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                <FileText className="h-6 w-6 text-blue-600" />
               </div>
             </div>
             <Button
@@ -222,27 +222,27 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
               className="w-full mt-2 text-xs"
               onClick={(e) => {
                 e.stopPropagation();
-                onFilterChange({ status: 'open', priority: 'all', type: 'compliance' });
+                onFilterChange({ status: 'all', priority: 'all', type: 'summary' });
               }}
             >
-              View Compliance
+              View Summaries
             </Button>
           </CardContent>
         </Card>
       </div>
 
-      {/* Secondary Metrics Row */}
+      {/* Additional Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Action Items */}
+        {/* Contacts */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'action_items' })}>
+          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'contacts' })}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Action Items</p>
-                <p className="text-2xl font-bold text-orange-600">{metrics.actionItems}</p>
+                <p className="text-sm font-medium text-gray-600">Contact Info</p>
+                <p className="text-2xl font-bold text-indigo-600">{metrics.byType?.contacts || 0}</p>
               </div>
-              <div className="h-12 w-12 bg-orange-50 rounded-lg flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-orange-600" />
+              <div className="h-12 w-12 bg-indigo-50 rounded-lg flex items-center justify-center">
+                <Users className="h-6 w-6 text-indigo-600" />
               </div>
             </div>
             <Button
@@ -251,62 +251,10 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
               className="w-full mt-2 text-xs"
               onClick={(e) => {
                 e.stopPropagation();
-                onFilterChange({ status: 'open', priority: 'all', type: 'action_items' });
+                onFilterChange({ status: 'open', priority: 'all', type: 'contacts' });
               }}
             >
-              View Actions
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Key Dates */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' })}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Key Dates</p>
-                <p className="text-2xl font-bold text-purple-600">{metrics.keyDates}</p>
-              </div>
-              <div className="h-12 w-12 bg-purple-50 rounded-lg flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full mt-2 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onFilterChange({ status: 'open', priority: 'all', type: 'key_dates' });
-              }}
-            >
-              View Dates
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Financial */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'financial_info' })}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Financial Info</p>
-                <p className="text-2xl font-bold text-green-600">{metrics.byType.financial_info}</p>
-              </div>
-              <div className="h-12 w-12 bg-green-50 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full mt-2 text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onFilterChange({ status: 'open', priority: 'all', type: 'financial_info' });
-              }}
-            >
-              View Financial
+              View Contacts
             </Button>
           </CardContent>
         </Card>

@@ -34,6 +34,35 @@ export class GCSStorage implements StorageProvider {
     
     this.storage = new Storage(storageOptions);
     console.log('GCS Storage initialized with explicit credentials');
+    
+    // Initialize bucket on startup to ensure it exists
+    this.initializeBucket().catch(error => {
+      console.warn('Bucket initialization failed (non-critical):', error?.message);
+    });
+  }
+
+  /**
+   * Initialize bucket - create if it doesn't exist
+   */
+  private async initializeBucket(): Promise<void> {
+    try {
+      const bucket = this.storage.bucket(this.bucketName);
+      const [exists] = await bucket.exists();
+      
+      if (!exists) {
+        console.log(`Creating storage bucket: ${this.bucketName}`);
+        await bucket.create({
+          location: 'US',
+          storageClass: 'STANDARD',
+        });
+        console.log(`✅ Created storage bucket: ${this.bucketName}`);
+      } else {
+        console.log(`✅ Storage bucket already exists: ${this.bucketName}`);
+      }
+    } catch (error: any) {
+      console.error(`Failed to initialize bucket ${this.bucketName}:`, error?.message);
+      throw error;
+    }
   }
 
   /**

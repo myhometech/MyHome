@@ -74,12 +74,27 @@ export class BackupService {
     const gcsOptions: any = {};
     if (process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS) {
       try {
-        gcsOptions.credentials = JSON.parse(process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS);
+        const credentialsStr = process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS.trim();
+        
+        // Check if it's an XML error (invalid credentials) 
+        if (credentialsStr.startsWith('<?xml') || credentialsStr.includes('<Error>')) {
+          console.error('❌ NEW_GOOGLE_APPLICATION_CREDENTIALS contains an error response, falling back');
+          throw new Error('Invalid credentials format');
+        }
+        
+        gcsOptions.credentials = JSON.parse(credentialsStr);
         gcsOptions.projectId = gcsOptions.credentials.project_id;
         console.log('✅ Backup service using NEW_GOOGLE_APPLICATION_CREDENTIALS');
       } catch (error) {
         console.error('Failed to parse NEW_GOOGLE_APPLICATION_CREDENTIALS for backup service:', error);
-        throw new Error('Invalid NEW_GOOGLE_APPLICATION_CREDENTIALS configuration');
+        // Fall back to old credentials instead of throwing
+        if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+          gcsOptions.credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+          gcsOptions.projectId = gcsOptions.credentials.project_id;
+          console.log('✅ Backup service using GOOGLE_APPLICATION_CREDENTIALS as fallback');
+        } else {
+          throw new Error('No valid GCS credentials available');
+        }
       }
     } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       try {

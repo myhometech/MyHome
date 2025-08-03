@@ -95,6 +95,15 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 - **Global Error Handling**: React Error Boundaries, network status detection, exponential backoff retry logic for API calls, toast notifications for user feedback.
 - **Memory Optimization**: Automatic garbage collection, optimized database connection pooling, session cleanup, OCR throttling.
 
+### Manual Event Management System
+- **Full CRUD Operations**: Complete create, read, update, delete functionality for manual events.
+- **Visual Integration**: Manual events display alongside AI insights with distinct visual indicators (Manual badges, PenTool icons).
+- **Asset Linking**: Events can be linked to user properties (houses/cars) with visual indicators.
+- **Due Date Management**: Smart due date processing with urgency colors (overdue=red, today=orange, tomorrow=yellow, future=green).
+- **Multi-File Attachments**: Support for document attachments with drag-drop upload interface.
+- **Real-time Synchronization**: React Query integration with automatic cache invalidation across all views.
+- **Comprehensive Display**: Unified insights dashboard, detailed insights page with tabbed views, and integrated search functionality.
+
 ### Security & Monitoring
 - **Security Headers**: Helmet middleware for HTTP security headers (HSTS, CSP, X-Frame-Options).
 - **Rate Limiting**: Express rate limiting.

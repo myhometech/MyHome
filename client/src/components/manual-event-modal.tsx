@@ -230,7 +230,7 @@ export function ManualEventModal({
         credentials: 'include',
         body: JSON.stringify({
           ...data,
-          linkedAssetId: data.linkedAssetId ? parseInt(data.linkedAssetId) : null,
+          linkedAssetId: data.linkedAssetId && data.linkedAssetId !== 'none' ? parseInt(data.linkedAssetId) : null,
           linkedDocumentIds: data.linkedDocumentIds || [],
         }),
       });
@@ -428,7 +428,7 @@ export function ManualEventModal({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">No asset</SelectItem>
+                      <SelectItem value="none">No asset</SelectItem>
                       {assets.map((asset: any) => (
                         <SelectItem key={asset.id} value={asset.id.toString()}>
                           {asset.type === 'house' ? '🏠' : '🚗'} {asset.name}

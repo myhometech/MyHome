@@ -19,7 +19,7 @@ export class GCSUsageService {
 
   constructor() {
     this.projectId = process.env.GCS_PROJECT_ID || 'myhome-467408';
-    this.bucketName = process.env.GCS_BUCKET_NAME || 'myhome-docs-prod';
+    this.bucketName = process.env.GCS_BUCKET_NAME || 'myhometech-storage';
     
     // Initialize with same credentials as GCS storage
     const clientOptions: any = {

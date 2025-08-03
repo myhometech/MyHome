@@ -67,11 +67,7 @@ function CompactInsightButton({ insight, onStatusUpdate }: CompactInsightButtonP
   // Icon mapping for different insight types
   const getInsightIcon = (type: string) => {
     switch (type) {
-      case 'action_items': return <AlertCircle className="h-4 w-4" />;
-      case 'key_dates': return <Clock className="h-4 w-4" />;
-      case 'financial_info': return <TrendingUp className="h-4 w-4" />;
-      case 'contacts': return <FileText className="h-4 w-4" />;
-      case 'compliance': return <CheckCircle className="h-4 w-4" />;
+      case 'contacts': return <Users className="h-4 w-4" />;
       case 'summary': return <Brain className="h-4 w-4" />;
       default: return <FileText className="h-4 w-4" />;
     }
@@ -309,7 +305,9 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                   <div>
                     <h4 className="text-md font-medium mb-3 text-gray-700">Document Insights</h4>
                     <div className="flex flex-wrap gap-3">
-                      {Array.from(new Set(insights.map(i => i.type))).map((type) => {
+                      {Array.from(new Set(insights.map(i => i.type))).filter(type => 
+                        !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(type)
+                      ).map((type) => {
                         const typeInsights = insights.filter(i => i.type === type);
                         const count = typeInsights.length;
                         const hasHighPriority = typeInsights.some(i => i.priority === 'high');
@@ -320,12 +318,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             variant="outline"
                             className={`flex items-center gap-2 ${hasHighPriority ? 'border-red-200 bg-red-50 hover:bg-red-100' : ''}`}
                           >
-                            {type === 'action_items' && <CheckCircle className="h-4 w-4" />}
-                            {type === 'key_dates' && <Calendar className="h-4 w-4" />}
-                            {type === 'financial_info' && <DollarSign className="h-4 w-4" />}
+                            {type === 'summary' && <Brain className="h-4 w-4" />}
                             {type === 'contacts' && <Users className="h-4 w-4" />}
-                            {type === 'compliance' && <Shield className="h-4 w-4" />}
-                            {type === 'summary' && <FileText className="h-4 w-4" />}
                             <span className="capitalize">{type.replace('_', ' ')}</span>
                             <Badge variant="secondary" className="ml-1">{count}</Badge>
                           </Button>

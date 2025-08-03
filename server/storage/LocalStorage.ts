@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs';
+import { promises as fs, createWriteStream } from 'fs';
 import path from 'path';
 import { StorageProvider, FileMetadata } from './StorageProvider';
 
@@ -58,7 +58,7 @@ export class LocalStorage implements StorageProvider {
       await fs.mkdir(directory, { recursive: true });
       
       // Create write stream
-      const writeStream = require('fs').createWriteStream(filePath);
+      const writeStream = createWriteStream(filePath);
       
       return new Promise((resolve, reject) => {
         writeStream.on('error', reject);

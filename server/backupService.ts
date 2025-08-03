@@ -57,7 +57,7 @@ export class BackupService {
       },
       storage: {
         retentionDays: parseInt(process.env.STORAGE_BACKUP_RETENTION_DAYS || '30'),
-        archivalBucket: process.env.BACKUP_BUCKET_NAME || 'myhome-backups',
+        archivalBucket: process.env.BACKUP_BUCKET_NAME || 'myhometech-backups',
         crossRegionReplication: process.env.BACKUP_CROSS_REGION === 'true'
       },
       monitoring: {
@@ -70,17 +70,28 @@ export class BackupService {
     this.storageService = StorageService;
     
     // Initialize GCS client with explicit credentials to prevent metadata server calls
+    // Priority: NEW_GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS
     const gcsOptions: any = {};
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    if (process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS) {
+      try {
+        gcsOptions.credentials = JSON.parse(process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS);
+        gcsOptions.projectId = gcsOptions.credentials.project_id;
+        console.log('✅ Backup service using NEW_GOOGLE_APPLICATION_CREDENTIALS');
+      } catch (error) {
+        console.error('Failed to parse NEW_GOOGLE_APPLICATION_CREDENTIALS for backup service:', error);
+        throw new Error('Invalid NEW_GOOGLE_APPLICATION_CREDENTIALS configuration');
+      }
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       try {
         gcsOptions.credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
         gcsOptions.projectId = gcsOptions.credentials.project_id;
+        console.log('✅ Backup service using GOOGLE_APPLICATION_CREDENTIALS');
       } catch (error) {
         console.error('Failed to parse GCS credentials for backup service:', error);
         throw new Error('Invalid GCS credentials configuration');
       }
     } else {
-      throw new Error('GOOGLE_APPLICATION_CREDENTIALS required for backup service');
+      throw new Error('NEW_GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_APPLICATION_CREDENTIALS required for backup service');
     }
     
     this.gcsClient = new Storage(gcsOptions);

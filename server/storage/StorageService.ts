@@ -82,13 +82,26 @@ export class StorageService {
     
     // GCS now properly configured with explicit authentication
     
-    const bucketName = process.env.GCS_BUCKET_NAME || 'media.myhome-tech.com';
+    const bucketName = process.env.GCS_BUCKET_NAME || 'myhometech-storage';
     let projectId = process.env.GCS_PROJECT_ID;
     let keyFilename = process.env.GCS_KEY_FILENAME;
     
     // Support for service account credentials from environment
+    // Priority: NEW_GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS > GCS_CREDENTIALS
     let credentials;
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    if (process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS) {
+      try {
+        // Parse the new JSON credentials from the environment variable
+        credentials = JSON.parse(process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS);
+        // Extract project ID from credentials if not provided
+        if (!projectId && credentials.project_id) {
+          projectId = credentials.project_id;
+        }
+        console.log('✅ Using NEW_GOOGLE_APPLICATION_CREDENTIALS with project:', projectId);
+      } catch (error) {
+        console.error('Failed to parse NEW_GOOGLE_APPLICATION_CREDENTIALS:', error);
+      }
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       try {
         // Parse the JSON credentials from the environment variable
         credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);

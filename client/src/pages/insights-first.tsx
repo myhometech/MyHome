@@ -5,6 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import Header from "@/components/header";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
+import AddDropdownMenu from "@/components/add-dropdown-menu";
 import InsightsSummaryDashboard from "@/components/insights-summary-dashboard";
 
 import { useFeatures } from "@/hooks/useFeatures";
@@ -224,10 +225,15 @@ export default function InsightsFirstPage() {
             </div>
           </div>
           
-          <Button onClick={() => setShowUploadDialog(true)} size="lg" className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Document
-          </Button>
+          <AddDropdownMenu 
+            size="lg" 
+            className="bg-blue-600 hover:bg-blue-700"
+            onDocumentUpload={() => setShowUploadDialog(true)}
+            onManualDateCreate={() => {
+              // This will be handled by the AddDropdownMenu component
+              console.log('Manual date creation requested');
+            }}
+          />
         </div>
 
         {/* AI Insights Summary Dashboard */}

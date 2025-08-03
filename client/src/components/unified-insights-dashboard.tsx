@@ -31,6 +31,7 @@ import { InsightsCalendar } from '@/components/insights-calendar';
 import DocumentCard from '@/components/document-card';
 import CategoryFilter from '@/components/category-filter';
 import UploadZone from '@/components/upload-zone';
+import AddDropdownMenu from '@/components/add-dropdown-menu';
 import { useFeatures } from '@/hooks/useFeatures';
 import type { Category, Document, DocumentInsight } from '@shared/schema';
 
@@ -305,8 +306,19 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
             <p className="text-gray-600">Manage and organize your documents</p>
           </div>
         </div>
-          {/* Upload Zone */}
-          <UploadZone onUpload={() => {}} />
+          {/* Add Menu */}
+          <div className="flex justify-center mb-6">
+            <AddDropdownMenu 
+              size="default" 
+              className="bg-blue-600 hover:bg-blue-700"
+              onDocumentUpload={() => {
+                console.log('Document upload initiated from unified dashboard');
+              }}
+              onManualDateCreate={() => {
+                console.log('Manual date creation initiated from unified dashboard');
+              }}
+            />
+          </div>
 
           {/* Document Filters */}
           <div className="flex items-center justify-between">

@@ -5,6 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Header from "@/components/header";
 import UploadZone from "@/components/upload-zone";
+import AddDropdownMenu from "@/components/add-dropdown-menu";
 
 import CategoryFilter from "@/components/category-filter";
 import DocumentCard from "@/components/document-card";
@@ -314,8 +315,20 @@ export default function Home() {
           <InsightJobStatus />
         </FeatureGate>
 
-        {/* Upload Zone */}
-        <UploadZone onUpload={handleFileUpload} />
+        {/* Add Menu - Replaces Upload Zone */}
+        <div className="mb-6 flex justify-center">
+          <AddDropdownMenu 
+            size="lg" 
+            className="bg-blue-600 hover:bg-blue-700"
+            onDocumentUpload={() => {
+              // Open upload dialog or flow
+              console.log('Document upload initiated from home page');
+            }}
+            onManualDateCreate={() => {
+              console.log('Manual date creation initiated from home page');
+            }}
+          />
+        </div>
 
 
 

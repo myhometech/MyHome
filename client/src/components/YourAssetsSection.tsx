@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Home, Car, Plus, Trash2 } from "lucide-react";
+import AddDropdownMenu from "@/components/add-dropdown-menu";
 import * as z from "zod";
 
 const houseSchema = z.object({
@@ -336,15 +337,29 @@ export function YourAssetsSection() {
                     </div>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => deleteAsset.mutate(asset.id)}
-                  className="text-destructive hover:text-red-700"
-                  disabled={deleteAsset.isPending}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <AddDropdownMenu 
+                    size="sm" 
+                    variant="outline"
+                    selectedAssetId={asset.id}
+                    selectedAssetName={asset.name}
+                    onDocumentUpload={() => {
+                      console.log(`Document upload initiated for ${asset.type}: ${asset.name}`);
+                    }}
+                    onManualDateCreate={() => {
+                      console.log(`Manual date creation initiated for ${asset.type}: ${asset.name}`);
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteAsset.mutate(asset.id)}
+                    className="text-destructive hover:text-red-700"
+                    disabled={deleteAsset.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </Card>
             ))
           )}

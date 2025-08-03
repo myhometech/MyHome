@@ -1,93 +1,347 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Header from "@/components/header";
-import UploadZone from "@/components/upload-zone";
 import AddDropdownMenu from "@/components/add-dropdown-menu";
-
 import CategoryFilter from "@/components/category-filter";
 import DocumentCard from "@/components/document-card";
-
-
-
-
-import { EmailForwarding } from "@/components/email-forwarding";
+import HelpBubble, { helpContent } from "@/components/help-bubble";
 import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
 import { useFeatures } from "@/hooks/useFeatures";
-import { useState } from "react";
-import { Grid, List, SortAsc, MessageCircle, Search, CheckSquare, Square, Trash2, FolderOpen, Share2, X, Mail, Calendar, DollarSign, Users, Shield, CheckCircle, FileText, Brain } from "lucide-react";
+import { 
+  Grid, 
+  List, 
+  SortAsc, 
+  Search, 
+  CheckSquare, 
+  Square, 
+  Trash2, 
+  FolderOpen, 
+  X, 
+  Calendar, 
+  DollarSign, 
+  Users, 
+  Shield, 
+  CheckCircle, 
+  FileText, 
+  Brain,
+  AlertCircle,
+  Clock,
+  TrendingUp,
+  Filter,
+  Plus,
+  BarChart3,
+  Zap,
+  Share2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
 import { SmartSearch } from "@/components/smart-search";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ShareDocumentDialog } from "@/components/share-document-dialog";
 import { BatchTagManager } from "@/components/batch-tag-manager";
-import CriticalInsightsDashboard from "@/components/critical-insights-dashboard";
 import { InsightJobStatus } from "@/components/InsightJobStatus";
 import { Badge } from "@/components/ui/badge";
 import type { Category, Document, DocumentInsight } from "@shared/schema";
 
-// Simple Insight Category Buttons Component
-function InsightCategoryButtons() {
-  const { data: insightsData, isLoading } = useQuery<{insights: DocumentInsight[]}>({
-    queryKey: ['/api/insights', 'all'],
+// Dashboard Overview Cards Component
+function DashboardOverview({ onFilterChange }: { onFilterChange: (filter: any) => void }) {
+  const { data: metricsData, isLoading } = useQuery({
+    queryKey: ['/api/insights/metrics'],
     queryFn: async () => {
-      const response = await fetch('/api/insights?status=all');
-      if (!response.ok) throw new Error('Failed to fetch insights');
+      const response = await fetch('/api/insights/metrics', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch metrics');
       return response.json();
     },
   });
 
-  const insights = insightsData?.insights || [];
+  const { data: documentsData } = useQuery({
+    queryKey: ['/api/documents'],
+    queryFn: async () => {
+      const response = await fetch('/api/documents', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch documents');
+      return response.json();
+    },
+  });
 
-  if (isLoading || insights.length === 0) {
-    return null; // Don't show anything if loading or no insights
+  const { data: categoriesData } = useQuery({
+    queryKey: ['/api/categories'],
+    queryFn: async () => {
+      const response = await fetch('/api/categories', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch categories');
+      return response.json();
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="p-6">
+              <div className="h-4 bg-gray-200 rounded mb-2"></div>
+              <div className="h-8 bg-gray-200 rounded"></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
   }
 
-  // Group insights by type
-  const insightsByType = insights.reduce((acc, insight) => {
-    if (!acc[insight.type]) acc[insight.type] = [];
-    acc[insight.type].push(insight);
-    return acc;
-  }, {} as Record<string, DocumentInsight[]>);
+  const metrics = metricsData || {};
+  const totalDocuments = documentsData?.length || 0;
+  const totalCategories = categoriesData?.length || 0;
+
+  const overviewCards = [
+    {
+      title: "All Documents",
+      value: totalDocuments,
+      icon: FileText,
+      color: "blue",
+      description: "Total documents in your library",
+      onClick: () => onFilterChange({ reset: true }),
+      helpContent: helpContent.documentUpload
+    },
+    {
+      title: "High Priority Items",
+      value: metrics.highPriority || 0,
+      icon: AlertCircle,
+      color: "red",
+      description: "Items requiring immediate attention",
+      onClick: () => onFilterChange({ priority: 'high' }),
+      helpContent: helpContent.aiInsights
+    },
+    {
+      title: "Upcoming Deadlines",
+      value: metrics.upcomingDeadlines || 0,
+      icon: Clock,
+      color: "orange",
+      description: "Due dates within 30 days",
+      onClick: () => onFilterChange({ upcoming: true }),
+      helpContent: helpContent.manualEvents
+    },
+    {
+      title: "Categories",
+      value: totalCategories,
+      icon: FolderOpen,
+      color: "green",
+      description: "Document organization categories",
+      onClick: () => onFilterChange({ showCategories: true }),
+      helpContent: helpContent.categories
+    }
+  ];
+
+  const getColorClasses = (color: string) => {
+    switch (color) {
+      case 'blue':
+        return {
+          bg: 'bg-blue-50 dark:bg-blue-900/20',
+          border: 'border-blue-200 dark:border-blue-800',
+          icon: 'text-blue-600 dark:text-blue-400',
+          hover: 'hover:bg-blue-100 dark:hover:bg-blue-900/30'
+        };
+      case 'red':
+        return {
+          bg: 'bg-red-50 dark:bg-red-900/20',
+          border: 'border-red-200 dark:border-red-800',
+          icon: 'text-red-600 dark:text-red-400',
+          hover: 'hover:bg-red-100 dark:hover:bg-red-900/30'
+        };
+      case 'orange':
+        return {
+          bg: 'bg-orange-50 dark:bg-orange-900/20',
+          border: 'border-orange-200 dark:border-orange-800',
+          icon: 'text-orange-600 dark:text-orange-400',
+          hover: 'hover:bg-orange-100 dark:hover:bg-orange-900/30'
+        };
+      case 'green':
+        return {
+          bg: 'bg-green-50 dark:bg-green-900/20',
+          border: 'border-green-200 dark:border-green-800',
+          icon: 'text-green-600 dark:text-green-400',
+          hover: 'hover:bg-green-100 dark:hover:bg-green-900/30'
+        };
+      default:
+        return {
+          bg: 'bg-gray-50 dark:bg-gray-900/20',
+          border: 'border-gray-200 dark:border-gray-800',
+          icon: 'text-gray-600 dark:text-gray-400',
+          hover: 'hover:bg-gray-100 dark:hover:bg-gray-900/30'
+        };
+    }
+  };
 
   return (
-    <Card className="w-full">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">AI Insights</h3>
-        </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {overviewCards.map((card, index) => {
+        const colors = getColorClasses(card.color);
+        const Icon = card.icon;
         
-        <div className="flex flex-wrap gap-3">
-          {Object.entries(insightsByType).map(([type, typeInsights]) => {
-            const count = typeInsights.length;
-            const hasHighPriority = typeInsights.some(i => i.priority === 'high');
-            
-            return (
-              <Button
-                key={type}
-                variant="outline"
-                className={`flex items-center gap-2 ${hasHighPriority ? 'border-red-200 bg-red-50 hover:bg-red-100' : ''}`}
-              >
-                {type === 'action_items' && <CheckCircle className="h-4 w-4" />}
-                {type === 'key_dates' && <Calendar className="h-4 w-4" />}
-                {type === 'financial_info' && <DollarSign className="h-4 w-4" />}
-                {type === 'contacts' && <Users className="h-4 w-4" />}
-                {type === 'compliance' && <Shield className="h-4 w-4" />}
-                {type === 'summary' && <FileText className="h-4 w-4" />}
-                <span className="capitalize">{type.replace('_', ' ')}</span>
-                <Badge variant="secondary" className="ml-1">{count}</Badge>
-              </Button>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+        return (
+          <Card 
+            key={index} 
+            className={`cursor-pointer transition-all duration-200 ${colors.bg} ${colors.border} ${colors.hover} hover:shadow-md`}
+            onClick={card.onClick}
+          >
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div className="flex items-center space-x-2">
+                <Icon className={`h-5 w-5 ${colors.icon}`} />
+                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {card.title}
+                </CardTitle>
+              </div>
+              <HelpBubble 
+                title={card.helpContent.title}
+                content={card.helpContent.content}
+                characterTip={card.helpContent.characterTip}
+                size="sm"
+              />
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex items-baseline space-x-2">
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {card.value}
+                </div>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                {card.description}
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// Quick Action Cards Component
+function QuickActionCards() {
+  const { hasFeature } = useFeatures();
+
+  const actionCards = [
+    {
+      title: "Upload Documents",
+      description: "Add new documents to your library",
+      icon: Plus,
+      color: "blue",
+      action: "upload",
+      helpContent: helpContent.documentUpload
+    },
+    {
+      title: "Add Important Date",
+      description: "Track key dates and deadlines",
+      icon: Calendar,
+      color: "purple",
+      action: "manual_event",
+      helpContent: helpContent.manualEvents
+    },
+    {
+      title: "Smart Search",
+      description: "Find documents by content or keywords",
+      icon: Search,
+      color: "green",
+      action: "search",
+      helpContent: helpContent.search
+    },
+    {
+      title: "View Analytics",
+      description: "See insights and document trends",
+      icon: BarChart3,
+      color: "orange",
+      action: "analytics",
+      feature: "ANALYTICS",
+      helpContent: helpContent.aiInsights
+    }
+  ];
+
+  const getColorClasses = (color: string) => {
+    switch (color) {
+      case 'blue':
+        return {
+          bg: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20',
+          border: 'border-blue-200 dark:border-blue-700',
+          icon: 'text-blue-600 dark:text-blue-400',
+          hover: 'hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-800/30 dark:hover:to-blue-700/30'
+        };
+      case 'purple':
+        return {
+          bg: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
+          border: 'border-purple-200 dark:border-purple-700',
+          icon: 'text-purple-600 dark:text-purple-400',
+          hover: 'hover:from-purple-100 hover:to-purple-200 dark:hover:from-purple-800/30 dark:hover:to-purple-700/30'
+        };
+      case 'green':
+        return {
+          bg: 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20',
+          border: 'border-green-200 dark:border-green-700',
+          icon: 'text-green-600 dark:text-green-400',
+          hover: 'hover:from-green-100 hover:to-green-200 dark:hover:from-green-800/30 dark:hover:to-green-700/30'
+        };
+      case 'orange':
+        return {
+          bg: 'bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20',
+          border: 'border-orange-200 dark:border-orange-700',
+          icon: 'text-orange-600 dark:text-orange-400',
+          hover: 'hover:from-orange-100 hover:to-orange-200 dark:hover:from-orange-800/30 dark:hover:to-orange-700/30'
+        };
+      default:
+        return {
+          bg: 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20',
+          border: 'border-gray-200 dark:border-gray-700',
+          icon: 'text-gray-600 dark:text-gray-400',
+          hover: 'hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-800/30 dark:hover:to-gray-700/30'
+        };
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {actionCards.map((card, index) => {
+        // Skip feature-gated cards if user doesn't have access
+        if (card.feature && !hasFeature(card.feature as any)) {
+          return null;
+        }
+
+        const colors = getColorClasses(card.color);
+        const Icon = card.icon;
+        
+        return (
+          <Card 
+            key={index} 
+            className={`cursor-pointer transition-all duration-200 ${colors.bg} ${colors.border} ${colors.hover} hover:shadow-lg hover:scale-105`}
+          >
+            <CardContent className="p-6 text-center">
+              <div className="flex flex-col items-center space-y-3">
+                <div className={`p-3 rounded-full bg-white/80 dark:bg-gray-800/80 shadow-sm`}>
+                  <Icon className={`h-6 w-6 ${colors.icon}`} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                    {card.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {card.description}
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <HelpBubble 
+                    title={card.helpContent.title}
+                    content={card.helpContent.content}
+                    characterTip={card.helpContent.characterTip}
+                    size="sm"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
 
@@ -99,9 +353,28 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [dashboardFilter, setDashboardFilter] = useState<any>(null);
 
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
+
+  // Handle dashboard card filter changes
+  const handleDashboardFilter = (filter: any) => {
+    if (filter.reset) {
+      setSelectedCategory(null);
+      setSearchQuery("");
+      setDashboardFilter(null);
+    } else if (filter.priority) {
+      // Filter for high priority items - this would need backend support
+      setDashboardFilter(filter);
+    } else if (filter.upcoming) {
+      // Filter for upcoming deadlines - this would need backend support
+      setDashboardFilter(filter);
+    } else if (filter.showCategories) {
+      // Show category view
+      setDashboardFilter(filter);
+    }
+  };
 
 
   // Initialize categories on first load
@@ -300,35 +573,16 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Simple Horizontal Insight Category Buttons */}
-        <div className="mb-6">
-          <InsightCategoryButtons />
-        </div>
+        {/* Dashboard Overview Cards */}
+        <DashboardOverview onFilterChange={handleDashboardFilter} />
 
-        {/* Critical Insights Dashboard - Prioritized at top */}
-        <div className="mb-6">
-          <CriticalInsightsDashboard />
-        </div>
+        {/* Quick Action Cards */}
+        <QuickActionCards />
 
         {/* TICKET 17: Show AI insight generation status */}
         <FeatureGate feature="AI_INSIGHTS">
           <InsightJobStatus />
         </FeatureGate>
-
-        {/* Add Menu - Replaces Upload Zone */}
-        <div className="mb-6 flex justify-center">
-          <AddDropdownMenu 
-            size="lg" 
-            className="bg-blue-600 hover:bg-blue-700"
-            onDocumentUpload={() => {
-              // Open upload dialog or flow
-              console.log('Document upload initiated from home page');
-            }}
-            onManualDateCreate={() => {
-              console.log('Manual date creation initiated from home page');
-            }}
-          />
-        </div>
 
 
 
@@ -361,10 +615,18 @@ export default function Home() {
         />
 
         {/* Documents Section */}
-        <div className="bg-white rounded-xl border border-gray-200">
-          <div className="p-3 md:p-6 border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="p-3 md:p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h2 className="text-lg font-semibold">Recent Documents</h2>
+              <div className="flex items-center space-x-3">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Document Library</h2>
+                <HelpBubble
+                  title={helpContent.search.title}
+                  content={helpContent.search.content}
+                  characterTip={helpContent.search.characterTip}
+                  size="sm"
+                />
+              </div>
               <div className="flex items-center space-x-2">
                 <Button
                   variant={bulkMode ? "default" : "outline"}

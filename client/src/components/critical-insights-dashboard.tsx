@@ -87,7 +87,8 @@ export default function CriticalInsightsDashboard() {
       }
       return response.json();
     },
-    refetchInterval: 60000, // Refresh every minute for critical insights
+    refetchInterval: 30000, // Refresh every 30 seconds for critical insights
+    staleTime: 0, // Always consider data stale to force fresh fetches
   });
 
   // TICKET 8: Dismiss insight mutation
@@ -108,23 +109,46 @@ export default function CriticalInsightsDashboard() {
       
       return response.json();
     },
+    onMutate: async (insightId: string) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['/api/insights/critical'] });
+      
+      // Snapshot the previous value
+      const previousInsights = queryClient.getQueryData(['/api/insights/critical']);
+      
+      // Optimistically update to the new value by removing the dismissed insight
+      queryClient.setQueryData(['/api/insights/critical'], (old: CriticalInsight[] | undefined) => {
+        return old?.filter(insight => insight.id !== insightId) ?? [];
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousInsights };
+    },
     onSuccess: () => {
-      // Invalidate critical insights query to refresh the list
+      // Invalidate and refetch critical insights query to refresh the list immediately
       queryClient.invalidateQueries({ queryKey: ['/api/insights/critical'] });
+      queryClient.refetchQueries({ queryKey: ['/api/insights/critical'] });
       // Also invalidate the main insights query to keep all views synchronized
       queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      queryClient.refetchQueries({ queryKey: ['/api/insights'] });
       toast({
         title: "Insight dismissed",
         description: "The insight has been successfully dismissed.",
       });
     },
-    onError: (error) => {
+    onError: (error, insightId, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      queryClient.setQueryData(['/api/insights/critical'], context?.previousInsights);
       console.error('Failed to dismiss insight:', error);
       toast({
         title: "Failed to dismiss insight",
         description: "Please try again later.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to sync with server
+      queryClient.invalidateQueries({ queryKey: ['/api/insights/critical'] });
     }
   });
 

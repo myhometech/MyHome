@@ -480,5 +480,62 @@ export const insertManualTrackedEventSchema = createInsertSchema(manualTrackedEv
   updatedAt: true,
 });
 
+// TICKET 1: Vehicles table for DVLA-enriched data
+export const vehicles = pgTable("vehicles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  vrn: text("vrn").notNull(), // Vehicle Registration Number
+  // Basic vehicle information
+  make: varchar("make", { length: 100 }),
+  model: varchar("model", { length: 100 }),
+  yearOfManufacture: integer("year_of_manufacture"),
+  fuelType: varchar("fuel_type", { length: 50 }),
+  colour: varchar("colour", { length: 50 }),
+  // Tax information
+  taxStatus: varchar("tax_status", { length: 50 }), // e.g., "Taxed", "SORN", "Untaxed"
+  taxDueDate: date("tax_due_date"),
+  // MOT information
+  motStatus: varchar("mot_status", { length: 50 }), // e.g., "Valid", "No details held", "Expired"
+  motExpiryDate: date("mot_expiry_date"),
+  // Environmental information
+  co2Emissions: integer("co2_emissions"), // CO2 emissions in g/km
+  euroStatus: varchar("euro_status", { length: 20 }), // e.g., "EURO 6", "EURO 5"
+  engineCapacity: integer("engine_capacity"), // Engine capacity in cc
+  revenueWeight: integer("revenue_weight"), // Revenue weight in kg
+  // Data management
+  dvlaLastRefreshed: timestamp("dvla_last_refreshed"),
+  source: text("source").default("manual"), // "manual", "dvla", "import"
+  notes: text("notes"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_vehicles_user_id").on(table.userId),
+  index("idx_vehicles_vrn").on(table.vrn),
+  index("idx_vehicles_user_vrn").on(table.userId, table.vrn), // Composite index for user vehicle lookups
+  index("idx_vehicles_tax_due").on(table.taxDueDate),
+  index("idx_vehicles_mot_expiry").on(table.motExpiryDate),
+]);
+
+// Vehicle types and schemas
+export type Vehicle = typeof vehicles.$inferSelect;
+export type InsertVehicle = typeof vehicles.$inferInsert;
+
+export const insertVehicleSchema = createInsertSchema(vehicles, {
+  vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
+  taxDueDate: z.string().optional().transform((str) => str ? new Date(str) : undefined),
+  motExpiryDate: z.string().optional().transform((str) => str ? new Date(str) : undefined),
+  yearOfManufacture: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional(),
+  co2Emissions: z.number().int().min(0).optional(),
+  engineCapacity: z.number().int().min(0).optional(),
+  revenueWeight: z.number().int().min(0).optional(),
+}).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+  dvlaLastRefreshed: true,
+});
+
 // Re-export feature flag schemas
 export * from "./featureFlagSchema";

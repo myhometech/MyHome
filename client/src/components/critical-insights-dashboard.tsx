@@ -270,11 +270,14 @@ export default function CriticalInsightsDashboard() {
                     size="sm" 
                     variant="ghost" 
                     className="text-xs px-2 py-1 text-gray-500 hover:text-gray-700"
-                    onClick={() => dismissInsightMutation.mutate(insight.id)}
+                    onClick={() => {
+                      console.log('[DEBUG] Dismissing insight:', insight.id, insight);
+                      dismissInsightMutation.mutate(insight.id);
+                    }}
                     disabled={dismissInsightMutation.isPending}
                   >
                     <X className="w-3 h-3 mr-1" />
-                    Dismiss
+                    {dismissInsightMutation.isPending ? 'Dismissing...' : 'Dismiss'}
                   </Button>
                 </div>
               </div>

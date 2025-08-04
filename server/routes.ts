@@ -1406,6 +1406,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
 
       const criticalInsights = await storage.getCriticalInsights(userId);
+      console.log(`[DEBUG] Fetched ${criticalInsights.length} critical insights for user ${userId}:`, 
+                  criticalInsights.map(i => ({ id: i.id, status: i.status, message: i.message?.substring(0, 50) + '...' })));
 
       res.json(criticalInsights);
 
@@ -1449,6 +1451,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const insightId = req.params.id;
       const { status } = req.body;
 
+      console.log(`[DEBUG] Updating insight ${insightId} for user ${userId} to status: ${status}`);
+
       if (!['open', 'dismissed', 'resolved'].includes(status)) {
         return res.status(400).json({ message: "Invalid status. Must be 'open', 'dismissed', or 'resolved'." });
       }
@@ -1456,9 +1460,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedInsight = await storage.updateInsightStatus(insightId, userId, status);
       
       if (!updatedInsight) {
+        console.log(`[DEBUG] Insight ${insightId} not found for user ${userId}`);
         return res.status(404).json({ message: "Insight not found" });
       }
 
+      console.log(`[DEBUG] Successfully updated insight ${insightId} to status: ${updatedInsight.status}`);
       res.json(updatedInsight);
 
     } catch (error) {

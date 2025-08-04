@@ -596,13 +596,15 @@ export default function DocumentCard({
               </div>
             )}
 
-            {/* AI Insights Section */}
-            {openInsights.length > 0 && (
-              <div className="mt-3 border-t pt-3 space-y-2">
+            {/* AI Insights Section - Always show for document 28 for testing */}
+            {(openInsights.length > 0 || document.id === 28) && (
+              <div className="mt-3 border-t pt-3 space-y-2" style={{ backgroundColor: document.id === 28 ? '#f0f9ff' : 'transparent' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Brain className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-gray-700">AI Insights</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      AI Insights {document.id === 28 ? `(${openInsights.length} found)` : ''}
+                    </span>
                     {criticalInsights.length > 0 && (
                       <Badge variant="destructive" className="text-xs h-5">
                         {criticalInsights.length}
@@ -628,6 +630,11 @@ export default function DocumentCard({
 
                 <Collapsible open={insightsExpanded} onOpenChange={setInsightsExpanded}>
                   <CollapsibleContent className="space-y-2">
+                    {document.id === 28 && openInsights.length === 0 && (
+                      <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                        Debug: Expected insights but openInsights is empty. Check console for details.
+                      </div>
+                    )}
                     {openInsights.slice(0, 3).map((insight) => (
                       <div
                         key={insight.id}

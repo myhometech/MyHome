@@ -110,19 +110,32 @@ export default function DocumentCard({
   // Insight update mutation
   const updateInsightStatusMutation = useMutation({
     mutationFn: async ({ insightId, status }: { insightId: string; status: 'open' | 'resolved' | 'dismissed' }) => {
-      console.log('[DEBUG] Updating insight status:', insightId, 'to', status);
-      const response = await fetch(`/api/insights/${insightId}/status`, {
+      console.log('[DEBUG] Starting insight status update:', { insightId, status, type: typeof insightId });
+      const url = `/api/insights/${insightId}/status`;
+      console.log('[DEBUG] API URL:', url);
+      
+      const response = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
         credentials: 'include',
       });
+      
+      console.log('[DEBUG] Response received:', { 
+        status: response.status, 
+        statusText: response.statusText,
+        ok: response.ok 
+      });
+      
       if (!response.ok) {
-        console.error('[DEBUG] Failed to update insight status:', response.status, response.statusText);
-        throw new Error('Failed to update insight status');
+        const errorText = await response.text();
+        console.error('[DEBUG] API Error Response:', errorText);
+        throw new Error(`Failed to update insight status: ${response.status} ${errorText}`);
       }
-      console.log('[DEBUG] Successfully updated insight status');
-      return response.json();
+      
+      const result = await response.json();
+      console.log('[DEBUG] Successfully updated insight status, result:', result);
+      return result;
     },
     onSuccess: () => {
       console.log('[DEBUG] Insight status update successful, invalidating queries');
@@ -693,8 +706,9 @@ export default function DocumentCard({
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                console.log('[DEBUG] Dismiss button clicked for insight:', insight.id, 'type:', typeof insight.id);
                                 updateInsightStatusMutation.mutate({
-                                  insightId: insight.id,
+                                  insightId: String(insight.id), // Ensure it's a string
                                   status: 'dismissed'
                                 });
                               }}

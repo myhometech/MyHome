@@ -29,6 +29,12 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 - **Feature Management**: Subscription-based feature flagging system with FeatureGate components
 - **Unified Interface**: UnifiedDocumentCard component for document management and intelligent insight display.
 
+### Vehicle Management System
+- **Vehicle Insights**: AI-powered MOT and tax due date insights with priority classification
+- **Duplicate Prevention**: Intelligent deduplication based on VRN, type, and due date matching
+- **Template Fallback**: Resilient insight generation with template backup when AI services fail
+- **DVLA Integration**: Ready for real-time vehicle data enrichment and validation
+
 ### iOS Native Architecture
 - **Framework**: SwiftUI for iOS 16.0+
 - **Authentication**: Sign in with Apple integration

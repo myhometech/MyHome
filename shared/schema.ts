@@ -331,7 +331,7 @@ export type ExpiryReminder = typeof expiryReminders.$inferSelect;
 // TICKET 4: Document Insights table for AI-powered dashboard (extends DOC-501)
 export const documentInsights = pgTable("document_insights", {
   id: uuid("id").primaryKey().defaultRandom(),
-  documentId: integer("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  documentId: integer("document_id").references(() => documents.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   insightId: varchar("insight_id").notNull(), // Unique identifier for this insight
   message: text("message").notNull(), // TICKET 4: User-facing message

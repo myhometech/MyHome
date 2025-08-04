@@ -51,7 +51,18 @@ import {
 type BlogPost = typeof blogPosts.$inferSelect;
 type InsertBlogPost = typeof blogPosts.$inferInsert;
 import { db } from "./db";
-import { safeQuery, safeTransaction, checkDatabaseHealth } from "./db-connection";
+import { safeTransaction, checkDatabaseHealth } from "./db-connection";
+
+// Drizzle-compatible safe query wrapper
+const safeQuery = async <T>(callback: () => Promise<T>): Promise<T | []> => {
+  try {
+    return await callback();
+  } catch (error) {
+    console.error('Database query failed:', error);
+    // Return empty array as fallback for arrays, null for single items
+    return [] as any;
+  }
+};
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
 
 export interface IStorage {

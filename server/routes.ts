@@ -9,6 +9,7 @@ import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema, createVehicleSchema, updateVehicleUserFieldsSchema } from "@shared/schema";
 import { EmailUploadLogger } from './emailUploadLogger';
 import { dvlaLookupService } from './dvlaLookupService';
+import { vehicleInsightService } from './vehicleInsightService';
 import { z } from 'zod';
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 
@@ -3488,12 +3489,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the vehicle
       const createdVehicle = await storage.createVehicle(vehicleData);
       
-      // TICKET 3 response format
+      // TICKET 4: Generate AI insights from MOT and tax dates
+      let vehicleInsights = null;
+      try {
+        if (dvlaLookupResult.success && (createdVehicle.motExpiryDate || createdVehicle.taxDueDate)) {
+          console.log(`[TICKET 4] Generating insights for vehicle ${createdVehicle.vrn}`);
+          vehicleInsights = await vehicleInsightService.generateVehicleInsights(
+            createdVehicle,
+            userId,
+            { skipDuplicateCheck: false }
+          );
+          
+          const insightCount = Object.keys(vehicleInsights).length;
+          if (insightCount > 0) {
+            console.log(`[TICKET 4] Generated ${insightCount} insights for vehicle ${createdVehicle.vrn}`);
+          }
+        }
+      } catch (error) {
+        console.error(`[TICKET 4] Failed to generate insights for vehicle ${createdVehicle.vrn}:`, error);
+        // Don't fail the vehicle creation if insight generation fails
+      }
+      
+      // TICKET 3 response format with TICKET 4 insights
       const response = {
         vehicle: createdVehicle,
         dvlaEnriched: dvlaLookupResult.success,
         dvlaFields,
         userEditableFields,
+        ...(vehicleInsights && { vehicleInsights }),
         ...(dvlaError && { 
           dvlaError: {
             code: dvlaError.code,
@@ -3706,10 +3729,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dvlaLastRefreshed: new Date(),
       });
       
+      // TICKET 4: Generate insights after DVLA refresh
+      let vehicleInsights = null;
+      try {
+        if (updatedVehicle && (updatedVehicle.motExpiryDate || updatedVehicle.taxDueDate)) {
+          console.log(`[TICKET 4] Generating insights after DVLA refresh for ${updatedVehicle.vrn}`);
+          vehicleInsights = await vehicleInsightService.generateVehicleInsights(
+            updatedVehicle,
+            userId,
+            { forceRegenerate: true } // Force regenerate on refresh
+          );
+          
+          const insightCount = Object.keys(vehicleInsights).length;
+          if (insightCount > 0) {
+            console.log(`[TICKET 4] Generated ${insightCount} insights after refresh for ${updatedVehicle.vrn}`);
+          }
+        }
+      } catch (error) {
+        console.error(`[TICKET 4] Failed to generate insights after refresh:`, error);
+      }
+      
       res.json({
         success: true,
         vehicle: updatedVehicle,
-        message: "Vehicle updated with latest DVLA data"
+        message: "Vehicle updated with latest DVLA data",
+        ...(vehicleInsights && { vehicleInsights })
       });
     } catch (error) {
       console.error("Error refreshing vehicle from DVLA:", error);

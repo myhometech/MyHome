@@ -2832,6 +2832,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       
+      console.log("[DEBUG USER-ASSETS] Raw request body:", JSON.stringify(req.body, null, 2));
+      
       // Validate the request with the discriminated union schema from the frontend
       // This will check that house assets have address/postcode and car assets have make/model/year
       const houseSchema = z.object({
@@ -2853,6 +2855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const assetSchema = z.discriminatedUnion("type", [houseSchema, carSchema]);
       const validatedData = assetSchema.parse(req.body);
+      console.log("[DEBUG USER-ASSETS] Validated data:", JSON.stringify(validatedData, null, 2));
       
       const assetData = { ...validatedData, userId };
       const asset = await storage.createUserAsset(assetData);
@@ -2860,6 +2863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating user asset:", error);
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG USER-ASSETS] Zod validation error details:", JSON.stringify(error.errors, null, 2));
         res.status(400).json({ message: "Invalid asset data", errors: error.errors });
       } else {
         res.status(500).json({ message: "Failed to create user asset" });
@@ -3657,6 +3661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error creating vehicle:", error);
       if (error.name === 'ZodError') {
+        console.error("[DEBUG] Zod validation error details:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ 
           message: "Validation error", 
           errors: error.errors 

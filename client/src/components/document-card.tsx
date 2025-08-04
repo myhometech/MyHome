@@ -720,11 +720,11 @@ export default function DocumentCard({
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-6 px-2 text-xs"
+                              className="h-6 px-2 text-xs bg-red-100 border-red-300 hover:bg-red-200"
                               onClick={(e) => {
+                                console.log('[DEBUG] Button click event fired!', { insightId: insight.id, target: e.target });
                                 e.preventDefault();
                                 e.stopPropagation();
-                                console.log('[DEBUG] Dismiss button clicked for insight:', insight.id);
                                 dismissInsightMutation.mutate(String(insight.id));
                               }}
                               disabled={dismissInsightMutation.isPending}

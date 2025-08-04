@@ -78,9 +78,11 @@ const getStatusDisplay = (status?: string, dueDate?: string) => {
 };
 
 // Vehicle Card Component
-function VehicleCard({ vehicle, onViewDetails }: { 
+function VehicleCard({ vehicle, onViewDetails, onEdit, onDelete }: { 
   vehicle: Vehicle; 
   onViewDetails: (vehicle: Vehicle) => void;
+  onEdit?: (vehicle: Vehicle) => void;
+  onDelete?: (vehicleId: string) => void;
 }) {
   const taxDisplay = getStatusDisplay(vehicle.taxStatus, vehicle.taxDueDate);
   const motDisplay = getStatusDisplay(vehicle.motStatus, vehicle.motExpiryDate);
@@ -143,6 +145,31 @@ function VehicleCard({ vehicle, onViewDetails }: {
           >
             View Details
           </Button>
+          {onEdit && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(vehicle);
+              }}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(vehicle.id);
+              }}
+              className="text-red-600 hover:text-red-700"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -803,12 +830,115 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
   );
 }
 
+// Vehicle Edit Modal Component
+function VehicleEditModal({ vehicle, isOpen, onClose, onSaved }: {
+  vehicle: Vehicle | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (vehicle && isOpen) {
+      setNotes(vehicle.notes || '');
+    }
+  }, [vehicle, isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vehicle) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/vehicles/${vehicle.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ notes }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update vehicle');
+      }
+
+      toast({
+        title: 'Vehicle updated',
+        description: 'Vehicle notes have been successfully updated.',
+      });
+      onSaved();
+    } catch (error) {
+      toast({
+        title: 'Failed to update vehicle',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!vehicle) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Vehicle Notes</DialogTitle>
+          <p className="text-sm text-gray-600">
+            {vehicle.vrn} - {vehicle.make} {vehicle.model}
+          </p>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add notes about this vehicle..."
+              rows={4}
+              className="mt-1"
+            />
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center gap-2"
+            >
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Assets Tab Content Component
 function AssetsTabContent() {
   const { user, isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [vehicleToEdit, setVehicleToEdit] = useState<Vehicle | null>(null);
   
   // Fetch vehicles data
   const { data: vehicles, isLoading, error } = useQuery<Vehicle[]>({
@@ -833,6 +963,40 @@ function AssetsTabContent() {
   const handleCloseDetailModal = () => {
     setIsDetailModalOpen(false);
     setSelectedVehicle(null);
+  };
+
+  const handleEditVehicle = (vehicle: Vehicle) => {
+    setVehicleToEdit(vehicle);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteVehicle = async (vehicleId: string) => {
+    if (!confirm('Are you sure you want to delete this vehicle? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete vehicle');
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['/api/vehicles'] });
+      toast({
+        title: 'Vehicle deleted',
+        description: 'Vehicle has been successfully deleted.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to delete vehicle',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (isLoading) {
@@ -913,6 +1077,8 @@ function AssetsTabContent() {
                   key={vehicle.id} 
                   vehicle={vehicle} 
                   onViewDetails={handleViewVehicleDetails}
+                  onEdit={handleEditVehicle}
+                  onDelete={handleDeleteVehicle}
                 />
               ))}
             </div>
@@ -932,6 +1098,21 @@ function AssetsTabContent() {
         vehicle={selectedVehicle}
         isOpen={isDetailModalOpen}
         onClose={handleCloseDetailModal}
+      />
+
+      {/* Edit Vehicle Modal */}
+      <VehicleEditModal
+        vehicle={vehicleToEdit}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setVehicleToEdit(null);
+        }}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/vehicles'] });
+          setIsEditModalOpen(false);
+          setVehicleToEdit(null);
+        }}
       />
     </div>
   );

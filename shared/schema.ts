@@ -535,6 +535,7 @@ export const createVehicleSchema = z.object({
 
 // Full vehicle schema for manual creation and updates (existing functionality) 
 export const insertVehicleSchema = z.object({
+  userId: z.string(),  // Required for all vehicle operations
   vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
   make: z.string().nullable().optional(),
   model: z.string().nullable().optional(),
@@ -551,6 +552,7 @@ export const insertVehicleSchema = z.object({
   revenueWeight: z.number().int().nullable().optional(),
   source: z.enum(["manual", "dvla", "import"]).default("manual"),
   notes: z.string().optional().nullable(),
+  dvlaLastRefreshed: z.date().optional().nullable(),
 });
 
 // Schema for updating only user-editable fields (TICKET 3 requirement)

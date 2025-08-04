@@ -90,31 +90,9 @@ export function YourAssetsSection() {
     },
   });
 
-  const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery({
-    queryKey: ["/api/vehicles"],
-    queryFn: async () => {
-      const res = await fetch("/api/vehicles");
-      if (!res.ok) throw new Error("Failed to fetch vehicles");
-      return res.json();
-    },
-  });
-
-  // Combine legacy assets and new vehicles
-  const assets = [
-    ...legacyAssets,
-    ...vehicles.map((vehicle: any) => ({
-      id: vehicle.id,
-      type: "car",
-      name: `${vehicle.make || 'Unknown'} ${vehicle.model || ''}`.trim() || `Vehicle ${vehicle.vrn}`,
-      registration: vehicle.vrn,
-      make: vehicle.make,
-      model: vehicle.model,
-      year: vehicle.yearOfManufacture,
-      isNewVehicleSystem: true
-    }))
-  ];
-
-  const isLoading = isLoadingLegacy || isLoadingVehicles;
+  // Only show legacy assets in "Your Assets" section
+  const assets = legacyAssets;
+  const isLoading = isLoadingLegacy;
 
   const addAsset = useMutation({
     mutationFn: async (data: AssetForm) => {
@@ -128,7 +106,6 @@ export function YourAssetsSection() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user-assets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
       toast({ title: "Asset added successfully!" });
       form.reset();
       setShowForm(false);
@@ -139,14 +116,12 @@ export function YourAssetsSection() {
   });
 
   const deleteAsset = useMutation({
-    mutationFn: async (asset: any) => {
-      const endpoint = asset.isNewVehicleSystem ? `/api/vehicles/${asset.id}` : `/api/user-assets/${asset.id}`;
-      const res = await fetch(endpoint, { method: "DELETE" });
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/user-assets/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete asset");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user-assets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
       toast({ title: "Asset deleted." });
     },
     onError: () => {
@@ -382,7 +357,7 @@ export function YourAssetsSection() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => deleteAsset.mutate(asset)}
+                    onClick={() => deleteAsset.mutate(asset.id)}
                     className="text-destructive hover:text-red-700"
                     disabled={deleteAsset.isPending}
                   >

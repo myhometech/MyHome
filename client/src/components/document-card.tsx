@@ -633,8 +633,17 @@ export default function DocumentCard({
               </div>
             )}
 
+            {/* FORCED VISIBLE DEBUG SECTION */}
+            <div className="mt-3 p-4 bg-red-500 text-white font-bold">
+              🚨 THIS SHOULD ALWAYS BE VISIBLE ON HOMEPAGE - DOC {document.id}
+              <div>Open Insights: {openInsights.length}</div>
+              <button onClick={() => console.log('HOMEPAGE BUTTON CLICKED FOR DOC:', document.id)}>
+                HOMEPAGE TEST BUTTON
+              </button>
+            </div>
+            
             {/* AI Insights Section - Force show insights for debugging */}
-            {(openInsights.length > 0 || true) && (
+            {true && (
               <div className="mt-3 border-t pt-3 space-y-2" style={{ backgroundColor: document.id === 28 ? '#f0f9ff' : 'transparent' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

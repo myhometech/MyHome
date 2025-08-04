@@ -7,6 +7,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema } from "@shared/schema";
+import { EmailUploadLogger } from './emailUploadLogger';
 import { z } from 'zod';
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 
@@ -2883,18 +2884,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // TICKET 1: Mailgun Inbound Email Webhook Endpoint
   app.post('/api/mailgun/inbound-email', mailgunUpload.any(), async (req: any, res) => {
+    const processingStartTime = Date.now();
+    let requestId: string | undefined;
+    
     try {
-      console.log('📧 Mailgun webhook received:', {
-        headers: req.headers,
-        bodyKeys: Object.keys(req.body || {}),
-        filesCount: req.files?.length || 0
-      });
-
-      // Parse the webhook data
+      // Parse the webhook data first to get basic email info
       const webhookData = parseMailgunWebhook(req);
       
       if (!webhookData.isValid) {
-        console.error('❌ Invalid Mailgun webhook:', webhookData.error);
+        // TICKET 6: Log webhook validation errors
+        EmailUploadLogger.logError({
+          errorType: 'validation',
+          errorCode: 'INVALID_WEBHOOK_DATA',
+          errorMessage: webhookData.error || 'Unknown webhook validation error',
+          sender: 'unknown',
+          recipient: 'unknown',  
+          subject: 'unknown'
+        });
         return res.status(400).json({ 
           error: 'Invalid webhook data',
           details: webhookData.error 
@@ -2902,6 +2908,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { message } = webhookData;
+      
+      // TICKET 6: Log webhook reception with email details
+      requestId = EmailUploadLogger.logWebhookReceived({
+        recipient: message.recipient,
+        sender: message.sender,
+        subject: message.subject,
+        attachmentCount: message.attachments?.length || 0,
+        totalSize: message.attachments?.reduce((sum, att) => sum + att.size, 0) || 0,
+        userAgent: req.headers['user-agent'] || 'unknown'
+      });
       
       // TICKET 2: Verify Mailgun signature (required for security)
       const signingKey = process.env.MAILGUN_API_KEY || process.env.MAILGUN_SIGNING_KEY;
@@ -2928,10 +2944,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         if (!isValidSignature) {
-          console.error('❌ Invalid Mailgun signature - potential tampering detected', {
+          // TICKET 6: Log signature verification failures
+          EmailUploadLogger.logSignatureError({
+            sender: message.sender,
+            recipient: message.recipient,
             timestamp: message.timestamp,
             token: message.token?.substring(0, 8) + '...',
-            signatureLength: message.signature?.length
+            signatureLength: message.signature?.length || 0,
+            requestId
           });
           return res.status(401).json({ 
             error: 'Invalid signature - request authentication failed' 
@@ -2946,9 +2966,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TICKET 3: Extract and validate user from email subaddressing
       const userExtractionResult = extractUserIdFromRecipient(message.recipient);
       if (!userExtractionResult.userId) {
-        console.error('❌ Failed to extract user ID from recipient:', {
+        // TICKET 6: Log user extraction failures
+        EmailUploadLogger.logUserError({
+          errorCode: 'USER_EXTRACTION_FAILED',
           recipient: message.recipient,
-          error: userExtractionResult.error
+          sender: message.sender,
+          subject: message.subject,
+          errorMessage: userExtractionResult.error || 'Failed to extract user ID from email address',
+          requestId
         });
         return res.status(400).json({ 
           error: 'Invalid recipient format',
@@ -2972,10 +2997,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         user = await storage.getUser(userId);
         if (!user) {
-          console.error('❌ User not found in database:', {
-            userId,
+          // TICKET 6: Log user not found errors
+          EmailUploadLogger.logUserError({
+            errorCode: 'USER_NOT_FOUND',
             recipient: message.recipient,
-            sender: message.sender
+            sender: message.sender,
+            subject: message.subject,
+            userId,
+            errorMessage: `No user found with ID: ${userId}`,
+            requestId
           });
           return res.status(404).json({ 
             error: 'User not found',
@@ -2991,10 +3021,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
       } catch (error) {
-        console.error('❌ Database error while checking user:', {
-          userId,
+        // TICKET 6: Log database errors during user lookup
+        const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+        EmailUploadLogger.logUserError({
+          errorCode: 'USER_LOOKUP_ERROR',
           recipient: message.recipient,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          sender: message.sender,
+          subject: message.subject,
+          userId,
+          errorMessage: `Database error during user lookup: ${errorMessage}`,
+          requestId,
+          error: error instanceof Error ? error : undefined
         });
         
         // Determine if it's a database connection issue or invalid user ID format
@@ -3016,12 +3053,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Reject emails with no valid attachments
       if (!attachmentValidation.hasValidAttachments) {
-        console.error('❌ No valid attachments found in email:', {
-          recipient: message.recipient,
+        // TICKET 6: Log attachment validation failures
+        EmailUploadLogger.logAttachmentError({
           sender: message.sender,
-          totalAttachments: message.attachments.length,
-          invalidAttachments: attachmentValidation.invalidAttachments,
-          summary: attachmentValidation.summary
+          recipient: message.recipient,
+          subject: message.subject,
+          attachmentCount: message.attachments.length,
+          validCount: attachmentValidation.validAttachments.length,
+          invalidAttachments: attachmentValidation.invalidAttachments.map(att => `${att.filename} (${att.error})`),
+          requestId
         });
         
         return res.status(400).json({
@@ -3057,6 +3097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Process each valid attachment through the document pipeline
       for (const attachment of attachmentValidation.validAttachments) {
+        const attachmentStartTime = Date.now();
         try {
           console.log(`📧 Processing email attachment: ${attachment.filename} (${attachment.size} bytes)`);
           console.log('📧 userId type and value:', typeof userId, userId);
@@ -3097,7 +3138,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cloudStorageKey = await storageService.upload(attachment.buffer, storageKey, finalMimeType);
             console.log(`☁️ Uploaded ${attachment.filename} to GCS: ${cloudStorageKey}`);
           } catch (storageError) {
-            console.error('❌ GCS upload failed for', attachment.filename, ':', storageError);
+            // TICKET 6: Log storage upload failures
+            EmailUploadLogger.logStorageError({
+              userId,
+              fileName: attachment.filename,
+              sender: message.sender,
+              recipient: message.recipient,
+              subject: message.subject,
+              documentId: document.id,
+              errorMessage: `GCS upload failed: ${storageError instanceof Error ? storageError.message : 'Unknown storage error'}`,
+              requestId,
+              error: storageError instanceof Error ? storageError : undefined
+            });
+            
             await storage.deleteDocument(document.id, userId); // Cleanup document record
             documentErrors.push({
               filename: attachment.filename,
@@ -3211,6 +3264,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
+          // TICKET 6: Log successful document creation
+          const attachmentProcessingTime = Date.now() - attachmentStartTime;
+          EmailUploadLogger.logSuccess({
+            userId,
+            documentId: document.id,
+            fileName: attachment.filename,
+            sender: message.sender,
+            recipient: message.recipient,
+            subject: message.subject,
+            fileSize: attachment.size,
+            storageKey: cloudStorageKey,
+            mimeType: finalMimeType,
+            processingTimeMs: attachmentProcessingTime,
+            requestId
+          });
+
           processedDocuments.push({
             documentId: document.id,
             filename: attachment.filename,
@@ -3220,7 +3289,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
         } catch (documentError) {
-          console.error(`❌ Failed to process attachment ${attachment.filename}:`, documentError);
+          // TICKET 6: Log document processing failures
+          EmailUploadLogger.logProcessingError({
+            userId,
+            fileName: attachment.filename,
+            sender: message.sender,
+            recipient: message.recipient,
+            subject: message.subject,
+            errorMessage: documentError instanceof Error ? documentError.message : 'Unknown processing error',
+            requestId,
+            error: documentError instanceof Error ? documentError : undefined
+          });
+          
           documentErrors.push({
             filename: attachment.filename,
             error: documentError instanceof Error ? documentError.message : 'Unknown processing error'
@@ -3228,15 +3308,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Log final processing results
-      console.log('✅ Email document processing completed:', {
-        recipient: message.recipient,
-        sender: message.sender,
-        subject: message.subject,
+      // TICKET 6: Log processing summary
+      const totalProcessingTime = Date.now() - processingStartTime;
+      EmailUploadLogger.logProcessingSummary({
         userId,
-        processedDocuments: processedDocuments.length,
-        documentErrors: documentErrors.length,
-        totalAttachments: attachmentValidation.validAttachments.length
+        sender: message.sender,
+        recipient: message.recipient,
+        subject: message.subject,
+        totalAttachments: attachmentValidation.validAttachments.length,
+        successfulDocuments: processedDocuments.length,
+        failedDocuments: documentErrors.length,
+        totalProcessingTimeMs: totalProcessingTime,
+        requestId
       });
 
       // Record email processing in the database
@@ -3273,7 +3356,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error('❌ Error processing Mailgun webhook:', error);
+      // TICKET 6: Log critical system errors
+      EmailUploadLogger.logError({
+        errorType: 'system',
+        errorCode: 'WEBHOOK_PROCESSING_FAILED',
+        errorMessage: `Critical error in email webhook processing: ${error instanceof Error ? error.message : 'Unknown system error'}`,
+        sender: 'unknown',
+        recipient: 'unknown',
+        subject: 'unknown',
+        requestId,
+        error: error instanceof Error ? error : undefined
+      });
+      
       captureError(error as Error, req);
       res.status(500).json({ 
         error: 'Internal server error processing email',

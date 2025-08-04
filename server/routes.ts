@@ -6,8 +6,9 @@ import { AuthService } from "./authService";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema, createVehicleSchema, updateVehicleUserFieldsSchema } from "@shared/schema";
 import { EmailUploadLogger } from './emailUploadLogger';
+import { dvlaLookupService } from './dvlaLookupService';
 import { z } from 'zod';
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 
@@ -3424,20 +3425,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create a new vehicle (manual entry)
+  // TICKET 3: Create a new vehicle with DVLA enrichment
   app.post('/api/vehicles', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       
-      // Validate request body
-      const validatedData = insertVehicleSchema.parse(req.body);
+      // Validate request body using TICKET 3 schema
+      const validatedData = createVehicleSchema.parse(req.body);
+      const { vrn, notes, ...manualFields } = validatedData;
       
-      const vehicle = await storage.createVehicle({
-        ...validatedData,
-        userId,
-      });
+      // Check if vehicle already exists for this user
+      const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
+      if (existingVehicle) {
+        return res.status(409).json({ 
+          message: "Vehicle with this VRN already exists",
+          vehicle: existingVehicle
+        });
+      }
+
+      // Attempt DVLA lookup first
+      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
       
-      res.status(201).json(vehicle);
+      let vehicleData;
+      let dvlaFields = [];
+      let userEditableFields = ['notes'];
+      let dvlaError = null;
+
+      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+        // DVLA lookup successful - use DVLA data
+        vehicleData = {
+          ...dvlaLookupResult.vehicle,
+          userId,
+          notes: notes || null,
+          source: 'dvla',
+          dvlaLastRefreshed: new Date(),
+        };
+        
+        // Mark DVLA fields as read-only
+        dvlaFields = [
+          'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+          'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+          'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+        ];
+      } else {
+        // DVLA lookup failed - use manual data with fallback
+        dvlaError = dvlaLookupResult.error;
+        vehicleData = {
+          userId,
+          vrn,
+          notes: notes || null,
+          source: 'manual',
+          // Use manual fields as fallback
+          ...manualFields,
+        };
+        
+        // All fields are user-editable when DVLA fails
+        userEditableFields = [
+          'notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour'
+        ];
+      }
+
+      // Create the vehicle
+      const createdVehicle = await storage.createVehicle(vehicleData);
+      
+      // TICKET 3 response format
+      const response = {
+        vehicle: createdVehicle,
+        dvlaEnriched: dvlaLookupResult.success,
+        dvlaFields,
+        userEditableFields,
+        ...(dvlaError && { 
+          dvlaError: {
+            code: dvlaError.code,
+            message: dvlaError.message,
+            status: dvlaError.status
+          }
+        })
+      };
+      
+      res.status(201).json(response);
     } catch (error: any) {
       console.error("Error creating vehicle:", error);
       if (error.name === 'ZodError') {
@@ -3450,21 +3516,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update a vehicle
+  // TICKET 3: Update a vehicle (only user-editable fields)
   app.put('/api/vehicles/:id', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const vehicleId = req.params.id;
       
-      // Validate request body (allowing partial updates)
-      const validatedData = insertVehicleSchema.partial().parse(req.body);
-      
-      const vehicle = await storage.updateVehicle(vehicleId, userId, validatedData);
-      if (!vehicle) {
+      // Get existing vehicle to check source
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
         return res.status(404).json({ message: "Vehicle not found" });
       }
-      
-      res.json(vehicle);
+
+      // TICKET 3 requirement: Only non-DVLA fields are user-editable
+      if (existingVehicle.source === 'dvla') {
+        // For DVLA-enriched vehicles, only allow user field updates
+        const validatedData = updateVehicleUserFieldsSchema.parse(req.body);
+        
+        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
+          ...validatedData,
+          updatedAt: new Date(),
+        });
+        
+        const response = {
+          vehicle: updatedVehicle,
+          dvlaEnriched: true,
+          dvlaFields: [
+            'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+            'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+            'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+          ],
+          userEditableFields: ['notes'],
+          message: "Only user-editable fields updated. DVLA fields are read-only."
+        };
+        
+        res.json(response);
+      } else {
+        // For manual vehicles, allow full updates
+        const validatedData = insertVehicleSchema.partial().parse(req.body);
+        
+        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, validatedData);
+        
+        const response = {
+          vehicle: updatedVehicle,
+          dvlaEnriched: false,
+          dvlaFields: [],
+          userEditableFields: [
+            'notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+            'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+            'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+          ]
+        };
+        
+        res.json(response);
+      }
     } catch (error: any) {
       console.error("Error updating vehicle:", error);
       if (error.name === 'ZodError') {

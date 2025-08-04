@@ -521,6 +521,19 @@ export const vehicles = pgTable("vehicles", {
 export type Vehicle = typeof vehicles.$inferSelect;
 export type InsertVehicle = typeof vehicles.$inferInsert;
 
+// TICKET 3: Vehicle creation schema with DVLA enrichment
+export const createVehicleSchema = z.object({
+  vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
+  notes: z.string().optional(),
+  // Allow manual fallback fields if DVLA lookup fails
+  make: z.string().optional(),
+  model: z.string().optional(),
+  yearOfManufacture: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional(),
+  fuelType: z.string().optional(),
+  colour: z.string().optional(),
+});
+
+// Full vehicle schema for manual creation and updates (existing functionality)
 export const insertVehicleSchema = createInsertSchema(vehicles, {
   vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
   taxDueDate: z.union([z.string(), z.date()]).optional().transform((val) => {
@@ -542,6 +555,12 @@ export const insertVehicleSchema = createInsertSchema(vehicles, {
   updatedAt: true,
   dvlaLastRefreshed: true,
 });
+
+// Schema for updating only user-editable fields (TICKET 3 requirement)
+export const updateVehicleUserFieldsSchema = z.object({
+  notes: z.string().optional(),
+  // Users can only edit manual/user fields, not DVLA fields
+}).strict();
 
 // Re-export feature flag schemas
 export * from "./featureFlagSchema";

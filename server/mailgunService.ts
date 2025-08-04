@@ -88,6 +88,7 @@ export function parseMailgunWebhook(req: Request): ParsedMailgunWebhook {
 
 /**
  * Verify Mailgun webhook signature using HMAC SHA256
+ * TICKET 2: Enhanced signature verification with proper error handling
  */
 export function verifyMailgunSignature(
   timestamp: string,
@@ -96,16 +97,57 @@ export function verifyMailgunSignature(
   signingKey: string
 ): boolean {
   try {
+    // Validate input parameters
+    if (!timestamp || !token || !signature || !signingKey) {
+      console.error('Missing required signature verification parameters', {
+        hasTimestamp: !!timestamp,
+        hasToken: !!token,
+        hasSignature: !!signature,
+        hasSigningKey: !!signingKey
+      });
+      return false;
+    }
+
+    // Check timestamp to prevent replay attacks (optional but recommended)
+    const messageTimestamp = parseInt(timestamp);
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const timeDifference = Math.abs(currentTimestamp - messageTimestamp);
+    
+    // Allow up to 15 minutes of time difference to account for clock skew
+    if (timeDifference > 900) {
+      console.warn('Mailgun webhook timestamp too old or too far in future', {
+        messageTimestamp,
+        currentTimestamp,
+        differenceSeconds: timeDifference
+      });
+      // Note: In production, you might want to reject old timestamps
+      // For now, we log but don't reject to avoid issues during development
+    }
+
+    // Create the signature string exactly as Mailgun does
     const data = timestamp + token;
     const expectedSignature = crypto
       .createHmac('sha256', signingKey)
       .update(data)
       .digest('hex');
     
+    // Use timing-safe comparison to prevent timing attacks
+    const providedSignature = signature.toLowerCase();
+    const expectedSignatureLower = expectedSignature.toLowerCase();
+    
+    if (providedSignature.length !== expectedSignatureLower.length) {
+      console.error('Signature length mismatch', {
+        providedLength: providedSignature.length,
+        expectedLength: expectedSignatureLower.length
+      });
+      return false;
+    }
+    
     return crypto.timingSafeEqual(
-      Buffer.from(signature, 'hex'),
-      Buffer.from(expectedSignature, 'hex')
+      Buffer.from(providedSignature, 'hex'),
+      Buffer.from(expectedSignatureLower, 'hex')
     );
+    
   } catch (error) {
     console.error('Error verifying Mailgun signature:', error);
     return false;

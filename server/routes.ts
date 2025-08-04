@@ -2903,24 +2903,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { message } = webhookData;
       
-      // Optional: Verify signature if MAILGUN_SIGNING_KEY is provided
-      const signingKey = process.env.MAILGUN_SIGNING_KEY;
-      if (signingKey) {
-        const isValidSignature = verifyMailgunSignature(
-          message.timestamp,
-          message.token, 
-          message.signature,
-          signingKey
-        );
-        
-        if (!isValidSignature) {
-          console.error('❌ Invalid Mailgun signature');
-          return res.status(401).json({ error: 'Invalid signature' });
-        }
-        console.log('✅ Mailgun signature verified');
-      } else {
-        console.warn('⚠️ No MAILGUN_SIGNING_KEY provided - signature verification skipped');
+      // TICKET 2: Verify Mailgun signature (required for security)
+      const signingKey = process.env.MAILGUN_API_KEY || process.env.MAILGUN_SIGNING_KEY;
+      if (!signingKey) {
+        console.error('❌ MAILGUN_API_KEY not configured - signature verification required');
+        return res.status(500).json({ 
+          error: 'Server configuration error: Mailgun API key not configured' 
+        });
       }
+
+      const isValidSignature = verifyMailgunSignature(
+        message.timestamp,
+        message.token, 
+        message.signature,
+        signingKey
+      );
+      
+      if (!isValidSignature) {
+        console.error('❌ Invalid Mailgun signature - potential tampering detected', {
+          timestamp: message.timestamp,
+          token: message.token?.substring(0, 8) + '...',
+          signatureLength: message.signature?.length
+        });
+        return res.status(401).json({ 
+          error: 'Invalid signature - request authentication failed' 
+        });
+      }
+      
+      console.log('✅ Mailgun signature verified successfully');
 
       // Extract user ID from recipient
       const userId = extractUserIdFromRecipient(message.recipient);

@@ -3489,34 +3489,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the vehicle
       const createdVehicle = await storage.createVehicle(vehicleData);
       
-      // TICKET 4: Generate AI insights from MOT and tax dates
-      let vehicleInsights = null;
+      // TICKET 4: Generate vehicle insights after creation
       try {
-        if (dvlaLookupResult.success && (createdVehicle.motExpiryDate || createdVehicle.taxDueDate)) {
+        if (createdVehicle.motExpiryDate || createdVehicle.taxDueDate) {
           console.log(`[TICKET 4] Generating insights for vehicle ${createdVehicle.vrn}`);
-          vehicleInsights = await vehicleInsightService.generateVehicleInsights(
-            createdVehicle,
-            userId,
-            { skipDuplicateCheck: false }
-          );
+          const insightResult = await vehicleInsightService.generateVehicleInsights(createdVehicle);
           
-          const insightCount = Object.keys(vehicleInsights).length;
-          if (insightCount > 0) {
-            console.log(`[TICKET 4] Generated ${insightCount} insights for vehicle ${createdVehicle.vrn}`);
+          if (insightResult.success && insightResult.insights.length > 0) {
+            await vehicleInsightService.saveVehicleInsights(createdVehicle, insightResult.insights);
+            console.log(`[TICKET 4] Generated ${insightResult.insights.length} vehicle insights for ${createdVehicle.vrn}`);
           }
         }
       } catch (error) {
-        console.error(`[TICKET 4] Failed to generate insights for vehicle ${createdVehicle.vrn}:`, error);
-        // Don't fail the vehicle creation if insight generation fails
+        console.error('[TICKET 4] Error generating vehicle insights:', error);
+        // Don't fail vehicle creation if insight generation fails
       }
       
-      // TICKET 3 response format with TICKET 4 insights
+      // TICKET 3 response format
       const response = {
         vehicle: createdVehicle,
         dvlaEnriched: dvlaLookupResult.success,
         dvlaFields,
         userEditableFields,
-        ...(vehicleInsights && { vehicleInsights }),
         ...(dvlaError && { 
           dvlaError: {
             code: dvlaError.code,

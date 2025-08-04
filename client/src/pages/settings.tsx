@@ -11,12 +11,223 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard, Car, Plus, Calendar, FileText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useFeatures } from "@/hooks/useFeatures";
 import { Crown } from "lucide-react";
+
+// Vehicle interface based on the API structure
+interface Vehicle {
+  id: string;
+  vrn: string;
+  make?: string;
+  model?: string;
+  yearOfManufacture?: number;
+  taxStatus?: string;
+  taxDueDate?: string;
+  motStatus?: string;
+  motExpiryDate?: string;
+  source: 'dvla' | 'manual';
+  notes?: string;
+}
+
+// Helper function to get status color and text
+const getStatusDisplay = (status?: string, dueDate?: string) => {
+  if (!status && !dueDate) {
+    return { color: 'text-gray-500', text: 'Unknown' };
+  }
+  
+  if (dueDate) {
+    const due = new Date(dueDate);
+    const now = new Date();
+    const daysUntilDue = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntilDue < 0) {
+      return { color: 'text-red-600', text: 'Overdue' };
+    } else if (daysUntilDue <= 7) {
+      return { color: 'text-orange-600', text: 'Due Soon' };
+    } else if (daysUntilDue <= 30) {
+      return { color: 'text-yellow-600', text: 'Due This Month' };
+    } else {
+      return { color: 'text-green-600', text: `Due ${due.toLocaleDateString()}` };
+    }
+  }
+  
+  // Fallback to status text
+  if (status === 'Taxed') return { color: 'text-green-600', text: 'Taxed' };
+  if (status === 'Valid') return { color: 'text-green-600', text: 'Valid' };
+  if (status === 'Not Taxed') return { color: 'text-red-600', text: 'Not Taxed' };
+  if (status === 'Expired') return { color: 'text-red-600', text: 'Expired' };
+  
+  return { color: 'text-gray-500', text: status || 'Unknown' };
+};
+
+// Vehicle Card Component
+function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+  const taxDisplay = getStatusDisplay(vehicle.taxStatus, vehicle.taxDueDate);
+  const motDisplay = getStatusDisplay(vehicle.motStatus, vehicle.motExpiryDate);
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-3">
+            <Car className="h-8 w-8 text-blue-600" />
+            <div>
+              <h3 className="font-semibold text-lg">{vehicle.vrn}</h3>
+              {vehicle.make && (
+                <p className="text-gray-600">
+                  {vehicle.make} {vehicle.model} {vehicle.yearOfManufacture && `(${vehicle.yearOfManufacture})`}
+                </p>
+              )}
+            </div>
+          </div>
+          {vehicle.source === 'dvla' && (
+            <Badge variant="secondary" className="text-xs">
+              DVLA Verified
+            </Badge>
+          )}
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <FileText className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium">Tax Status</span>
+            </div>
+            <p className={`text-sm ${taxDisplay.color}`}>{taxDisplay.text}</p>
+          </div>
+          
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Calendar className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium">MOT Status</span>
+            </div>
+            <p className={`text-sm ${motDisplay.color}`}>{motDisplay.text}</p>
+          </div>
+        </div>
+        
+        {vehicle.notes && (
+          <div className="mb-4">
+            <p className="text-sm text-gray-600">{vehicle.notes}</p>
+          </div>
+        )}
+        
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1">
+            View Details
+          </Button>
+          <Button variant="outline" size="sm">
+            Edit
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Assets Tab Content Component
+function AssetsTabContent() {
+  const { user, isAuthenticated } = useAuth();
+  
+  // Fetch vehicles data
+  const { data: vehicles, isLoading, error } = useQuery<Vehicle[]>({
+    queryKey: ['/api/vehicles'],
+    enabled: isAuthenticated,
+  });
+
+  const handleAddVehicle = () => {
+    // Navigate to add vehicle - could be a modal or separate page
+    // For now, just placeholder functionality
+    console.log('Add vehicle clicked');
+    // TODO: Implement add vehicle modal or navigation
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5" />
+              Vehicle Assets
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5" />
+              Vehicle Assets
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <p className="text-red-600">Failed to load vehicles. Please try again.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Car className="h-5 w-5" />
+              Vehicle Assets
+            </CardTitle>
+            <Button onClick={handleAddVehicle} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Vehicle
+            </Button>
+          </div>
+          <p className="text-sm text-gray-600 mt-2">
+            Manage your vehicles, track MOT and tax expiry dates, and get AI-powered compliance insights.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {!vehicles || vehicles.length === 0 ? (
+            <div className="text-center py-12">
+              <Car className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles added yet</h3>
+              <p className="text-gray-600 mb-6">
+                Add your first vehicle to track tax, MOT, and get compliance reminders.
+              </p>
+              <Button onClick={handleAddVehicle} className="flex items-center gap-2 mx-auto">
+                <Plus className="h-4 w-4" />
+                Add Your First Vehicle
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              {vehicles.map((vehicle) => (
+                <VehicleCard key={vehicle.id} vehicle={vehicle} />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 export default function Settings() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -93,10 +304,14 @@ export default function Settings() {
 
         {/* Settings Tabs */}
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Profile
+            </TabsTrigger>
+            <TabsTrigger value="assets" className="flex items-center gap-2">
+              <Car className="h-4 w-4" />
+              Assets
             </TabsTrigger>
             <TabsTrigger value="billing" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -174,6 +389,11 @@ export default function Settings() {
             <YourAssetsSection />
 
 
+          </TabsContent>
+
+          {/* Assets Tab */}
+          <TabsContent value="assets" className="space-y-6">
+            <AssetsTabContent />
           </TabsContent>
 
           {/* Billing Tab */}

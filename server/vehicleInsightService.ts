@@ -1,25 +1,38 @@
 /**
- * TICKET 4: Vehicle Insight Generation Service
+ * TICKET 4: Vehicle Insight Service
  * 
- * Generates AI insights for vehicle MOT and tax due dates
- * Triggers on vehicle creation and DVLA refresh
+ * Generates AI insights from MOT and Tax dates for DVLA-enriched vehicles
  */
 
 import { storage } from './storage.js';
 import { llmClient } from './services/llmClient.js';
 import type { Vehicle, InsertDocumentInsight } from '@shared/schema';
 
-interface VehicleInsightData {
-  vrn: string;
+interface VehicleInsightOptions {
+  linkedVrn: string;
   dueDate: Date;
   type: 'vehicle:mot' | 'vehicle:tax';
-  daysUntilDue: number;
-  urgencyLevel: 'overdue' | 'urgent' | 'upcoming' | 'future';
+  source: string;
+  vehicleData: {
+    make?: string;
+    model?: string;
+    colour?: string;
+    fuelType?: string;
+  };
 }
 
-interface GenerateVehicleInsightOptions {
-  skipDuplicateCheck?: boolean;
-  forceRegenerate?: boolean;
+interface InsightGenerationResult {
+  success: boolean;
+  insights: Array<{
+    type: 'vehicle:mot' | 'vehicle:tax';
+    message: string;
+    title: string;
+    content: string;
+    priority: 'low' | 'medium' | 'high';
+    dueDate: Date;
+    linkedVrn: string;
+  }>;
+  error?: string;
 }
 
 class VehicleInsightService {
@@ -31,374 +44,349 @@ class VehicleInsightService {
       const status = llmClient.getStatus();
       console.log(`✅ Vehicle Insight Service initialized with ${status.provider} (${status.model})`);
     } else {
-      console.log('⚠️ Vehicle Insight Service disabled - LLM API key not found');
+      console.log('⚠️ Vehicle Insight Service using template fallback - LLM API key not configured');
     }
   }
 
   /**
-   * TICKET 4: Generate insights from vehicle MOT and tax dates
+   * TICKET 4: Generate insights from vehicle creation or DVLA refresh
    */
-  async generateVehicleInsights(
-    vehicle: Vehicle, 
-    userId: string,
-    options: GenerateVehicleInsightOptions = {}
-  ): Promise<{ motInsight?: any, taxInsight?: any }> {
-    const results: { motInsight?: any, taxInsight?: any } = {};
+  async generateVehicleInsights(vehicle: Vehicle): Promise<InsightGenerationResult> {
+    const insights: InsightGenerationResult['insights'] = [];
 
     try {
       // Generate MOT insight if MOT expiry date exists
       if (vehicle.motExpiryDate) {
-        const motInsightData = this.prepareInsightData(
-          vehicle.vrn,
-          vehicle.motExpiryDate,
-          'vehicle:mot'
-        );
-
-        if (motInsightData) {
-          const existingMotInsight = await this.checkExistingInsight(
-            userId,
-            vehicle.vrn,
-            'vehicle:mot',
-            motInsightData.dueDate
-          );
-
-          if (!existingMotInsight || options.forceRegenerate) {
-            results.motInsight = await this.createVehicleInsight(
-              motInsightData,
-              userId,
-              vehicle.id
-            );
+        const motInsight = await this.generateMOTInsight({
+          linkedVrn: vehicle.vrn,
+          dueDate: new Date(vehicle.motExpiryDate),
+          type: 'vehicle:mot',
+          source: vehicle.source || 'dvla',
+          vehicleData: {
+            make: vehicle.make || undefined,
+            model: vehicle.model || undefined,
+            colour: vehicle.colour || undefined,
+            fuelType: vehicle.fuelType || undefined
           }
+        });
+
+        if (motInsight) {
+          insights.push(motInsight);
         }
       }
 
       // Generate Tax insight if tax due date exists
       if (vehicle.taxDueDate) {
-        const taxInsightData = this.prepareInsightData(
-          vehicle.vrn,
-          vehicle.taxDueDate,
-          'vehicle:tax'
-        );
-
-        if (taxInsightData) {
-          const existingTaxInsight = await this.checkExistingInsight(
-            userId,
-            vehicle.vrn,
-            'vehicle:tax',
-            taxInsightData.dueDate
-          );
-
-          if (!existingTaxInsight || options.forceRegenerate) {
-            results.taxInsight = await this.createVehicleInsight(
-              taxInsightData,
-              userId,
-              vehicle.id
-            );
+        const taxInsight = await this.generateTaxInsight({
+          linkedVrn: vehicle.vrn,
+          dueDate: new Date(vehicle.taxDueDate),
+          type: 'vehicle:tax',
+          source: vehicle.source || 'dvla',
+          vehicleData: {
+            make: vehicle.make || undefined,
+            model: vehicle.model || undefined,
+            colour: vehicle.colour || undefined,
+            fuelType: vehicle.fuelType || undefined
           }
+        });
+
+        if (taxInsight) {
+          insights.push(taxInsight);
         }
       }
 
-      return results;
-    } catch (error) {
-      console.error(`[TICKET 4] Error generating vehicle insights for ${vehicle.vrn}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Prepare insight data from vehicle dates
-   */
-  private prepareInsightData(
-    vrn: string,
-    dueDate: Date | string,
-    type: 'vehicle:mot' | 'vehicle:tax'
-  ): VehicleInsightData | null {
-    if (!dueDate) return null;
-
-    // Convert string dates to Date objects
-    const dueDateObject = typeof dueDate === 'string' ? new Date(dueDate) : dueDate;
-
-    const now = new Date();
-    const timeDiff = dueDateObject.getTime() - now.getTime();
-    const daysUntilDue = Math.ceil(timeDiff / (1000 * 3600 * 24));
-
-    // Determine urgency level
-    let urgencyLevel: 'overdue' | 'urgent' | 'upcoming' | 'future';
-    if (daysUntilDue < 0) {
-      urgencyLevel = 'overdue';
-    } else if (daysUntilDue <= 7) {
-      urgencyLevel = 'urgent';
-    } else if (daysUntilDue <= 30) {
-      urgencyLevel = 'upcoming';
-    } else {
-      urgencyLevel = 'future';
-    }
-
-    return {
-      vrn,
-      dueDate: dueDateObject,
-      type,
-      daysUntilDue,
-      urgencyLevel
-    };
-  }
-
-  /**
-   * Check for existing insight to prevent duplicates
-   */
-  private async checkExistingInsight(
-    userId: string,
-    vrn: string,
-    type: 'vehicle:mot' | 'vehicle:tax',
-    dueDate: Date
-  ): Promise<any> {
-    try {
-      // Get all insights for the user and filter by type and VRN
-      const insights = await storage.getInsights(userId);
-      
-      return insights.find(insight => {
-        try {
-          if (insight.type !== type || insight.metadata?.linkedVrn !== vrn) {
-            return false;
-          }
-          
-          // Convert insight.dueDate to Date object if it's a string
-          const insightDate = typeof insight.dueDate === 'string' 
-            ? new Date(insight.dueDate) 
-            : insight.dueDate;
-          
-          if (!insightDate || !dueDate) return false;
-          
-          const insightDueDate = insightDate.getTime();
-          const targetDueDate = dueDate.getTime();
-          const timeDiff = Math.abs(insightDueDate - targetDueDate);
-          return timeDiff < (24 * 60 * 60 * 1000); // Same day
-        } catch (error) {
-          console.error('Error checking existing insight:', error);
-          return false;
-        }
-      });
-    } catch (error) {
-      console.error('Error checking existing insight:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Create vehicle insight with AI-generated message
-   */
-  private async createVehicleInsight(
-    insightData: VehicleInsightData,
-    userId: string,
-    vehicleId?: string
-  ): Promise<any> {
-    const { message, title, actionUrl } = await this.generateInsightContent(insightData);
-
-    // Determine priority based on urgency
-    let priority: 'low' | 'medium' | 'high';
-    switch (insightData.urgencyLevel) {
-      case 'overdue':
-      case 'urgent':
-        priority = 'high';
-        break;
-      case 'upcoming':
-        priority = 'medium';
-        break;
-      default:
-        priority = 'low';
-    }
-
-    const insightPayload: InsertDocumentInsight = {
-      documentId: null, // Vehicle insights are not tied to specific documents
-      userId,
-      insightId: `${insightData.type}-${insightData.vrn}-${insightData.dueDate.getTime()}`,
-      message,
-      type: insightData.type,
-      title,
-      content: message,
-      confidence: 95, // High confidence for DVLA data
-      priority,
-      dueDate: insightData.dueDate,
-      actionUrl,
-      status: 'open',
-      metadata: {
-        linkedVrn: insightData.vrn,
-        daysUntilDue: insightData.daysUntilDue,
-        urgencyLevel: insightData.urgencyLevel,
-        vehicleId,
-        source: 'dvla'
-      },
-      source: 'ai',
-      tier: 'primary',
-      aiModel: llmClient.getStatus().model,
-      insightVersion: 'v2.0'
-    };
-
-    return await storage.createDocumentInsight(insightPayload);
-  }
-
-  /**
-   * Generate AI-powered insight content
-   */
-  private async generateInsightContent(insightData: VehicleInsightData): Promise<{
-    message: string;
-    title: string;
-    actionUrl: string;
-  }> {
-    if (!this.isAvailable) {
-      // Fallback to template-based messages when AI is not available
-      return this.generateTemplateContent(insightData);
-    }
-
-    try {
-      const insightType = insightData.type === 'vehicle:mot' ? 'MOT' : 'tax';
-      const prompt = this.buildInsightPrompt(insightData, insightType);
-
-      const startTime = Date.now();
-      const response = await llmClient.generateText(prompt, {
-        userId: 'system',
-        route: '/api/vehicles/insights',
-        requestId: `vehicle-insight-${Date.now()}`
-      });
-      const processingTime = Date.now() - startTime;
-
-      console.log(`[TICKET 4] Generated ${insightType} insight for ${insightData.vrn} in ${processingTime}ms`);
-
-      // Parse AI response (expecting JSON format)
-      const aiResult = this.parseAIResponse(response);
-      
       return {
-        message: aiResult.message || this.generateTemplateContent(insightData).message,
-        title: aiResult.title || this.generateTemplateContent(insightData).title,
-        actionUrl: this.generateActionUrl(insightData.type)
+        success: true,
+        insights
       };
 
     } catch (error) {
-      console.error('[TICKET 4] AI insight generation failed, falling back to template:', error);
-      return this.generateTemplateContent(insightData);
+      console.error('Error generating vehicle insights:', error);
+      return {
+        success: false,
+        insights: [],
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   }
 
   /**
-   * Build AI prompt for insight generation
+   * TICKET 4: Generate MOT insight with AI or template fallback
    */
-  private buildInsightPrompt(insightData: VehicleInsightData, insightType: string): string {
-    const { vrn, daysUntilDue, urgencyLevel } = insightData;
-    const dueDate = insightData.dueDate.toLocaleDateString('en-GB');
+  private async generateMOTInsight(options: VehicleInsightOptions): Promise<InsightGenerationResult['insights'][0] | null> {
+    const { linkedVrn, dueDate, vehicleData } = options;
+    const daysUntilDue = Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    
+    // Determine priority based on days until due
+    let priority: 'low' | 'medium' | 'high' = 'low';
+    if (daysUntilDue <= 7) priority = 'high';
+    else if (daysUntilDue <= 30) priority = 'medium';
 
-    return `Generate a helpful vehicle ${insightType} reminder insight in JSON format.
-
-Vehicle: ${vrn}
-${insightType} due date: ${dueDate}
-Days until due: ${daysUntilDue}
-Urgency: ${urgencyLevel}
-
-Requirements:
-- Create a clear, actionable message for the vehicle owner
-- Include specific advice based on urgency level
-- Mention potential penalties for late renewals
-- Keep tone professional but friendly
-- Maximum 150 characters for message
-
-Return JSON with:
-{
-  "message": "Clear, actionable message",
-  "title": "Brief title (max 50 chars)"
-}
-
-Examples:
-- Urgent: "Vehicle ${insightType} for ${vrn} expires in ${Math.abs(daysUntilDue)} days. Book now to avoid penalties and ensure road legal status."
-- Overdue: "URGENT: Vehicle ${insightType} for ${vrn} expired ${Math.abs(daysUntilDue)} days ago. Renew immediately to avoid fines."`;
-  }
-
-  /**
-   * Parse AI response with fallback
-   */
-  private parseAIResponse(response: string): { message?: string; title?: string } {
     try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+      if (this.isAvailable) {
+        // Use AI to generate personalized insight
+        const vehicleDescription = this.buildVehicleDescription(vehicleData);
+        const prompt = this.buildMOTInsightPrompt(linkedVrn, dueDate, daysUntilDue, vehicleDescription);
+        
+        const aiResponse = await llmClient.createChatCompletion({
+          messages: [
+            { role: 'system', content: 'You are a helpful vehicle compliance assistant. Generate clear, actionable MOT reminders.' },
+            { role: 'user', content: prompt }
+          ],
+          max_tokens: 200,
+          temperature: 0.3
+        });
+
+        if (aiResponse && aiResponse.content) {
+          return this.parseAIInsightResponse(aiResponse.content, 'vehicle:mot', linkedVrn, dueDate, priority);
+        }
       }
-      throw new Error('No JSON found in response');
+
+      // Fallback to template-based insight
+      return this.generateTemplateMOTInsight(linkedVrn, dueDate, daysUntilDue, priority, vehicleData);
+
     } catch (error) {
-      console.warn('[TICKET 4] Failed to parse AI response:', error);
-      return {};
+      console.error('Error generating MOT insight:', error);
+      // Always fallback to template
+      return this.generateTemplateMOTInsight(linkedVrn, dueDate, daysUntilDue, priority, vehicleData);
     }
   }
 
   /**
-   * Generate template-based content when AI is unavailable
+   * TICKET 4: Generate Tax insight with AI or template fallback
    */
-  private generateTemplateContent(insightData: VehicleInsightData): {
-    message: string;
-    title: string;
-    actionUrl: string;
-  } {
-    const { vrn, daysUntilDue, urgencyLevel, type } = insightData;
-    const insightType = type === 'vehicle:mot' ? 'MOT' : 'tax';
-    const dueDate = insightData.dueDate.toLocaleDateString('en-GB');
+  private async generateTaxInsight(options: VehicleInsightOptions): Promise<InsightGenerationResult['insights'][0] | null> {
+    const { linkedVrn, dueDate, vehicleData } = options;
+    const daysUntilDue = Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    
+    // Determine priority based on days until due
+    let priority: 'low' | 'medium' | 'high' = 'low';
+    if (daysUntilDue <= 7) priority = 'high';
+    else if (daysUntilDue <= 30) priority = 'medium';
 
-    let message: string;
-    let title: string;
+    try {
+      if (this.isAvailable) {
+        // Use AI to generate personalized insight
+        const vehicleDescription = this.buildVehicleDescription(vehicleData);
+        const prompt = this.buildTaxInsightPrompt(linkedVrn, dueDate, daysUntilDue, vehicleDescription);
+        
+        const aiResponse = await llmClient.createChatCompletion({
+          messages: [
+            { role: 'system', content: 'You are a helpful vehicle compliance assistant. Generate clear, actionable tax reminders.' },
+            { role: 'user', content: prompt }
+          ],
+          max_tokens: 200,
+          temperature: 0.3
+        });
 
-    switch (urgencyLevel) {
-      case 'overdue':
-        message = `URGENT: Vehicle ${insightType} for ${vrn} expired ${Math.abs(daysUntilDue)} days ago. Renew immediately to avoid penalties.`;
-        title = `${insightType} Overdue - ${vrn}`;
-        break;
-      case 'urgent':
-        message = `Vehicle ${insightType} for ${vrn} expires in ${daysUntilDue} days. Book renewal now to stay road legal.`;
-        title = `${insightType} Due Soon - ${vrn}`;
-        break;
-      case 'upcoming':
-        message = `Vehicle ${insightType} is due on ${dueDate} for ${vrn}. Renew on time to avoid penalties.`;
-        title = `${insightType} Renewal Due - ${vrn}`;
-        break;
-      default:
-        message = `Vehicle ${insightType} for ${vrn} is due on ${dueDate}. Set a reminder to renew on time.`;
-        title = `${insightType} Future Renewal - ${vrn}`;
+        if (aiResponse && aiResponse.content) {
+          return this.parseAIInsightResponse(aiResponse.content, 'vehicle:tax', linkedVrn, dueDate, priority);
+        }
+      }
+
+      // Fallback to template-based insight
+      return this.generateTemplateTaxInsight(linkedVrn, dueDate, daysUntilDue, priority, vehicleData);
+
+    } catch (error) {
+      console.error('Error generating tax insight:', error);
+      // Always fallback to template
+      return this.generateTemplateTaxInsight(linkedVrn, dueDate, daysUntilDue, priority, vehicleData);
     }
+  }
+
+  /**
+   * TICKET 4: Save insights to database with duplicate prevention
+   */
+  async saveVehicleInsights(vehicle: Vehicle, insights: InsightGenerationResult['insights']): Promise<boolean> {
+    try {
+      for (const insight of insights) {
+        // Check for existing insight with same VRN, type, and due date (duplicate prevention)
+        const existingInsights = await storage.getInsightsByUser(vehicle.userId);
+        const duplicateInsight = existingInsights.insights.find((existing: any) => 
+          existing.type === insight.type &&
+          existing.metadata?.linkedVrn === insight.linkedVrn &&
+          existing.dueDate?.getTime() === insight.dueDate.getTime()
+        );
+
+        if (duplicateInsight) {
+          console.log(`[TICKET 4] Skipping duplicate insight for ${insight.linkedVrn} ${insight.type}`);
+          continue;
+        }
+
+        // Create insight data
+        const insightData: InsertDocumentInsight = {
+          documentId: null, // Vehicle insights are not linked to documents
+          userId: vehicle.userId,
+          insightId: `${insight.type}-${insight.linkedVrn}-${insight.dueDate.getTime()}`,
+          message: insight.message,
+          type: insight.type,
+          title: insight.title,
+          content: insight.content,
+          confidence: 85, // Template-based insights have high confidence
+          priority: insight.priority,
+          dueDate: insight.dueDate.toISOString().split('T')[0], // Convert Date to string format
+          status: 'open',
+          source: 'rule-based', // TICKET 4: Vehicle insights are rule-based
+          tier: 'primary',
+          metadata: {
+            linkedVrn: insight.linkedVrn,
+            vehicleSource: vehicle.source,
+            dvlaLastRefreshed: vehicle.dvlaLastRefreshed
+          }
+        };
+
+        await storage.createDocumentInsight(insightData);
+        console.log(`[TICKET 4] Created ${insight.type} insight for vehicle ${insight.linkedVrn}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error saving vehicle insights:', error);
+      return false;
+    }
+  }
+
+  /**
+   * TICKET 4: Helper methods for insight generation
+   */
+  private buildVehicleDescription(vehicleData: VehicleInsightOptions['vehicleData']): string {
+    const parts = [];
+    if (vehicleData.make) parts.push(vehicleData.make);
+    if (vehicleData.model) parts.push(vehicleData.model);
+    if (vehicleData.colour) parts.push(vehicleData.colour);
+    if (vehicleData.fuelType) parts.push(vehicleData.fuelType);
+    return parts.join(' ') || 'vehicle';
+  }
+
+  private buildMOTInsightPrompt(vrn: string, dueDate: Date, daysUntilDue: number, vehicleDescription: string): string {
+    return `Generate a helpful MOT reminder for vehicle ${vrn} (${vehicleDescription}).
+    
+MOT expires on: ${dueDate.toLocaleDateString()}
+Days until due: ${daysUntilDue}
+
+Create a clear, actionable message that:
+- States the MOT expiry date
+- Provides relevant urgency based on days remaining
+- Includes helpful advice about booking early
+- Mentions consequences of driving without valid MOT
+
+Format as: Title|Message
+Keep the title under 50 characters and message under 150 characters.`;
+  }
+
+  private buildTaxInsightPrompt(vrn: string, dueDate: Date, daysUntilDue: number, vehicleDescription: string): string {
+    return `Generate a helpful vehicle tax reminder for vehicle ${vrn} (${vehicleDescription}).
+    
+Tax due on: ${dueDate.toLocaleDateString()}
+Days until due: ${daysUntilDue}
+
+Create a clear, actionable message that:
+- States the tax due date
+- Provides relevant urgency based on days remaining
+- Includes advice about renewing online
+- Mentions penalties for late payment
+
+Format as: Title|Message
+Keep the title under 50 characters and message under 150 characters.`;
+  }
+
+  private parseAIInsightResponse(
+    response: string, 
+    type: 'vehicle:mot' | 'vehicle:tax', 
+    linkedVrn: string, 
+    dueDate: Date, 
+    priority: 'low' | 'medium' | 'high'
+  ): InsightGenerationResult['insights'][0] {
+    const parts = response.split('|');
+    const title = parts[0]?.trim() || `${type === 'vehicle:mot' ? 'MOT' : 'Tax'} Due`;
+    const message = parts[1]?.trim() || response.trim();
 
     return {
+      type,
       message,
       title,
-      actionUrl: this.generateActionUrl(type)
+      content: message,
+      priority,
+      dueDate,
+      linkedVrn
     };
   }
 
-  /**
-   * Generate action URL based on insight type
-   */
-  private generateActionUrl(type: 'vehicle:mot' | 'vehicle:tax'): string {
-    switch (type) {
-      case 'vehicle:mot':
-        return 'https://www.gov.uk/book-mot-test';
-      case 'vehicle:tax':
-        return 'https://www.gov.uk/vehicle-tax';
-      default:
-        return 'https://www.gov.uk/vehicle-tax';
+  private generateTemplateMOTInsight(
+    linkedVrn: string, 
+    dueDate: Date, 
+    daysUntilDue: number, 
+    priority: 'low' | 'medium' | 'high',
+    vehicleData: VehicleInsightOptions['vehicleData']
+  ): InsightGenerationResult['insights'][0] {
+    const vehicleDesc = this.buildVehicleDescription(vehicleData);
+    const formattedDate = dueDate.toLocaleDateString('en-GB');
+    
+    let title: string;
+    let message: string;
+
+    if (daysUntilDue <= 0) {
+      title = 'MOT Expired';
+      message = `Vehicle MOT expired on ${formattedDate} for ${linkedVrn}. Book immediately to avoid penalties.`;
+    } else if (daysUntilDue <= 7) {
+      title = 'MOT Due Soon';
+      message = `Vehicle MOT expires on ${formattedDate} for ${linkedVrn}. Book your test now.`;
+    } else if (daysUntilDue <= 30) {
+      title = 'MOT Due This Month';
+      message = `Vehicle MOT expires on ${formattedDate} for ${linkedVrn}. Book early to avoid delays.`;
+    } else {
+      title = 'MOT Reminder';
+      message = `Vehicle MOT is due on ${formattedDate} for ${linkedVrn}. You can book up to a month early.`;
     }
-  }
 
-  /**
-   * Check service availability
-   */
-  isServiceAvailable(): boolean {
-    return this.isAvailable;
-  }
-
-  /**
-   * Get service status
-   */
-  getServiceStatus() {
     return {
-      available: this.isAvailable,
-      provider: this.isAvailable ? llmClient.getStatus().provider : 'none',
-      model: this.isAvailable ? llmClient.getStatus().model : 'none'
+      type: 'vehicle:mot',
+      message,
+      title,
+      content: message,
+      priority,
+      dueDate,
+      linkedVrn
+    };
+  }
+
+  private generateTemplateTaxInsight(
+    linkedVrn: string, 
+    dueDate: Date, 
+    daysUntilDue: number, 
+    priority: 'low' | 'medium' | 'high',
+    vehicleData: VehicleInsightOptions['vehicleData']
+  ): InsightGenerationResult['insights'][0] {
+    const vehicleDesc = this.buildVehicleDescription(vehicleData);
+    const formattedDate = dueDate.toLocaleDateString('en-GB');
+    
+    let title: string;
+    let message: string;
+
+    if (daysUntilDue <= 0) {
+      title = 'Vehicle Tax Overdue';
+      message = `Vehicle tax was due on ${formattedDate} for ${linkedVrn}. Renew immediately to avoid penalties.`;
+    } else if (daysUntilDue <= 7) {
+      title = 'Tax Due Soon';
+      message = `Vehicle tax is due on ${formattedDate} for ${linkedVrn}. Renew online at DVLA.`;
+    } else if (daysUntilDue <= 30) {
+      title = 'Tax Due This Month';
+      message = `Vehicle tax is due on ${formattedDate} for ${linkedVrn}. Renew on time to avoid penalties.`;
+    } else {
+      title = 'Tax Reminder';
+      message = `Vehicle tax is due on ${formattedDate} for ${linkedVrn}. Set a reminder to renew.`;
+    }
+
+    return {
+      type: 'vehicle:tax',
+      message,
+      title,
+      content: message,
+      priority,
+      dueDate,
+      linkedVrn
     };
   }
 }
 
-// Export singleton instance
 export const vehicleInsightService = new VehicleInsightService();

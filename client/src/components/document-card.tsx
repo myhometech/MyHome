@@ -675,63 +675,42 @@ export default function DocumentCard({
                     {openInsights.slice(0, 3).map((insight) => (
                       <div
                         key={insight.id}
-                        className={`p-2 rounded-lg border text-xs ${
+                        className={`p-3 rounded-lg border ${
                           insight.priority === 'high'
-                            ? 'bg-red-50 border-red-200 text-red-800'
+                            ? 'bg-red-50 border-red-200'
                             : insight.priority === 'medium'
-                            ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                            : 'bg-blue-50 border-blue-200 text-blue-800'
+                            ? 'bg-yellow-50 border-yellow-200'
+                            : 'bg-blue-50 border-blue-200'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1 mb-1">
-                              {insight.priority === 'high' && (
-                                <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-                              )}
-                              <span className="font-medium capitalize">
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium">
                                 {insight.type.replace('_', ' ')}
                               </span>
-                              <Badge
-                                variant="outline"
-                                className={`text-xs h-4 ${
-                                  insight.priority === 'high'
-                                    ? 'bg-red-100 border-red-300 text-red-700'
-                                    : insight.priority === 'medium'
-                                    ? 'bg-yellow-100 border-yellow-300 text-yellow-700'
-                                    : 'bg-blue-100 border-blue-300 text-blue-700'
-                                }`}
-                              >
+                              <Badge variant="outline" className={`text-xs ${
+                                insight.priority === 'high' ? 'bg-red-100 text-red-700' : 
+                                insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 
+                                'bg-blue-100 text-blue-700'
+                              }`}>
                                 {insight.priority}
                               </Badge>
                             </div>
-                            <p className="text-xs line-clamp-2">{insight.content}</p>
-                            {insight.extractedData && (
-                              <div className="mt-1 flex flex-wrap gap-1">
-                                {Object.entries(insight.extractedData as Record<string, any>).map(([key, value]) => (
-                                  <Badge key={key} variant="secondary" className="text-xs h-4">
-                                    {key}: {String(value)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
+                            <p className="text-sm text-gray-700">{insight.content}</p>
                           </div>
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 px-2 text-xs bg-red-100 border-red-300 hover:bg-red-200"
-                              onClick={(e) => {
-                                console.log('[DEBUG] Button click event fired!', { insightId: insight.id, target: e.target });
-                                e.preventDefault();
-                                e.stopPropagation();
-                                dismissInsightMutation.mutate(String(insight.id));
-                              }}
-                              disabled={dismissInsightMutation.isPending}
-                            >
-                              {dismissInsightMutation.isPending ? 'Dismissing...' : 'Dismiss'}
-                            </Button>
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('DISMISS CLICKED:', insight.id);
+                              dismissInsightMutation.mutate(String(insight.id));
+                            }}
+                            className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                            disabled={dismissInsightMutation.isPending}
+                          >
+                            ✕
+                          </button>
                         </div>
                       </div>
                     ))}

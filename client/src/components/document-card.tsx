@@ -633,8 +633,8 @@ export default function DocumentCard({
               </div>
             )}
 
-            {/* AI Insights Section - Always show for document 28 for testing */}
-            {(openInsights.length > 0 || document.id === 28) && (
+            {/* AI Insights Section - Force show insights for debugging */}
+            {(openInsights.length > 0 || true) && (
               <div className="mt-3 border-t pt-3 space-y-2" style={{ backgroundColor: document.id === 28 ? '#f0f9ff' : 'transparent' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -665,11 +665,20 @@ export default function DocumentCard({
                   </Button>
                 </div>
 
-                <Collapsible open={insightsExpanded} onOpenChange={setInsightsExpanded}>
+                <Collapsible open={true} onOpenChange={setInsightsExpanded}>
                   <CollapsibleContent className="space-y-2">
-                    {document.id === 28 && openInsights.length === 0 && (
-                      <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                        Debug: Expected insights but openInsights is empty. Check console for details.
+                    {openInsights.length === 0 && (
+                      <div className="p-3 bg-red-100 border-2 border-red-500 rounded">
+                        <div className="text-red-800 font-bold">DEBUG: NO INSIGHTS FOUND</div>
+                        <div className="text-xs">Document ID: {document.id}</div>
+                        <div className="text-xs">Insights Data: {JSON.stringify(insightsData)}</div>
+                        <div className="text-xs">Insights Array: {JSON.stringify(insights)}</div>
+                        <button 
+                          className="mt-2 px-4 py-2 bg-red-500 text-white rounded font-bold"
+                          onClick={() => console.log('TEST BUTTON CLICKED FOR DOC:', document.id)}
+                        >
+                          TEST BUTTON - CLICK ME
+                        </button>
                       </div>
                     )}
                     {openInsights.slice(0, 3).map((insight) => (

@@ -3462,6 +3462,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TICKET 7: Update vehicle notes
+  app.put('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+      const { notes } = req.body;
+      
+      // Check if vehicle exists and belongs to user
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+      
+      // Update only the notes field
+      const updatedVehicle = await storage.updateVehicle(vehicleId, userId, { notes });
+      
+      res.json(updatedVehicle);
+    } catch (error) {
+      console.error("Error updating vehicle:", error);
+      res.status(500).json({ message: "Failed to update vehicle" });
+    }
+  });
+
   // TICKET 3: Create a new vehicle with DVLA enrichment
   app.post('/api/vehicles', requireAuth, async (req: any, res) => {
     try {

@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/header";
@@ -11,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard, Car, Plus, Calendar, FileText, Search, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard, Car, Plus, Calendar, FileText, Search, AlertCircle, CheckCircle, Loader2, Edit, Clock, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFeatures } from "@/hooks/useFeatures";
 import { Crown } from "lucide-react";
 
@@ -30,12 +29,21 @@ interface Vehicle {
   make?: string;
   model?: string;
   yearOfManufacture?: number;
+  fuelType?: string;
+  colour?: string;
   taxStatus?: string;
   taxDueDate?: string;
   motStatus?: string;
   motExpiryDate?: string;
+  co2Emissions?: number;
+  euroStatus?: string;
+  engineCapacity?: number;
+  revenueWeight?: number;
   source: 'dvla' | 'manual';
   notes?: string;
+  dvlaLastRefreshed?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Helper function to get status color and text
@@ -70,12 +78,15 @@ const getStatusDisplay = (status?: string, dueDate?: string) => {
 };
 
 // Vehicle Card Component
-function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+function VehicleCard({ vehicle, onViewDetails }: { 
+  vehicle: Vehicle; 
+  onViewDetails: (vehicle: Vehicle) => void;
+}) {
   const taxDisplay = getStatusDisplay(vehicle.taxStatus, vehicle.taxDueDate);
   const motDisplay = getStatusDisplay(vehicle.motStatus, vehicle.motExpiryDate);
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onViewDetails(vehicle)}>
       <CardContent className="p-6">
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-3">
@@ -121,11 +132,16 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
         )}
         
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails(vehicle);
+            }}
+          >
             View Details
-          </Button>
-          <Button variant="outline" size="sm">
-            Edit
           </Button>
         </div>
       </CardContent>
@@ -449,10 +465,277 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
   );
 }
 
+// Vehicle Detail Modal Component (TICKET 7)
+function VehicleDetailModal({ vehicle, isOpen, onClose }: {
+  vehicle: Vehicle | null;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [notes, setNotes] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Update notes when vehicle changes
+  useEffect(() => {
+    if (vehicle) {
+      setNotes(vehicle.notes || '');
+      setIsEditing(false);
+    }
+  }, [vehicle]);
+
+  // Update Vehicle Notes Mutation
+  const updateVehicleMutation = useMutation({
+    mutationFn: async (updatedNotes: string) => {
+      if (!vehicle) throw new Error('No vehicle selected');
+      
+      const response = await fetch(`/api/vehicles/${vehicle.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes: updatedNotes.trim() || null }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update vehicle');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Vehicle Updated",
+        description: "Notes have been successfully updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/vehicles'] });
+      setIsEditing(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update vehicle notes",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveNotes = () => {
+    updateVehicleMutation.mutate(notes);
+  };
+
+  const handleCancelEdit = () => {
+    setNotes(vehicle?.notes || '');
+    setIsEditing(false);
+  };
+
+  if (!vehicle) return null;
+
+  const taxDisplay = getStatusDisplay(vehicle.taxStatus, vehicle.taxDueDate);
+  const motDisplay = getStatusDisplay(vehicle.motStatus, vehicle.motExpiryDate);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Car className="h-5 w-5" />
+            Vehicle Details - {vehicle.vrn}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Vehicle Header */}
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-xl font-semibold">{vehicle.vrn}</h2>
+              {vehicle.make && (
+                <p className="text-gray-600">
+                  {vehicle.make} {vehicle.model} {vehicle.yearOfManufacture && `(${vehicle.yearOfManufacture})`}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {vehicle.source === 'dvla' && (
+                <Badge variant="secondary">DVLA Verified</Badge>
+              )}
+              {vehicle.dvlaLastRefreshed && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Updated {new Date(vehicle.dvlaLastRefreshed).toLocaleDateString()}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* DVLA Data (Read-only) */}
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <h3 className="font-medium mb-4 flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              DVLA Vehicle Information (Read-only)
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <Label className="text-gray-600">Make</Label>
+                <p className="font-medium">{vehicle.make || 'No data available'}</p>
+              </div>
+              <div>
+                <Label className="text-gray-600">Model</Label>
+                <p className="font-medium">{vehicle.model || 'No data available'}</p>
+              </div>
+              <div>
+                <Label className="text-gray-600">Year of Manufacture</Label>
+                <p className="font-medium">{vehicle.yearOfManufacture || 'No data available'}</p>
+              </div>
+              <div>
+                <Label className="text-gray-600">Fuel Type</Label>
+                <p className="font-medium">{vehicle.fuelType || 'No data available'}</p>
+              </div>
+              <div>
+                <Label className="text-gray-600">Colour</Label>
+                <p className="font-medium">{vehicle.colour || 'No data available'}</p>
+              </div>
+              <div>
+                <Label className="text-gray-600">Engine Capacity</Label>
+                <p className="font-medium">
+                  {vehicle.engineCapacity ? `${vehicle.engineCapacity}cc` : 'No data available'}
+                </p>
+              </div>
+              <div>
+                <Label className="text-gray-600">CO2 Emissions</Label>
+                <p className="font-medium">
+                  {vehicle.co2Emissions ? `${vehicle.co2Emissions}g/km` : 'No data available'}
+                </p>
+              </div>
+              <div>
+                <Label className="text-gray-600">Euro Status</Label>
+                <p className="font-medium">{vehicle.euroStatus || 'No data available'}</p>
+              </div>
+              <div>
+                <Label className="text-gray-600">Revenue Weight</Label>
+                <p className="font-medium">
+                  {vehicle.revenueWeight ? `${vehicle.revenueWeight}kg` : 'No data available'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Tax and MOT Status */}
+          <div className="grid grid-cols-2 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="h-4 w-4 text-gray-500" />
+                  <span className="font-medium">Tax Status</span>
+                </div>
+                <p className={`${taxDisplay.color} font-medium`}>{taxDisplay.text}</p>
+                {vehicle.taxDueDate && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Due: {new Date(vehicle.taxDueDate).toLocaleDateString()}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span className="font-medium">MOT Status</span>
+                </div>
+                <p className={`${motDisplay.color} font-medium`}>{motDisplay.text}</p>
+                {vehicle.motExpiryDate && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Expires: {new Date(vehicle.motExpiryDate).toLocaleDateString()}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Notes (Editable) */}
+          <div className="border rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium flex items-center gap-2">
+                <Edit className="h-4 w-4" />
+                Personal Notes
+              </h3>
+              {!isEditing && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-1"
+                >
+                  <Edit className="h-3 w-3" />
+                  Edit
+                </Button>
+              )}
+            </div>
+
+            {isEditing ? (
+              <div className="space-y-3">
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add personal notes about this vehicle..."
+                  className="min-h-[100px]"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSaveNotes}
+                    disabled={updateVehicleMutation.isPending}
+                    className="flex items-center gap-2"
+                  >
+                    {updateVehicleMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
+                    {updateVehicleMutation.isPending ? 'Saving...' : 'Save Notes'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    disabled={updateVehicleMutation.isPending}
+                    className="flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {notes ? (
+                  <p className="text-gray-700 whitespace-pre-wrap">{notes}</p>
+                ) : (
+                  <p className="text-gray-500 italic">No notes added yet. Click "Edit" to add notes.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* DVLA Refresh Info */}
+          {vehicle.dvlaLastRefreshed && (
+            <div className="text-xs text-gray-500 text-center">
+              DVLA data last refreshed: {new Date(vehicle.dvlaLastRefreshed).toLocaleString()}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Assets Tab Content Component
 function AssetsTabContent() {
   const { user, isAuthenticated } = useAuth();
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   
   // Fetch vehicles data
   const { data: vehicles, isLoading, error } = useQuery<Vehicle[]>({
@@ -467,6 +750,16 @@ function AssetsTabContent() {
   const handleVehicleAdded = () => {
     // Modal will be closed automatically by the AddVehicleModal component
     // Vehicle list will be refreshed by React Query cache invalidation
+  };
+
+  const handleViewVehicleDetails = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedVehicle(null);
   };
 
   if (isLoading) {
@@ -543,7 +836,11 @@ function AssetsTabContent() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               {vehicles.map((vehicle) => (
-                <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                <VehicleCard 
+                  key={vehicle.id} 
+                  vehicle={vehicle} 
+                  onViewDetails={handleViewVehicleDetails}
+                />
               ))}
             </div>
           )}
@@ -555,6 +852,13 @@ function AssetsTabContent() {
         isOpen={isAddVehicleModalOpen}
         onClose={() => setIsAddVehicleModalOpen(false)}
         onVehicleAdded={handleVehicleAdded}
+      />
+
+      {/* Vehicle Detail Modal */}
+      <VehicleDetailModal
+        vehicle={selectedVehicle}
+        isOpen={isDetailModalOpen}
+        onClose={handleCloseDetailModal}
       />
     </div>
   );

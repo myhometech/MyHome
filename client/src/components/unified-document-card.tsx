@@ -242,11 +242,14 @@ export default function UnifiedDocumentCard({
       return response.json();
     },
     onSuccess: () => {
+      console.log('[DEBUG] Insight status update successful, invalidating queries');
       queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/insights/critical'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
+      queryClient.refetchQueries({ queryKey: ['/api/insights'] });
+      queryClient.refetchQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
       toast({
-        title: "Insight updated",
-        description: "The insight status has been updated.",
+        title: "Insight dismissed",
+        description: "The insight has been successfully dismissed.",
       });
     },
     onError: (error) => {
@@ -615,12 +618,18 @@ export default function UnifiedDocumentCard({
                                 size="sm"
                                 variant="ghost"
                                 className="h-6 px-2 text-xs"
-                                onClick={() => updateInsightStatusMutation.mutate({
-                                  insightId: insight.id,
-                                  status: 'dismissed'
-                                })}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('[DEBUG] Dismiss button clicked for insight:', insight.id);
+                                  updateInsightStatusMutation.mutate({
+                                    insightId: insight.id,
+                                    status: 'dismissed'
+                                  });
+                                }}
+                                disabled={updateInsightStatusMutation.isPending}
                               >
-                                Dismiss
+                                {updateInsightStatusMutation.isPending ? 'Dismissing...' : 'Dismiss'}
                               </Button>
                             </div>
                           </div>

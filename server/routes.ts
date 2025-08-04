@@ -27,6 +27,7 @@ import { setupOCRErrorRoutes } from './routes/ocrErrorRoutes.js';
 import cors from 'cors';
 import passport from './passport';
 import authRoutes from './authRoutes';
+import { parseMailgunWebhook, verifyMailgunSignature, extractUserIdFromRecipient, validateAttachment } from './mailgunService';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -64,6 +65,34 @@ const upload = multer({
     } else {
       console.warn(`Rejected file upload - unsupported MIME type: ${file.mimetype} for file: ${file.originalname}`);
       cb(new Error(`Unsupported file type: ${file.mimetype}. Only PDF and image files are allowed.`));
+    }
+  }
+});
+
+// Mailgun webhook-specific multer configuration
+const mailgunUpload = multer({
+  storage: multer.memoryStorage(), // Store in memory for webhook processing
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file
+    files: 5, // Maximum 5 attachments
+    fieldSize: 20 * 1024 * 1024, // 20MB field size for large email content
+    fields: 20 // Maximum 20 form fields
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/webp',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // DOCX
+    ];
+    
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      console.warn(`Mailgun webhook: Rejected attachment with unsupported MIME type: ${file.mimetype} for file: ${file.originalname}`);
+      cb(null, false); // Don't throw error, just skip the file
     }
   }
 });
@@ -2849,6 +2878,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting user asset:", error);
       res.status(500).json({ message: "Failed to delete user asset" });
+    }
+  });
+
+  // TICKET 1: Mailgun Inbound Email Webhook Endpoint
+  app.post('/api/mailgun/inbound-email', mailgunUpload.any(), async (req: any, res) => {
+    try {
+      console.log('📧 Mailgun webhook received:', {
+        headers: req.headers,
+        bodyKeys: Object.keys(req.body || {}),
+        filesCount: req.files?.length || 0
+      });
+
+      // Parse the webhook data
+      const webhookData = parseMailgunWebhook(req);
+      
+      if (!webhookData.isValid) {
+        console.error('❌ Invalid Mailgun webhook:', webhookData.error);
+        return res.status(400).json({ 
+          error: 'Invalid webhook data',
+          details: webhookData.error 
+        });
+      }
+
+      const { message } = webhookData;
+      
+      // Optional: Verify signature if MAILGUN_SIGNING_KEY is provided
+      const signingKey = process.env.MAILGUN_SIGNING_KEY;
+      if (signingKey) {
+        const isValidSignature = verifyMailgunSignature(
+          message.timestamp,
+          message.token, 
+          message.signature,
+          signingKey
+        );
+        
+        if (!isValidSignature) {
+          console.error('❌ Invalid Mailgun signature');
+          return res.status(401).json({ error: 'Invalid signature' });
+        }
+        console.log('✅ Mailgun signature verified');
+      } else {
+        console.warn('⚠️ No MAILGUN_SIGNING_KEY provided - signature verification skipped');
+      }
+
+      // Extract user ID from recipient
+      const userId = extractUserIdFromRecipient(message.recipient);
+      if (!userId) {
+        console.error('❌ Could not extract user ID from recipient:', message.recipient);
+        return res.status(400).json({ 
+          error: 'Invalid recipient format. Use upload+userID@myhome-tech.com' 
+        });
+      }
+
+      // Verify user exists (basic check)
+      try {
+        const user = await storage.getUser(userId);
+        if (!user) {
+          console.error('❌ User not found:', userId);
+          return res.status(404).json({ error: 'User not found' });
+        }
+      } catch (error) {
+        console.error('❌ Error checking user:', error);
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+
+      // Validate and process attachments
+      const processedAttachments = [];
+      const attachmentErrors = [];
+
+      for (const attachment of message.attachments) {
+        const validation = validateAttachment(attachment);
+        
+        if (!validation.isValid) {
+          console.warn('⚠️ Skipping invalid attachment:', validation.error);
+          attachmentErrors.push({
+            filename: attachment.filename,
+            error: validation.error
+          });
+          continue;
+        }
+
+        processedAttachments.push({
+          filename: attachment.filename,
+          contentType: attachment.contentType,
+          size: attachment.size,
+          buffer: attachment.buffer
+        });
+      }
+
+      // Log successful parsing
+      console.log('✅ Mailgun webhook parsed successfully:', {
+        recipient: message.recipient,
+        sender: message.sender,
+        subject: message.subject,
+        userId,
+        attachmentsProcessed: processedAttachments.length,
+        attachmentErrors: attachmentErrors.length,
+        bodyLength: message.bodyPlain?.length || 0
+      });
+
+      // For now, just return success with parsed data
+      // TODO: Integrate with document ingestion pipeline in next ticket
+      res.status(202).json({
+        message: 'Email received and parsed successfully',
+        data: {
+          recipient: message.recipient,
+          sender: message.sender,
+          subject: message.subject,
+          userId,
+          attachmentsCount: processedAttachments.length,
+          attachmentErrors,
+          bodyPreview: message.bodyPlain?.substring(0, 100) + '...' || ''
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error processing Mailgun webhook:', error);
+      captureError(error as Error, req);
+      res.status(500).json({ 
+        error: 'Internal server error processing email',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

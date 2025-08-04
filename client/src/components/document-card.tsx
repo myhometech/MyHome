@@ -507,6 +507,19 @@ export default function DocumentCard({
 
   return (
     <>
+      <div style={{
+        background: 'red', 
+        color: 'white', 
+        padding: '10px', 
+        fontSize: '16px',
+        fontWeight: 'bold',
+        border: '3px solid yellow',
+        margin: '5px',
+        zIndex: 9999
+      }}>
+        🚨 HOMEPAGE DOC {document.id} - {openInsights.length} insights
+      </div>
+      
       <Card 
         className={`border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${
           bulkMode && isSelected ? "ring-2 ring-blue-500 bg-blue-50" : ""

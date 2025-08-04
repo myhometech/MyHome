@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard, Car, Plus, Calendar, FileText, Search, AlertCircle, CheckCircle, Loader2, Edit, Clock, X } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard, Car, Plus, Calendar, FileText, Search, AlertCircle, CheckCircle, Loader2, Edit, Clock, X, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -473,6 +473,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 }) {
   const [notes, setNotes] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -521,6 +522,44 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
     },
   });
 
+  // TICKET 8: Refresh DVLA Data Mutation
+  const refreshDvlaMutation = useMutation({
+    mutationFn: async () => {
+      if (!vehicle) throw new Error('No vehicle selected');
+      
+      const response = await fetch(`/api/vehicles/${vehicle.id}/refresh-dvla`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to refresh DVLA data');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "DVLA Data Refreshed",
+        description: data.message || "Vehicle information has been updated from DVLA.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/vehicles'] });
+      setRefreshError(null);
+    },
+    onError: (error: any) => {
+      const errorMessage = error.message || "Failed to refresh DVLA data";
+      setRefreshError(errorMessage);
+      toast({
+        title: "DVLA Refresh Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSaveNotes = () => {
     updateVehicleMutation.mutate(notes);
   };
@@ -528,6 +567,11 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
   const handleCancelEdit = () => {
     setNotes(vehicle?.notes || '');
     setIsEditing(false);
+  };
+
+  const handleRefreshDvla = () => {
+    setRefreshError(null);
+    refreshDvlaMutation.mutate();
   };
 
   if (!vehicle) return null;
@@ -571,10 +615,39 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 
           {/* DVLA Data (Read-only) */}
           <div className="border rounded-lg p-4 bg-gray-50">
-            <h3 className="font-medium mb-4 flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              DVLA Vehicle Information (Read-only)
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                DVLA Vehicle Information (Read-only)
+              </h3>
+              {/* TICKET 8: Refresh DVLA Data Button */}
+              {vehicle.source === 'dvla' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshDvla}
+                  disabled={refreshDvlaMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  {refreshDvlaMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  {refreshDvlaMutation.isPending ? 'Refreshing...' : 'Refresh DVLA Data'}
+                </Button>
+              )}
+            </div>
+
+            {/* TICKET 8: Show refresh errors inline */}
+            {refreshError && (
+              <Alert className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-red-600">
+                  {refreshError}
+                </AlertDescription>
+              </Alert>
+            )}
             
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>

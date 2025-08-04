@@ -3485,6 +3485,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TICKET 8: Refresh DVLA data for existing vehicle
+  app.post('/api/vehicles/:id/refresh-dvla', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+      
+      // Check if vehicle exists and belongs to user
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Only refresh if vehicle was originally from DVLA
+      if (existingVehicle.source !== 'dvla') {
+        return res.status(400).json({ 
+          message: "Cannot refresh DVLA data for manually entered vehicles" 
+        });
+      }
+
+      // Perform DVLA lookup
+      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
+      
+      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+        // Update vehicle with fresh DVLA data, preserving user notes
+        const updatedVehicleData = {
+          ...dvlaLookupResult.vehicle,
+          notes: existingVehicle.notes, // Preserve existing notes
+          dvlaLastRefreshed: new Date(),
+        };
+
+        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, updatedVehicleData);
+
+        res.json({
+          success: true,
+          message: "DVLA data refreshed successfully",
+          vehicle: updatedVehicle
+        });
+      } else {
+        // Handle DVLA lookup failures
+        const errorMessage = dvlaLookupResult.error?.message || 'DVLA lookup failed';
+        const statusCode = dvlaLookupResult.error?.status || 500;
+
+        res.status(statusCode).json({
+          success: false,
+          message: errorMessage,
+          error: dvlaLookupResult.error
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing DVLA data:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Internal server error during DVLA refresh" 
+      });
+    }
+  });
+
   // TICKET 3: Create a new vehicle with DVLA enrichment
   app.post('/api/vehicles', requireAuth, async (req: any, res) => {
     try {

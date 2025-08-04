@@ -79,13 +79,18 @@ export default function CriticalInsightsDashboard() {
   const { data: insights = [], isLoading, error } = useQuery<CriticalInsight[]>({
     queryKey: ['/api/insights/critical'],
     queryFn: async () => {
+      console.log('[DEBUG] Fetching critical insights...');
       const response = await fetch('/api/insights/critical', {
         credentials: 'include',
       });
+      console.log('[DEBUG] Critical insights response status:', response.status);
       if (!response.ok) {
+        console.error('[DEBUG] Failed to fetch critical insights:', response.status, response.statusText);
         throw new Error('Failed to fetch critical insights');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('[DEBUG] Critical insights data:', data);
+      return data;
     },
     refetchInterval: 30000, // Refresh every 30 seconds for critical insights
     staleTime: 0, // Always consider data stale to force fresh fetches

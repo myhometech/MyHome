@@ -2932,25 +2932,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('✅ Mailgun signature verified successfully');
 
-      // Extract user ID from recipient
-      const userId = extractUserIdFromRecipient(message.recipient);
-      if (!userId) {
-        console.error('❌ Could not extract user ID from recipient:', message.recipient);
+      // TICKET 3: Extract and validate user from email subaddressing
+      const userExtractionResult = extractUserIdFromRecipient(message.recipient);
+      if (!userExtractionResult.userId) {
+        console.error('❌ Failed to extract user ID from recipient:', {
+          recipient: message.recipient,
+          error: userExtractionResult.error
+        });
         return res.status(400).json({ 
-          error: 'Invalid recipient format. Use upload+userID@myhome-tech.com' 
+          error: 'Invalid recipient format',
+          details: userExtractionResult.error,
+          expectedFormat: 'upload+userID@myhome-tech.com'
         });
       }
 
-      // Verify user exists (basic check)
+      const userId = userExtractionResult.userId;
+
+      // Verify user exists with comprehensive error handling
+      let user;
       try {
-        const user = await storage.getUser(userId);
+        user = await storage.getUser(userId);
         if (!user) {
-          console.error('❌ User not found:', userId);
-          return res.status(404).json({ error: 'User not found' });
+          console.error('❌ User not found in database:', {
+            userId,
+            recipient: message.recipient,
+            sender: message.sender
+          });
+          return res.status(404).json({ 
+            error: 'User not found',
+            details: `No user found with ID: ${userId}`,
+            suggestion: 'Verify the user ID in the email address is correct'
+          });
         }
+
+        console.log('✅ User successfully resolved:', {
+          userId: user.id,
+          email: user.email,
+          recipient: message.recipient
+        });
+
       } catch (error) {
-        console.error('❌ Error checking user:', error);
-        return res.status(400).json({ error: 'Invalid user ID' });
+        console.error('❌ Database error while checking user:', {
+          userId,
+          recipient: message.recipient,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        // Determine if it's a database connection issue or invalid user ID format
+        if (error instanceof Error && error.message.includes('invalid input syntax')) {
+          return res.status(400).json({ 
+            error: 'Invalid user ID format',
+            details: 'User ID must be a valid UUID or alphanumeric string'
+          });
+        }
+        
+        return res.status(500).json({ 
+          error: 'Database error while verifying user',
+          details: 'Please try again later'
+        });
       }
 
       // Validate and process attachments

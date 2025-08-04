@@ -156,21 +156,74 @@ export function verifyMailgunSignature(
 
 /**
  * Extract user ID from recipient email using subaddressing
+ * TICKET 3: Enhanced user ID extraction with validation
  * Supports formats like: upload+12345@myhome-tech.com
  */
-export function extractUserIdFromRecipient(recipient: string): string | null {
+export function extractUserIdFromRecipient(recipient: string): { userId: string | null; error?: string } {
   try {
-    // Support subaddressing format: upload+userId@domain
-    const match = recipient.match(/upload\+([^@]+)@/);
-    if (match) {
-      return match[1];
+    if (!recipient || typeof recipient !== 'string') {
+      return {
+        userId: null,
+        error: 'Invalid recipient: must be a non-empty string'
+      };
     }
 
-    // Could also support token-based mapping in the future
-    return null;
+    // Normalize recipient to lowercase for consistent parsing
+    const normalizedRecipient = recipient.toLowerCase().trim();
+
+    // Support subaddressing format: upload+userId@domain
+    // Ensure there's exactly one @ symbol and the format is correct
+    const atCount = (normalizedRecipient.match(/@/g) || []).length;
+    if (atCount !== 1) {
+      return {
+        userId: null,
+        error: `Invalid email format: must contain exactly one @ symbol. Found ${atCount}`
+      };
+    }
+
+    const subaddressMatch = normalizedRecipient.match(/^upload\+([^@]+)@([^@]+)$/);
+    if (subaddressMatch) {
+      const userId = subaddressMatch[1];
+      const domain = subaddressMatch[2];
+
+      // Validate user ID format (alphanumeric, hyphens, underscores)
+      if (!/^[a-z0-9\-_]+$/.test(userId)) {
+        return {
+          userId: null,
+          error: `Invalid user ID format in subaddress: ${userId}. Must contain only letters, numbers, hyphens, and underscores`
+        };
+      }
+
+      // Log successful extraction for monitoring
+      console.log(`✅ Extracted user ID from subaddress:`, {
+        recipient: normalizedRecipient,
+        userId,
+        domain
+      });
+
+      return { userId };
+    }
+
+    // Check for direct upload@ format (no subaddress)
+    if (normalizedRecipient.match(/^upload@/)) {
+      return {
+        userId: null,
+        error: 'Missing user ID in subaddress. Use format: upload+userID@myhome-tech.com'
+      };
+    }
+
+    // Unrecognized format
+    return {
+      userId: null,
+      error: `Unsupported recipient format: ${normalizedRecipient}. Expected format: upload+userID@myhome-tech.com`
+    };
+
   } catch (error) {
     console.error('Error extracting user ID from recipient:', error);
-    return null;
+    return {
+      userId: null,
+      error: `Failed to parse recipient address: ${error instanceof Error ? error.message : 'Unknown error'}`
+    };
   }
 }
 

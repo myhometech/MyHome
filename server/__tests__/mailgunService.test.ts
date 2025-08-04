@@ -68,33 +68,100 @@ describe('Mailgun Service', () => {
     it('should extract user ID from valid subaddressing format', () => {
       const recipient = 'upload+user123@myhome-tech.com';
       const result = extractUserIdFromRecipient(recipient);
-      expect(result).toBe('user123');
+      expect(result.userId).toBe('user123');
+      expect(result.error).toBeUndefined();
     });
 
     it('should extract UUID user ID', () => {
       const recipient = 'upload+94a7b7f0-3266-4a4f-9d4e-875542d30e62@myhome-tech.com';
       const result = extractUserIdFromRecipient(recipient);
-      expect(result).toBe('94a7b7f0-3266-4a4f-9d4e-875542d30e62');
+      expect(result.userId).toBe('94a7b7f0-3266-4a4f-9d4e-875542d30e62');
+      expect(result.error).toBeUndefined();
     });
 
-    it('should return null for invalid format', () => {
-      const recipients = [
-        'invalid@myhome-tech.com',
-        'upload@myhome-tech.com',
-        'user123@myhome-tech.com',
-        'upload-user123@myhome-tech.com'
+    it('should handle case insensitive recipients', () => {
+      const recipient = 'UPLOAD+User123@MyHome-Tech.COM';
+      const result = extractUserIdFromRecipient(recipient);
+      expect(result.userId).toBe('user123');
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should return error for invalid format', () => {
+      const testCases = [
+        {
+          recipient: 'invalid@myhome-tech.com',
+          expectedError: 'Unsupported recipient format'
+        },
+        {
+          recipient: 'upload@myhome-tech.com',
+          expectedError: 'Missing user ID in subaddress'
+        },
+        {
+          recipient: 'user123@myhome-tech.com',
+          expectedError: 'Unsupported recipient format'
+        },
+        {
+          recipient: 'upload-user123@myhome-tech.com',
+          expectedError: 'Unsupported recipient format'
+        }
       ];
 
-      recipients.forEach(recipient => {
+      testCases.forEach(({ recipient, expectedError }) => {
         const result = extractUserIdFromRecipient(recipient);
-        expect(result).toBeNull();
+        expect(result.userId).toBeNull();
+        expect(result.error).toContain(expectedError);
+      });
+    });
+
+    it('should reject invalid user ID characters', () => {
+      const testCases = [
+        {
+          recipient: 'upload+user@123@myhome-tech.com',
+          expectedError: 'Invalid email format' // Multiple @ symbols
+        },
+        {
+          recipient: 'upload+user spaces@myhome-tech.com',
+          expectedError: 'Invalid user ID format' // Spaces in user ID
+        },
+        {
+          recipient: 'upload+user!#$@myhome-tech.com',
+          expectedError: 'Invalid user ID format' // Special characters (no @ in user ID)
+        },
+        {
+          recipient: 'upload+user.dot@myhome-tech.com',
+          expectedError: 'Invalid user ID format' // Dots not allowed
+        }
+      ];
+
+      testCases.forEach(({ recipient, expectedError }) => {
+        const result = extractUserIdFromRecipient(recipient);
+        expect(result.userId).toBeNull();
+        expect(result.error).toContain(expectedError);
       });
     });
 
     it('should handle different domains gracefully', () => {
       const recipient = 'upload+user123@other-domain.com';
       const result = extractUserIdFromRecipient(recipient);
-      expect(result).toBe('user123');
+      expect(result.userId).toBe('user123');
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should handle empty or invalid input', () => {
+      const invalidInputs = ['', null, undefined, 123];
+
+      invalidInputs.forEach(input => {
+        const result = extractUserIdFromRecipient(input as any);
+        expect(result.userId).toBeNull();
+        expect(result.error).toContain('Invalid recipient');
+      });
+    });
+
+    it('should handle whitespace in recipient', () => {
+      const recipient = '  upload+user123@myhome-tech.com  ';
+      const result = extractUserIdFromRecipient(recipient);
+      expect(result.userId).toBe('user123');
+      expect(result.error).toBeUndefined();
     });
   });
 

@@ -76,6 +76,8 @@ export default function CriticalInsightsDashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
+  console.log('[DEBUG] CriticalInsightsDashboard component rendered');
+  
   const { data: insights = [], isLoading, error } = useQuery<CriticalInsight[]>({
     queryKey: ['/api/insights/critical'],
     queryFn: async () => {

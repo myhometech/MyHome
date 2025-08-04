@@ -533,16 +533,24 @@ export const createVehicleSchema = z.object({
   colour: z.string().optional(),
 });
 
-// Full vehicle schema for manual creation and updates (existing functionality)
-export const insertVehicleSchema = createInsertSchema(vehicles).omit({
-  id: true,
-  userId: true,
-  createdAt: true,
-  updatedAt: true,
-  dvlaLastRefreshed: true,
-}).extend({
+// Full vehicle schema for manual creation and updates (existing functionality) 
+export const insertVehicleSchema = z.object({
   vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
+  make: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
+  yearOfManufacture: z.number().int().nullable().optional(),
+  fuelType: z.string().nullable().optional(),
+  colour: z.string().nullable().optional(),
+  taxStatus: z.string().nullable().optional(),
+  taxDueDate: z.date().nullable().optional(),
+  motStatus: z.string().nullable().optional(),
+  motExpiryDate: z.date().nullable().optional(),
+  co2Emissions: z.number().int().nullable().optional(),
+  euroStatus: z.string().nullable().optional(),
+  engineCapacity: z.number().int().nullable().optional(),
+  revenueWeight: z.number().int().nullable().optional(),
   source: z.enum(["manual", "dvla", "import"]).default("manual"),
+  notes: z.string().nullable().optional(),
 });
 
 // Schema for updating only user-editable fields (TICKET 3 requirement)

@@ -3547,8 +3547,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       
+      console.log("[DEBUG] Raw request body:", JSON.stringify(req.body, null, 2));
+      
       // Validate request body using TICKET 3 schema
       const validatedData = createVehicleSchema.parse(req.body);
+      console.log("[DEBUG] Validated input data:", JSON.stringify(validatedData, null, 2));
       const { vrn, notes, ...manualFields } = validatedData;
       
       // Check if vehicle already exists for this user

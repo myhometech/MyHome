@@ -667,58 +667,48 @@ export default function DocumentCard({
 
                 <Collapsible open={true} onOpenChange={setInsightsExpanded}>
                   <CollapsibleContent className="space-y-2">
-                    {openInsights.length === 0 && (
-                      <div className="p-3 bg-red-100 border-2 border-red-500 rounded">
-                        <div className="text-red-800 font-bold">DEBUG: NO INSIGHTS FOUND</div>
-                        <div className="text-xs">Document ID: {document.id}</div>
-                        <div className="text-xs">Insights Data: {JSON.stringify(insightsData)}</div>
-                        <div className="text-xs">Insights Array: {JSON.stringify(insights)}</div>
-                        <button 
-                          className="mt-2 px-4 py-2 bg-red-500 text-white rounded font-bold"
-                          onClick={() => console.log('TEST BUTTON CLICKED FOR DOC:', document.id)}
-                        >
-                          TEST BUTTON - CLICK ME
-                        </button>
-                      </div>
-                    )}
+                    <div className="p-3 bg-purple-100 border-2 border-purple-500 rounded mb-2">
+                      <div className="text-purple-800 font-bold">DEBUG INFO FOR DOC {document.id}</div>
+                      <div className="text-xs">Open Insights Count: {openInsights.length}</div>
+                      <div className="text-xs">All Insights Count: {insights.length}</div>
+                      {openInsights.length > 0 && (
+                        <div className="text-xs">First Insight ID: {openInsights[0].id}</div>
+                      )}
+                      <button 
+                        className="mt-2 px-4 py-2 bg-purple-500 text-white rounded font-bold"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('DEBUG BUTTON CLICKED FOR DOC:', document.id, 'Open insights:', openInsights.length);
+                        }}
+                      >
+                        DEBUG BUTTON - CLICK ME
+                      </button>
+                    </div>
                     {openInsights.slice(0, 3).map((insight) => (
                       <div
                         key={insight.id}
-                        className={`p-3 rounded-lg border ${
-                          insight.priority === 'high'
-                            ? 'bg-red-50 border-red-200'
-                            : insight.priority === 'medium'
-                            ? 'bg-yellow-50 border-yellow-200'
-                            : 'bg-blue-50 border-blue-200'
-                        }`}
+                        className="p-3 bg-blue-50 border-2 border-blue-300 rounded-lg mb-2"
                       >
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm font-medium">
-                                {insight.type.replace('_', ' ')}
-                              </span>
-                              <Badge variant="outline" className={`text-xs ${
-                                insight.priority === 'high' ? 'bg-red-100 text-red-700' : 
-                                insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 
-                                'bg-blue-100 text-blue-700'
-                              }`}>
-                                {insight.priority}
-                              </Badge>
+                            <div className="text-sm font-bold text-blue-800 mb-1">
+                              {insight.type.replace('_', ' ').toUpperCase()}
                             </div>
-                            <p className="text-sm text-gray-700">{insight.content}</p>
+                            <div className="text-sm text-gray-700 mb-2">{insight.content}</div>
+                            <div className="text-xs text-blue-600">Priority: {insight.priority}</div>
                           </div>
                           <button
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              console.log('DISMISS CLICKED:', insight.id);
+                              console.log('🔥 DISMISS CLICKED for insight:', insight.id, 'type:', insight.type);
                               dismissInsightMutation.mutate(String(insight.id));
                             }}
-                            className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                            className="px-4 py-2 bg-red-500 text-white font-bold rounded hover:bg-red-600 border-2 border-red-700"
                             disabled={dismissInsightMutation.isPending}
+                            style={{ minWidth: '80px', minHeight: '36px' }}
                           >
-                            ✕
+                            {dismissInsightMutation.isPending ? 'DISMISSING...' : 'DISMISS'}
                           </button>
                         </div>
                       </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square, Brain, ChevronDown, ChevronRight, Zap } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { EnhancedDocumentViewer } from "./enhanced-document-viewer";
+import type { DocumentInsight } from "@shared/schema";
 
 import { isUnauthorizedError } from "@/lib/authUtils";
 
@@ -60,9 +62,70 @@ export default function DocumentCard({
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
   const [editImportantDate, setEditImportantDate] = useState(document.expiryDate || "");
+  const [insightsExpanded, setInsightsExpanded] = useState(false);
   const { toast } = useToast();
 
   const category = categories?.find(c => c.id === document.categoryId);
+
+  // Fetch insights for this document
+  const { data: insightsData, isLoading: insightsLoading } = useQuery({
+    queryKey: [`/api/documents/${document.id}/insights`],
+    queryFn: async () => {
+      const response = await fetch(`/api/documents/${document.id}/insights`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch insights');
+      return response.json();
+    },
+  });
+
+  // Extract insights array from the response object
+  const insights: DocumentInsight[] = insightsData?.insights || [];
+  
+  // Calculate insight summary - filter out unwanted types
+  const openInsights = insights.filter(i => 
+    i.status === 'open' && 
+    !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(i.type)
+  );
+  const criticalInsights = openInsights.filter(i => i.priority === 'high');
+
+  // Insight update mutation
+  const updateInsightStatusMutation = useMutation({
+    mutationFn: async ({ insightId, status }: { insightId: string; status: 'open' | 'resolved' | 'dismissed' }) => {
+      console.log('[DEBUG] Updating insight status:', insightId, 'to', status);
+      const response = await fetch(`/api/insights/${insightId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        console.error('[DEBUG] Failed to update insight status:', response.status, response.statusText);
+        throw new Error('Failed to update insight status');
+      }
+      console.log('[DEBUG] Successfully updated insight status');
+      return response.json();
+    },
+    onSuccess: () => {
+      console.log('[DEBUG] Insight status update successful, invalidating queries');
+      // Invalidate the specific document insights query
+      queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
+      queryClient.refetchQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
+      // Also invalidate global insights queries
+      queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      toast({
+        title: "Insight dismissed",
+        description: "The insight has been successfully dismissed.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Update failed",
+        description: "Failed to update insight status. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const updateDocumentMutation = useMutation({
     mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {
@@ -518,6 +581,113 @@ export default function DocumentCard({
             {document.expiryDate && (
               <div className="mb-2">
                 <ExpiryBadge expiryDate={document.expiryDate} />
+              </div>
+            )}
+
+            {/* AI Insights Section */}
+            {openInsights.length > 0 && (
+              <div className="mt-3 border-t pt-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">AI Insights</span>
+                    {criticalInsights.length > 0 && (
+                      <Badge variant="destructive" className="text-xs h-5">
+                        {criticalInsights.length}
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInsightsExpanded(!insightsExpanded);
+                    }}
+                    className="h-6 w-6 p-0"
+                  >
+                    {insightsExpanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
+                <Collapsible open={insightsExpanded} onOpenChange={setInsightsExpanded}>
+                  <CollapsibleContent className="space-y-2">
+                    {openInsights.slice(0, 3).map((insight) => (
+                      <div
+                        key={insight.id}
+                        className={`p-2 rounded-lg border text-xs ${
+                          insight.priority === 'high'
+                            ? 'bg-red-50 border-red-200 text-red-800'
+                            : insight.priority === 'medium'
+                            ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                            : 'bg-blue-50 border-blue-200 text-blue-800'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 mb-1">
+                              {insight.priority === 'high' && (
+                                <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                              )}
+                              <span className="font-medium capitalize">
+                                {insight.type.replace('_', ' ')}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={`text-xs h-4 ${
+                                  insight.priority === 'high'
+                                    ? 'bg-red-100 border-red-300 text-red-700'
+                                    : insight.priority === 'medium'
+                                    ? 'bg-yellow-100 border-yellow-300 text-yellow-700'
+                                    : 'bg-blue-100 border-blue-300 text-blue-700'
+                                }`}
+                              >
+                                {insight.priority}
+                              </Badge>
+                            </div>
+                            <p className="text-xs line-clamp-2">{insight.content}</p>
+                            {insight.extractedData && (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {Object.entries(insight.extractedData as Record<string, any>).map(([key, value]) => (
+                                  <Badge key={key} variant="secondary" className="text-xs h-4">
+                                    {key}: {String(value)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-xs"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                updateInsightStatusMutation.mutate({
+                                  insightId: insight.id,
+                                  status: 'dismissed'
+                                });
+                              }}
+                              disabled={updateInsightStatusMutation.isPending}
+                            >
+                              {updateInsightStatusMutation.isPending ? 'Dismissing...' : 'Dismiss'}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {openInsights.length > 3 && (
+                      <div className="text-xs text-gray-500 text-center">
+                        +{openInsights.length - 3} more insights
+                      </div>
+                    )}
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
             )}
             

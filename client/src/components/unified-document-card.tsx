@@ -172,6 +172,8 @@ export default function UnifiedDocumentCard({
 
   // Extract insights array from the response object
   const insights: DocumentInsight[] = insightsData?.insights || [];
+  
+  // Remove debug logging since we found the issue
 
   // Calculate insight summary - filter out unwanted types
   const openInsights = insights.filter(i => 

@@ -67,28 +67,32 @@ export default function DocumentCard({
 
   const category = categories?.find(c => c.id === document.categoryId);
 
-  // Fetch insights for this document
-  const { data: insightsData, isLoading: insightsLoading } = useQuery({
+  // Fetch insights for this document - always log query attempts
+  console.log('[DEBUG] Setting up insights query for document:', document.id);
+  
+  const { data: insightsData, isLoading: insightsLoading, error: insightsError } = useQuery({
     queryKey: [`/api/documents/${document.id}/insights`],
     queryFn: async () => {
+      console.log('[DEBUG] Fetching insights for document:', document.id);
       const response = await fetch(`/api/documents/${document.id}/insights`, {
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch insights');
-      return response.json();
+      const data = await response.json();
+      console.log('[DEBUG] Insights response for document', document.id, ':', data);
+      return data;
     },
   });
 
   // Extract insights array from the response object
   const insights: DocumentInsight[] = insightsData?.insights || [];
   
-  // Debug logging for document 28
-  if (document.id === 28) {
-    console.log('[DEBUG] Document 28 - Component rendered');
-    console.log('[DEBUG] Document 28 insights:', insights);
-    console.log('[DEBUG] Document 28 insightsData:', insightsData);
-    console.log('[DEBUG] Document 28 insightsLoading:', insightsLoading);
-  }
+  // Debug logging for all documents now
+  console.log('[DEBUG] Document', document.id, '- Component rendered');
+  console.log('[DEBUG] Document', document.id, 'insights:', insights);
+  console.log('[DEBUG] Document', document.id, 'insightsData:', insightsData);
+  console.log('[DEBUG] Document', document.id, 'insightsLoading:', insightsLoading);
+  console.log('[DEBUG] Document', document.id, 'insightsError:', insightsError);
   
   // Calculate insight summary - filter out unwanted types
   const openInsights = insights.filter(i => 

@@ -3396,6 +3396,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { dvlaLookupService } = await import('./dvlaLookupService');
   const { insertVehicleSchema } = await import('@shared/schema');
 
+  // TICKET 6: DVLA lookup endpoint for Add Vehicle Modal
+  app.post('/api/vehicles/lookup', requireAuth, async (req: any, res) => {
+    try {
+      const { vrn } = req.body;
+      
+      if (!vrn) {
+        return res.status(400).json({ 
+          success: false,
+          error: "VRN is required" 
+        });
+      }
+
+      // Perform DVLA lookup
+      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
+      
+      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+        return res.json({
+          success: true,
+          vehicle: dvlaLookupResult.vehicle
+        });
+      } else {
+        return res.json({
+          success: false,
+          error: dvlaLookupResult.error?.message || 'DVLA lookup failed',
+          vehicle: null
+        });
+      }
+    } catch (error) {
+      console.error("Error in DVLA lookup:", error);
+      res.status(500).json({ 
+        success: false,
+        error: "Internal server error during DVLA lookup" 
+      });
+    }
+  });
+
   // Get all vehicles for the authenticated user
   app.get('/api/vehicles', requireAuth, async (req: any, res) => {
     try {

@@ -11,10 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard, Car, Plus, Calendar, FileText } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard, Car, Plus, Calendar, FileText, Search, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useFeatures } from "@/hooks/useFeatures";
 import { Crown } from "lucide-react";
 
@@ -128,9 +133,326 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
   );
 }
 
+// DVLA Vehicle Data Interface
+interface DVLAVehicleData {
+  vrn: string;
+  make?: string;
+  model?: string;
+  yearOfManufacture?: number;
+  fuelType?: string;
+  colour?: string;
+  taxStatus?: string;
+  taxDueDate?: string;
+  motStatus?: string;
+  motExpiryDate?: string;
+  co2Emissions?: number;
+  euroStatus?: string;
+  engineCapacity?: number;
+}
+
+// Add Vehicle Modal Component
+function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onVehicleAdded: () => void;
+}) {
+  const [vrn, setVrn] = useState('');
+  const [dvlaData, setDvlaData] = useState<DVLAVehicleData | null>(null);
+  const [notes, setNotes] = useState('');
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [hasLookedUp, setHasLookedUp] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Reset state when modal opens/closes
+  const handleModalStateChange = (open: boolean) => {
+    if (!open) {
+      setVrn('');
+      setDvlaData(null);
+      setNotes('');
+      setLookupError(null);
+      setIsLookingUp(false);
+      setHasLookedUp(false);
+      onClose();
+    }
+  };
+
+  // DVLA Lookup
+  const handleDVLALookup = async () => {
+    if (!vrn.trim()) {
+      setLookupError('Please enter a VRN');
+      return;
+    }
+
+    setIsLookingUp(true);
+    setLookupError(null);
+    setDvlaData(null);
+
+    try {
+      // This would normally be a separate lookup endpoint, but we'll use the create endpoint
+      // with a test call to see DVLA data
+      const response = await fetch('/api/vehicles/lookup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ vrn: vrn.trim().toUpperCase() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'DVLA lookup failed');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.vehicle) {
+        setDvlaData(data.vehicle);
+        setLookupError(null);
+      } else {
+        setLookupError(data.error || 'No DVLA data found for this VRN');
+        setDvlaData({
+          vrn: vrn.trim().toUpperCase(),
+          // Show "No data available" placeholders
+        });
+      }
+      
+      setHasLookedUp(true);
+    } catch (error: any) {
+      console.error('DVLA lookup error:', error);
+      setLookupError(error.message || 'Failed to lookup vehicle data');
+      setDvlaData({
+        vrn: vrn.trim().toUpperCase(),
+        // Show "No data available" placeholders
+      });
+      setHasLookedUp(true);
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  // Create Vehicle Mutation
+  const createVehicleMutation = useMutation({
+    mutationFn: async (vehicleData: any) => {
+      const response = await fetch('/api/vehicles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(vehicleData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create vehicle');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Vehicle Added",
+        description: "Vehicle has been successfully added to your assets.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/vehicles'] });
+      onVehicleAdded();
+      handleModalStateChange(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add vehicle",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveVehicle = () => {
+    if (!dvlaData?.vrn) {
+      toast({
+        title: "Error",
+        description: "Please perform DVLA lookup first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createVehicleMutation.mutate({
+      vrn: dvlaData.vrn,
+      notes: notes.trim() || null,
+    });
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleModalStateChange}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Car className="h-5 w-5" />
+            Add Vehicle
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* VRN Input and Lookup */}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="vrn">Vehicle Registration Number (VRN)</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  id="vrn"
+                  value={vrn}
+                  onChange={(e) => setVrn(e.target.value.toUpperCase())}
+                  placeholder="e.g. ABC123"
+                  disabled={hasLookedUp}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleDVLALookup}
+                  disabled={isLookingUp || hasLookedUp}
+                  className="flex items-center gap-2"
+                >
+                  {isLookingUp ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  {isLookingUp ? 'Looking up...' : 'Vehicle Lookup'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Lookup Error */}
+            {lookupError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{lookupError}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Success Message */}
+            {hasLookedUp && dvlaData && !lookupError && (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>DVLA data retrieved successfully</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          {/* DVLA Data Display (Read-only) */}
+          {dvlaData && (
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <h3 className="font-medium mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  DVLA Vehicle Information (Read-only)
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <Label className="text-gray-600">Make</Label>
+                    <p className="font-medium">{dvlaData.make || 'No data available'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600">Model</Label>
+                    <p className="font-medium">{dvlaData.model || 'No data available'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600">Year</Label>
+                    <p className="font-medium">{dvlaData.yearOfManufacture || 'No data available'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600">Fuel Type</Label>
+                    <p className="font-medium">{dvlaData.fuelType || 'No data available'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600">Colour</Label>
+                    <p className="font-medium">{dvlaData.colour || 'No data available'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600">Tax Status</Label>
+                    <p className="font-medium">{dvlaData.taxStatus || 'No data available'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600">Tax Due Date</Label>
+                    <p className="font-medium">
+                      {dvlaData.taxDueDate ? new Date(dvlaData.taxDueDate).toLocaleDateString() : 'No data available'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600">MOT Status</Label>
+                    <p className="font-medium">{dvlaData.motStatus || 'No data available'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600">MOT Expiry</Label>
+                    <p className="font-medium">
+                      {dvlaData.motExpiryDate ? new Date(dvlaData.motExpiryDate).toLocaleDateString() : 'No data available'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600">CO2 Emissions</Label>
+                    <p className="font-medium">
+                      {dvlaData.co2Emissions ? `${dvlaData.co2Emissions}g/km` : 'No data available'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes Input (Editable) */}
+              <div>
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add any personal notes about this vehicle..."
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => handleModalStateChange(false)}>
+              Cancel
+            </Button>
+            {hasLookedUp && (
+              <Button
+                onClick={() => {
+                  setHasLookedUp(false);
+                  setDvlaData(null);
+                  setLookupError(null);
+                }}
+                variant="outline"
+              >
+                Lookup Different Vehicle
+              </Button>
+            )}
+            <Button
+              onClick={handleSaveVehicle}
+              disabled={!dvlaData || createVehicleMutation.isPending}
+              className="flex items-center gap-2"
+            >
+              {createVehicleMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              {createVehicleMutation.isPending ? 'Adding...' : 'Add Vehicle'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Assets Tab Content Component
 function AssetsTabContent() {
   const { user, isAuthenticated } = useAuth();
+  const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
   
   // Fetch vehicles data
   const { data: vehicles, isLoading, error } = useQuery<Vehicle[]>({
@@ -139,10 +461,12 @@ function AssetsTabContent() {
   });
 
   const handleAddVehicle = () => {
-    // Navigate to add vehicle - could be a modal or separate page
-    // For now, just placeholder functionality
-    console.log('Add vehicle clicked');
-    // TODO: Implement add vehicle modal or navigation
+    setIsAddVehicleModalOpen(true);
+  };
+
+  const handleVehicleAdded = () => {
+    // Modal will be closed automatically by the AddVehicleModal component
+    // Vehicle list will be refreshed by React Query cache invalidation
   };
 
   if (isLoading) {
@@ -225,6 +549,13 @@ function AssetsTabContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Vehicle Modal */}
+      <AddVehicleModal
+        isOpen={isAddVehicleModalOpen}
+        onClose={() => setIsAddVehicleModalOpen(false)}
+        onVehicleAdded={handleVehicleAdded}
+      />
     </div>
   );
 }

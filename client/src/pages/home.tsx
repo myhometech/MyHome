@@ -807,7 +807,13 @@ export default function Home() {
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4"
                   : "space-y-3 md:space-y-4"
               }>
-                {documents.map((document: any) => (
+                {(() => {
+                  console.log('[DEBUG] About to render documents:', documents);
+                  console.log('[DEBUG] Documents length:', documents.length);
+                  console.log('[DEBUG] Documents loading:', documentsLoading);
+                  return documents.map((document: any) => {
+                    console.log('[DEBUG] Rendering document:', document.id, document.name);
+                    return (
                   <DocumentCard
                     key={document.id}
                     document={document}
@@ -822,7 +828,9 @@ export default function Home() {
                       queryClient.invalidateQueries({ queryKey: ["/api/documents/expiry-alerts"] });
                     }}
                   />
-                ))}
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>

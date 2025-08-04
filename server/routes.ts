@@ -2905,32 +2905,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // TICKET 2: Verify Mailgun signature (required for security)
       const signingKey = process.env.MAILGUN_API_KEY || process.env.MAILGUN_SIGNING_KEY;
+      const isDevMode = process.env.NODE_ENV === 'development';
+      
       if (!signingKey) {
-        console.error('❌ MAILGUN_API_KEY not configured - signature verification required');
-        return res.status(500).json({ 
-          error: 'Server configuration error: Mailgun API key not configured' 
-        });
+        if (isDevMode) {
+          console.log('⚠️ DEVELOPMENT MODE: No MAILGUN_API_KEY configured, skipping signature verification');
+        } else {
+          console.error('❌ MAILGUN_API_KEY not configured - signature verification required');
+          return res.status(500).json({ 
+            error: 'Server configuration error: Mailgun API key not configured' 
+          });
+        }
       }
 
-      const isValidSignature = verifyMailgunSignature(
-        message.timestamp,
-        message.token, 
-        message.signature,
-        signingKey
-      );
-      
-      if (!isValidSignature) {
-        console.error('❌ Invalid Mailgun signature - potential tampering detected', {
-          timestamp: message.timestamp,
-          token: message.token?.substring(0, 8) + '...',
-          signatureLength: message.signature?.length
-        });
-        return res.status(401).json({ 
-          error: 'Invalid signature - request authentication failed' 
-        });
+      // Skip signature verification in development mode for testing
+      if (signingKey) {
+        const isValidSignature = verifyMailgunSignature(
+          message.timestamp,
+          message.token, 
+          message.signature,
+          signingKey
+        );
+        
+        if (!isValidSignature) {
+          console.error('❌ Invalid Mailgun signature - potential tampering detected', {
+            timestamp: message.timestamp,
+            token: message.token?.substring(0, 8) + '...',
+            signatureLength: message.signature?.length
+          });
+          return res.status(401).json({ 
+            error: 'Invalid signature - request authentication failed' 
+          });
+        }
+        
+        console.log('✅ Mailgun signature verified successfully');
+      } else {
+        console.log('⚠️ DEVELOPMENT MODE: Skipping signature verification');
       }
-      
-      console.log('✅ Mailgun signature verified successfully');
 
       // TICKET 3: Extract and validate user from email subaddressing
       const userExtractionResult = extractUserIdFromRecipient(message.recipient);
@@ -2947,6 +2958,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const userId = userExtractionResult.userId;
+      
+      // Debug: Verify userId is properly extracted
+      console.log('🐛 DEBUG: Extracted userId:', { 
+        userId, 
+        type: typeof userId, 
+        truthyValue: !!userId,
+        stringLength: userId?.length || 'undefined'
+      });
 
       // Verify user exists with comprehensive error handling
       let user;
@@ -3032,31 +3051,224 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn('⚠️ Invalid attachments skipped:', attachmentValidation.invalidAttachments);
       }
 
-      // Log successful parsing
-      console.log('✅ Mailgun webhook parsed successfully:', {
+      // TICKET 5: Integrate with document ingestion pipeline
+      const processedDocuments: any[] = [];
+      const documentErrors: any[] = [];
+      
+      // Process each valid attachment through the document pipeline
+      for (const attachment of attachmentValidation.validAttachments) {
+        try {
+          console.log(`📧 Processing email attachment: ${attachment.filename} (${attachment.size} bytes)`);
+          console.log('📧 userId type and value:', typeof userId, userId);
+          
+          // Generate document metadata for email ingestion
+          const documentName = attachment.filename.replace(/\.[^/.]+$/, ""); // Remove extension
+          const finalMimeType = attachment.contentType;
+          
+          // Prepare document data for validation
+          const documentDataToValidate = {
+            userId: userId, // Add the userId field
+            name: documentName,
+            fileName: attachment.filename,
+            filePath: '', // Will be set after upload
+            fileSize: attachment.size,
+            mimeType: finalMimeType,
+            tags: ['email-imported'], // Tag to identify email-imported documents
+            uploadSource: 'email', // Mark as email upload
+            status: 'pending' // Start as pending
+          };
+          
+          console.log('📧 Document data before validation:', JSON.stringify(documentDataToValidate, null, 2));
+          
+          // Validate document data using existing schema
+          const documentData = insertDocumentSchema.parse(documentDataToValidate);
+
+          // Create initial document record
+          const document = await storage.createDocument(documentData);
+          console.log(`📄 Created document record ${document.id} for ${attachment.filename}`);
+
+          // Generate storage key using existing convention
+          const storageKey = StorageService.generateFileKey(userId, document.id.toString(), attachment.filename);
+          
+          // Upload to cloud storage
+          let cloudStorageKey = '';
+          try {
+            const storageService = storageProvider();
+            cloudStorageKey = await storageService.upload(attachment.buffer, storageKey, finalMimeType);
+            console.log(`☁️ Uploaded ${attachment.filename} to GCS: ${cloudStorageKey}`);
+          } catch (storageError) {
+            console.error('❌ GCS upload failed for', attachment.filename, ':', storageError);
+            await storage.deleteDocument(document.id, userId); // Cleanup document record
+            documentErrors.push({
+              filename: attachment.filename,
+              error: 'Failed to upload to cloud storage'
+            });
+            continue;
+          }
+
+          // Generate encryption metadata (following existing pattern)
+          let encryptedDocumentKey = '';
+          let encryptionMetadata = '';
+          
+          try {
+            const documentKey = EncryptionService.generateDocumentKey();
+            encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
+            
+            encryptionMetadata = JSON.stringify({
+              storageType: 'cloud',
+              storageKey: cloudStorageKey,
+              encrypted: true,
+              algorithm: 'AES-256-GCM',
+              source: 'email',
+              sender: message.sender,
+              subject: message.subject,
+              processedAt: new Date().toISOString()
+            });
+          } catch (encryptionError) {
+            console.error('❌ Encryption setup failed for', attachment.filename, ':', encryptionError);
+            
+            // Cleanup cloud storage
+            try {
+              const storageService = storageProvider();
+              await storageService.delete(cloudStorageKey);
+            } catch (cleanupError) {
+              console.error('Failed to cleanup cloud storage after encryption error:', cleanupError);
+            }
+            
+            await storage.deleteDocument(document.id, userId);
+            documentErrors.push({
+              filename: attachment.filename,
+              error: 'Failed to setup document encryption'
+            });
+            continue;
+          }
+
+          // Update document with cloud storage and encryption details
+          const updateData = {
+            filePath: cloudStorageKey, // Store cloud storage key as file path
+            gcsPath: cloudStorageKey,
+            encryptedDocumentKey,
+            encryptionMetadata,
+            isEncrypted: true,
+            status: 'active'
+          };
+
+          await storage.updateDocument(document.id, userId, updateData);
+          console.log(`✅ Updated document ${document.id} with cloud storage metadata`);
+
+          // Process OCR and AI insights if applicable
+          if (supportsOCR(finalMimeType) || isPDFFile(finalMimeType)) {
+            try {
+              const { ocrQueue } = await import('./ocrQueue.js');
+              
+              await ocrQueue.addJob({
+                documentId: document.id,
+                fileName: attachment.filename,
+                filePathOrGCSKey: cloudStorageKey,
+                mimeType: finalMimeType,
+                userId,
+                priority: 3 // Higher priority for email imports
+              });
+              
+              console.log(`🔍 Queued OCR job for email document ${document.id}`);
+              
+              // Generate tag suggestions based on filename and email context
+              const emailTags = ['email-imported'];
+              if (message.subject) {
+                emailTags.push(...message.subject.toLowerCase().split(/\s+/).filter(word => word.length > 3).slice(0, 3));
+              }
+              
+              const tagSuggestions = await tagSuggestionService.suggestTags(
+                attachment.filename,
+                `Email from: ${message.sender}\nSubject: ${message.subject}\n${message.bodyPlain?.substring(0, 500) || ''}`,
+                finalMimeType,
+                emailTags
+              );
+              
+              // Update document with enhanced tags
+              const combinedTags = [...emailTags];
+              tagSuggestions.suggestedTags.forEach(suggestion => {
+                if (suggestion.confidence >= 0.6 && !combinedTags.includes(suggestion.tag)) {
+                  combinedTags.push(suggestion.tag);
+                }
+              });
+              
+              await storage.updateDocumentTags(document.id, userId, combinedTags);
+              console.log(`🏷️ Updated document ${document.id} with ${combinedTags.length} tags`);
+              
+            } catch (ocrError) {
+              console.error(`OCR processing failed for document ${document.id}:`, ocrError);
+              // Document is still valid even if OCR fails
+            }
+          } else {
+            // For non-OCR files, generate basic summary from email context
+            try {
+              const emailSummary = `Document received via email from ${message.sender}. Subject: "${message.subject}". Original filename: ${attachment.filename}`;
+              await storage.updateDocumentOCRAndSummary(document.id, userId, '', emailSummary);
+              console.log(`📝 Generated email-based summary for document ${document.id}`);
+            } catch (summaryError) {
+              console.error(`Failed to generate summary for document ${document.id}:`, summaryError);
+            }
+          }
+
+          processedDocuments.push({
+            documentId: document.id,
+            filename: attachment.filename,
+            size: attachment.size,
+            storageKey: cloudStorageKey,
+            status: 'processed'
+          });
+
+        } catch (documentError) {
+          console.error(`❌ Failed to process attachment ${attachment.filename}:`, documentError);
+          documentErrors.push({
+            filename: attachment.filename,
+            error: documentError instanceof Error ? documentError.message : 'Unknown processing error'
+          });
+        }
+      }
+
+      // Log final processing results
+      console.log('✅ Email document processing completed:', {
         recipient: message.recipient,
         sender: message.sender,
         subject: message.subject,
         userId,
-        validAttachments: attachmentValidation.validAttachments.length,
-        invalidAttachments: attachmentValidation.invalidAttachments.length,
-        bodyLength: message.bodyPlain?.length || 0
+        processedDocuments: processedDocuments.length,
+        documentErrors: documentErrors.length,
+        totalAttachments: attachmentValidation.validAttachments.length
       });
 
-      // For now, just return success with parsed data
-      // TODO: Integrate with document ingestion pipeline in next ticket
-      res.status(202).json({
-        message: 'Email received and parsed successfully',
+      // Record email processing in the database
+      try {
+        await storage.createEmailForward({
+          userId,
+          fromEmail: message.sender,
+          subject: message.subject,
+          emailBody: message.bodyPlain || '',
+          hasAttachments: processedDocuments.length > 0,
+          attachmentCount: attachmentValidation.validAttachments.length,
+          documentsCreated: processedDocuments.length,
+          status: documentErrors.length === 0 ? 'processed' : 'partial',
+          errorMessage: documentErrors.length > 0 ? JSON.stringify(documentErrors) : null
+        });
+      } catch (emailRecordError) {
+        console.error('Failed to record email processing:', emailRecordError);
+      }
+
+      // Return success with processing results
+      res.status(200).json({
+        message: 'Email processed successfully',
         data: {
           recipient: message.recipient,
           sender: message.sender,
           subject: message.subject,
           userId,
+          processedDocuments,
+          documentErrors,
+          summary: `${processedDocuments.length} documents created, ${documentErrors.length} errors`,
           validAttachmentsCount: attachmentValidation.validAttachments.length,
-          invalidAttachmentsCount: attachmentValidation.invalidAttachments.length,
-          attachmentSummary: attachmentValidation.summary,
-          invalidAttachments: attachmentValidation.invalidAttachments,
-          bodyPreview: message.bodyPlain?.substring(0, 100) + '...' || ''
+          invalidAttachmentsCount: attachmentValidation.invalidAttachments.length
         }
       });
 

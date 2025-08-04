@@ -72,7 +72,7 @@ export interface IStorage {
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: number, userId: string): Promise<void>;
   updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined>;
-  updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null }): Promise<Document | undefined>;
+  updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string }): Promise<Document | undefined>;
   updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined>;
   updateDocumentOCRAndSummary(id: number, userId: string, extractedText: string, summary: string): Promise<Document | undefined>;
   updateDocumentSummary(id: number, userId: string, summary: string): Promise<void>;
@@ -406,7 +406,7 @@ export class DatabaseStorage implements IStorage {
     return updatedDoc;
   }
 
-  async updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null }): Promise<Document | undefined> {
+  async updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string }): Promise<Document | undefined> {
     const updateData: any = {};
     
     if (updates.name !== undefined) {
@@ -420,6 +420,31 @@ export class DatabaseStorage implements IStorage {
       } else {
         updateData.expiryDate = new Date(updates.expiryDate);
       }
+    }
+    
+    // TICKET 5: Support additional fields for email document processing
+    if (updates.filePath !== undefined) {
+      updateData.filePath = updates.filePath;
+    }
+    
+    if (updates.gcsPath !== undefined) {
+      updateData.gcsPath = updates.gcsPath;
+    }
+    
+    if (updates.encryptedDocumentKey !== undefined) {
+      updateData.encryptedDocumentKey = updates.encryptedDocumentKey;
+    }
+    
+    if (updates.encryptionMetadata !== undefined) {
+      updateData.encryptionMetadata = updates.encryptionMetadata;
+    }
+    
+    if (updates.isEncrypted !== undefined) {
+      updateData.isEncrypted = updates.isEncrypted;
+    }
+    
+    if (updates.status !== undefined) {
+      updateData.status = updates.status;
     }
     
     const [updatedDoc] = await db

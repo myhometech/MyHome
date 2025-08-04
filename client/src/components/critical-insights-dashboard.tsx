@@ -4,6 +4,7 @@ import { AlertTriangle, Clock, Info, CheckCircle, ArrowRight, Calendar, FileText
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 interface CriticalInsight {
@@ -73,6 +74,7 @@ function formatDueDate(dateString?: string) {
 
 export default function CriticalInsightsDashboard() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   const { data: insights = [], isLoading, error } = useQuery<CriticalInsight[]>({
     queryKey: ['/api/insights/critical'],
@@ -91,7 +93,7 @@ export default function CriticalInsightsDashboard() {
   // TICKET 8: Dismiss insight mutation
   const dismissInsightMutation = useMutation({
     mutationFn: async (insightId: string) => {
-      const response = await fetch(`/api/insights/${insightId}`, {
+      const response = await fetch(`/api/insights/${insightId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: 'dismissed' }),
         headers: { 
@@ -109,6 +111,20 @@ export default function CriticalInsightsDashboard() {
     onSuccess: () => {
       // Invalidate critical insights query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['/api/insights/critical'] });
+      // Also invalidate the main insights query to keep all views synchronized
+      queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      toast({
+        title: "Insight dismissed",
+        description: "The insight has been successfully dismissed.",
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to dismiss insight:', error);
+      toast({
+        title: "Failed to dismiss insight",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
     }
   });
 

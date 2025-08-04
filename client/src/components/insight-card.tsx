@@ -8,6 +8,7 @@ import { DocumentInsight } from '@shared/schema';
 import { useLocation } from 'wouter';
 import { formatDistance } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 interface InsightCardProps {
   insight: DocumentInsight;
@@ -17,6 +18,7 @@ interface InsightCardProps {
 export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
 
   const updateStatusMutation = useMutation({
@@ -29,8 +31,22 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
       if (!response.ok) throw new Error('Failed to update insight status');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      const actionText = variables.status === 'dismissed' ? 'dismissed' : 
+                        variables.status === 'resolved' ? 'marked as resolved' : 'reopened';
+      toast({
+        title: "Insight updated",
+        description: `The insight has been ${actionText}.`,
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to update insight status:', error);
+      toast({
+        title: "Failed to update insight",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
     },
   });
 

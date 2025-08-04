@@ -781,7 +781,10 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            ) : documents.length === 0 ? (
+            ) : (() => {
+              console.log('[DEBUG] Documents check - length:', documents.length, 'array:', documents);
+              return documents.length === 0;
+            })() ? (
               <div className="text-center py-12">
                 <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                   <Search className="h-8 w-8 text-gray-400" />

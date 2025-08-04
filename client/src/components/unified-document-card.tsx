@@ -159,7 +159,7 @@ export default function UnifiedDocumentCard({
 
   // Fetch insights for this document
   const { data: insights = [], isLoading: insightsLoading } = useQuery<DocumentInsight[]>({
-    queryKey: ['/api/insights', 'document', document.id],
+    queryKey: [`/api/documents/${document.id}/insights`],
     queryFn: async () => {
       const response = await fetch(`/api/documents/${document.id}/insights`, {
         credentials: 'include',
@@ -243,10 +243,11 @@ export default function UnifiedDocumentCard({
     },
     onSuccess: () => {
       console.log('[DEBUG] Insight status update successful, invalidating queries');
-      queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      // Invalidate the specific document insights query
       queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
-      queryClient.refetchQueries({ queryKey: ['/api/insights'] });
       queryClient.refetchQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
+      // Also invalidate global insights queries
+      queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
       toast({
         title: "Insight dismissed",
         description: "The insight has been successfully dismissed.",

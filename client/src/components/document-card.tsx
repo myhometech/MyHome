@@ -84,8 +84,10 @@ export default function DocumentCard({
   
   // Debug logging for document 28
   if (document.id === 28) {
+    console.log('[DEBUG] Document 28 - Component rendered');
     console.log('[DEBUG] Document 28 insights:', insights);
     console.log('[DEBUG] Document 28 insightsData:', insightsData);
+    console.log('[DEBUG] Document 28 insightsLoading:', insightsLoading);
   }
   
   // Calculate insight summary - filter out unwanted types

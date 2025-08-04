@@ -3602,8 +3602,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
       }
 
+      // Validate the vehicle data before creating
+      const validatedVehicleData = insertVehicleSchema.parse(vehicleData);
+      
       // Create the vehicle
-      const createdVehicle = await storage.createVehicle(vehicleData);
+      const createdVehicle = await storage.createVehicle(validatedVehicleData);
       
       // TICKET 4: Generate vehicle insights after creation
       try {

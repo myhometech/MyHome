@@ -227,13 +227,18 @@ export default function UnifiedDocumentCard({
 
   const updateInsightStatusMutation = useMutation({
     mutationFn: async ({ insightId, status }: { insightId: string; status: 'open' | 'resolved' | 'dismissed' }) => {
-      const response = await fetch(`/api/insights/${insightId}`, {
+      console.log('[DEBUG] Updating insight status:', insightId, 'to', status);
+      const response = await fetch(`/api/insights/${insightId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
         credentials: 'include',
       });
-      if (!response.ok) throw new Error('Failed to update insight status');
+      if (!response.ok) {
+        console.error('[DEBUG] Failed to update insight status:', response.status, response.statusText);
+        throw new Error('Failed to update insight status');
+      }
+      console.log('[DEBUG] Successfully updated insight status');
       return response.json();
     },
     onSuccess: () => {

@@ -47,7 +47,7 @@ import { ShareDocumentDialog } from "@/components/share-document-dialog";
 import { BatchTagManager } from "@/components/batch-tag-manager";
 import { InsightJobStatus } from "@/components/InsightJobStatus";
 import { Badge } from "@/components/ui/badge";
-import CriticalInsightsDashboard from "@/components/critical-insights-dashboard";
+
 import type { Category, Document, DocumentInsight } from "@shared/schema";
 
 // Dashboard Overview Cards Component
@@ -577,12 +577,7 @@ export default function Home() {
         {/* Dashboard Overview Cards */}
         <DashboardOverview onFilterChange={handleDashboardFilter} />
 
-        {/* Critical Insights Dashboard */}
-        <FeatureGate feature="AI_INSIGHTS">
-          <div className="mb-8">
-            <CriticalInsightsDashboard />
-          </div>
-        </FeatureGate>
+
 
         {/* Quick Action Cards */}
         <QuickActionCards />

@@ -228,11 +228,17 @@ export function extractUserIdFromRecipient(recipient: string): { userId: string 
 }
 
 /**
- * Validate attachment for document ingestion
+ * TICKET 4: Enhanced attachment validation for document ingestion
  */
-export function validateAttachment(attachment: { filename: string; contentType: string; size: number }): {
+export function validateAttachment(attachment: { 
+  filename: string; 
+  contentType: string; 
+  size: number;
+  buffer?: Buffer;
+}): {
   isValid: boolean;
   error?: string;
+  warnings?: string[];
 } {
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   const ALLOWED_TYPES = [
@@ -244,21 +250,147 @@ export function validateAttachment(attachment: { filename: string; contentType: 
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // DOCX
   ];
 
+  const warnings: string[] = [];
+
+  // Validate required fields
+  if (!attachment.filename || !attachment.contentType || typeof attachment.size !== 'number') {
+    return {
+      isValid: false,
+      error: 'Missing required attachment fields (filename, contentType, or size)'
+    };
+  }
+
   // Check file size
+  if (attachment.size <= 0) {
+    return {
+      isValid: false,
+      error: 'File size must be greater than 0 bytes'
+    };
+  }
+
   if (attachment.size > MAX_FILE_SIZE) {
     return {
       isValid: false,
-      error: `File size ${attachment.size} bytes exceeds 10MB limit`
+      error: `File "${attachment.filename}" size ${formatFileSize(attachment.size)} exceeds 10MB limit`
     };
   }
+
+  // Normalize MIME type for comparison
+  const normalizedContentType = attachment.contentType.toLowerCase().trim();
 
   // Check file type
-  if (!ALLOWED_TYPES.includes(attachment.contentType)) {
+  if (!ALLOWED_TYPES.includes(normalizedContentType)) {
     return {
       isValid: false,
-      error: `File type ${attachment.contentType} not supported. Allowed: PDF, JPG, PNG, WebP, DOCX`
+      error: `File type "${normalizedContentType}" not supported. Allowed: PDF, JPG, PNG, WebP, DOCX`
     };
   }
 
-  return { isValid: true };
+  // Additional filename extension validation (security check)
+  const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.docx'];
+  const fileExtension = attachment.filename.toLowerCase().split('.').pop();
+  
+  if (!fileExtension || !allowedExtensions.includes(`.${fileExtension}`)) {
+    warnings.push(`File extension ".${fileExtension}" doesn't match common patterns for MIME type ${normalizedContentType}`);
+  }
+
+  // Size-based warnings
+  if (attachment.size > 5 * 1024 * 1024) { // 5MB
+    warnings.push(`Large file size: ${formatFileSize(attachment.size)}. Processing may take longer.`);
+  }
+
+  // MIME type and extension consistency check
+  const mimeExtensionMap: Record<string, string[]> = {
+    'application/pdf': ['pdf'],
+    'image/jpeg': ['jpg', 'jpeg'],
+    'image/jpg': ['jpg', 'jpeg'],
+    'image/png': ['png'],
+    'image/webp': ['webp'],
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['docx']
+  };
+
+  const expectedExtensions = mimeExtensionMap[normalizedContentType];
+  if (expectedExtensions && fileExtension && !expectedExtensions.includes(fileExtension)) {
+    warnings.push(`MIME type "${normalizedContentType}" doesn't match file extension ".${fileExtension}"`);
+  }
+
+  return { 
+    isValid: true, 
+    warnings: warnings.length > 0 ? warnings : undefined 
+  };
+}
+
+/**
+ * Helper function to format file sizes in human-readable format
+ */
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * TICKET 4: Validate and filter multiple attachments from email
+ */
+export function validateEmailAttachments(attachments: Array<{
+  filename: string;
+  contentType: string;
+  size: number;
+  buffer: Buffer;
+}>): {
+  validAttachments: Array<{
+    filename: string;
+    contentType: string;
+    size: number;
+    buffer: Buffer;
+    warnings?: string[];
+  }>;
+  invalidAttachments: Array<{
+    filename: string;
+    error: string;
+  }>;
+  hasValidAttachments: boolean;
+  summary: string;
+} {
+  const validAttachments = [];
+  const invalidAttachments = [];
+
+  if (!attachments || attachments.length === 0) {
+    return {
+      validAttachments: [],
+      invalidAttachments: [],
+      hasValidAttachments: false,
+      summary: 'No attachments found in email'
+    };
+  }
+
+  for (const attachment of attachments) {
+    const validation = validateAttachment(attachment);
+    
+    if (validation.isValid) {
+      validAttachments.push({
+        ...attachment,
+        warnings: validation.warnings
+      });
+    } else {
+      invalidAttachments.push({
+        filename: attachment.filename,
+        error: validation.error || 'Unknown validation error'
+      });
+    }
+  }
+
+  const totalValidSize = validAttachments.reduce((sum, att) => sum + att.size, 0);
+  const summary = `${validAttachments.length} valid, ${invalidAttachments.length} invalid attachments. Total size: ${formatFileSize(totalValidSize)}`;
+
+  return {
+    validAttachments,
+    invalidAttachments,
+    hasValidAttachments: validAttachments.length > 0,
+    summary
+  };
 }

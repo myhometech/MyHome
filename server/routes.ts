@@ -27,7 +27,7 @@ import { setupOCRErrorRoutes } from './routes/ocrErrorRoutes.js';
 import cors from 'cors';
 import passport from './passport';
 import authRoutes from './authRoutes';
-import { parseMailgunWebhook, verifyMailgunSignature, extractUserIdFromRecipient, validateAttachment } from './mailgunService';
+import { parseMailgunWebhook, verifyMailgunSignature, extractUserIdFromRecipient, validateEmailAttachments } from './mailgunService';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -2992,28 +2992,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Validate and process attachments
-      const processedAttachments = [];
-      const attachmentErrors = [];
-
-      for (const attachment of message.attachments) {
-        const validation = validateAttachment(attachment);
-        
-        if (!validation.isValid) {
-          console.warn('⚠️ Skipping invalid attachment:', validation.error);
-          attachmentErrors.push({
-            filename: attachment.filename,
-            error: validation.error
-          });
-          continue;
-        }
-
-        processedAttachments.push({
-          filename: attachment.filename,
-          contentType: attachment.contentType,
-          size: attachment.size,
-          buffer: attachment.buffer
+      // TICKET 4: Validate and filter attachments with comprehensive checks
+      const attachmentValidation = validateEmailAttachments(message.attachments);
+      
+      // Reject emails with no valid attachments
+      if (!attachmentValidation.hasValidAttachments) {
+        console.error('❌ No valid attachments found in email:', {
+          recipient: message.recipient,
+          sender: message.sender,
+          totalAttachments: message.attachments.length,
+          invalidAttachments: attachmentValidation.invalidAttachments,
+          summary: attachmentValidation.summary
         });
+        
+        return res.status(400).json({
+          error: 'No valid attachments found',
+          details: 'Emails must contain at least one valid attachment (PDF, JPG, PNG, WebP, DOCX ≤10MB)',
+          invalidAttachments: attachmentValidation.invalidAttachments,
+          summary: attachmentValidation.summary
+        });
+      }
+
+      // Log validation results
+      console.log('✅ Attachment validation completed:', {
+        validCount: attachmentValidation.validAttachments.length,
+        invalidCount: attachmentValidation.invalidAttachments.length,
+        summary: attachmentValidation.summary
+      });
+
+      // Log warnings for valid attachments
+      attachmentValidation.validAttachments.forEach(attachment => {
+        if (attachment.warnings?.length) {
+          console.warn('⚠️ Attachment warnings for', attachment.filename, ':', attachment.warnings);
+        }
+      });
+
+      // Log invalid attachments for debugging
+      if (attachmentValidation.invalidAttachments.length > 0) {
+        console.warn('⚠️ Invalid attachments skipped:', attachmentValidation.invalidAttachments);
       }
 
       // Log successful parsing
@@ -3022,8 +3038,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sender: message.sender,
         subject: message.subject,
         userId,
-        attachmentsProcessed: processedAttachments.length,
-        attachmentErrors: attachmentErrors.length,
+        validAttachments: attachmentValidation.validAttachments.length,
+        invalidAttachments: attachmentValidation.invalidAttachments.length,
         bodyLength: message.bodyPlain?.length || 0
       });
 
@@ -3036,8 +3052,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sender: message.sender,
           subject: message.subject,
           userId,
-          attachmentsCount: processedAttachments.length,
-          attachmentErrors,
+          validAttachmentsCount: attachmentValidation.validAttachments.length,
+          invalidAttachmentsCount: attachmentValidation.invalidAttachments.length,
+          attachmentSummary: attachmentValidation.summary,
+          invalidAttachments: attachmentValidation.invalidAttachments,
           bodyPreview: message.bodyPlain?.substring(0, 100) + '...' || ''
         }
       });

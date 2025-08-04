@@ -3388,6 +3388,244 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const cannyRoutes = await import('./routes/cannyRoutes.js');
   app.use('/api', cannyRoutes.default);
 
+  // ===== VEHICLE MANAGEMENT ROUTES (TICKET 1 & 2) =====
+  
+  // Import DVLA service and vehicle schema
+  const { dvlaLookupService } = await import('./dvlaLookupService');
+  const { insertVehicleSchema } = await import('@shared/schema');
+
+  // Get all vehicles for the authenticated user
+  app.get('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicles = await storage.getVehicles(userId);
+      res.json(vehicles);
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+      res.status(500).json({ message: "Failed to fetch vehicles" });
+    }
+  });
+
+  // Get a specific vehicle
+  app.get('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+      
+      const vehicle = await storage.getVehicle(vehicleId, userId);
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+      
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error fetching vehicle:", error);
+      res.status(500).json({ message: "Failed to fetch vehicle" });
+    }
+  });
+
+  // Create a new vehicle (manual entry)
+  app.post('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Validate request body
+      const validatedData = insertVehicleSchema.parse(req.body);
+      
+      const vehicle = await storage.createVehicle({
+        ...validatedData,
+        userId,
+      });
+      
+      res.status(201).json(vehicle);
+    } catch (error: any) {
+      console.error("Error creating vehicle:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create vehicle" });
+    }
+  });
+
+  // Update a vehicle
+  app.put('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+      
+      // Validate request body (allowing partial updates)
+      const validatedData = insertVehicleSchema.partial().parse(req.body);
+      
+      const vehicle = await storage.updateVehicle(vehicleId, userId, validatedData);
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+      
+      res.json(vehicle);
+    } catch (error: any) {
+      console.error("Error updating vehicle:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update vehicle" });
+    }
+  });
+
+  // Delete a vehicle
+  app.delete('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+      
+      await storage.deleteVehicle(vehicleId, userId);
+      res.json({ message: "Vehicle deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+      res.status(500).json({ message: "Failed to delete vehicle" });
+    }
+  });
+
+  // ===== DVLA LOOKUP ROUTES (TICKET 2) =====
+  
+  // Lookup vehicle data from DVLA by VRN
+  app.post('/api/vehicles/dvla-lookup', requireAuth, async (req: any, res) => {
+    try {
+      const { vrn } = req.body;
+      
+      if (!vrn || typeof vrn !== 'string') {
+        return res.status(400).json({ message: "VRN is required" });
+      }
+
+      const result = await dvlaLookupService.lookupVehicleByVRN(vrn);
+      
+      if (!result.success) {
+        return res.status(result.error?.status || 500).json({
+          message: result.error?.message || "DVLA lookup failed",
+          code: result.error?.code
+        });
+      }
+
+      res.json({
+        success: true,
+        vehicle: result.vehicle
+      });
+    } catch (error) {
+      console.error("Error in DVLA lookup:", error);
+      res.status(500).json({ message: "Internal server error during DVLA lookup" });
+    }
+  });
+
+  // Create vehicle from DVLA lookup data
+  app.post('/api/vehicles/from-dvla', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { vrn } = req.body;
+      
+      if (!vrn || typeof vrn !== 'string') {
+        return res.status(400).json({ message: "VRN is required" });
+      }
+
+      // Check if vehicle already exists for this user
+      const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
+      if (existingVehicle) {
+        return res.status(409).json({ 
+          message: "Vehicle with this VRN already exists",
+          vehicle: existingVehicle
+        });
+      }
+
+      // Perform DVLA lookup
+      const lookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
+      
+      if (!lookupResult.success) {
+        return res.status(lookupResult.error?.status || 500).json({
+          message: lookupResult.error?.message || "DVLA lookup failed",
+          code: lookupResult.error?.code
+        });
+      }
+
+      // Create vehicle with DVLA data
+      const vehicle = await storage.createVehicle({
+        ...lookupResult.vehicle!,
+        userId,
+      });
+      
+      res.status(201).json({
+        success: true,
+        vehicle,
+        message: "Vehicle created successfully from DVLA data"
+      });
+    } catch (error: any) {
+      console.error("Error creating vehicle from DVLA:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create vehicle from DVLA data" });
+    }
+  });
+
+  // Refresh existing vehicle with latest DVLA data
+  app.post('/api/vehicles/:id/refresh-dvla', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+      
+      // Get existing vehicle
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Perform DVLA lookup
+      const lookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
+      
+      if (!lookupResult.success) {
+        return res.status(lookupResult.error?.status || 500).json({
+          message: lookupResult.error?.message || "DVLA lookup failed",
+          code: lookupResult.error?.code
+        });
+      }
+
+      // Update vehicle with fresh DVLA data
+      const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
+        ...lookupResult.vehicle!,
+        dvlaLastRefreshed: new Date(),
+      });
+      
+      res.json({
+        success: true,
+        vehicle: updatedVehicle,
+        message: "Vehicle updated with latest DVLA data"
+      });
+    } catch (error) {
+      console.error("Error refreshing vehicle from DVLA:", error);
+      res.status(500).json({ message: "Failed to refresh vehicle data" });
+    }
+  });
+
+  // Check DVLA API availability
+  app.get('/api/vehicles/dvla-status', requireAuth, async (req: any, res) => {
+    try {
+      const isAvailable = await dvlaLookupService.checkDVLAAvailability();
+      res.json({ 
+        available: isAvailable,
+        message: isAvailable ? "DVLA API is available" : "DVLA API is not available"
+      });
+    } catch (error) {
+      console.error("Error checking DVLA status:", error);
+      res.status(500).json({ message: "Failed to check DVLA status" });
+    }
+  });
+
   app.use(sentryErrorHandler());
 
   const httpServer = createServer(app);

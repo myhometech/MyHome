@@ -42,6 +42,9 @@ import {
   type InsertUserAsset,
   type ManualTrackedEvent,
   type InsertManualTrackedEvent,
+  vehicles,
+  type Vehicle,
+  type InsertVehicle,
 } from "@shared/schema";
 
 // Add blog post types
@@ -167,6 +170,14 @@ export interface IStorage {
   createManualTrackedEvent(event: InsertManualTrackedEvent & { createdBy: string }): Promise<ManualTrackedEvent>;
   updateManualTrackedEvent(id: string, userId: string, updates: Partial<InsertManualTrackedEvent>): Promise<ManualTrackedEvent | undefined>;
   deleteManualTrackedEvent(id: string, userId: string): Promise<void>;
+
+  // Vehicle operations (TICKET 1 & 2)
+  getVehicles(userId: string): Promise<Vehicle[]>;
+  getVehicle(id: string, userId: string): Promise<Vehicle | undefined>;
+  getVehicleByVRN(vrn: string, userId: string): Promise<Vehicle | undefined>;
+  createVehicle(vehicle: InsertVehicle): Promise<Vehicle>;
+  updateVehicle(id: string, userId: string, updates: Partial<InsertVehicle>): Promise<Vehicle | undefined>;
+  deleteVehicle(id: string, userId: string): Promise<void>;
 
   // Admin operations
   getAdminStats(): Promise<{
@@ -1669,6 +1680,75 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(manualTrackedEvents)
       .where(and(eq(manualTrackedEvents.id, id), eq(manualTrackedEvents.createdBy, userId)));
+  }
+
+  // Vehicle operations (TICKET 1 & 2)
+  async getVehicles(userId: string): Promise<Vehicle[]> {
+    return await safeQuery(async () => {
+      return await db
+        .select()
+        .from(vehicles)
+        .where(eq(vehicles.userId, userId))
+        .orderBy(desc(vehicles.createdAt));
+    });
+  }
+
+  async getVehicle(id: string, userId: string): Promise<Vehicle | undefined> {
+    return await safeQuery(async () => {
+      const [vehicle] = await db
+        .select()
+        .from(vehicles)
+        .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)));
+      return vehicle || undefined;
+    });
+  }
+
+  async getVehicleByVRN(vrn: string, userId: string): Promise<Vehicle | undefined> {
+    return await safeQuery(async () => {
+      // Normalize VRN for lookup (remove spaces, uppercase)
+      const normalizedVRN = vrn.replace(/\s/g, '').toUpperCase();
+      const [vehicle] = await db
+        .select()
+        .from(vehicles)
+        .where(and(eq(vehicles.vrn, normalizedVRN), eq(vehicles.userId, userId)));
+      return vehicle || undefined;
+    });
+  }
+
+  async createVehicle(vehicle: InsertVehicle): Promise<Vehicle> {
+    return await safeQuery(async () => {
+      const [newVehicle] = await db
+        .insert(vehicles)
+        .values({
+          ...vehicle,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+      return newVehicle;
+    });
+  }
+
+  async updateVehicle(id: string, userId: string, updates: Partial<InsertVehicle>): Promise<Vehicle | undefined> {
+    return await safeQuery(async () => {
+      const [updatedVehicle] = await db
+        .update(vehicles)
+        .set({
+          ...updates,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)))
+        .returning();
+      return updatedVehicle || undefined;
+    });
+  }
+
+  async deleteVehicle(id: string, userId: string): Promise<void> {
+    await safeQuery(async () => {
+      await db
+        .delete(vehicles)
+        .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)));
+    });
   }
 }
 

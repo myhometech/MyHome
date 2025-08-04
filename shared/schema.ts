@@ -523,8 +523,14 @@ export type InsertVehicle = typeof vehicles.$inferInsert;
 
 export const insertVehicleSchema = createInsertSchema(vehicles, {
   vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
-  taxDueDate: z.string().optional().transform((str) => str ? new Date(str) : undefined),
-  motExpiryDate: z.string().optional().transform((str) => str ? new Date(str) : undefined),
+  taxDueDate: z.union([z.string(), z.date()]).optional().transform((val) => {
+    if (!val) return undefined;
+    return val instanceof Date ? val : new Date(val);
+  }),
+  motExpiryDate: z.union([z.string(), z.date()]).optional().transform((val) => {
+    if (!val) return undefined;
+    return val instanceof Date ? val : new Date(val);
+  }),
   yearOfManufacture: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional(),
   co2Emissions: z.number().int().min(0).optional(),
   engineCapacity: z.number().int().min(0).optional(),

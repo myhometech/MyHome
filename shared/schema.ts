@@ -534,35 +534,15 @@ export const createVehicleSchema = z.object({
 });
 
 // Full vehicle schema for manual creation and updates (existing functionality)
-export const insertVehicleSchema = createInsertSchema(vehicles, {
-  vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
-  taxDueDate: z.union([z.string(), z.date(), z.null()]).optional().transform((val) => {
-    if (!val || val === null) return null;
-    return val instanceof Date ? val : new Date(val);
-  }),
-  motExpiryDate: z.union([z.string(), z.date(), z.null()]).optional().transform((val) => {
-    if (!val || val === null) return null;
-    return val instanceof Date ? val : new Date(val);
-  }),
-  yearOfManufacture: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional().nullable(),
-  co2Emissions: z.number().int().min(0).optional().nullable(),
-  engineCapacity: z.number().int().min(0).optional().nullable(),
-  revenueWeight: z.number().int().min(0).optional().nullable(),
-  source: z.enum(["manual", "dvla", "import"]).default("manual"),
-  notes: z.string().optional().nullable(),
-  make: z.string().optional().nullable(),
-  model: z.string().optional().nullable(),
-  fuelType: z.string().optional().nullable(),
-  colour: z.string().optional().nullable(),
-  taxStatus: z.string().optional().nullable(),
-  motStatus: z.string().optional().nullable(),
-  euroStatus: z.string().optional().nullable(),
-}).omit({
+export const insertVehicleSchema = createInsertSchema(vehicles).omit({
   id: true,
   userId: true,
   createdAt: true,
   updatedAt: true,
   dvlaLastRefreshed: true,
+}).extend({
+  vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
+  source: z.enum(["manual", "dvla", "import"]).default("manual"),
 });
 
 // Schema for updating only user-editable fields (TICKET 3 requirement)

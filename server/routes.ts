@@ -3602,7 +3602,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ];
       }
 
+      // Debug logging for validation issues
+      console.log("[DEBUG] Vehicle data before validation:", JSON.stringify(vehicleData, null, 2));
+      
       // Validate the vehicle data before creating
+      try {
+        const validatedVehicleData = insertVehicleSchema.parse(vehicleData);
+        console.log("[DEBUG] Validation successful, validated data:", JSON.stringify(validatedVehicleData, null, 2));
+      } catch (validationError) {
+        console.error("[DEBUG] Validation failed:", JSON.stringify(validationError, null, 2));
+        throw validationError;
+      }
+      
       const validatedVehicleData = insertVehicleSchema.parse(vehicleData);
       
       // Create the vehicle

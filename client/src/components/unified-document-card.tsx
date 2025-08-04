@@ -158,7 +158,7 @@ export default function UnifiedDocumentCard({
   const category = categories?.find(c => c.id === document.categoryId);
 
   // Fetch insights for this document
-  const { data: insights = [], isLoading: insightsLoading } = useQuery<DocumentInsight[]>({
+  const { data: insightsData, isLoading: insightsLoading } = useQuery({
     queryKey: [`/api/documents/${document.id}/insights`],
     queryFn: async () => {
       const response = await fetch(`/api/documents/${document.id}/insights`, {
@@ -169,6 +169,9 @@ export default function UnifiedDocumentCard({
     },
     enabled: showInsights,
   });
+
+  // Extract insights array from the response object
+  const insights: DocumentInsight[] = insightsData?.insights || [];
 
   // Calculate insight summary - filter out unwanted types
   const openInsights = insights.filter(i => 
@@ -608,12 +611,17 @@ export default function UnifiedDocumentCard({
                                 size="sm"
                                 variant="outline"
                                 className="h-6 px-2 text-xs"
-                                onClick={() => updateInsightStatusMutation.mutate({
-                                  insightId: insight.id,
-                                  status: 'resolved'
-                                })}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  updateInsightStatusMutation.mutate({
+                                    insightId: insight.id,
+                                    status: 'resolved'
+                                  });
+                                }}
+                                disabled={updateInsightStatusMutation.isPending}
                               >
-                                Done
+                                {updateInsightStatusMutation.isPending ? 'Processing...' : 'Done'}
                               </Button>
                               <Button
                                 size="sm"

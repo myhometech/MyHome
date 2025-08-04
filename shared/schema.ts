@@ -524,13 +524,13 @@ export type InsertVehicle = typeof vehicles.$inferInsert;
 // TICKET 3: Vehicle creation schema with DVLA enrichment
 export const createVehicleSchema = z.object({
   vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
-  notes: z.string().optional(),
+  notes: z.string().optional().nullable(),
   // Allow manual fallback fields if DVLA lookup fails
-  make: z.string().optional(),
-  model: z.string().optional(),
-  yearOfManufacture: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional(),
-  fuelType: z.string().optional(),
-  colour: z.string().optional(),
+  make: z.string().optional().nullable(),
+  model: z.string().optional().nullable(),
+  yearOfManufacture: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional().nullable(),
+  fuelType: z.string().optional().nullable(),
+  colour: z.string().optional().nullable(),
 });
 
 // Full vehicle schema for manual creation and updates (existing functionality) 
@@ -550,7 +550,7 @@ export const insertVehicleSchema = z.object({
   engineCapacity: z.number().int().nullable().optional(),
   revenueWeight: z.number().int().nullable().optional(),
   source: z.enum(["manual", "dvla", "import"]).default("manual"),
-  notes: z.string().nullable().optional(),
+  notes: z.string().optional().nullable(),
 });
 
 // Schema for updating only user-editable fields (TICKET 3 requirement)

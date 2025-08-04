@@ -82,12 +82,24 @@ export default function DocumentCard({
   // Extract insights array from the response object
   const insights: DocumentInsight[] = insightsData?.insights || [];
   
+  // Debug logging for document 28
+  if (document.id === 28) {
+    console.log('[DEBUG] Document 28 insights:', insights);
+    console.log('[DEBUG] Document 28 insightsData:', insightsData);
+  }
+  
   // Calculate insight summary - filter out unwanted types
   const openInsights = insights.filter(i => 
     i.status === 'open' && 
     !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(i.type)
   );
   const criticalInsights = openInsights.filter(i => i.priority === 'high');
+  
+  // More debug logging for document 28
+  if (document.id === 28) {
+    console.log('[DEBUG] Document 28 openInsights:', openInsights);
+    console.log('[DEBUG] Document 28 criticalInsights:', criticalInsights);
+  }
 
   // Insight update mutation
   const updateInsightStatusMutation = useMutation({

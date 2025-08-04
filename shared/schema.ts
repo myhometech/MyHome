@@ -536,18 +536,18 @@ export const createVehicleSchema = z.object({
 // Full vehicle schema for manual creation and updates (existing functionality)
 export const insertVehicleSchema = createInsertSchema(vehicles, {
   vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
-  taxDueDate: z.union([z.string(), z.date()]).optional().transform((val) => {
-    if (!val) return undefined;
+  taxDueDate: z.union([z.string(), z.date(), z.null()]).optional().transform((val) => {
+    if (!val || val === null) return null;
     return val instanceof Date ? val : new Date(val);
   }),
-  motExpiryDate: z.union([z.string(), z.date()]).optional().transform((val) => {
-    if (!val) return undefined;
+  motExpiryDate: z.union([z.string(), z.date(), z.null()]).optional().transform((val) => {
+    if (!val || val === null) return null;
     return val instanceof Date ? val : new Date(val);
   }),
-  yearOfManufacture: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional(),
-  co2Emissions: z.number().int().min(0).optional(),
-  engineCapacity: z.number().int().min(0).optional(),
-  revenueWeight: z.number().int().min(0).optional(),
+  yearOfManufacture: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional().nullable(),
+  co2Emissions: z.number().int().min(0).optional().nullable(),
+  engineCapacity: z.number().int().min(0).optional().nullable(),
+  revenueWeight: z.number().int().min(0).optional().nullable(),
   source: z.enum(["manual", "dvla", "import"]).default("manual"),
   notes: z.string().optional().nullable(),
   make: z.string().optional().nullable(),

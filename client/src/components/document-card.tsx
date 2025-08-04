@@ -107,55 +107,73 @@ export default function DocumentCard({
     console.log('[DEBUG] Document 28 criticalInsights:', criticalInsights);
   }
 
-  // Insight update mutation
-  const updateInsightStatusMutation = useMutation({
-    mutationFn: async ({ insightId, status }: { insightId: string; status: 'open' | 'resolved' | 'dismissed' }) => {
-      console.log('[DEBUG] Starting insight status update:', { insightId, status, type: typeof insightId });
-      const url = `/api/insights/${insightId}/status`;
-      console.log('[DEBUG] API URL:', url);
-      
-      const response = await fetch(url, {
+  // Insight dismiss mutation - copied from working critical insights dashboard
+  const dismissInsightMutation = useMutation({
+    mutationFn: async (insightId: string) => {
+      console.log('[DEBUG] Dismissing insight:', insightId);
+      const response = await fetch(`/api/insights/${insightId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: 'dismissed' }),
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         credentials: 'include',
       });
       
-      console.log('[DEBUG] Response received:', { 
-        status: response.status, 
-        statusText: response.statusText,
-        ok: response.ok 
-      });
-      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[DEBUG] API Error Response:', errorText);
-        throw new Error(`Failed to update insight status: ${response.status} ${errorText}`);
+        console.error('[DEBUG] Failed to dismiss insight:', response.status, response.statusText);
+        throw new Error('Failed to dismiss insight');
       }
       
-      const result = await response.json();
-      console.log('[DEBUG] Successfully updated insight status, result:', result);
-      return result;
+      return response.json();
+    },
+    onMutate: async (insightId: string) => {
+      console.log('[DEBUG] Optimistically removing insight:', insightId);
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
+      
+      // Snapshot the previous value
+      const previousInsights = queryClient.getQueryData([`/api/documents/${document.id}/insights`]);
+      
+      // Optimistically update to the new value by removing the dismissed insight
+      queryClient.setQueryData([`/api/documents/${document.id}/insights`], (old: any) => {
+        if (!old?.insights) return old;
+        return {
+          ...old,
+          insights: old.insights.filter((insight: any) => insight.id !== insightId)
+        };
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousInsights };
     },
     onSuccess: () => {
-      console.log('[DEBUG] Insight status update successful, invalidating queries');
-      // Invalidate the specific document insights query
+      console.log('[DEBUG] Insight dismissed successfully');
+      // Invalidate and refetch insights queries to refresh the list immediately
       queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
       queryClient.refetchQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
-      // Also invalidate global insights queries
+      // Also invalidate the main insights query to keep all views synchronized
       queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      queryClient.refetchQueries({ queryKey: ['/api/insights'] });
       toast({
         title: "Insight dismissed",
         description: "The insight has been successfully dismissed.",
       });
     },
-    onError: (error) => {
+    onError: (error, insightId, context) => {
+      console.error('[DEBUG] Failed to dismiss insight:', error);
+      // If the mutation fails, use the context returned from onMutate to roll back
+      queryClient.setQueryData([`/api/documents/${document.id}/insights`], context?.previousInsights);
       toast({
-        title: "Update failed",
-        description: "Failed to update insight status. Please try again.",
+        title: "Failed to dismiss insight",
+        description: "Please try again later.",
         variant: "destructive",
       });
     },
+    onSettled: () => {
+      // Always refetch after error or success to sync with server
+      queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
+    }
   });
 
   const updateDocumentMutation = useMutation({
@@ -706,15 +724,12 @@ export default function DocumentCard({
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                console.log('[DEBUG] Dismiss button clicked for insight:', insight.id, 'type:', typeof insight.id);
-                                updateInsightStatusMutation.mutate({
-                                  insightId: String(insight.id), // Ensure it's a string
-                                  status: 'dismissed'
-                                });
+                                console.log('[DEBUG] Dismiss button clicked for insight:', insight.id);
+                                dismissInsightMutation.mutate(String(insight.id));
                               }}
-                              disabled={updateInsightStatusMutation.isPending}
+                              disabled={dismissInsightMutation.isPending}
                             >
-                              {updateInsightStatusMutation.isPending ? 'Dismissing...' : 'Dismiss'}
+                              {dismissInsightMutation.isPending ? 'Dismissing...' : 'Dismiss'}
                             </Button>
                           </div>
                         </div>

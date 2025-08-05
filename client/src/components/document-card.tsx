@@ -493,7 +493,6 @@ export default function DocumentCard({
     if (bulkMode && onToggleSelection) {
       onToggleSelection();
     } else if (!bulkMode && !isEditing) {
-
       setShowModal(true);
     }
   };

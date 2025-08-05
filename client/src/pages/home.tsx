@@ -612,9 +612,10 @@ export default function Home() {
                     variant={bulkMode ? "default" : "outline"}
                     size="sm"
                     onClick={toggleBulkMode}
+                    className={bulkMode ? "bg-blue-600 text-white" : "border-blue-500 text-blue-600 hover:bg-blue-50"}
                   >
                     {bulkMode ? <X className="h-4 w-4 mr-1" /> : <CheckSquare className="h-4 w-4 mr-1" />}
-                    {bulkMode ? "Cancel" : "Multi Select"}
+                    {bulkMode ? "Cancel Selection" : "Multi Select"}
                   </Button>
                 )}
                 <Button
@@ -668,7 +669,7 @@ export default function Home() {
                   {selectedDocuments.size > 0 && (
                     <div className="flex items-center gap-2">
                       {/* Move to Category */}
-                      <Select onValueChange={(value) => handleBulkMoveCategoryMutation({ documentIds: Array.from(selectedDocuments), categoryId: value === "uncategorized" ? null : parseInt(value) })}>
+                      <Select onValueChange={(value) => bulkMoveCategoryMutation.mutate({ documentIds: Array.from(selectedDocuments), categoryId: value === "uncategorized" ? null : parseInt(value) })}>
                         <SelectTrigger className="w-40">
                           <FolderOpen className="h-4 w-4 mr-2" />
                           <SelectValue placeholder="Move to..." />

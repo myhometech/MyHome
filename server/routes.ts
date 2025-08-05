@@ -1294,10 +1294,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           linkedDocumentIds: event.linkedDocumentIds
         }));
 
-      // Filter out unwanted insight types at API level
-      const filteredAIInsights = insights.filter(insight => 
-        !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
-      );
+      // Keep all AI insights for dashboard display
+      const filteredAIInsights = insights;
 
       // Combine AI insights and manual events
       const allInsights = [...filteredAIInsights, ...manualInsights];

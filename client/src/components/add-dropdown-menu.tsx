@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Upload, Calendar } from "lucide-react";
+import { Plus, Upload, Calendar, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import { ManualEventModal } from "@/components/manual-event-modal";
+import GeniusScanButton from "@/components/genius-scan-button";
 
 interface AddDropdownMenuProps {
   /** Optional context for prefilling modals (e.g., selected house/vehicle) */
@@ -108,9 +109,24 @@ export function AddDropdownMenu({
             <Upload className="h-4 w-4 mr-2" />
             <div className="flex flex-col">
               <span className="font-medium">Upload Document</span>
-              <span className="text-xs text-muted-foreground">PDF, images, scans</span>
+              <span className="text-xs text-muted-foreground">PDF, images, existing files</span>
             </div>
           </DropdownMenuItem>
+          
+          {/* Genius Scan Menu Item - No onClick needed as it's embedded */}
+          <div className="p-1">
+            <GeniusScanButton 
+              variant="ghost" 
+              size="sm"
+              className="w-full justify-start h-auto p-2 text-left focus:bg-accent focus:text-accent-foreground"
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              <div className="flex flex-col">
+                <span className="font-medium">Scan Document</span>
+                <span className="text-xs text-muted-foreground">Open Genius Scan app</span>
+              </div>
+            </GeniusScanButton>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -11,8 +11,8 @@ import { CloudUpload, Camera, Plus, X, Upload, Check } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { CameraScanner } from "./camera-scanner";
-import { AdvancedDocumentScanner } from "./advanced-document-scanner";
+// Import Genius Scan integration
+import GeniusScanButton from "./genius-scan-button";
 import { useFeatures } from "@/hooks/useFeatures";
 
 interface UnifiedUploadButtonProps {
@@ -24,8 +24,7 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const [showCameraScanner, setShowCameraScanner] = useState(false);
-  const [showAdvancedScanner, setShowAdvancedScanner] = useState(false);
+  // Removed camera scanner states - now using Genius Scan integration
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadData, setUploadData] = useState({
     categoryId: "",
@@ -265,12 +264,11 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
     }
   };
 
-  const handleCameraUpload = () => {
-    setShowCameraScanner(true);
-  };
-
-  const handleAdvancedUpload = () => {
-    setShowAdvancedScanner(true);
+  const handleScanDocuments = () => {
+    toast({
+      title: "Launching Genius Scan",
+      description: "Opening external scanning app...",
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -359,30 +357,15 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
           <div className="text-xs text-gray-400 mb-2">or</div>
           
           <div className="flex gap-2">
-            <Button 
+            <GeniusScanButton 
               variant="outline" 
               size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCameraUpload();
-              }}
               className="text-xs"
+              onScanInitiated={handleScanDocuments}
             >
               <Camera className="h-3 w-3 mr-1" />
-              Camera
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAdvancedUpload();
-              }}
-              className="text-xs"
-            >
-              <Upload className="h-3 w-3 mr-1" />
-              Scan
-            </Button>
+              Scan Document
+            </GeniusScanButton>
           </div>
         </CardContent>
       </Card>
@@ -597,29 +580,7 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
         </DialogContent>
       </Dialog>
 
-      {/* Camera Scanner */}
-      {showCameraScanner && (
-        <CameraScanner
-          isOpen={showCameraScanner}
-          onCapture={(file: File) => {
-            handleFileSelect([file]);
-            setShowCameraScanner(false);
-          }}
-          onClose={() => setShowCameraScanner(false)}
-        />
-      )}
-
-      {/* Advanced Scanner */}
-      {showAdvancedScanner && (
-        <AdvancedDocumentScanner
-          isOpen={showAdvancedScanner}
-          onCapture={(file: File) => {
-            handleFileSelect([file]);
-            setShowAdvancedScanner(false);
-          }}
-          onClose={() => setShowAdvancedScanner(false)}
-        />
-      )}
+      {/* Genius Scan integration handled by GeniusScanButton component */}
     </>
   );
 }

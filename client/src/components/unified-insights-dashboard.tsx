@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { InsightCard } from '@/components/insight-card';
 import { InsightsCalendar } from '@/components/insights-calendar';
 import { ManualEventCard, CompactManualEventCard } from '@/components/manual-event-card';
@@ -195,6 +196,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [selectedInsight, setSelectedInsight] = useState<DocumentInsight | null>(null);
 
   // Fetch user assets for linking manual events to assets
   const { data: userAssets = [] } = useQuery<UserAsset[]>({
@@ -250,6 +252,22 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   const handleCloseDocument = () => {
     setSelectedDocumentId(null);
     setSelectedDocument(null);
+  };
+
+  // Handle clicking on an insight card
+  const handleInsightClick = (insight: DocumentInsight) => {
+    if (insight.documentId) {
+      // Open document modal if insight has associated document
+      handleOpenDocument(insight.documentId);
+    } else {
+      // Show insight details modal for standalone insights
+      setSelectedInsight(insight);
+    }
+  };
+
+  // Handle closing insight modal
+  const handleCloseInsight = () => {
+    setSelectedInsight(null);
   };
 
   // Handle document download
@@ -509,7 +527,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             insight.priority === 'medium' ? 'border-l-yellow-500 bg-yellow-50' :
                             'border-l-green-500 bg-green-50'
                           }`}
-                          onClick={() => insight.documentId && handleOpenDocument(insight.documentId)}
+                          onClick={() => handleInsightClick(insight)}
                         >
                           <CardContent className="p-2">
                             <div className="flex items-start justify-between mb-1">
@@ -643,6 +661,73 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
           </CardContent>
         </Card>
       </div>
+
+      {/* Insight Details Modal */}
+      {selectedInsight && (
+        <Dialog open={!!selectedInsight} onOpenChange={handleCloseInsight}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {selectedInsight.type === 'summary' && <Brain className="h-4 w-4 text-blue-600" />}
+                {selectedInsight.type === 'contacts' && <Users className="h-4 w-4 text-green-600" />}
+                {selectedInsight.type === 'financial_info' && <DollarSign className="h-4 w-4 text-green-600" />}
+                {selectedInsight.type === 'compliance' && <Shield className="h-4 w-4 text-orange-600" />}
+                {selectedInsight.type === 'key_dates' && <Calendar className="h-4 w-4 text-purple-600" />}
+                {selectedInsight.type === 'action_items' && <CheckCircle className="h-4 w-4 text-blue-600" />}
+                {selectedInsight.type.startsWith('vehicle:') && <FileText className="h-4 w-4 text-red-600" />}
+                {selectedInsight.title}
+              </DialogTitle>
+              <DialogDescription>
+                <Badge variant={selectedInsight.priority === 'high' ? 'destructive' : selectedInsight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs mb-2">
+                  {selectedInsight.priority.toUpperCase()} PRIORITY
+                </Badge>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {selectedInsight.content}
+                </p>
+              </div>
+              {selectedInsight.dueDate && (
+                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm font-medium">Due Date</p>
+                    <p className="text-sm text-gray-600">
+                      {new Date(selectedInsight.dueDate).toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {selectedInsight.actionUrl && (
+                <div className="flex gap-2">
+                  <Button 
+                    className="flex-1" 
+                    onClick={() => window.open(selectedInsight.actionUrl, '_blank')}
+                  >
+                    Take Action
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      handleStatusUpdate(selectedInsight.id, 'resolved');
+                      handleCloseInsight();
+                    }}
+                  >
+                    Mark as Done
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Document Viewer Modal */}
       {selectedDocumentId && documentDetails && (

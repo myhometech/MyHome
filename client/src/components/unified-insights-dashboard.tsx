@@ -730,16 +730,20 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
       {/* Document Viewer Modal */}
       {selectedDocumentId && documentDetails && (
-        <EnhancedDocumentViewer
-          document={documentDetails}
-          category={categories.find((cat: any) => cat.id === documentDetails.categoryId)}
-          onClose={handleCloseDocument}
-          onDownload={handleDocumentDownload}
-          onUpdate={() => {
-            // Refetch data when document is updated
-            refetch();
-          }}
-        />
+        <Dialog open={true} onOpenChange={handleCloseDocument}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+            <EnhancedDocumentViewer
+              document={documentDetails}
+              category={categories.find((cat: any) => cat.id === documentDetails.categoryId)}
+              onClose={handleCloseDocument}
+              onDownload={handleDocumentDownload}
+              onUpdate={() => {
+                // Refetch data when document is updated
+                refetch();
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Loading modal for when document is being fetched */}

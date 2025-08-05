@@ -169,12 +169,21 @@ export class PDFConversionService {
 
       const page = await browser.newPage();
       
-      // Set content and wait for images to load
+      // Set content and wait for images to load with timeout
       await page.setContent(htmlContent, {
-        waitUntil: 'networkidle0'
+        waitUntil: 'networkidle0',
+        timeout: 30000
+      });
+      
+      // Wait for images to fully load
+      await page.waitForFunction(() => {
+        const images = Array.from(document.images);
+        return images.every(img => img.complete);
+      }, { timeout: 10000 }).catch(() => {
+        console.log('Image loading timeout, proceeding with PDF generation');
       });
 
-      // Generate PDF with A4 settings
+      // Generate PDF with A4 settings and proper compatibility
       await page.pdf({
         path: outputPath,
         format: 'A4',
@@ -185,7 +194,13 @@ export class PDFConversionService {
           left: '10mm'
         },
         printBackground: true,
-        preferCSSPageSize: true
+        preferCSSPageSize: false, // Use format setting instead
+        tagged: false, // Disable tagged PDF for better compatibility
+        displayHeaderFooter: false,
+        omitBackground: false,
+        timeout: 30000, // 30 second timeout
+        width: '210mm', // A4 width
+        height: '297mm' // A4 height
       });
 
     } finally {
@@ -227,6 +242,22 @@ export class PDFConversionService {
   isImageFile(filePath: string): boolean {
     const ext = path.extname(filePath).toLowerCase();
     return ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+  }
+
+  /**
+   * Clean up temporary files
+   */
+  cleanup(filePaths: string[]): void {
+    filePaths.forEach(filePath => {
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`Cleaned up temporary file: ${filePath}`);
+        }
+      } catch (error) {
+        console.warn(`Failed to cleanup file ${filePath}:`, error);
+      }
+    });
   }
 
   /**

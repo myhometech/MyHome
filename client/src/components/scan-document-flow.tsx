@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { Camera, X, RotateCcw, Check, Plus, Trash2, Download, Wand2, Settings } from "lucide-react";
+import { Camera, X, RotateCcw, Check, Plus, Trash2, Download, Wand2, Settings, ChevronLeft, ChevronRight, GripVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +42,9 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     correctPerspective: true,
     cropMargin: 20
   });
+  const [selectedPageIndex, setSelectedPageIndex] = useState<number | null>(null);
+  const [draggedPage, setDraggedPage] = useState<string | null>(null);
+  const [showPagePreview, setShowPagePreview] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -249,12 +252,63 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     }
   }, [capturedPages, processingOptions, toast]);
 
+  // Reorder pages via drag and drop
+  const reorderPages = useCallback((startIndex: number, endIndex: number) => {
+    setCapturedPages(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+  }, []);
+
+  // Handle drag start
+  const handleDragStart = useCallback((pageId: string, index: number) => {
+    setDraggedPage(pageId);
+    setSelectedPageIndex(index);
+  }, []);
+
+  // Handle drag over
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  // Handle drop
+  const handleDrop = useCallback((e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedPage && selectedPageIndex !== null) {
+      reorderPages(selectedPageIndex, targetIndex);
+      setDraggedPage(null);
+      setSelectedPageIndex(null);
+    }
+  }, [draggedPage, selectedPageIndex, reorderPages]);
+
+  // Navigate to specific page
+  const navigateToPage = useCallback((direction: 'prev' | 'next') => {
+    if (selectedPageIndex === null) return;
+    
+    if (direction === 'prev' && selectedPageIndex > 0) {
+      setSelectedPageIndex(selectedPageIndex - 1);
+    } else if (direction === 'next' && selectedPageIndex < capturedPages.length - 1) {
+      setSelectedPageIndex(selectedPageIndex + 1);
+    }
+  }, [selectedPageIndex, capturedPages.length]);
+
   // Convert captured pages to files and finish
   const finishScanning = useCallback(async () => {
     if (capturedPages.length === 0) {
       toast({
         title: "No Pages Captured",
         description: "Please capture at least one page before finishing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (capturedPages.length > 20) {
+      toast({
+        title: "Too Many Pages",
+        description: "Maximum 20 pages allowed. Please remove some pages.",
         variant: "destructive",
       });
       return;
@@ -305,6 +359,8 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       stopCamera();
       setCapturedPages([]);
       setError(null);
+      setSelectedPageIndex(null);
+      setShowPagePreview(false);
     }
   }, [isOpen, stopCamera]);
 
@@ -340,9 +396,20 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
             <Camera className="h-5 w-5" />
             Document Scanner
             {capturedPages.length > 0 && (
-              <Badge variant="secondary">{capturedPages.length} page{capturedPages.length > 1 ? 's' : ''}</Badge>
+              <Badge variant="secondary" className={capturedPages.length > 20 ? "bg-red-100 text-red-800" : ""}>
+                {capturedPages.length}/20 page{capturedPages.length > 1 ? 's' : ''}
+              </Badge>
             )}
             <div className="ml-auto flex gap-2">
+              {capturedPages.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPagePreview(!showPagePreview)}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -468,10 +535,82 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
           
           {/* Captured Pages Section */}
           <div className="w-full lg:w-80 flex flex-col">
+            {/* Horizontal Page Preview Bar */}
+            {capturedPages.length > 1 && !showPagePreview && (
+              <div className="mb-4 p-2 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-gray-600">Quick Preview:</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPagePreview(true)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    View All
+                  </Button>
+                </div>
+                <div className="flex gap-1 overflow-x-auto pb-1">
+                  {capturedPages.slice(0, 5).map((page, index) => (
+                    <div
+                      key={page.id}
+                      className={`relative flex-shrink-0 cursor-pointer border-2 rounded ${
+                        selectedPageIndex === index ? 'border-blue-500' : 'border-gray-200'
+                      }`}
+                      onClick={() => setSelectedPageIndex(index)}
+                    >
+                      <img
+                        src={page.imageData}
+                        alt={`Page ${index + 1}`}
+                        className="w-12 h-16 object-cover rounded"
+                      />
+                      <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                        {index + 1}
+                      </div>
+                    </div>
+                  ))}
+                  {capturedPages.length > 5 && (
+                    <div className="flex-shrink-0 w-12 h-16 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-600">
+                      +{capturedPages.length - 5}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium">Captured Pages</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium">Captured Pages</h3>
+                {showPagePreview && capturedPages.length > 1 && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigateToPage('prev')}
+                      disabled={selectedPageIndex === null || selectedPageIndex === 0}
+                      className="h-6 px-1"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                    </Button>
+                    <span className="text-xs text-gray-500">
+                      {selectedPageIndex !== null ? selectedPageIndex + 1 : 1} / {capturedPages.length}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigateToPage('next')}
+                      disabled={selectedPageIndex === null || selectedPageIndex === capturedPages.length - 1}
+                      className="h-6 px-1"
+                    >
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
               {capturedPages.length > 0 && (
-                <Button onClick={finishScanning} disabled={isProcessing}>
+                <Button 
+                  onClick={finishScanning} 
+                  disabled={isProcessing || capturedPages.length > 20}
+                  variant={capturedPages.length > 20 ? "destructive" : "default"}
+                >
                   <Check className="h-4 w-4 mr-2" />
                   {isProcessing ? 'Processing...' : 'Finish'}
                 </Button>
@@ -486,17 +625,111 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                   <p className="text-xs">Use the camera to capture document pages</p>
                 </div>
               </div>
+            ) : showPagePreview && selectedPageIndex !== null ? (
+              /* Full Page Preview Mode */
+              <div className="flex-1 flex flex-col">
+                <div className="relative bg-black rounded-lg overflow-hidden flex-1 flex items-center justify-center mb-4">
+                  <img
+                    src={capturedPages[selectedPageIndex]?.imageData}
+                    alt={`Page ${selectedPageIndex + 1}`}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                  
+                  {/* Navigation overlays */}
+                  {selectedPageIndex > 0 && (
+                    <button
+                      onClick={() => navigateToPage('prev')}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 text-white rounded-full p-2 hover:bg-black/70"
+                    >
+                      <ChevronLeft className="h-6 w-6" />
+                    </button>
+                  )}
+                  {selectedPageIndex < capturedPages.length - 1 && (
+                    <button
+                      onClick={() => navigateToPage('next')}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 text-white rounded-full p-2 hover:bg-black/70"
+                    >
+                      <ChevronRight className="h-6 w-6" />
+                    </button>
+                  )}
+                  
+                  {/* Page info overlay */}
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded text-sm">
+                    Page {selectedPageIndex + 1} of {capturedPages.length}
+                    {capturedPages[selectedPageIndex]?.confidence && (
+                      <span className="ml-2">({Math.round(capturedPages[selectedPageIndex].confidence! * 100)}% confidence)</span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Page controls */}
+                <div className="flex justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowPagePreview(false)}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Close Preview
+                  </Button>
+                  
+                  {capturedPages[selectedPageIndex]?.processedImageData && capturedPages[selectedPageIndex]?.originalImageData && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => toggleProcessing(capturedPages[selectedPageIndex].id)}
+                      title="Toggle between original and enhanced"
+                    >
+                      <Wand2 className="h-3 w-3 mr-1" />
+                      Toggle Enhancement
+                    </Button>
+                  )}
+                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      removePage(capturedPages[selectedPageIndex].id);
+                      if (selectedPageIndex >= capturedPages.length - 1) {
+                        setSelectedPageIndex(Math.max(0, capturedPages.length - 2));
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Delete Page
+                  </Button>
+                </div>
+              </div>
             ) : (
+              /* List View Mode */
               <div className="flex-1 overflow-y-auto space-y-3">
                 {capturedPages.map((page, index) => (
-                  <Card key={page.id} className="relative">
+                  <Card 
+                    key={page.id} 
+                    className={`relative cursor-pointer transition-all ${
+                      selectedPageIndex === index ? 'ring-2 ring-blue-500' : ''
+                    } ${draggedPage === page.id ? 'opacity-50' : ''}`}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = 'move';
+                      handleDragStart(page.id, index);
+                    }}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, index)}
+                    onClick={() => setSelectedPageIndex(index)}
+                  >
                     <CardContent className="p-3">
                       <div className="flex items-center gap-3">
+                        {/* Drag handle */}
+                        <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
+                          <GripVertical className="h-4 w-4" />
+                        </div>
+                        
                         <div className="relative">
                           <img
                             src={page.imageData}
                             alt={`Page ${index + 1}`}
-                            className="w-16 h-16 object-cover rounded border"
+                            className="w-16 h-20 object-cover rounded border"
                           />
                           {page.isProcessing && (
                             <div className="absolute inset-0 bg-black/50 rounded flex items-center justify-center">
@@ -508,7 +741,13 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                               {Math.round(page.confidence * 100)}%
                             </div>
                           )}
+                          
+                          {/* Page number overlay */}
+                          <div className="absolute -top-2 -left-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            {index + 1}
+                          </div>
                         </div>
+                        
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-sm">Page {index + 1}</p>
@@ -523,32 +762,57 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                             {page.processingTime && ` • ${Math.round(page.processingTime)}ms`}
                           </p>
                         </div>
+                        
                         <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPageIndex(index);
+                              setShowPagePreview(true);
+                            }}
+                            title="Preview page"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          
                           {page.processedImageData && page.originalImageData && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => toggleProcessing(page.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleProcessing(page.id);
+                              }}
                               title="Toggle between original and enhanced"
                             >
                               <Wand2 className="h-3 w-3" />
                             </Button>
                           )}
+                          
                           {page.originalImageData && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => reprocessPage(page.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                reprocessPage(page.id);
+                              }}
                               disabled={page.isProcessing}
                               title="Reprocess with current settings"
                             >
                               <RotateCcw className="h-3 w-3" />
                             </Button>
                           )}
+                          
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => removePage(page.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removePage(page.id);
+                            }}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -561,11 +825,23 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
             )}
             
             {/* Add More Pages Button */}
-            {capturedPages.length > 0 && !isScanning && (
-              <Button onClick={initializeCamera} variant="outline" className="mt-3">
+            {capturedPages.length > 0 && !isScanning && !showPagePreview && (
+              <Button 
+                onClick={initializeCamera} 
+                variant="outline" 
+                className="mt-3"
+                disabled={capturedPages.length >= 20}
+              >
                 <Plus className="h-4 w-4 mr-2" />
-                Add More Pages
+                {capturedPages.length >= 20 ? 'Maximum Pages Reached' : 'Add More Pages'}
               </Button>
+            )}
+            
+            {/* Page count warning */}
+            {capturedPages.length > 15 && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                ⚠️ Approaching maximum of 20 pages ({capturedPages.length}/20)
+              </div>
             )}
           </div>
         </div>

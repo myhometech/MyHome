@@ -507,8 +507,8 @@ export default function DocumentCard({
         className={`border transition-all duration-200 cursor-pointer ${
           bulkMode 
             ? isSelected 
-              ? "ring-2 ring-blue-500 bg-blue-50 border-blue-300 shadow-md" 
-              : "border-gray-300 hover:border-blue-400 hover:shadow-sm bg-gray-50"
+              ? "ring-2 ring-blue-500 bg-blue-50 border-blue-400 shadow-lg scale-[1.02]" 
+              : "border-gray-300 hover:border-blue-400 hover:shadow-sm bg-white hover:bg-blue-50"
             : "border-gray-200 hover:shadow-md"
         }`}
         onClick={handleCardClick}

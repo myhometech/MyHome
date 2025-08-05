@@ -623,31 +623,34 @@ export default function Home() {
                     size="sm"
                     onClick={toggleBulkMode}
                     className={bulkMode 
-                      ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700" 
-                      : "border-2 border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 font-medium"
+                      ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md" 
+                      : "border-2 border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 font-medium shadow-sm"
                     }
                   >
                     {bulkMode ? <X className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
-                    {bulkMode ? "Cancel Multi-Select" : "Multi-Select Documents"}
+                    <span className="hidden sm:inline">{bulkMode ? "Cancel Multi-Select" : "Multi-Select"}</span>
+                    <span className="sm:hidden">{bulkMode ? "Cancel" : "Select"}</span>
                   </Button>
                 )}
-                <Button
-                  variant={viewMode === "grid" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <SortAsc className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center space-x-1">
+                  <Button
+                    variant={viewMode === "grid" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setViewMode("grid")}
+                  >
+                    <Grid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <SortAsc className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 

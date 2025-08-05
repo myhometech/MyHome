@@ -297,9 +297,34 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   return (
     <div className="space-y-6">
       {/* High-Level Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* All Items */}
+        <Card 
+          className={`border-l-4 border-l-blue-500 bg-blue-50/50 cursor-pointer hover:bg-blue-50 transition-colors ${
+            priorityFilter === 'all' ? 'ring-2 ring-blue-500' : ''
+          }`}
+          onClick={() => setPriorityFilter('all')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-700">All Items</p>
+                <p className="text-2xl font-bold text-blue-900">
+                  {insights.filter(i => i.status !== 'resolved').length}
+                </p>
+                <p className="text-xs text-blue-600">Total active</p>
+              </div>
+              <Brain className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
         {/* High Priority Items */}
-        <Card className="border-l-4 border-l-red-500 bg-red-50/50">
+        <Card 
+          className={`border-l-4 border-l-red-500 bg-red-50/50 cursor-pointer hover:bg-red-50 transition-colors ${
+            priorityFilter === 'high' ? 'ring-2 ring-red-500' : ''
+          }`}
+          onClick={() => setPriorityFilter('high')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -315,7 +340,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         </Card>
 
         {/* Medium Priority Items */}
-        <Card className="border-l-4 border-l-yellow-500 bg-yellow-50/50">
+        <Card 
+          className={`border-l-4 border-l-yellow-500 bg-yellow-50/50 cursor-pointer hover:bg-yellow-50 transition-colors ${
+            priorityFilter === 'medium' ? 'ring-2 ring-yellow-500' : ''
+          }`}
+          onClick={() => setPriorityFilter('medium')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -331,7 +361,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         </Card>
 
         {/* Low Priority Items */}
-        <Card className="border-l-4 border-l-green-500 bg-green-50/50">
+        <Card 
+          className={`border-l-4 border-l-green-500 bg-green-50/50 cursor-pointer hover:bg-green-50 transition-colors ${
+            priorityFilter === 'low' ? 'ring-2 ring-green-500' : ''
+          }`}
+          onClick={() => setPriorityFilter('low')}
+        >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>

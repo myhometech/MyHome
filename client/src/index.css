@@ -53,6 +53,46 @@
   padding-right: env(safe-area-inset-right);
 }
 
+/* iOS mobile button improvements - prevent overlapping touch targets */
+@media (max-width: 768px) {
+  /* Modal header button spacing on mobile */
+  .modal-header-close-btn {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 8px !important;
+    margin-left: 12px !important;
+  }
+  
+  /* Download button in preview header */
+  .preview-download-btn {
+    min-width: 88px !important;
+    min-height: 36px !important;
+    padding: 8px 12px !important;
+    margin-right: 8px !important;
+  }
+  
+  /* Ensure proper spacing between modal elements */
+  .modal-header-title {
+    padding-right: 16px !important;
+    margin-right: 8px !important;
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .modal-header-close-btn {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  .preview-download-btn {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
 /* Enhanced insights scrolling container */
 .insights-scroll-container {
   -webkit-overflow-scrolling: touch;

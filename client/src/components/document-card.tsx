@@ -720,12 +720,12 @@ export default function DocumentCard({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold truncate">{document.name}</h2>
+              <h2 className="text-lg font-semibold truncate modal-header-title">{document.name}</h2>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setShowModal(false)}
-                className="flex-shrink-0"
+                className="flex-shrink-0 modal-header-close-btn"
               >
                 <X className="h-4 w-4" />
               </Button>

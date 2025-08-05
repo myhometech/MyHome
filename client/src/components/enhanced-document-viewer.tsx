@@ -246,7 +246,12 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
               <span className="font-medium text-sm truncate">Preview</span>
             </div>
             <div className="flex items-center gap-1">
-              <Button onClick={onDownload} variant="outline" size="sm" className="text-xs px-2">
+              <Button 
+                onClick={onDownload} 
+                variant="outline" 
+                size="sm" 
+                className="text-xs preview-download-btn"
+              >
                 <Download className="w-3 h-3 mr-1" />
                 <span className="hidden sm:inline">Download</span>
               </Button>

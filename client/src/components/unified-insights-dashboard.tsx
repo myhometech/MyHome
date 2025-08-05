@@ -209,15 +209,26 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   });
 
   // Fetch document details when selectedDocumentId changes
-  const { data: documentDetails } = useQuery({
+  const { data: documentDetails, isLoading: documentLoading } = useQuery({
     queryKey: ['/api/documents', selectedDocumentId],
     queryFn: async () => {
       if (!selectedDocumentId) return null;
+      console.log('Fetching document details for documentId:', selectedDocumentId);
       const response = await fetch(`/api/documents/${selectedDocumentId}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch document details');
-      return response.json();
+      const data = await response.json();
+      console.log('Document details fetched:', data);
+      return data;
     },
     enabled: !!selectedDocumentId,
+  });
+
+  // Debug the document viewer modal condition
+  console.log('Modal condition check:', {
+    selectedDocumentId,
+    documentDetails: !!documentDetails,
+    documentLoading,
+    shouldShowModal: !!(selectedDocumentId && documentDetails)
   });
 
   // Fetch categories for the document viewer

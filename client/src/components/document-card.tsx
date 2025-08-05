@@ -69,7 +69,7 @@ export default function DocumentCard({
 
   // Fetch insights for this document - always log query attempts
 
-  
+
   const { data: insightsData, isLoading: insightsLoading, error: insightsError } = useQuery({
     queryKey: [`/api/documents/${document.id}/insights`],
     queryFn: async () => {
@@ -86,17 +86,17 @@ export default function DocumentCard({
 
   // Extract insights array from the response object
   const insights: DocumentInsight[] = insightsData?.insights || [];
-  
+
   // Debug logging for all documents now
 
-  
+
   // Calculate insight summary - filter out unwanted types
   const openInsights = insights.filter(i => 
     i.status === 'open' && 
     !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(i.type)
   );
   const criticalInsights = openInsights.filter(i => i.priority === 'high');
-  
+
   // More debug logging for document 28
   if (document.id === 28) {
 
@@ -114,22 +114,22 @@ export default function DocumentCard({
         },
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         console.error('[DEBUG] Failed to dismiss insight:', response.status, response.statusText);
         throw new Error('Failed to dismiss insight');
       }
-      
+
       return response.json();
     },
     onMutate: async (insightId: string) => {
 
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
-      
+
       // Snapshot the previous value
       const previousInsights = queryClient.getQueryData([`/api/documents/${document.id}/insights`]);
-      
+
       // Optimistically update to the new value by removing the dismissed insight
       queryClient.setQueryData([`/api/documents/${document.id}/insights`], (old: any) => {
         if (!old?.insights) return old;
@@ -138,7 +138,7 @@ export default function DocumentCard({
           insights: old.insights.filter((insight: any) => insight.id !== insightId)
         };
       });
-      
+
       // Return a context object with the snapshotted value
       return { previousInsights };
     },
@@ -221,7 +221,7 @@ export default function DocumentCard({
   const handleSaveEdit = () => {
     const hasNameChange = editName.trim() !== document.name;
     const hasExpiryChange = editImportantDate !== (document.expiryDate || "");
-    
+
     if (hasNameChange || hasExpiryChange) {
       updateDocumentMutation.mutate({ 
         id: document.id, 
@@ -357,7 +357,7 @@ export default function DocumentCard({
     // Enhanced confirmation dialog with details
     const documentName = document.name.length > 30 ? document.name.substring(0, 30) + '...' : document.name;
     const confirmMessage = `Are you sure you want to delete "${documentName}"?\n\nThis action cannot be undone. The document will be permanently removed from your account.`;
-    
+
     if (confirm(confirmMessage)) {
       deleteMutation.mutate(document.id);
     }
@@ -436,7 +436,7 @@ export default function DocumentCard({
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -503,7 +503,7 @@ export default function DocumentCard({
   return (
     <>
 
-      
+
       <Card 
         className={`border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${
           bulkMode && isSelected ? "ring-2 ring-blue-500 bg-blue-50" : ""
@@ -524,7 +524,7 @@ export default function DocumentCard({
                 </div>
               </div>
             )}
-            
+
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getFileIconColor()}`}>
               {getFileIcon()}
             </div>
@@ -572,7 +572,7 @@ export default function DocumentCard({
               </DropdownMenu>
             )}
           </div>
-          
+
           <div onClick={isEditing ? undefined : () => setShowModal(true)}>
             {isEditing ? (
               <div className="mb-2 space-y-2">
@@ -614,7 +614,7 @@ export default function DocumentCard({
               <span>{formatFileSize(document.fileSize)}</span>
               <span>{formatDate(document.uploadedAt)}</span>
             </div>
-            
+
             {supportsOCR() && document.ocrProcessed && (
               <div className="mb-2">
                 <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
@@ -622,7 +622,7 @@ export default function DocumentCard({
                 </Badge>
               </div>
             )}
-            
+
             {/* Important Date Display */}
             {document.expiryDate && (
               <div className="mb-2">
@@ -631,7 +631,7 @@ export default function DocumentCard({
             )}
 
 
-            
+
             {/* AI Insights Section */}
             {openInsights.length > 0 && (
               <div className="mt-3 border-t pt-3 space-y-2">
@@ -704,7 +704,7 @@ export default function DocumentCard({
                 </Collapsible>
               </div>
             )}
-            
+
 
           </div>
         </CardContent>
@@ -753,7 +753,7 @@ function ExpiryBadge({ expiryDate }: { expiryDate: string }) {
     const expiry = new Date(expiryDate);
     const diffTime = expiry.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
       return {
         text: `Expired ${Math.abs(diffDays)} days ago`,
@@ -786,9 +786,9 @@ function ExpiryBadge({ expiryDate }: { expiryDate: string }) {
       };
     }
   };
-  
+
   const status = getExpiryStatus(expiryDate);
-  
+
   return (
     <Badge variant={status.variant} className="text-xs flex items-center gap-1">
       {status.icon}

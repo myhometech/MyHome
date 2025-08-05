@@ -607,14 +607,16 @@ export default function Home() {
                 />
               </div>
               <div className="flex items-center space-x-2">
-                <Button
-                  variant={bulkMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={toggleBulkMode}
-                >
-                  {bulkMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
-                  {bulkMode ? "Cancel" : "Select"}
-                </Button>
+                {documents.length > 0 && (
+                  <Button
+                    variant={bulkMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={toggleBulkMode}
+                  >
+                    {bulkMode ? <X className="h-4 w-4 mr-1" /> : <CheckSquare className="h-4 w-4 mr-1" />}
+                    {bulkMode ? "Cancel" : "Multi Select"}
+                  </Button>
+                )}
                 <Button
                   variant={viewMode === "grid" ? "default" : "outline"}
                   size="sm"

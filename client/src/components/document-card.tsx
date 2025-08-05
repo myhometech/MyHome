@@ -630,23 +630,16 @@ export default function DocumentCard({
               </div>
             )}
 
-            {/* FORCED VISIBLE DEBUG SECTION */}
-            <div className="mt-3 p-4 bg-red-500 text-white font-bold">
-              🚨 THIS SHOULD ALWAYS BE VISIBLE ON HOMEPAGE - DOC {document.id}
-              <div>Open Insights: {openInsights.length}</div>
-              <button onClick={() => console.log('HOMEPAGE BUTTON CLICKED FOR DOC:', document.id)}>
-                HOMEPAGE TEST BUTTON
-              </button>
-            </div>
+
             
-            {/* AI Insights Section - Force show insights for debugging */}
-            {true && (
-              <div className="mt-3 border-t pt-3 space-y-2" style={{ backgroundColor: document.id === 28 ? '#f0f9ff' : 'transparent' }}>
+            {/* AI Insights Section */}
+            {openInsights.length > 0 && (
+              <div className="mt-3 border-t pt-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Brain className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-gray-700">
-                      AI Insights {document.id === 28 ? `(${openInsights.length} found)` : ''}
+                      AI Insights
                     </span>
                     {criticalInsights.length > 0 && (
                       <Badge variant="destructive" className="text-xs h-5">
@@ -676,7 +669,7 @@ export default function DocumentCard({
                     {openInsights.slice(0, 3).map((insight) => (
                       <div
                         key={insight.id}
-                        className="p-3 bg-blue-50 border-2 border-blue-300 rounded-lg mb-2"
+                        className="p-3 bg-blue-50 border border-blue-200 rounded-lg mb-2"
                       >
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex-1">
@@ -690,14 +683,14 @@ export default function DocumentCard({
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              console.log('🔥 DISMISS CLICKED for insight:', insight.id, 'type:', insight.type);
+
                               dismissInsightMutation.mutate(String(insight.id));
                             }}
-                            className="px-4 py-2 bg-red-500 text-white font-bold rounded hover:bg-red-600 border-2 border-red-700"
+                            className="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded hover:bg-gray-200 border border-gray-300"
                             disabled={dismissInsightMutation.isPending}
-                            style={{ minWidth: '80px', minHeight: '36px' }}
+                            style={{ minWidth: '60px', minHeight: '24px' }}
                           >
-                            {dismissInsightMutation.isPending ? 'DISMISSING...' : 'DISMISS'}
+                            {dismissInsightMutation.isPending ? 'Dismissing...' : 'Dismiss'}
                           </button>
                         </div>
                       </div>
@@ -721,7 +714,7 @@ export default function DocumentCard({
         <EnhancedDocumentViewer
           document={document}
           onClose={() => {
-            console.log('Closing document viewer for document:', document.id);
+
             setShowModal(false);
           }}
           onUpdate={onUpdate}

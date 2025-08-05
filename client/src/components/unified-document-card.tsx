@@ -274,6 +274,8 @@ export default function UnifiedDocumentCard({
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to delete document");
+      // DELETE responses often return 204 (no content), so don't try to parse JSON if empty
+      if (response.status === 204) return null;
       return response.json();
     },
     onSuccess: () => {
@@ -701,6 +703,7 @@ export default function UnifiedDocumentCard({
           document={document}
           onClose={() => setShowModal(false)}
           onUpdate={onUpdate}
+          onDownload={handleDownload}
         />
       )}
 

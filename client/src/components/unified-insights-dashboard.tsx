@@ -213,26 +213,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     queryKey: ['/api/documents', selectedDocumentId],
     queryFn: async () => {
       if (!selectedDocumentId) return null;
-      console.log('Fetching document details for documentId:', selectedDocumentId);
       const response = await fetch(`/api/documents/${selectedDocumentId}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch document details');
-      const data = await response.json();
-      console.log('Document details fetched:', data);
-      return data;
+      return response.json();
     },
     enabled: !!selectedDocumentId,
   });
-
-  // Debug the document viewer modal condition
-  console.log('Modal condition check:', {
-    selectedDocumentId,
-    documentDetails: !!documentDetails,
-    documentLoading,
-    shouldShowModal: !!(selectedDocumentId && documentDetails)
-  });
-
-  // Force modal to show if we have selectedDocumentId and document is loading or loaded
-  const shouldShowDocumentModal = selectedDocumentId && (documentDetails || documentLoading);
 
   // Fetch categories for the document viewer
   const { data: categories = [] } = useQuery({
@@ -259,14 +245,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle opening document viewer
   const handleOpenDocument = (documentId: number) => {
-    console.log('handleOpenDocument called with documentId:', documentId);
     setSelectedDocumentId(documentId);
-    console.log('selectedDocumentId state updated to:', documentId);
-    
-    // Force document to be set if not already available
-    if (!documentDetails) {
-      console.log('Document details not available, forcing fetch...');
-    }
   };
 
   // Handle closing document viewer
@@ -277,16 +256,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle clicking on an insight card
   const handleInsightClick = (insight: DocumentInsight) => {
-    console.log('Insight clicked:', insight);
-    console.log('Has documentId:', insight.documentId);
-    
     if (insight.documentId) {
       // Open document modal if insight has associated document
-      console.log('Opening document viewer for documentId:', insight.documentId);
       handleOpenDocument(insight.documentId);
     } else {
       // Show insight details modal for standalone insights
-      console.log('Opening insight details modal');
       setSelectedInsight(insight);
     }
   };
@@ -755,8 +729,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         </Dialog>
       )}
 
-      {/* Document Viewer Modal - Temporary test mode */}
-      {selectedDocumentId && (
+      {/* Document Viewer Modal */}
+      {selectedDocumentId && documentDetails && (
         <EnhancedDocumentViewer
           document={documentDetails}
           category={categories.find((cat: any) => cat.id === documentDetails.categoryId)}
@@ -767,6 +741,21 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
             refetch();
           }}
         />
+      )}
+
+      {/* Loading modal for when document is being fetched */}
+      {selectedDocumentId && documentLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleCloseDocument}>
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p className="text-gray-600 mb-4">Loading document...</p>
+              <Button variant="outline" onClick={handleCloseDocument}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

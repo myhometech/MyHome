@@ -1306,6 +1306,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateInsightStatus(insightId: string, userId: string, status: 'open' | 'dismissed' | 'resolved'): Promise<DocumentInsight | undefined> {
+    console.log(`[STORAGE DEBUG] Updating insight ${insightId} for user ${userId} to status: ${status}`);
+    
+    // First check if the insight exists
+    const existingInsight = await db
+      .select()
+      .from(documentInsights)
+      .where(
+        and(
+          eq(documentInsights.id, insightId),
+          eq(documentInsights.userId, userId)
+        )
+      )
+      .limit(1);
+    
+    console.log(`[STORAGE DEBUG] Found insight:`, existingInsight[0] ? { id: existingInsight[0].id, currentStatus: existingInsight[0].status } : 'Not found');
+    
+    if (!existingInsight[0]) {
+      console.log(`[STORAGE DEBUG] Insight ${insightId} not found for user ${userId}`);
+      return undefined;
+    }
+    
     const [updatedInsight] = await db
       .update(documentInsights)
       .set({ 
@@ -1320,6 +1341,7 @@ export class DatabaseStorage implements IStorage {
       )
       .returning();
     
+    console.log(`[STORAGE DEBUG] Updated insight:`, updatedInsight ? { id: updatedInsight.id, newStatus: updatedInsight.status } : 'Update failed');
     return updatedInsight;
   }
 

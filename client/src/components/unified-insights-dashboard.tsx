@@ -262,7 +262,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Handle status updates
   const handleStatusUpdate = async (insightId: string, status: 'open' | 'dismissed' | 'resolved') => {
     try {
-      console.log(`Updating insight ${insightId} to status: ${status}`);
+      console.log(`[DEBUG] Current insights before update:`, insights.map(i => ({ id: i.id, title: i.title, status: i.status })));
+      console.log(`[DEBUG] Updating insight ${insightId} to status: ${status}`);
       
       const response = await fetch(`/api/insights/${insightId}`, {
         method: 'PATCH',
@@ -273,14 +274,18 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update insight status');
+        const errorText = await response.text();
+        throw new Error(`Failed to update insight status: ${errorText}`);
       }
 
-      console.log(`Successfully updated insight ${insightId} to status: ${status}`);
+      const updatedInsight = await response.json();
+      console.log(`[DEBUG] Successfully updated insight:`, updatedInsight);
       
       // Invalidate and refetch insights
       await queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
       await refetch();
+      
+      console.log(`[DEBUG] Insights after refetch:`, insightsData?.insights?.map(i => ({ id: i.id, title: i.title, status: i.status })));
     } catch (error) {
       console.error('Error updating insight status:', error);
     }
@@ -536,21 +541,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      console.log(`[DEBUG] Clicked insight:`, { id: insight.id, title: insight.title, type: typeof insight.id });
                                       handleStatusUpdate(insight.id, 'resolved');
                                     }}
                                   >
                                     <CheckCircle className="h-3 w-3 mr-2" />
                                     Mark as Done
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteInsight(insight.id);
-                                    }}
-                                    className="text-red-600 focus:text-red-600"
-                                  >
-                                    <Trash2 className="h-3 w-3 mr-2" />
-                                    Delete
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>

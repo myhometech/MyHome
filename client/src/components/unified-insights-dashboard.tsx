@@ -37,6 +37,7 @@ import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
 
 import { useFeatures } from '@/hooks/useFeatures';
 import type { DocumentInsight } from '@shared/schema';
+import { queryClient } from '@/lib/queryClient';
 
 // Manual Event interface for TypeScript
 interface ManualEvent {
@@ -229,11 +230,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   const insights = insightsData?.insights || [];
 
-  // Filter insights based on selected filters
+  // Filter insights based on selected filters and exclude resolved/deleted insights
   const filteredInsights = insights.filter(insight => {
     const matchesPriority = priorityFilter === 'all' || insight.priority === priorityFilter;
     const matchesType = typeFilter === 'all' || insight.type === typeFilter;
-    return matchesPriority && matchesType;
+    const isActive = insight.status !== 'resolved'; // Only show active insights
+    return matchesPriority && matchesType && isActive;
   });
 
   // Get unique types for filter dropdown
@@ -260,6 +262,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Handle status updates
   const handleStatusUpdate = async (insightId: string, status: 'open' | 'dismissed' | 'resolved') => {
     try {
+      console.log(`Updating insight ${insightId} to status: ${status}`);
+      
       const response = await fetch(`/api/insights/${insightId}`, {
         method: 'PATCH',
         headers: {
@@ -272,16 +276,21 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         throw new Error('Failed to update insight status');
       }
 
-      // Refetch insights to update the UI
-      refetch();
+      console.log(`Successfully updated insight ${insightId} to status: ${status}`);
+      
+      // Invalidate and refetch insights
+      await queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      await refetch();
     } catch (error) {
       console.error('Error updating insight status:', error);
     }
   };
 
-  // Handle insight deletion
+  // Handle insight deletion  
   const handleDeleteInsight = async (insightId: string) => {
     try {
+      console.log(`Deleting insight ${insightId}`);
+      
       const response = await fetch(`/api/insights/${insightId}`, {
         method: 'DELETE',
       });
@@ -290,8 +299,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         throw new Error('Failed to delete insight');
       }
 
-      // Refetch insights to update the UI
-      refetch();
+      console.log(`Successfully deleted insight ${insightId}`);
+      
+      // Invalidate and refetch insights
+      await queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      await refetch();
     } catch (error) {
       console.error('Error deleting insight:', error);
     }

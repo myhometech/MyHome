@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Home, Car, Plus, Trash2 } from "lucide-react";
+import { Home, Car, Plus, Trash2, CheckSquare, Square, X } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import AddDropdownMenu from "@/components/add-dropdown-menu";
 import * as z from "zod";
 
@@ -39,6 +40,8 @@ export function YourAssetsSection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
 
   const [selectedType, setSelectedType] = useState<"house" | "car">("house");
 
@@ -129,6 +132,53 @@ export function YourAssetsSection() {
     },
   });
 
+  const bulkDeleteAssets = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(
+        ids.map(id => fetch(`/api/user-assets/${id}`, { method: "DELETE" }))
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user-assets"] });
+      setSelectedAssets(new Set());
+      setBulkMode(false);
+      toast({ title: "Assets deleted", description: `Successfully deleted ${selectedAssets.size} assets.` });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete assets", description: "Please try again.", variant: "destructive" });
+    },
+  });
+
+  // Bulk operation handlers
+  const toggleBulkMode = () => {
+    setBulkMode(!bulkMode);
+    setSelectedAssets(new Set());
+  };
+
+  const toggleAssetSelection = (assetId: string) => {
+    const newSelection = new Set(selectedAssets);
+    if (newSelection.has(assetId)) {
+      newSelection.delete(assetId);
+    } else {
+      newSelection.add(assetId);
+    }
+    setSelectedAssets(newSelection);
+  };
+
+  const selectAllAssets = () => {
+    const allIds = new Set<string>(assets.map((asset: any) => asset.id));
+    setSelectedAssets(allIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedAssets(new Set());
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedAssets.size === 0) return;
+    bulkDeleteAssets.mutate(Array.from(selectedAssets));
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -140,10 +190,69 @@ export function YourAssetsSection() {
       <CardContent className="space-y-6">
         <div className="flex justify-between items-center">
           <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Manage your properties and vehicles</h4>
-          <Button variant="outline" size="sm" onClick={() => setShowForm(!showForm)}>
-            <Plus className="h-4 w-4 mr-1" /> Add Asset
-          </Button>
+          <div className="flex items-center gap-2">
+            {assets.length > 0 && (
+              <Button
+                variant={bulkMode ? "default" : "outline"}
+                size="sm"
+                onClick={toggleBulkMode}
+              >
+                {bulkMode ? <X className="h-4 w-4 mr-1" /> : <CheckSquare className="h-4 w-4 mr-1" />}
+                {bulkMode ? "Cancel" : "Select"}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setShowForm(!showForm)}>
+              <Plus className="h-4 w-4 mr-1" /> Add Asset
+            </Button>
+          </div>
         </div>
+
+        {/* Bulk operations bar */}
+        {bulkMode && selectedAssets.size > 0 && (
+          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {selectedAssets.size} asset{selectedAssets.size !== 1 ? 's' : ''} selected
+              </span>
+              <Button size="sm" variant="outline" onClick={selectAllAssets}>
+                Select All
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearSelection}>
+                Clear
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Selected Assets</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete {selectedAssets.size} asset{selectedAssets.size !== 1 ? 's' : ''}? 
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleBulkDelete}
+                      className="bg-red-600 hover:bg-red-700"
+                      disabled={bulkDeleteAssets.isPending}
+                    >
+                      {bulkDeleteAssets.isPending ? "Deleting..." : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+        )}
 
         {showForm && (
           <Form {...form}>
@@ -323,47 +432,74 @@ export function YourAssetsSection() {
             </div>
           ) : (
             assets.map((asset: any) => (
-              <Card key={asset.id} className="border bg-surface p-4 flex items-center justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {asset.type === "house" ? <Home className="h-4 w-4" /> : <Car className="h-4 w-4" />}
-                    {asset.name}
-                  </div>
-                  {asset.type === "house" ? (
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      <p>{asset.address}</p>
-                      {asset.postcode && <p className="font-medium">{asset.postcode}</p>}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      <p>{asset.registration && `${asset.registration} • `}{asset.make} {asset.model} {asset.year && `(${asset.year})`}</p>
-                      {asset.vin && <p className="text-xs opacity-75">VIN: {asset.vin}</p>}
+              <Card 
+                key={asset.id} 
+                className={`border bg-surface p-4 flex items-center justify-between cursor-pointer ${
+                  bulkMode && selectedAssets.has(asset.id) ? "ring-2 ring-blue-500 bg-blue-50" : ""
+                }`}
+                onClick={bulkMode ? () => toggleAssetSelection(asset.id) : undefined}
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  {/* Bulk Selection Checkbox */}
+                  {bulkMode && (
+                    <div className="flex items-center">
+                      <div className="w-5 h-5 flex items-center justify-center">
+                        {selectedAssets.has(asset.id) ? (
+                          <CheckSquare className="h-5 w-5 text-blue-600" />
+                        ) : (
+                          <Square className="h-5 w-5 text-gray-400" />
+                        )}
+                      </div>
                     </div>
                   )}
+                  
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {asset.type === "house" ? <Home className="h-4 w-4" /> : <Car className="h-4 w-4" />}
+                      {asset.name}
+                    </div>
+                    {asset.type === "house" ? (
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <p>{asset.address}</p>
+                        {asset.postcode && <p className="font-medium">{asset.postcode}</p>}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <p>{asset.registration && `${asset.registration} • `}{asset.make} {asset.model} {asset.year && `(${asset.year})`}</p>
+                        {asset.vin && <p className="text-xs opacity-75">VIN: {asset.vin}</p>}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <AddDropdownMenu 
-                    size="sm" 
-                    variant="outline"
-                    selectedAssetId={asset.id}
-                    selectedAssetName={asset.name}
-                    onDocumentUpload={() => {
-                      console.log(`Document upload initiated for ${asset.type}: ${asset.name}`);
-                    }}
-                    onManualDateCreate={() => {
-                      console.log(`Manual date creation initiated for ${asset.type}: ${asset.name}`);
-                    }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteAsset.mutate(asset.id)}
-                    className="text-destructive hover:text-red-700"
-                    disabled={deleteAsset.isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                
+                {!bulkMode && (
+                  <div className="flex items-center gap-2">
+                    <AddDropdownMenu 
+                      size="sm" 
+                      variant="outline"
+                      selectedAssetId={asset.id}
+                      selectedAssetName={asset.name}
+                      onDocumentUpload={() => {
+                        console.log(`Document upload initiated for ${asset.type}: ${asset.name}`);
+                      }}
+                      onManualDateCreate={() => {
+                        console.log(`Manual date creation initiated for ${asset.type}: ${asset.name}`);
+                      }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteAsset.mutate(asset.id);
+                      }}
+                      className="text-destructive hover:text-red-700"
+                      disabled={deleteAsset.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </Card>
             ))
           )}

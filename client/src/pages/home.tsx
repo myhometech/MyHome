@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -182,7 +182,7 @@ function DashboardOverview({ onFilterChange }: { onFilterChange: (filter: any) =
       {overviewCards.map((card, index) => {
         const colors = getColorClasses(card.color);
         const Icon = card.icon;
-        
+
         return (
           <Card 
             key={index} 
@@ -310,7 +310,7 @@ function QuickActionCards() {
 
         const colors = getColorClasses(card.color);
         const Icon = card.icon;
-        
+
         return (
           <Card 
             key={index} 
@@ -376,7 +376,6 @@ export default function Home() {
       setDashboardFilter(filter);
     }
   };
-
 
   // Initialize categories on first load
   const initCategoriesMutation = useMutation({
@@ -509,21 +508,8 @@ export default function Home() {
     setSelectedDocuments(allIds);
   };
 
-  const deselectAllDocuments = () => {
+  const clearSelection = () => {
     setSelectedDocuments(new Set());
-  };
-
-  const handleBulkDelete = () => {
-    if (selectedDocuments.size === 0) return;
-    bulkDeleteMutation.mutate(Array.from(selectedDocuments));
-  };
-
-  const handleBulkMoveCategory = (categoryId: number | null) => {
-    if (selectedDocuments.size === 0) return;
-    bulkMoveCategoryMutation.mutate({
-      documentIds: Array.from(selectedDocuments),
-      categoryId
-    });
   };
 
   // Fetch documents
@@ -533,7 +519,7 @@ export default function Home() {
       const params = new URLSearchParams();
       if (selectedCategory) params.append("categoryId", selectedCategory.toString());
       if (searchQuery) params.append("search", searchQuery);
-      
+
       const response = await fetch(`/api/documents?${params}`, {
         credentials: "include",
       });
@@ -558,7 +544,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-surface">
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">
         {/* Mobile Search */}
         <div className="md:hidden mb-6">
@@ -648,8 +634,8 @@ export default function Home() {
                 </Button>
               </div>
             </div>
-            
-            {/* Bulk Operations Bar */}
+
+            {/* Bulk operations bar */}
             {bulkMode && (
               <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -669,18 +655,18 @@ export default function Home() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={deselectAllDocuments}
+                        onClick={clearSelection}
                         disabled={selectedDocuments.size === 0}
                       >
                         Deselect All
                       </Button>
                     </div>
                   </div>
-                  
+
                   {selectedDocuments.size > 0 && (
                     <div className="flex items-center gap-2">
                       {/* Move to Category */}
-                      <Select onValueChange={(value) => handleBulkMoveCategory(value === "uncategorized" ? null : parseInt(value))}>
+                      <Select onValueChange={(value) => handleBulkMoveCategoryMutation({ documentIds: Array.from(selectedDocuments), categoryId: value === "uncategorized" ? null : parseInt(value) })}>
                         <SelectTrigger className="w-40">
                           <FolderOpen className="h-4 w-4 mr-2" />
                           <SelectValue placeholder="Move to..." />
@@ -740,7 +726,7 @@ export default function Home() {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={handleBulkDelete}
+                              onClick={() => bulkDeleteMutation.mutate(Array.from(selectedDocuments))}
                               className="bg-red-600 hover:bg-red-700"
                               disabled={bulkDeleteMutation.isPending}
                             >

@@ -157,6 +157,43 @@ export default function UnifiedDocumentCard({
 
   const category = categories?.find(c => c.id === document.categoryId);
 
+  // Generate insights mutation - same as in DocumentInsights component
+  const generateInsightsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/documents/${document.id}/insights`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate insights');
+      }
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Insights Generated",
+        description: `Generated ${data.insights?.length || 0} insights in ${data.processingTime || 0}ms`
+      });
+      // Invalidate insights queries to refresh the data
+      queryClient.invalidateQueries({
+        queryKey: [`/api/documents/${document.id}/insights`]
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
+    },
+    onError: (error: any) => {
+      console.error('Error generating insights:', error);
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate document insights",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Fetch insights for this document
   const { data: insightsData, isLoading: insightsLoading } = useQuery({
     queryKey: [`/api/documents/${document.id}/insights`],
@@ -675,16 +712,24 @@ export default function UnifiedDocumentCard({
                   size="sm"
                   variant="outline"
                   className="h-6 px-2 text-xs"
-                  onClick={() => {
-                    // TODO: Trigger insight regeneration
-                    toast({
-                      title: "Feature coming soon",
-                      description: "Insight reprocessing will be available soon.",
-                    });
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    generateInsightsMutation.mutate();
                   }}
+                  disabled={generateInsightsMutation.isPending}
                 >
-                  <Zap className="h-3 w-3 mr-1" />
-                  Generate
+                  {generateInsightsMutation.isPending ? (
+                    <>
+                      <Clock className="h-3 w-3 mr-1 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-3 w-3 mr-1" />
+                      Generate
+                    </>
+                  )}
                 </Button>
               </div>
             )}

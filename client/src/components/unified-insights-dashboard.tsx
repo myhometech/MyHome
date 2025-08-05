@@ -245,7 +245,9 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle opening document viewer
   const handleOpenDocument = (documentId: number) => {
+    console.log('handleOpenDocument called with documentId:', documentId);
     setSelectedDocumentId(documentId);
+    console.log('selectedDocumentId state updated to:', documentId);
   };
 
   // Handle closing document viewer
@@ -256,11 +258,16 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle clicking on an insight card
   const handleInsightClick = (insight: DocumentInsight) => {
+    console.log('Insight clicked:', insight);
+    console.log('Has documentId:', insight.documentId);
+    
     if (insight.documentId) {
       // Open document modal if insight has associated document
+      console.log('Opening document viewer for documentId:', insight.documentId);
       handleOpenDocument(insight.documentId);
     } else {
       // Show insight details modal for standalone insights
+      console.log('Opening insight details modal');
       setSelectedInsight(insight);
     }
   };
@@ -677,11 +684,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 {selectedInsight.type.startsWith('vehicle:') && <FileText className="h-4 w-4 text-red-600" />}
                 {selectedInsight.title}
               </DialogTitle>
-              <DialogDescription>
-                <Badge variant={selectedInsight.priority === 'high' ? 'destructive' : selectedInsight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs mb-2">
+              <div className="mb-2">
+                <Badge variant={selectedInsight.priority === 'high' ? 'destructive' : selectedInsight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs">
                   {selectedInsight.priority.toUpperCase()} PRIORITY
                 </Badge>
-              </DialogDescription>
+              </div>
             </DialogHeader>
             <div className="space-y-4">
               <div>

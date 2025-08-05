@@ -574,11 +574,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Dashboard Overview Cards */}
-        <DashboardOverview onFilterChange={handleDashboardFilter} />
-
-
-
         {/* Quick Action Cards */}
         <QuickActionCards />
 
@@ -586,14 +581,6 @@ export default function Home() {
         <FeatureGate feature="AI_INSIGHTS">
           <InsightJobStatus />
         </FeatureGate>
-
-
-
-
-
-
-
-
 
         {/* Search and Filter Controls */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -616,6 +603,9 @@ export default function Home() {
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
         />
+
+        {/* Dashboard Overview Cards - Moved above Document Library */}
+        <DashboardOverview onFilterChange={handleDashboardFilter} />
 
         {/* Documents Section */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">

@@ -236,9 +236,6 @@ export default function InsightsFirstPage() {
           />
         </div>
 
-        {/* AI Insights Dashboard */}
-        <UnifiedInsightsDashboard />
-
         {/* AI Insights Section */}
         <div className="space-y-6" data-insights-section>
           {/* Priority-Based Insight Navigation Buttons */}
@@ -432,6 +429,9 @@ export default function InsightsFirstPage() {
               </div>
             )}
         </div>
+
+        {/* AI Insights Dashboard */}
+        <UnifiedInsightsDashboard />
 
         {/* Document Library Section */}
         <div className="space-y-6">

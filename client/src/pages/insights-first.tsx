@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import Header from "@/components/header";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
@@ -27,7 +27,11 @@ import {
   List,
   SortAsc,
   FolderOpen,
-  Brain
+  Brain,
+  CheckSquare,
+  Square,
+  Trash2,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
 import type { Category, Document } from "@shared/schema";
 
@@ -65,8 +70,65 @@ export default function InsightsFirstPage() {
   const [insightPriorityFilter, setInsightPriorityFilter] = useState<string>("all");
   const [insightStatusFilter, setInsightStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("priority");
+  
+  // Multi-select state
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
 
   const { hasFeature } = useFeatures();
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/documents/bulk-delete", {
+        documentIds: Array.from(selectedDocuments),
+      });
+      return response.json();
+    },
+    onSuccess: (result) => {
+      toast({
+        title: "Bulk Delete Complete",
+        description: `${result.success} documents deleted successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`,
+        variant: result.failed > 0 ? "destructive" : "default",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
+      setSelectedDocuments(new Set());
+      setBulkMode(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Bulk Delete Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Selection helper functions
+  const toggleSelectAll = () => {
+    if (selectedDocuments.size === filteredDocuments.length) {
+      setSelectedDocuments(new Set());
+    } else {
+      setSelectedDocuments(new Set(filteredDocuments.map(doc => doc.id)));
+    }
+  };
+
+  const toggleSelectDocument = (documentId: number) => {
+    const newSelection = new Set(selectedDocuments);
+    if (newSelection.has(documentId)) {
+      newSelection.delete(documentId);
+    } else {
+      newSelection.add(documentId);
+    }
+    setSelectedDocuments(newSelection);
+  };
+
+  const handleExitBulkMode = () => {
+    setBulkMode(false);
+    setSelectedDocuments(new Set());
+  };
 
   // Fetch documents
   const { data: documents = [], isLoading: documentsLoading, error: documentsError } = useQuery<Document[]>({
@@ -244,7 +306,7 @@ export default function InsightsFirstPage() {
             </CardContent>
           </Card>
 
-          {/* View Mode Toggle */}
+          {/* View Mode Toggle and Bulk Controls */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">View:</span>
@@ -264,12 +326,98 @@ export default function InsightsFirstPage() {
               >
                 <List className="h-4 w-4" />
               </Button>
+              <div className="border-l border-gray-300 h-6 mx-2" />
+              <Button
+                variant={bulkMode ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setBulkMode(!bulkMode)}
+                className="h-8"
+              >
+                <CheckSquare className="h-4 w-4 mr-1" />
+                Select
+              </Button>
             </div>
             
             <div className="text-sm text-gray-600">
-              {filteredDocuments.length} of {documents.length} documents
+              {bulkMode && selectedDocuments.size > 0 
+                ? `${selectedDocuments.size} selected`
+                : `${filteredDocuments.length} of ${documents.length} documents`
+              }
             </div>
           </div>
+
+          {/* Bulk Operations Toolbar */}
+          {bulkMode && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleSelectAll}
+                    className="h-8"
+                  >
+                    {selectedDocuments.size === filteredDocuments.length ? (
+                      <>
+                        <Square className="h-4 w-4 mr-1" />
+                        Deselect All
+                      </>
+                    ) : (
+                      <>
+                        <CheckSquare className="h-4 w-4 mr-1" />
+                        Select All
+                      </>
+                    )}
+                  </Button>
+                  
+                  {selectedDocuments.size > 0 && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-8"
+                          disabled={bulkDeleteMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete Selected ({selectedDocuments.size})
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Selected Documents</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete {selectedDocuments.size} selected document{selectedDocuments.size !== 1 ? 's' : ''}? 
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => bulkDeleteMutation.mutate()}
+                            className="bg-red-600 hover:bg-red-700"
+                            disabled={bulkDeleteMutation.isPending}
+                          >
+                            {bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleExitBulkMode}
+                  className="h-8"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Exit
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Documents Display */}
           {documentsLoading || categoriesLoading ? (
@@ -313,9 +461,14 @@ export default function InsightsFirstPage() {
                   key={document.id}
                   document={document as any}
                   viewMode={viewMode}
+                  bulkMode={bulkMode}
+                  isSelected={selectedDocuments.has(document.id)}
+                  onToggleSelection={() => toggleSelectDocument(document.id)}
                   onClick={() => {
-                    setSelectedDocument(document as any);
-                    setShowDocumentPreview(true);
+                    if (!bulkMode) {
+                      setSelectedDocument(document as any);
+                      setShowDocumentPreview(true);
+                    }
                   }}
                 />
               ))}

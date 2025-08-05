@@ -559,7 +559,6 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      console.log(`[DEBUG] Clicked insight:`, { id: insight.id, title: insight.title, type: typeof insight.id });
                                       handleStatusUpdate(insight.id, 'resolved');
                                     }}
                                   >
@@ -709,7 +708,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 <div className="flex gap-2">
                   <Button 
                     className="flex-1" 
-                    onClick={() => window.open(selectedInsight.actionUrl, '_blank')}
+                    onClick={() => selectedInsight.actionUrl && window.open(selectedInsight.actionUrl, '_blank')}
                   >
                     Take Action
                   </Button>

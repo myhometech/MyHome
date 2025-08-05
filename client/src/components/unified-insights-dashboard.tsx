@@ -29,6 +29,7 @@ import { InsightCard } from '@/components/insight-card';
 import { InsightsCalendar } from '@/components/insights-calendar';
 import { ManualEventCard, CompactManualEventCard } from '@/components/manual-event-card';
 import SmartHelpTooltip, { HelpBadge } from '@/components/smart-help-tooltip';
+import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
 
 import { useFeatures } from '@/hooks/useFeatures';
 import type { DocumentInsight } from '@shared/schema';
@@ -184,6 +185,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     },
   });
 
+  // State variables first
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('high');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+
   // Fetch user assets for linking manual events to assets
   const { data: userAssets = [] } = useQuery<UserAsset[]>({
     queryKey: ['/api/user-assets'],
@@ -194,11 +201,29 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     },
   });
 
+  // Fetch document details when selectedDocumentId changes
+  const { data: documentDetails } = useQuery({
+    queryKey: ['/api/documents', selectedDocumentId],
+    queryFn: async () => {
+      if (!selectedDocumentId) return null;
+      const response = await fetch(`/api/documents/${selectedDocumentId}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch document details');
+      return response.json();
+    },
+    enabled: !!selectedDocumentId,
+  });
+
+  // Fetch categories for the document viewer
+  const { data: categories = [] } = useQuery({
+    queryKey: ['/api/categories'],
+    queryFn: async () => {
+      const response = await fetch('/api/categories', { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch categories');
+      return response.json();
+    },
+  });
+
   const insights = insightsData?.insights || [];
-  
-  // Add filtering state
-  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('high');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
 
   // Filter insights based on selected filters
   const filteredInsights = insights.filter(insight => {
@@ -210,10 +235,23 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Get unique types for filter dropdown
   const insightTypes = ['all', ...Array.from(new Set(insights.map(i => i.type)))];
 
-  
+  // Handle opening document viewer
+  const handleOpenDocument = (documentId: number) => {
+    setSelectedDocumentId(documentId);
+  };
 
+  // Handle closing document viewer
+  const handleCloseDocument = () => {
+    setSelectedDocumentId(null);
+    setSelectedDocument(null);
+  };
 
-
+  // Handle document download
+  const handleDocumentDownload = () => {
+    if (selectedDocumentId) {
+      window.open(`/api/documents/${selectedDocumentId}/download`, '_blank');
+    }
+  };
 
   // Handle status updates
   const handleStatusUpdate = async (insightId: string, status: 'open' | 'dismissed' | 'resolved') => {
@@ -342,11 +380,15 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                   <div>
                     <div className="grid grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-2">
                       {filteredInsights.slice(0, 9).map((insight) => (
-                        <Card key={insight.id} className={`border-l-2 hover:shadow-sm transition-shadow ${
-                          insight.priority === 'high' ? 'border-l-red-500 bg-red-50' :
-                          insight.priority === 'medium' ? 'border-l-yellow-500 bg-yellow-50' :
-                          'border-l-green-500 bg-green-50'
-                        }`}>
+                        <Card 
+                          key={insight.id} 
+                          className={`border-l-2 hover:shadow-sm transition-shadow cursor-pointer ${
+                            insight.priority === 'high' ? 'border-l-red-500 bg-red-50' :
+                            insight.priority === 'medium' ? 'border-l-yellow-500 bg-yellow-50' :
+                            'border-l-green-500 bg-green-50'
+                          }`}
+                          onClick={() => insight.documentId && handleOpenDocument(insight.documentId)}
+                        >
                           <CardContent className="p-2">
                             <div className="flex items-start justify-between mb-1">
                               <div className="flex items-center gap-1">
@@ -366,7 +408,10 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                                 variant="ghost" 
                                 size="sm" 
                                 className="h-4 w-4 p-0 opacity-60 hover:opacity-100"
-                                onClick={() => handleStatusUpdate(insight.id, 'resolved')}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusUpdate(insight.id, 'resolved');
+                                }}
                               >
                                 <CheckCircle className="h-2 w-2" />
                               </Button>
@@ -464,6 +509,19 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         </Card>
       </div>
 
+      {/* Document Viewer Modal */}
+      {selectedDocumentId && documentDetails && (
+        <EnhancedDocumentViewer
+          document={documentDetails}
+          category={categories.find(cat => cat.id === documentDetails.categoryId)}
+          onClose={handleCloseDocument}
+          onDownload={handleDocumentDownload}
+          onUpdate={() => {
+            // Refetch data when document is updated
+            refetch();
+          }}
+        />
+      )}
 
     </div>
   );

@@ -30,6 +30,7 @@ Interface Design: Clean insights-first layout with single document library secti
 - **Feature Management**: Subscription-based feature flagging system with FeatureGate components
 - **Unified Interface**: Insights-first UX with AI insights positioned above document library in single scrollable view
 - **Component Structure**: UnifiedDocumentCard for document management and UnifiedInsightsDashboard for AI insights display
+- **Modal System**: Comprehensive document viewer modal system with separate state management for insights-triggered document viewing, preventing conflicts with main page document selection
 
 ### Vehicle Management System
 - **Vehicle Insights**: AI-powered MOT and tax due date insights with priority classification

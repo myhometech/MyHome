@@ -10,7 +10,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import { ManualEventModal } from "@/components/manual-event-modal";
-import GeniusScanButton from "@/components/genius-scan-button";
+
 import ScanDocumentFlow from "@/components/scan-document-flow";
 
 interface AddDropdownMenuProps {
@@ -115,30 +115,15 @@ export function AddDropdownMenu({
             </div>
           </DropdownMenuItem>
           
-          {/* Genius Scan Menu Item - No onClick needed as it's embedded */}
-          <div className="p-1">
-            <GeniusScanButton 
-              variant="ghost" 
-              size="sm"
-              className="w-full justify-start h-auto p-2 text-left focus:bg-accent focus:text-accent-foreground"
-            >
-              <Camera className="h-4 w-4 mr-2" />
-              <div className="flex flex-col">
-                <span className="font-medium">Scan with Genius Scan</span>
-                <span className="text-xs text-muted-foreground">Open external scanning app</span>
-              </div>
-            </GeniusScanButton>
-          </div>
-          
-          {/* Browser Camera Menu Item */}
+          {/* TICKET 7: New browser-native scanner */}
           <DropdownMenuItem 
             onClick={() => setShowScanFlow(true)}
             className="cursor-pointer focus:bg-accent focus:text-accent-foreground"
           >
             <Camera className="h-4 w-4 mr-2" />
             <div className="flex flex-col">
-              <span className="font-medium">Browser Camera</span>
-              <span className="text-xs text-muted-foreground">Scan directly in browser</span>
+              <span className="font-medium">Scan Document</span>
+              <span className="text-xs text-muted-foreground">Browser-native multi-page scanning</span>
             </div>
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -164,13 +149,11 @@ export function AddDropdownMenu({
         selectedAssetName={selectedAssetName}
       />
       
-      {/* Browser Camera Scanner */}
+      {/* TICKET 7: Browser-native scanner flow */}
       <ScanDocumentFlow
         isOpen={showScanFlow}
         onClose={() => setShowScanFlow(false)}
         onCapture={(files) => {
-          // Handle captured files - for now just close the modal
-          // In a real implementation, this would trigger the upload flow
           setShowScanFlow(false);
           onDocumentUpload?.();
         }}

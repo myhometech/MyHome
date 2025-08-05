@@ -11,9 +11,7 @@ import { CloudUpload, Camera, Plus, X, Upload, Check } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-// Import Genius Scan integration
-import GeniusScanButton from "./genius-scan-button";
-import ScanDocumentFlow from "./scan-document-flow";
+// TICKET 7: Legacy scanner imports removed
 import { useFeatures } from "@/hooks/useFeatures";
 
 interface UnifiedUploadButtonProps {
@@ -25,8 +23,7 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
-  // Removed camera scanner states - now using Genius Scan integration
-  const [showScanFlow, setShowScanFlow] = useState(false);
+  // TICKET 7: Legacy scanner states removed
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadData, setUploadData] = useState({
     categoryId: "",
@@ -266,12 +263,7 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
     }
   };
 
-  const handleScanDocuments = () => {
-    toast({
-      title: "Launching Genius Scan",
-      description: "Opening external scanning app...",
-    });
-  };
+  // TICKET 7: Legacy scan handler removed
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -356,32 +348,7 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
             Choose Files
           </Button>
           
-          <div className="text-xs text-gray-400 mb-2">or</div>
-          
-          <div className="flex gap-2">
-            <GeniusScanButton 
-              variant="outline" 
-              size="sm"
-              className="text-xs"
-              onScanInitiated={handleScanDocuments}
-            >
-              <Camera className="h-3 w-3 mr-1" />
-              Genius Scan
-            </GeniusScanButton>
-            
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowScanFlow(true);
-              }}
-              variant="outline"
-              size="sm"
-              className="text-xs"
-            >
-              <Camera className="h-3 w-3 mr-1" />
-              Browser Camera
-            </Button>
-          </div>
+          {/* TICKET 7: Legacy scanner buttons removed - scanning now handled via Add menu */}
         </CardContent>
       </Card>
 
@@ -595,17 +562,7 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
         </DialogContent>
       </Dialog>
 
-      {/* Genius Scan integration handled by GeniusScanButton component */}
-      
-      {/* Browser Camera Scanner */}
-      <ScanDocumentFlow
-        isOpen={showScanFlow}
-        onClose={() => setShowScanFlow(false)}
-        onCapture={(files) => {
-          handleFileSelect(files);
-          setShowScanFlow(false);
-        }}
-      />
+      {/* TICKET 7: Legacy scanner components removed - scanning now handled via Add dropdown menu */}
     </>
   );
 }

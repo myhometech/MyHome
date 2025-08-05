@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InsightCard } from '@/components/insight-card';
 import { InsightsCalendar } from '@/components/insights-calendar';
 import { ManualEventCard, CompactManualEventCard } from '@/components/manual-event-card';
+import SmartHelpTooltip, { HelpBadge } from '@/components/smart-help-tooltip';
 
 import { useFeatures } from '@/hooks/useFeatures';
 import type { DocumentInsight } from '@shared/schema';
@@ -251,7 +252,10 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">AI Insights</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold">AI Insights</h3>
+                <SmartHelpTooltip helpKey="ai-insights" variant="detailed" />
+              </div>
               <Button onClick={() => refetch()} disabled={isLoading} variant="outline" size="sm">
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -268,7 +272,10 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 {/* AI Document Insights */}
                 {insights.length > 0 && (
                   <div>
-                    <h4 className="text-md font-medium mb-3 text-gray-700">Document Insights</h4>
+                    <div className="flex items-center gap-2 mb-3">
+                      <h4 className="text-md font-medium text-gray-700">Document Insights</h4>
+                      <SmartHelpTooltip helpKey="document-insights" />
+                    </div>
                     <div className="flex flex-wrap gap-3">
                       {Array.from(new Set(insights.map(i => i.type))).map((type) => {
                         const typeInsights = insights.filter(i => i.type === type);
@@ -300,7 +307,10 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 {/* Manual Events */}
                 {manualEvents.length > 0 && (
                   <div>
-                    <h4 className="text-md font-medium mb-3 text-gray-700">Manual Events</h4>
+                    <div className="flex items-center gap-2 mb-3">
+                      <h4 className="text-md font-medium text-gray-700">Manual Events</h4>
+                      <SmartHelpTooltip helpKey="manual-events" />
+                    </div>
                     <div className="flex flex-wrap gap-3">
                       {manualEvents.slice(0, 6).map((event) => {
                         const linkedAsset = event.linkedAssetId 

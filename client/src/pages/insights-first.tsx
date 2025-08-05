@@ -42,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
+import SmartHelpTooltip, { HelpBadge, HelpSection } from "@/components/smart-help-tooltip";
 import type { Category, Document } from "@shared/schema";
 
 interface DocumentInsight {
@@ -85,10 +86,10 @@ export default function InsightsFirstPage() {
       });
       return result;
     },
-    onSuccess: (result) => {
+    onSuccess: (result: any) => {
       toast({
         title: "Bulk Delete Complete",
-        description: `${result.success} documents deleted successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`,
+        description: `${result.success || selectedDocuments.size} documents deleted successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`,
         variant: result.failed > 0 ? "destructive" : "default",
       });
       
@@ -240,15 +241,17 @@ export default function InsightsFirstPage() {
             </div>
           </div>
           
-          <AddDropdownMenu 
-            size="lg" 
-            className="bg-blue-600 hover:bg-blue-700"
-            onDocumentUpload={() => setShowUploadDialog(true)}
-            onManualDateCreate={() => {
-              // This will be handled by the AddDropdownMenu component
-              console.log('Manual date creation requested');
-            }}
-          />
+          <SmartHelpTooltip helpKey="document-upload" side="left" variant="detailed">
+            <AddDropdownMenu 
+              size="lg" 
+              className="bg-blue-600 hover:bg-blue-700"
+              onDocumentUpload={() => setShowUploadDialog(true)}
+              onManualDateCreate={() => {
+                // This will be handled by the AddDropdownMenu component
+                console.log('Manual date creation requested');
+              }}
+            />
+          </SmartHelpTooltip>
         </div>
 
         {/* AI Insights Dashboard */}
@@ -259,7 +262,10 @@ export default function InsightsFirstPage() {
           <div className="flex items-center space-x-3 pt-6 border-t">
             <FileText className="h-8 w-8 text-blue-600" />
             <div>
-              <h2 className="text-2xl font-bold">Document Library</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold">Document Library</h2>
+                <SmartHelpTooltip helpKey="document-search" variant="detailed" />
+              </div>
               <p className="text-gray-600">Manage and organize your documents</p>
             </div>
           </div>
@@ -268,7 +274,10 @@ export default function InsightsFirstPage() {
           <Card>
             <CardContent className="p-3">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-base font-semibold">Document Categories</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-semibold">Document Categories</h3>
+                  <SmartHelpTooltip helpKey="document-categories" />
+                </div>
               </div>
               
               <div className="flex flex-wrap gap-2">
@@ -327,15 +336,17 @@ export default function InsightsFirstPage() {
                 <List className="h-4 w-4" />
               </Button>
               <div className="border-l border-gray-300 h-6 mx-2" />
-              <Button
-                variant={bulkMode ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setBulkMode(!bulkMode)}
-                className="h-8"
-              >
-                <CheckSquare className="h-4 w-4 mr-1" />
-                Select
-              </Button>
+              <SmartHelpTooltip helpKey="bulk-select" side="bottom">
+                <Button
+                  variant={bulkMode ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setBulkMode(!bulkMode)}
+                  className="h-8"
+                >
+                  <CheckSquare className="h-4 w-4 mr-1" />
+                  Select
+                </Button>
+              </SmartHelpTooltip>
             </div>
             
             <div className="text-sm text-gray-600">

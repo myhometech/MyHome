@@ -578,7 +578,14 @@ export default function UnifiedDocumentCard({
 
             {/* Insight summary badges */}
             {showInsights && openInsights.length > 0 && (
-              <div className="flex items-center gap-2">
+              <div 
+                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setInsightsExpanded(!insightsExpanded);
+                }}
+              >
                 <div className="flex items-center gap-1">
                   <Brain className="h-3 w-3 text-blue-600" />
                   <Badge variant="secondary" className="text-xs">
@@ -603,6 +610,12 @@ export default function UnifiedDocumentCard({
                     )}
                   </div>
                 )}
+                <div className="ml-auto">
+                  {insightsExpanded || shouldAutoExpand ? 
+                    <ChevronDown className="h-3 w-3 text-gray-400" /> : 
+                    <ChevronRight className="h-3 w-3 text-gray-400" />
+                  }
+                </div>
               </div>
             )}
 
@@ -612,16 +625,7 @@ export default function UnifiedDocumentCard({
                 open={insightsExpanded || shouldAutoExpand} 
                 onOpenChange={setInsightsExpanded}
               >
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="w-full justify-between p-2 h-auto">
-                    <span className="text-xs font-medium">View Insights</span>
-                    {insightsExpanded || shouldAutoExpand ? 
-                      <ChevronDown className="h-3 w-3" /> : 
-                      <ChevronRight className="h-3 w-3" />
-                    }
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 mt-2">
+                <CollapsibleContent className="space-y-2 mt-1">
                   {insightsLoading ? (
                     <div className="text-xs text-gray-500 p-2">Loading insights...</div>
                   ) : (

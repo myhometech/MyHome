@@ -1,10 +1,14 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { Camera, X, RotateCcw, Check, Plus, Trash2, Download } from "lucide-react";
+import { Camera, X, RotateCcw, Check, Plus, Trash2, Download, Wand2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { imageProcessor, ProcessingOptions, ProcessedImage } from "@/utils/image-processing";
 
 interface ScanDocumentFlowProps {
   isOpen: boolean;
@@ -15,7 +19,13 @@ interface ScanDocumentFlowProps {
 interface CapturedPage {
   id: string;
   imageData: string;
+  processedImageData?: string;
+  originalImageData?: string;
+  corners?: { x: number; y: number }[];
+  confidence?: number;
   timestamp: number;
+  isProcessing?: boolean;
+  processingTime?: number;
 }
 
 export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDocumentFlowProps) {
@@ -24,6 +34,14 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showProcessingSettings, setShowProcessingSettings] = useState(false);
+  const [processingOptions, setProcessingOptions] = useState<ProcessingOptions>({
+    autoDetectEdges: true,
+    enhanceContrast: true,
+    applySharpen: true,
+    correctPerspective: true,
+    cropMargin: 20
+  });
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -70,8 +88,8 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     setIsScanning(false);
   }, [stream]);
 
-  // Capture current frame
-  const captureFrame = useCallback(() => {
+  // Capture current frame with OpenCV processing
+  const captureFrame = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
@@ -88,22 +106,80 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
     // Convert to data URL
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+    const originalImageData = canvas.toDataURL('image/jpeg', 0.8);
     
-    // Add to captured pages
+    // Create initial page entry
+    const pageId = Date.now().toString();
     const newPage: CapturedPage = {
-      id: Date.now().toString(),
-      imageData,
-      timestamp: Date.now()
+      id: pageId,
+      imageData: originalImageData,
+      originalImageData,
+      timestamp: Date.now(),
+      isProcessing: true
     };
     
     setCapturedPages(prev => [...prev, newPage]);
     
     toast({
       title: "Page Captured",
-      description: `Page ${capturedPages.length + 1} captured successfully.`,
+      description: `Processing page ${capturedPages.length + 1}...`,
     });
-  }, [capturedPages.length, toast]);
+
+    // Process image with OpenCV
+    try {
+      if (imageProcessor.isOpenCVReady()) {
+        const processed: ProcessedImage = await imageProcessor.processImage(originalImageData, processingOptions);
+        
+        // Update the page with processed results
+        setCapturedPages(prev => prev.map(page => 
+          page.id === pageId 
+            ? {
+                ...page,
+                imageData: processed.processedDataUrl,
+                processedImageData: processed.processedDataUrl,
+                corners: processed.corners,
+                confidence: processed.confidence,
+                processingTime: processed.processingTime,
+                isProcessing: false
+              }
+            : page
+        ));
+
+        toast({
+          title: "Processing Complete",
+          description: `Enhanced page with ${Math.round(processed.confidence * 100)}% confidence${processed.processingTime ? ` in ${Math.round(processed.processingTime)}ms` : ''}.`,
+        });
+      } else {
+        // OpenCV not ready, use original image
+        setCapturedPages(prev => prev.map(page => 
+          page.id === pageId 
+            ? { ...page, isProcessing: false }
+            : page
+        ));
+        
+        toast({
+          title: "Processing Skipped",
+          description: "Image enhancement unavailable. Using original capture.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Image processing failed:', error);
+      
+      // Fall back to original image
+      setCapturedPages(prev => prev.map(page => 
+        page.id === pageId 
+          ? { ...page, isProcessing: false }
+          : page
+      ));
+      
+      toast({
+        title: "Processing Failed",
+        description: "Using original capture without enhancement.",
+        variant: "destructive",
+      });
+    }
+  }, [capturedPages.length, toast, processingOptions]);
 
   // Remove captured page
   const removePage = useCallback((pageId: string) => {
@@ -117,6 +193,61 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       initializeCamera();
     }
   }, [isScanning, initializeCamera]);
+
+  // Toggle between original and processed image
+  const toggleProcessing = useCallback((pageId: string) => {
+    setCapturedPages(prev => prev.map(page => {
+      if (page.id === pageId && page.originalImageData && page.processedImageData) {
+        return {
+          ...page,
+          imageData: page.imageData === page.originalImageData 
+            ? page.processedImageData 
+            : page.originalImageData
+        };
+      }
+      return page;
+    }));
+  }, []);
+
+  // Reprocess a specific page with new settings
+  const reprocessPage = useCallback(async (pageId: string) => {
+    const page = capturedPages.find(p => p.id === pageId);
+    if (!page || !page.originalImageData) return;
+
+    setCapturedPages(prev => prev.map(p => 
+      p.id === pageId ? { ...p, isProcessing: true } : p
+    ));
+
+    try {
+      if (imageProcessor.isOpenCVReady()) {
+        const processed: ProcessedImage = await imageProcessor.processImage(page.originalImageData, processingOptions);
+        
+        setCapturedPages(prev => prev.map(p => 
+          p.id === pageId 
+            ? {
+                ...p,
+                imageData: processed.processedDataUrl,
+                processedImageData: processed.processedDataUrl,
+                corners: processed.corners,
+                confidence: processed.confidence,
+                processingTime: processed.processingTime,
+                isProcessing: false
+              }
+            : p
+        ));
+
+        toast({
+          title: "Reprocessing Complete",
+          description: `Enhanced with ${Math.round(processed.confidence * 100)}% confidence.`,
+        });
+      }
+    } catch (error) {
+      console.error('Reprocessing failed:', error);
+      setCapturedPages(prev => prev.map(p => 
+        p.id === pageId ? { ...p, isProcessing: false } : p
+      ));
+    }
+  }, [capturedPages, processingOptions, toast]);
 
   // Convert captured pages to files and finish
   const finishScanning = useCallback(async () => {
@@ -211,8 +342,66 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
             {capturedPages.length > 0 && (
               <Badge variant="secondary">{capturedPages.length} page{capturedPages.length > 1 ? 's' : ''}</Badge>
             )}
+            <div className="ml-auto flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowProcessingSettings(!showProcessingSettings)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
           </DialogTitle>
         </DialogHeader>
+        
+        {/* Processing Settings Panel */}
+        {showProcessingSettings && (
+          <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+            <h3 className="font-medium text-sm">Image Processing Settings</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="auto-detect"
+                  checked={processingOptions.autoDetectEdges}
+                  onCheckedChange={(checked) =>
+                    setProcessingOptions(prev => ({ ...prev, autoDetectEdges: checked }))
+                  }
+                />
+                <Label htmlFor="auto-detect" className="text-sm">Auto Edge Detection</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="enhance-contrast"
+                  checked={processingOptions.enhanceContrast}
+                  onCheckedChange={(checked) =>
+                    setProcessingOptions(prev => ({ ...prev, enhanceContrast: checked }))
+                  }
+                />
+                <Label htmlFor="enhance-contrast" className="text-sm">Enhance Contrast</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="apply-sharpen"
+                  checked={processingOptions.applySharpen}
+                  onCheckedChange={(checked) =>
+                    setProcessingOptions(prev => ({ ...prev, applySharpen: checked }))
+                  }
+                />
+                <Label htmlFor="apply-sharpen" className="text-sm">Apply Sharpening</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="correct-perspective"
+                  checked={processingOptions.correctPerspective}
+                  onCheckedChange={(checked) =>
+                    setProcessingOptions(prev => ({ ...prev, correctPerspective: checked }))
+                  }
+                />
+                <Label htmlFor="correct-perspective" className="text-sm">Perspective Correction</Label>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="flex flex-col lg:flex-row gap-4 h-[70vh]">
           {/* Camera Section */}
@@ -303,25 +492,59 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                   <Card key={page.id} className="relative">
                     <CardContent className="p-3">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={page.imageData}
-                          alt={`Page ${index + 1}`}
-                          className="w-16 h-16 object-cover rounded border"
-                        />
+                        <div className="relative">
+                          <img
+                            src={page.imageData}
+                            alt={`Page ${index + 1}`}
+                            className="w-16 h-16 object-cover rounded border"
+                          />
+                          {page.isProcessing && (
+                            <div className="absolute inset-0 bg-black/50 rounded flex items-center justify-center">
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          )}
+                          {page.confidence !== undefined && (
+                            <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1">
+                              {Math.round(page.confidence * 100)}%
+                            </div>
+                          )}
+                        </div>
                         <div className="flex-1">
-                          <p className="font-medium text-sm">Page {index + 1}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">Page {index + 1}</p>
+                            {page.processedImageData && page.originalImageData && (
+                              <Badge variant="outline" className="text-xs">
+                                {page.imageData === page.processedImageData ? 'Enhanced' : 'Original'}
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500">
                             {new Date(page.timestamp).toLocaleTimeString()}
+                            {page.processingTime && ` • ${Math.round(page.processingTime)}ms`}
                           </p>
                         </div>
                         <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => retakePage(page.id)}
-                          >
-                            <RotateCcw className="h-3 w-3" />
-                          </Button>
+                          {page.processedImageData && page.originalImageData && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => toggleProcessing(page.id)}
+                              title="Toggle between original and enhanced"
+                            >
+                              <Wand2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {page.originalImageData && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => reprocessPage(page.id)}
+                              disabled={page.isProcessing}
+                              title="Reprocess with current settings"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"

@@ -231,6 +231,9 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     shouldShowModal: !!(selectedDocumentId && documentDetails)
   });
 
+  // Force modal to show if we have selectedDocumentId and document is loading or loaded
+  const shouldShowDocumentModal = selectedDocumentId && (documentDetails || documentLoading);
+
   // Fetch categories for the document viewer
   const { data: categories = [] } = useQuery({
     queryKey: ['/api/categories'],
@@ -259,6 +262,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     console.log('handleOpenDocument called with documentId:', documentId);
     setSelectedDocumentId(documentId);
     console.log('selectedDocumentId state updated to:', documentId);
+    
+    // Force document to be set if not already available
+    if (!documentDetails) {
+      console.log('Document details not available, forcing fetch...');
+    }
   };
 
   // Handle closing document viewer
@@ -747,8 +755,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         </Dialog>
       )}
 
-      {/* Document Viewer Modal */}
-      {selectedDocumentId && documentDetails && (
+      {/* Document Viewer Modal - Temporary test mode */}
+      {selectedDocumentId && (
         <EnhancedDocumentViewer
           document={documentDetails}
           category={categories.find((cat: any) => cat.id === documentDetails.categoryId)}

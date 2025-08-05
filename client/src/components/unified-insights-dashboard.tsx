@@ -237,6 +237,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle opening document viewer
   const handleOpenDocument = (documentId: number) => {
+    console.log('Opening document viewer for document ID:', documentId);
     setSelectedDocumentId(documentId);
   };
 
@@ -387,7 +388,15 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             insight.priority === 'medium' ? 'border-l-yellow-500 bg-yellow-50' :
                             'border-l-green-500 bg-green-50'
                           }`}
-                          onClick={() => insight.documentId && handleOpenDocument(insight.documentId)}
+                          onClick={() => {
+                            console.log('Card clicked! Insight:', insight);
+                            console.log('Document ID:', insight.documentId);
+                            if (insight.documentId) {
+                              handleOpenDocument(insight.documentId);
+                            } else {
+                              console.log('No documentId found for this insight');
+                            }
+                          }}
                         >
                           <CardContent className="p-2">
                             <div className="flex items-start justify-between mb-1">
@@ -513,7 +522,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
       {selectedDocumentId && documentDetails && (
         <EnhancedDocumentViewer
           document={documentDetails}
-          category={categories.find(cat => cat.id === documentDetails.categoryId)}
+          category={categories.find((cat: any) => cat.id === documentDetails.categoryId)}
           onClose={handleCloseDocument}
           onDownload={handleDocumentDownload}
           onUpdate={() => {

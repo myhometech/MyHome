@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import puppeteer from 'puppeteer';
+import { PDFDocument, rgb } from 'pdf-lib';
+import sharp from 'sharp';
 
 export interface ConversionResult {
   pdfPath: string;
@@ -11,11 +13,11 @@ export interface ConversionResult {
 
 export class PDFConversionService {
   /**
-   * Convert a scanned document image to PDF format
+   * Convert a scanned document image to PDF format using pdf-lib for better compatibility
    */
   async convertImageToPDF(imagePath: string, outputDir: string): Promise<ConversionResult> {
     try {
-      console.log(`Converting scanned document to PDF: ${imagePath}`);
+      console.log(`Converting scanned document to PDF using pdf-lib: ${imagePath}`);
       
       if (!fs.existsSync(imagePath)) {
         throw new Error(`Image file not found: ${imagePath}`);
@@ -26,13 +28,10 @@ export class PDFConversionService {
       const pdfFilename = `${imageFilename}_document.pdf`;
       const pdfPath = path.join(outputDir, pdfFilename);
 
-      // Create HTML template for PDF generation
-      const htmlContent = this.createPDFTemplate(imagePath, imageFilename);
-      
-      // Generate PDF using Puppeteer
-      await this.generatePDFFromHTML(htmlContent, pdfPath);
+      // Use pdf-lib to create a robust PDF
+      await this.generatePDFFromImage(imagePath, pdfPath, imageFilename);
 
-      console.log(`Successfully converted image to PDF: ${pdfPath}`);
+      console.log(`Successfully converted image to PDF using pdf-lib: ${pdfPath}`);
       
       return {
         pdfPath,
@@ -48,6 +47,89 @@ export class PDFConversionService {
         success: false,
         error: error.message
       };
+    }
+  }
+
+  /**
+   * Generate PDF from image using pdf-lib for better compatibility
+   */
+  private async generatePDFFromImage(imagePath: string, outputPath: string, documentName: string): Promise<void> {
+    try {
+      // Create a new PDF document
+      const pdfDoc = await PDFDocument.create();
+      
+      // Read and process the image
+      const imageBuffer = await fs.promises.readFile(imagePath);
+      let processedImageBuffer = imageBuffer;
+      
+      // Process image with Sharp for optimization
+      try {
+        processedImageBuffer = await sharp(imageBuffer)
+          .jpeg({ quality: 85, progressive: false })
+          .toBuffer();
+      } catch (sharpError) {
+        console.warn('Sharp processing failed, using original image:', sharpError);
+      }
+
+      // Embed the image in the PDF
+      let pdfImage;
+      const ext = path.extname(imagePath).toLowerCase();
+      
+      if (ext === '.png') {
+        pdfImage = await pdfDoc.embedPng(processedImageBuffer);
+      } else {
+        // Default to JPEG for all other formats
+        pdfImage = await pdfDoc.embedJpg(processedImageBuffer);
+      }
+
+      // Get image dimensions
+      const imageDims = pdfImage.scale(1);
+      
+      // Calculate page size to fit image (max A4 size)
+      const maxWidth = 595; // A4 width in points
+      const maxHeight = 842; // A4 height in points
+      
+      let pageWidth = imageDims.width;
+      let pageHeight = imageDims.height;
+      
+      // Scale down if image is larger than A4
+      if (pageWidth > maxWidth || pageHeight > maxHeight) {
+        const scaleX = maxWidth / pageWidth;
+        const scaleY = maxHeight / pageHeight;
+        const scale = Math.min(scaleX, scaleY);
+        
+        pageWidth = pageWidth * scale;
+        pageHeight = pageHeight * scale;
+      }
+
+      // Add a page with appropriate size
+      const page = pdfDoc.addPage([pageWidth, pageHeight]);
+      
+      // Draw the image to fill the entire page
+      page.drawImage(pdfImage, {
+        x: 0,
+        y: 0,
+        width: pageWidth,
+        height: pageHeight,
+      });
+
+      // Add metadata
+      pdfDoc.setTitle(`Scanned Document - ${documentName}`);
+      pdfDoc.setSubject('Document scanned with MyHome');
+      pdfDoc.setCreator('MyHome Document Management System');
+      pdfDoc.setProducer('MyHome PDF Converter');
+      pdfDoc.setCreationDate(new Date());
+      pdfDoc.setModificationDate(new Date());
+
+      // Save the PDF
+      const pdfBytes = await pdfDoc.save();
+      await fs.promises.writeFile(outputPath, pdfBytes);
+      
+      console.log(`PDF successfully created with pdf-lib: ${outputPath}`);
+      
+    } catch (error) {
+      console.error('pdf-lib PDF generation failed:', error);
+      throw error;
     }
   }
 

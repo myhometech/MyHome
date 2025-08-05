@@ -7,6 +7,7 @@ MyHome is a comprehensive document management application for homeowners, design
 Preferred communication style: Simple, everyday language.
 Project Direction: Building iOS version of MyHome document management app.
 Essential Features: Phone camera scanning for document digitization, future Google Drive integration planned.
+Interface Design: Clean insights-first layout with single document library section below AI insights, single main heading structure.
 
 ### Application Behavior Preferences
 1. **Document Upload**: Auto-suggest categories using AI analysis with user confirmation before saving
@@ -27,7 +28,8 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 - **UI Framework**: Radix UI components with Tailwind CSS styling
 - **Component Library**: shadcn/ui
 - **Feature Management**: Subscription-based feature flagging system with FeatureGate components
-- **Unified Interface**: UnifiedDocumentCard component for document management and intelligent insight display.
+- **Unified Interface**: Insights-first UX with AI insights positioned above document library in single scrollable view
+- **Component Structure**: UnifiedDocumentCard for document management and UnifiedInsightsDashboard for AI insights display
 
 ### Vehicle Management System
 - **Vehicle Insights**: AI-powered MOT and tax due date insights with priority classification

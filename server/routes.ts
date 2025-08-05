@@ -31,6 +31,7 @@ import cors from 'cors';
 import passport from './passport';
 import authRoutes from './authRoutes';
 import { parseMailgunWebhook, verifyMailgunSignature, extractUserIdFromRecipient, validateEmailAttachments } from './mailgunService';
+import { setupMultiPageScanUpload } from './routes/multiPageScanUpload';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -2833,6 +2834,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Advanced scanning routes
   app.use('/api/scanning', advancedScanningRoutes);
+  
+  // Setup multi-page scan upload routes
+  setupMultiPageScanUpload(app);
 
   // LLM usage analytics routes (admin only)
   app.use('/api/admin/llm-usage', llmUsageRoutes);

@@ -294,7 +294,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     }
   }, [selectedPageIndex, capturedPages.length]);
 
-  // Convert captured pages to files and finish
+  // Convert captured pages to files and finish - creates PDF upload
   const finishScanning = useCallback(async () => {
     if (capturedPages.length === 0) {
       toast({
@@ -317,7 +317,9 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     setIsProcessing(true);
     
     try {
+      // Create image files with document-scan- prefix to trigger PDF bundling
       const files: File[] = [];
+      const timestamp = Date.now();
       
       for (let i = 0; i < capturedPages.length; i++) {
         const page = capturedPages[i];
@@ -326,32 +328,63 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         const response = await fetch(page.imageData);
         const blob = await response.blob();
         
-        // Create file with appropriate name
-        const fileName = `scanned-page-${i + 1}-${Date.now()}.jpg`;
+        // Create file with document-scan- prefix to trigger merge logic
+        const fileName = `document-scan-page-${String(i + 1).padStart(2, '0')}-${timestamp}.jpg`;
         const file = new File([blob], fileName, { type: 'image/jpeg' });
         files.push(file);
       }
       
       stopCamera();
-      onCapture(files);
+      
+      // Use FormData to send multiple files for PDF bundling
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append('pages', file);
+      });
+      
+      // Add metadata
+      formData.append('uploadSource', 'browser_scan');
+      formData.append('documentName', `Scanned Document ${new Date().toLocaleDateString()}`);
+      formData.append('pageCount', files.length.toString());
+      
+      // Upload to server for PDF creation
+      const response = await fetch('/api/documents/multi-page-scan-upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      
+      const result = await response.json();
+      
       onClose();
+      
+      // Redirect to document view or refresh page
+      if (result.documentId) {
+        window.location.href = `/document/${result.documentId}`;
+      } else {
+        // Refresh the current page to show new document
+        window.location.reload();
+      }
       
       toast({
         title: "Scan Complete",
-        description: `Successfully scanned ${files.length} page${files.length > 1 ? 's' : ''}.`,
+        description: `Successfully created ${capturedPages.length}-page PDF document.`,
       });
       
     } catch (err) {
       console.error('Failed to process captured pages:', err);
       toast({
-        title: "Processing Failed",
-        description: "Failed to process captured pages. Please try again.",
+        title: "Upload Failed",
+        description: "Failed to create PDF document. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsProcessing(false);
     }
-  }, [capturedPages, stopCamera, onCapture, onClose, toast]);
+  }, [capturedPages, stopCamera, onClose, toast]);
 
   // Cleanup on unmount or close
   useEffect(() => {

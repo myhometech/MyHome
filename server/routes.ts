@@ -1472,6 +1472,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete a specific insight (general endpoint)
+  app.delete('/api/insights/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const insightId = req.params.id;
+
+      const deletedInsight = await storage.deleteInsight(insightId, userId);
+      
+      if (!deletedInsight) {
+        return res.status(404).json({ message: "Insight not found" });
+      }
+
+      res.json({ success: true, message: "Insight deleted successfully" });
+
+    } catch (error) {
+      console.error("Error deleting insight:", error);
+      captureError(error as Error, req);
+      res.status(500).json({ message: "Failed to delete insight" });
+    }
+  });
+
   // DOC-501: Delete a specific insight
   app.delete('/api/documents/:id/insights/:insightId', requireAuth, async (req: any, res) => {
     try {

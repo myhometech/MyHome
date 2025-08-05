@@ -169,6 +169,7 @@ export interface IStorage {
   // TICKET 4: AI Insights Dashboard operations
   getInsights(userId: string, status?: string, type?: string, priority?: string): Promise<DocumentInsight[]>;
   updateInsightStatus(insightId: string, userId: string, status: 'open' | 'dismissed' | 'resolved'): Promise<DocumentInsight | undefined>;
+  deleteInsight(insightId: string, userId: string): Promise<DocumentInsight | undefined>;
   
   // User Assets operations
   getUserAssets(userId: string): Promise<UserAsset[]>;
@@ -1320,6 +1321,20 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return updatedInsight;
+  }
+
+  async deleteInsight(insightId: string, userId: string): Promise<DocumentInsight | undefined> {
+    const [deletedInsight] = await db
+      .delete(documentInsights)
+      .where(
+        and(
+          eq(documentInsights.id, insightId),
+          eq(documentInsights.userId, userId)
+        )
+      )
+      .returning();
+    
+    return deletedInsight;
   }
 
   // TICKET 8: Get critical insights for homepage dashboard (max 4 items)

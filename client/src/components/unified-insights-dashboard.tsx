@@ -18,7 +18,9 @@ import {
   Shield,
   X,
   Grid,
-  FileText
+  FileText,
+  MoreHorizontal,
+  Trash2
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { InsightCard } from '@/components/insight-card';
 import { InsightsCalendar } from '@/components/insights-calendar';
 import { ManualEventCard, CompactManualEventCard } from '@/components/manual-event-card';
@@ -276,6 +279,24 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     }
   };
 
+  // Handle insight deletion
+  const handleDeleteInsight = async (insightId: string) => {
+    try {
+      const response = await fetch(`/api/insights/${insightId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete insight');
+      }
+
+      // Refetch insights to update the UI
+      refetch();
+    } catch (error) {
+      console.error('Error deleting insight:', error);
+    }
+  };
+
 
 
   if (error) {
@@ -488,17 +509,39 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                                   {insight.priority.charAt(0).toUpperCase()}
                                 </Badge>
                               </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-4 w-4 p-0 opacity-60 hover:opacity-100"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleStatusUpdate(insight.id, 'resolved');
-                                }}
-                              >
-                                <CheckCircle className="h-2 w-2" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-4 w-4 p-0 opacity-60 hover:opacity-100"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <MoreHorizontal className="h-2 w-2" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40">
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusUpdate(insight.id, 'resolved');
+                                    }}
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-2" />
+                                    Mark as Done
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteInsight(insight.id);
+                                    }}
+                                    className="text-red-600 focus:text-red-600"
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                             <h5 className="font-medium text-xs mb-1 line-clamp-1 leading-tight">{insight.title}</h5>
                             <p className="text-xs text-gray-600 line-clamp-2 mb-1 leading-tight">

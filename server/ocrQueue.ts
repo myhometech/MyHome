@@ -108,11 +108,19 @@ class OCRJobQueue {
         storage
       );
       
-      // TICKET 17: Queue AI insights for background processing
+      // TICKET 17 & TICKET 5: Queue AI insights for background processing  
       try {
         const document = await storage.getDocument(job.documentId, job.userId);
         if (document && document.extractedText) {
           console.log(`💡 Queueing AI insights job for document: ${job.documentId}`);
+          
+          // TICKET 5: Prioritize browser scans for DOC-501 insights
+          const isBrowserScan = document.uploadSource === 'browser_scan';
+          const priority = isBrowserScan ? 3 : 5; // Higher priority for browser scans
+          
+          if (isBrowserScan) {
+            console.log(`🔧 TICKET 5: Browser scan detected - triggering DOC-501 insights with high priority`);
+          }
           
           const { insightJobQueue } = await import('./insightJobQueue');
           
@@ -123,11 +131,12 @@ class OCRJobQueue {
             documentName: document.name,
             extractedText: document.extractedText,
             mimeType: document.mimeType,
-            priority: 5
+            priority: priority
           });
           
           if (insightJobId) {
-            console.log(`✅ AI insights job queued: ${insightJobId} for document ${job.documentId}`);
+            const scanType = isBrowserScan ? 'browser scan' : 'document';
+            console.log(`✅ AI insights job queued: ${insightJobId} for ${scanType} ${job.documentId}`);
           } else {
             console.log(`⚠️ AI insights job skipped (duplicate or queue full) for document ${job.documentId}`);
           }
@@ -149,6 +158,24 @@ class OCRJobQueue {
       
     } catch (error) {
       console.error(`❌ OCR job error: ${job.id}`, error);
+      
+      // TICKET 5: Handle OCR failure for browser scans
+      try {
+        const { storage } = await import('./storage');
+        const document = await storage.getDocument(job.documentId, job.userId);
+        
+        if (document?.uploadSource === 'browser_scan') {
+          console.log(`🔧 TICKET 5: Setting OCR failed status for browser scan ${job.documentId}`);
+          await storage.updateDocumentOCRStatus(job.documentId, job.userId, {
+            status: 'ocr_failed',
+            ocrProcessed: true,
+            extractedText: null
+          });
+          console.log(`✅ Browser scan ${job.documentId} marked as OCR failed without blocking UI`);
+        }
+      } catch (updateError) {
+        console.error(`Failed to update OCR failure status for document ${job.documentId}:`, updateError);
+      }
       
       // Retry logic
       if (job.retries < 2) {

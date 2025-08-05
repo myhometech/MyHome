@@ -89,6 +89,7 @@ export interface IStorage {
   updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string }): Promise<Document | undefined>;
   updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined>;
   updateDocumentOCRAndSummary(id: number, userId: string, extractedText: string, summary: string): Promise<Document | undefined>;
+  updateDocumentOCRStatus(id: number, userId: string, ocrStatus: { status: string; ocrProcessed: boolean; extractedText: string | null }): Promise<Document | undefined>;
   updateDocumentSummary(id: number, userId: string, summary: string): Promise<void>;
   updateDocumentTags(id: number, userId: string, tags: string[]): Promise<void>;
 
@@ -503,6 +504,23 @@ export class DatabaseStorage implements IStorage {
         extractedText,
         summary,
         ocrProcessed: true 
+      })
+      .where(
+        and(eq(documents.id, id), eq(documents.userId, userId))
+      )
+      .returning();
+    
+    return updatedDoc;
+  }
+
+  // TICKET 5: Update document OCR status for browser scan failures
+  async updateDocumentOCRStatus(id: number, userId: string, ocrStatus: { status: string; ocrProcessed: boolean; extractedText: string | null }): Promise<Document | undefined> {
+    const [updatedDoc] = await db
+      .update(documents)
+      .set({ 
+        status: ocrStatus.status,
+        ocrProcessed: ocrStatus.ocrProcessed,
+        extractedText: ocrStatus.extractedText
       })
       .where(
         and(eq(documents.id, id), eq(documents.userId, userId))

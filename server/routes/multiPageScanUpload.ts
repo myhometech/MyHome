@@ -186,10 +186,11 @@ export function setupMultiPageScanUpload(app: Express) {
       try {
         await ocrQueue.addJob({
           documentId: document.id,
-          filePath: cloudStorageKey,
-          userId: document.userId,
+          fileName: document.fileName,
+          filePathOrGCSKey: cloudStorageKey,
           mimeType: document.mimeType,
-          priority: 'normal'
+          userId: document.userId,
+          priority: 5
         });
         console.log(`📄 OCR job queued for multi-page document ${document.id}`);
       } catch (ocrError) {

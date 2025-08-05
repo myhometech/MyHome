@@ -159,12 +159,19 @@ class OCRJobQueue {
     } catch (error) {
       console.error(`❌ OCR job error: ${job.id}`, error);
       
-      // TICKET 5: Handle OCR failure for browser scans
+      // TICKET 8: Track OCR failure for analytics
       try {
         const { storage } = await import('./storage');
         const document = await storage.getDocument(job.documentId, job.userId);
         
+        // TICKET 8: Track scan OCR failure event
         if (document?.uploadSource === 'browser_scan') {
+          console.log(`📊 Analytics: browser_scan_ocr_failed for document ${job.documentId}`, {
+            userId: job.userId,
+            documentId: job.documentId,
+            error: error?.message || 'Unknown OCR error',
+            timestamp: new Date().toISOString()
+          });
           console.log(`🔧 TICKET 5: Setting OCR failed status for browser scan ${job.documentId}`);
           await storage.updateDocumentOCRStatus(job.documentId, job.userId, {
             status: 'ocr_failed',

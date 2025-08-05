@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { imageProcessor, ProcessingOptions, ProcessedImage } from "@/utils/image-processing";
+import { trackScanEvent } from "@/lib/analytics";
 
 interface ScanDocumentFlowProps {
   isOpen: boolean;
@@ -54,6 +55,11 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
   const initializeCamera = useCallback(async () => {
     try {
       setError(null);
+      
+      // TICKET 8: Track scan started event
+      trackScanEvent('browser_scan_started', {
+        timestamp: new Date().toISOString()
+      });
       
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -346,6 +352,12 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       formData.append('uploadSource', 'browser_scan');
       formData.append('documentName', `Scanned Document ${new Date().toLocaleDateString()}`);
       formData.append('pageCount', files.length.toString());
+      
+      // TICKET 8: Track scan upload initiated
+      trackScanEvent('browser_scan_uploaded', {
+        pageCount: files.length,
+        timestamp: new Date().toISOString()
+      });
       
       // Upload to server for PDF creation
       const response = await fetch('/api/documents/multi-page-scan-upload', {

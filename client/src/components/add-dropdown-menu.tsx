@@ -12,6 +12,7 @@ import UnifiedUploadButton from "@/components/unified-upload-button";
 import { ManualEventModal } from "@/components/manual-event-modal";
 
 import ScanDocumentFlow from "@/components/scan-document-flow";
+import { trackAddMenuSelection } from "@/lib/analytics";
 
 interface AddDropdownMenuProps {
   /** Optional context for prefilling modals (e.g., selected house/vehicle) */
@@ -42,23 +43,13 @@ export function AddDropdownMenu({
   const [showManualDateDialog, setShowManualDateDialog] = useState(false);
   const [showScanFlow, setShowScanFlow] = useState(false);
 
-  // Analytics function for tracking menu selections
-  const trackAddMenuSelection = (action: 'important_date' | 'document_upload') => {
-    try {
-      // Fire analytics event as specified in the ticket
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'add_menu_selection', {
-          action: action,
-          asset_id: selectedAssetId,
-          asset_name: selectedAssetName
-        });
-      }
-      
-      // Also log to console for debugging
-      console.log('Analytics: add_menu_selection', { action, selectedAssetId, selectedAssetName });
-    } catch (error) {
-      console.warn('Failed to track add menu selection:', error);
-    }
+  // TICKET 8: Track scan document selection
+  const handleScanDocument = () => {
+    trackAddMenuSelection('scan_document', {
+      selectedAssetId,
+      selectedAssetName
+    });
+    setShowScanFlow(true);
   };
 
   const handleDocumentUpload = () => {
@@ -117,7 +108,7 @@ export function AddDropdownMenu({
           
           {/* TICKET 7: New browser-native scanner */}
           <DropdownMenuItem 
-            onClick={() => setShowScanFlow(true)}
+            onClick={handleScanDocument}
             className="cursor-pointer focus:bg-accent focus:text-accent-foreground"
           >
             <Camera className="h-4 w-4 mr-2" />

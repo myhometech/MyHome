@@ -1190,6 +1190,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // TICKET 8: Track insights generation for browser scans
+      if (document.uploadSource === 'browser_scan') {
+        console.log(`📊 Analytics: browser_scan_insights_generated for document ${documentId}`, {
+          userId,
+          documentId,
+          insightsCount: insights.insights.length,
+          processingTime: insights.processingTime,
+          timestamp: new Date().toISOString()
+        });
+      }
+
       res.json({
         success: true,
         insights: insights.insights,

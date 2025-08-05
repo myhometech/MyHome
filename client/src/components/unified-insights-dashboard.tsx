@@ -245,9 +245,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle opening document viewer
   const handleOpenDocument = (documentId: number) => {
-    console.log('HANDLE OPEN DOCUMENT CALLED', { documentId });
     setSelectedDocumentId(documentId);
-    console.log('Selected document ID set to:', documentId);
   };
 
   // Handle closing document viewer
@@ -258,15 +256,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle clicking on an insight card
   const handleInsightClick = (insight: DocumentInsight) => {
-    console.log('INSIGHT CLICK HANDLER CALLED', { insight: insight.id, hasDocumentId: !!insight.documentId });
-    
     if (insight.documentId) {
       // Open document modal if insight has associated document
-      console.log('Opening document modal for document:', insight.documentId);
       handleOpenDocument(insight.documentId);
     } else {
       // Show insight details modal for standalone insights
-      console.log('Opening insight details modal');
       setSelectedInsight(insight);
     }
   };

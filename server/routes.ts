@@ -852,14 +852,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const storage = storageProvider();
             try {
-              const signedUrl = await storage.getSignedUrl(metadata.storageKey, 3600);
-              if (document.mimeType === 'application/pdf' || document.mimeType.startsWith('image/')) {
-                return res.redirect(signedUrl);
-              }
-            } catch (signedUrlError) {
-              console.warn('Signed URL generation failed, falling back to proxied download:', signedUrlError);
-              
-              // Fallback to direct download and proxy the file
+              // Always proxy the file through our server to prevent modal breaking redirects
+              console.log('📁 GCS PREVIEW: Proxying document content to maintain modal functionality');
               const fileBuffer = await storage.download(metadata.storageKey);
               res.setHeader('Content-Type', document.mimeType);
               res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -869,6 +863,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
               res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
               return res.send(fileBuffer);
+            } catch (downloadError) {
+              console.error('GCS download failed for preview:', downloadError);
+              return res.status(500).json({ 
+                message: "Failed to load document preview",
+                error: downloadError?.message || 'Unknown error' 
+              });
             }
           }
           

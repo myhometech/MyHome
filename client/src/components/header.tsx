@@ -114,29 +114,7 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                   placeholder="Search documents..."
                 />
               </div>
-              {/* Debug button - temporary */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  console.log('Test modal button clicked');
-                  setSelectedDocument({
-                    id: 999,
-                    name: "Test Document",
-                    fileName: "test.pdf",
-                    filePath: "/test/path",
-                    mimeType: "application/pdf",
-                    fileSize: 12345,
-                    extractedText: "Test content",
-                    summary: "Test summary",
-                    uploadedAt: new Date().toISOString(),
-                    expiryDate: null
-                  });
-                }}
-                className="bg-red-100 text-red-800"
-              >
-                Test Modal
-              </Button>
+
             </div>
           </div>
 

@@ -68,18 +68,18 @@ export default function DocumentCard({
   const category = categories?.find(c => c.id === document.categoryId);
 
   // Fetch insights for this document - always log query attempts
-  console.log('[DEBUG] Setting up insights query for document:', document.id);
+
   
   const { data: insightsData, isLoading: insightsLoading, error: insightsError } = useQuery({
     queryKey: [`/api/documents/${document.id}/insights`],
     queryFn: async () => {
-      console.log('[DEBUG] Fetching insights for document:', document.id);
+
       const response = await fetch(`/api/documents/${document.id}/insights`, {
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch insights');
       const data = await response.json();
-      console.log('[DEBUG] Insights response for document', document.id, ':', data);
+
       return data;
     },
   });
@@ -88,11 +88,7 @@ export default function DocumentCard({
   const insights: DocumentInsight[] = insightsData?.insights || [];
   
   // Debug logging for all documents now
-  console.log('[DEBUG] Document', document.id, '- Component rendered');
-  console.log('[DEBUG] Document', document.id, 'insights:', insights);
-  console.log('[DEBUG] Document', document.id, 'insightsData:', insightsData);
-  console.log('[DEBUG] Document', document.id, 'insightsLoading:', insightsLoading);
-  console.log('[DEBUG] Document', document.id, 'insightsError:', insightsError);
+
   
   // Calculate insight summary - filter out unwanted types
   const openInsights = insights.filter(i => 
@@ -103,14 +99,13 @@ export default function DocumentCard({
   
   // More debug logging for document 28
   if (document.id === 28) {
-    console.log('[DEBUG] Document 28 openInsights:', openInsights);
-    console.log('[DEBUG] Document 28 criticalInsights:', criticalInsights);
+
   }
 
   // Insight dismiss mutation - copied from working critical insights dashboard
   const dismissInsightMutation = useMutation({
     mutationFn: async (insightId: string) => {
-      console.log('[DEBUG] Dismissing insight:', insightId);
+
       const response = await fetch(`/api/insights/${insightId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: 'dismissed' }),
@@ -128,7 +123,7 @@ export default function DocumentCard({
       return response.json();
     },
     onMutate: async (insightId: string) => {
-      console.log('[DEBUG] Optimistically removing insight:', insightId);
+
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
       
@@ -148,7 +143,7 @@ export default function DocumentCard({
       return { previousInsights };
     },
     onSuccess: () => {
-      console.log('[DEBUG] Insight dismissed successfully');
+
       // Invalidate and refetch insights queries to refresh the list immediately
       queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
       queryClient.refetchQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
@@ -498,7 +493,7 @@ export default function DocumentCard({
     if (bulkMode && onToggleSelection) {
       onToggleSelection();
     } else if (!bulkMode && !isEditing) {
-      console.log('Opening document modal for:', document.id, document.name);
+
       setShowModal(true);
     }
   };
@@ -507,18 +502,7 @@ export default function DocumentCard({
 
   return (
     <>
-      <div style={{
-        background: 'red', 
-        color: 'white', 
-        padding: '10px', 
-        fontSize: '16px',
-        fontWeight: 'bold',
-        border: '3px solid yellow',
-        margin: '5px',
-        zIndex: 9999
-      }}>
-        🚨 HOMEPAGE DOC {document.id} - {openInsights.length} insights
-      </div>
+
       
       <Card 
         className={`border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${
@@ -687,25 +671,8 @@ export default function DocumentCard({
                   </Button>
                 </div>
 
-                <Collapsible open={true} onOpenChange={setInsightsExpanded}>
+                <Collapsible open={insightsExpanded} onOpenChange={setInsightsExpanded}>
                   <CollapsibleContent className="space-y-2">
-                    <div className="p-3 bg-purple-100 border-2 border-purple-500 rounded mb-2">
-                      <div className="text-purple-800 font-bold">DEBUG INFO FOR DOC {document.id}</div>
-                      <div className="text-xs">Open Insights Count: {openInsights.length}</div>
-                      <div className="text-xs">All Insights Count: {insights.length}</div>
-                      {openInsights.length > 0 && (
-                        <div className="text-xs">First Insight ID: {openInsights[0].id}</div>
-                      )}
-                      <button 
-                        className="mt-2 px-4 py-2 bg-purple-500 text-white rounded font-bold"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          console.log('DEBUG BUTTON CLICKED FOR DOC:', document.id, 'Open insights:', openInsights.length);
-                        }}
-                      >
-                        DEBUG BUTTON - CLICK ME
-                      </button>
-                    </div>
                     {openInsights.slice(0, 3).map((insight) => (
                       <div
                         key={insight.id}

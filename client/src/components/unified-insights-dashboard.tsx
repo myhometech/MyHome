@@ -269,37 +269,77 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
               </div>
             ) : (
               <div className="space-y-6">
-                {/* AI Document Insights */}
+                {/* AI Document Insights Cards */}
                 {insights.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <h4 className="text-md font-medium text-gray-700">Document Insights</h4>
                       <SmartHelpTooltip helpKey="document-insights" />
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                      {Array.from(new Set(insights.map(i => i.type))).map((type) => {
-                        const typeInsights = insights.filter(i => i.type === type);
-                        const count = typeInsights.length;
-                        const hasHighPriority = typeInsights.some(i => i.priority === 'high');
-                        
-                        return (
-                          <Button
-                            key={type}
-                            variant="outline"
-                            className={`flex items-center gap-2 ${hasHighPriority ? 'border-red-200 bg-red-50 hover:bg-red-100' : ''}`}
-                          >
-                            {type === 'summary' && <Brain className="h-4 w-4" />}
-                            {type === 'contacts' && <Users className="h-4 w-4" />}
-                            {type === 'financial_info' && <DollarSign className="h-4 w-4" />}
-                            {type === 'compliance' && <Shield className="h-4 w-4" />}
-                            {type === 'key_dates' && <Calendar className="h-4 w-4" />}
-                            {type === 'action_items' && <CheckCircle className="h-4 w-4" />}
-                            {!['summary', 'contacts', 'financial_info', 'compliance', 'key_dates', 'action_items'].includes(type) && <FileText className="h-4 w-4" />}
-                            <span className="capitalize">{type.replace('_', ' ')}</span>
-                            <Badge variant="secondary" className="ml-1">{count}</Badge>
-                          </Button>
-                        );
-                      })}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {insights.slice(0, 12).map((insight) => (
+                        <Card key={insight.id} className={`border ${
+                          insight.priority === 'high' ? 'border-red-200 bg-red-50' :
+                          insight.priority === 'medium' ? 'border-yellow-200 bg-yellow-50' :
+                          'border-green-200 bg-green-50'
+                        }`}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                {insight.type === 'summary' && <Brain className="h-4 w-4 text-blue-600" />}
+                                {insight.type === 'contacts' && <Users className="h-4 w-4 text-green-600" />}
+                                {insight.type === 'financial_info' && <DollarSign className="h-4 w-4 text-green-600" />}
+                                {insight.type === 'compliance' && <Shield className="h-4 w-4 text-orange-600" />}
+                                {insight.type === 'key_dates' && <Calendar className="h-4 w-4 text-purple-600" />}
+                                {insight.type === 'action_items' && <CheckCircle className="h-4 w-4 text-blue-600" />}
+                                {insight.type.startsWith('vehicle:') && <FileText className="h-4 w-4 text-red-600" />}
+                                {!['summary', 'contacts', 'financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type) && !insight.type.startsWith('vehicle:') && <FileText className="h-4 w-4 text-gray-600" />}
+                                <Badge variant={insight.priority === 'high' ? 'destructive' : insight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs">
+                                  {insight.priority}
+                                </Badge>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 px-2 text-xs"
+                                onClick={() => handleStatusUpdate(insight.id, 'resolved')}
+                              >
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Done
+                              </Button>
+                            </div>
+                            <h5 className="font-medium text-sm mb-1 line-clamp-2">{insight.title}</h5>
+                            <p className="text-xs text-gray-600 line-clamp-3 mb-2">{insight.content}</p>
+                            {insight.dueDate && (
+                              <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(insight.dueDate).toLocaleDateString()}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between text-xs text-gray-500">
+                              <span className="capitalize">{insight.type.replace('_', ' ').replace(':', ' ')}</span>
+                              {insight.documentId && (
+                                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                                  View Document
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      {insights.length > 12 && (
+                        <Card className="border-dashed border-gray-300 bg-gray-50">
+                          <CardContent className="p-4 text-center">
+                            <div className="text-gray-500">
+                              <FileText className="h-8 w-8 mx-auto mb-2" />
+                              <p className="text-sm">+{insights.length - 12} more insights</p>
+                              <Button variant="ghost" size="sm" className="mt-2 text-xs">
+                                View All
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
                   </div>
                 )}

@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 // Import Genius Scan integration
 import GeniusScanButton from "./genius-scan-button";
+import ScanDocumentFlow from "./scan-document-flow";
 import { useFeatures } from "@/hooks/useFeatures";
 
 interface UnifiedUploadButtonProps {
@@ -25,6 +26,7 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
   const [isDragOver, setIsDragOver] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   // Removed camera scanner states - now using Genius Scan integration
+  const [showScanFlow, setShowScanFlow] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadData, setUploadData] = useState({
     categoryId: "",
@@ -364,8 +366,21 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
               onScanInitiated={handleScanDocuments}
             >
               <Camera className="h-3 w-3 mr-1" />
-              Scan Document
+              Genius Scan
             </GeniusScanButton>
+            
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowScanFlow(true);
+              }}
+              variant="outline"
+              size="sm"
+              className="text-xs"
+            >
+              <Camera className="h-3 w-3 mr-1" />
+              Browser Camera
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -581,6 +596,16 @@ export default function UnifiedUploadButton({ onUpload }: UnifiedUploadButtonPro
       </Dialog>
 
       {/* Genius Scan integration handled by GeniusScanButton component */}
+      
+      {/* Browser Camera Scanner */}
+      <ScanDocumentFlow
+        isOpen={showScanFlow}
+        onClose={() => setShowScanFlow(false)}
+        onCapture={(files) => {
+          handleFileSelect(files);
+          setShowScanFlow(false);
+        }}
+      />
     </>
   );
 }

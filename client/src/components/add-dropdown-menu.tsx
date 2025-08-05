@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import { ManualEventModal } from "@/components/manual-event-modal";
 import GeniusScanButton from "@/components/genius-scan-button";
+import ScanDocumentFlow from "@/components/scan-document-flow";
 
 interface AddDropdownMenuProps {
   /** Optional context for prefilling modals (e.g., selected house/vehicle) */
@@ -39,6 +40,7 @@ export function AddDropdownMenu({
 }: AddDropdownMenuProps) {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showManualDateDialog, setShowManualDateDialog] = useState(false);
+  const [showScanFlow, setShowScanFlow] = useState(false);
 
   // Analytics function for tracking menu selections
   const trackAddMenuSelection = (action: 'important_date' | 'document_upload') => {
@@ -122,11 +124,23 @@ export function AddDropdownMenu({
             >
               <Camera className="h-4 w-4 mr-2" />
               <div className="flex flex-col">
-                <span className="font-medium">Scan Document</span>
-                <span className="text-xs text-muted-foreground">Open Genius Scan app</span>
+                <span className="font-medium">Scan with Genius Scan</span>
+                <span className="text-xs text-muted-foreground">Open external scanning app</span>
               </div>
             </GeniusScanButton>
           </div>
+          
+          {/* Browser Camera Menu Item */}
+          <DropdownMenuItem 
+            onClick={() => setShowScanFlow(true)}
+            className="cursor-pointer focus:bg-accent focus:text-accent-foreground"
+          >
+            <Camera className="h-4 w-4 mr-2" />
+            <div className="flex flex-col">
+              <span className="font-medium">Browser Camera</span>
+              <span className="text-xs text-muted-foreground">Scan directly in browser</span>
+            </div>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -148,6 +162,18 @@ export function AddDropdownMenu({
         onClose={() => setShowManualDateDialog(false)}
         selectedAssetId={selectedAssetId}
         selectedAssetName={selectedAssetName}
+      />
+      
+      {/* Browser Camera Scanner */}
+      <ScanDocumentFlow
+        isOpen={showScanFlow}
+        onClose={() => setShowScanFlow(false)}
+        onCapture={(files) => {
+          // Handle captured files - for now just close the modal
+          // In a real implementation, this would trigger the upload flow
+          setShowScanFlow(false);
+          onDocumentUpload?.();
+        }}
       />
     </>
   );

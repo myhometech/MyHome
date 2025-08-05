@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import { 
   Brain, 
   AlertCircle, 
+  AlertTriangle,
   Clock, 
   CheckCircle, 
   TrendingUp, 
@@ -295,8 +296,56 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   return (
     <div className="space-y-6">
+      {/* High-Level Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* High Priority Items */}
+        <Card className="border-l-4 border-l-red-500 bg-red-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-700">High Priority</p>
+                <p className="text-2xl font-bold text-red-900">
+                  {insights.filter(i => i.priority === 'high' && i.status !== 'resolved').length}
+                </p>
+                <p className="text-xs text-red-600">Urgent items</p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
 
+        {/* Medium Priority Items */}
+        <Card className="border-l-4 border-l-yellow-500 bg-yellow-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-yellow-700">Medium Priority</p>
+                <p className="text-2xl font-bold text-yellow-900">
+                  {insights.filter(i => i.priority === 'medium' && i.status !== 'resolved').length}
+                </p>
+                <p className="text-xs text-yellow-600">Important items</p>
+              </div>
+              <Clock className="h-8 w-8 text-yellow-500" />
+            </div>
+          </CardContent>
+        </Card>
 
+        {/* Low Priority Items */}
+        <Card className="border-l-4 border-l-green-500 bg-green-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-700">Low Priority</p>
+                <p className="text-2xl font-bold text-green-900">
+                  {insights.filter(i => i.priority === 'low' && i.status !== 'resolved').length}
+                </p>
+                <p className="text-xs text-green-600">General items</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* AI Insights Section - Simple Horizontal Buttons */}
       <div className="space-y-4">

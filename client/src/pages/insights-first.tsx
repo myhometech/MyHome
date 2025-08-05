@@ -80,10 +80,10 @@ export default function InsightsFirstPage() {
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", "/api/documents/bulk-delete", {
+      const result = await apiRequest("DELETE", "/api/documents/bulk-delete", {
         documentIds: Array.from(selectedDocuments),
       });
-      return response.json();
+      return result;
     },
     onSuccess: (result) => {
       toast({

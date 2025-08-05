@@ -80,25 +80,29 @@ export default function InsightsFirstPage() {
     retry: false,
   });
 
-  // Fetch insights
-  const { data: allInsights = [], isLoading: insightsLoading } = useQuery<DocumentInsight[]>({
+  // Fetch insights - handle authentication errors gracefully
+  const { data: allInsights = [], isLoading: insightsLoading, error: insightsError } = useQuery<DocumentInsight[]>({
     queryKey: ["/api/insights"],
     retry: false,
+    meta: {
+      // Don't show error toasts for authentication failures
+      suppressErrorToast: true,
+    },
   });
 
   // Filter documents based on search and category
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = !searchQuery || 
-      doc.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.category?.toLowerCase().includes(searchQuery.toLowerCase());
+      doc.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.name?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesCategory = selectedCategory === null || doc.categoryId === selectedCategory;
     
     return matchesSearch && matchesCategory;
   });
 
-  // Filter and sort insights
-  const insights = allInsights
+  // Filter and sort insights - ensure allInsights is an array
+  const insights = Array.isArray(allInsights) ? allInsights
     .filter(insight => {
       const matchesType = insightTypeFilter === "all" || insight.type === insightTypeFilter;
       const matchesPriority = insightPriorityFilter === "all" || insight.priority === insightPriorityFilter;
@@ -117,7 +121,7 @@ export default function InsightsFirstPage() {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       }
       return 0;
-    });
+    }) : [];
 
   const getInsightIcon = (type: string) => {
     switch (type) {
@@ -307,10 +311,10 @@ export default function InsightsFirstPage() {
               {filteredDocuments.map((document) => (
                 <UnifiedDocumentCard
                   key={document.id}
-                  document={document}
+                  document={document as any}
                   viewMode={viewMode}
-                  onSelect={(doc) => {
-                    setSelectedDocument(doc);
+                  onClick={() => {
+                    setSelectedDocument(document as any);
                     setShowDocumentPreview(true);
                   }}
                 />
@@ -330,7 +334,7 @@ export default function InsightsFirstPage() {
             </DialogDescription>
           </DialogHeader>
           <UnifiedUploadButton 
-            onSuccess={() => {
+            onUpload={() => {
               setShowUploadDialog(false);
               queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
               toast({
@@ -349,6 +353,10 @@ export default function InsightsFirstPage() {
             <EnhancedDocumentViewer
               document={selectedDocument}
               onClose={() => setShowDocumentPreview(false)}
+              onDownload={() => {
+                // Download functionality
+                window.open(`/api/documents/${selectedDocument.id}/download`, '_blank');
+              }}
             />
           )}
         </DialogContent>

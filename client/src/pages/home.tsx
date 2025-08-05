@@ -596,6 +596,16 @@ export default function Home() {
         {/* Documents Section */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
           <div className="p-3 md:p-6 border-b border-gray-200 dark:border-gray-700">
+            {bulkMode && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-800">
+                    Multi-Select Mode Active - Click documents to select them
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center space-x-3">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Document Library</h2>
@@ -612,10 +622,13 @@ export default function Home() {
                     variant={bulkMode ? "default" : "outline"}
                     size="sm"
                     onClick={toggleBulkMode}
-                    className={bulkMode ? "bg-blue-600 text-white" : "border-blue-500 text-blue-600 hover:bg-blue-50"}
+                    className={bulkMode 
+                      ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700" 
+                      : "border-2 border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 font-medium"
+                    }
                   >
-                    {bulkMode ? <X className="h-4 w-4 mr-1" /> : <CheckSquare className="h-4 w-4 mr-1" />}
-                    {bulkMode ? "Cancel Selection" : "Multi Select"}
+                    {bulkMode ? <X className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
+                    {bulkMode ? "Cancel Multi-Select" : "Multi-Select Documents"}
                   </Button>
                 )}
                 <Button
@@ -644,7 +657,10 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <span className="text-sm font-medium text-blue-900">
-                      {selectedDocuments.size} document{selectedDocuments.size !== 1 ? 's' : ''} selected
+                      {selectedDocuments.size > 0 
+                        ? `${selectedDocuments.size} document${selectedDocuments.size !== 1 ? 's' : ''} selected`
+                        : "Click on documents below to select them for bulk operations"
+                      }
                     </span>
                     <div className="flex gap-2">
                       <Button

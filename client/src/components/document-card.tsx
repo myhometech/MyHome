@@ -504,8 +504,12 @@ export default function DocumentCard({
 
 
       <Card 
-        className={`border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer ${
-          bulkMode && isSelected ? "ring-2 ring-blue-500 bg-blue-50" : ""
+        className={`border transition-all duration-200 cursor-pointer ${
+          bulkMode 
+            ? isSelected 
+              ? "ring-2 ring-blue-500 bg-blue-50 border-blue-300 shadow-md" 
+              : "border-gray-300 hover:border-blue-400 hover:shadow-sm bg-gray-50"
+            : "border-gray-200 hover:shadow-md"
         }`}
         onClick={handleCardClick}
       >

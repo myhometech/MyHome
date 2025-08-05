@@ -16,9 +16,7 @@ import {
   Users,
   Shield,
   X,
-  Grid,
-  FileText,
-  Folder
+  Grid
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,12 +27,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InsightCard } from '@/components/insight-card';
 import { InsightsCalendar } from '@/components/insights-calendar';
 import { ManualEventCard, CompactManualEventCard } from '@/components/manual-event-card';
-import DocumentCard from '@/components/document-card';
-import CategoryFilter from '@/components/category-filter';
-import UploadZone from '@/components/upload-zone';
-import AddDropdownMenu from '@/components/add-dropdown-menu';
+
 import { useFeatures } from '@/hooks/useFeatures';
-import type { Category, Document, DocumentInsight } from '@shared/schema';
+import type { DocumentInsight } from '@shared/schema';
 
 // Manual Event interface for TypeScript
 interface ManualEvent {
@@ -152,9 +147,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Simple state for insights
   const [statusFilter] = useState<string>('all');
   
-  // Document-related state
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
   
 
 
@@ -177,15 +170,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     },
   });
 
-  // Fetch documents for document library
-  const { data: documents = [], isLoading: documentsLoading } = useQuery<Document[]>({
-    queryKey: ["/api/documents"],
-  });
 
-  // Fetch categories
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
-  });
 
   // Fetch manual events
   const { data: manualEvents = [], isLoading: manualEventsLoading } = useQuery<ManualEvent[]>({
@@ -237,14 +222,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     }
   };
 
-  // Filter documents for document tab
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesCategory = selectedCategory === null || doc.categoryId === selectedCategory;
-    const matchesSearch = searchQuery === "" || 
-      doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (doc.summary && doc.summary.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCategory && matchesSearch;
-  });
+
 
   if (error) {
     return (
@@ -377,99 +355,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
         </Card>
       </div>
 
-      {/* Document Library Section */}
-      <div className="space-y-4">
-        <div className="flex items-center space-x-3 pt-6 border-t">
-          <FileText className="h-8 w-8 text-blue-600" />
-          <div>
-            <h2 className="text-2xl font-bold">Document Library</h2>
-            <p className="text-gray-600">Manage and organize your documents</p>
-          </div>
-        </div>
-          {/* Add Menu */}
-          <div className="flex justify-center mb-6">
-            <AddDropdownMenu 
-              size="default" 
-              className="bg-blue-600 hover:bg-blue-700"
-              onDocumentUpload={() => {
-                console.log('Document upload initiated from unified dashboard');
-              }}
-              onManualDateCreate={() => {
-                console.log('Manual date creation initiated from unified dashboard');
-              }}
-            />
-          </div>
 
-          {/* Document Filters */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <CategoryFilter
-                categories={categories}
-                selectedCategory={selectedCategory}
-                onCategoryChange={setSelectedCategory}
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant={viewMode === "grid" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-              >
-                <Grid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Documents Content */}
-          {documentsLoading ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
-                <p>Loading documents...</p>
-              </CardContent>
-            </Card>
-          ) : filteredDocuments.length > 0 ? (
-            <div className={viewMode === "grid" 
-              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-              : "space-y-4"
-            }>
-              {filteredDocuments.map((document) => (
-                <DocumentCard
-                  key={document.id}
-                  document={{
-                    ...document,
-                    uploadedAt: document.uploadedAt ? new Date(document.uploadedAt).toISOString() : "",
-                    expiryDate: document.expiryDate ? new Date(document.expiryDate).toISOString() : null
-                  }}
-
-                  viewMode={viewMode}
-                />
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <Folder className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">No Documents Found</h3>
-                <p className="text-gray-600 mb-4">
-                  {searchQuery 
-                    ? `No documents match your search for "${searchQuery}".`
-                    : selectedCategory
-                    ? "No documents in this category."
-                    : "Upload some documents to get started."
-                  }
-                </p>
-              </CardContent>
-            </Card>
-          )}
-      </div>
     </div>
   );
 }

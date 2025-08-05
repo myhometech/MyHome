@@ -517,7 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let finalMimeType = req.file.mimetype;
 
       // Convert scanned images to PDF format
-      if (pdfConversionService.isImageFile(req.file.path) && req.file.originalname.startsWith('processed_')) {
+      if (pdfConversionService.isImageFile(req.file.path) && (req.file.originalname.startsWith('processed_') || req.file.originalname.startsWith('document-scan-'))) {
         console.log(`Converting scanned document image to PDF: ${req.file.originalname}`);
         
         try {

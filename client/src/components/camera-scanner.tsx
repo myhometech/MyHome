@@ -536,7 +536,7 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
     // Convert data URL to blob then to file
     canvasRef.current.toBlob((blob) => {
       if (blob) {
-        const file = new File([blob], `document-scan-${Date.now()}.jpg`, {
+        const file = new File([blob], `processed_document-scan-${Date.now()}.jpg`, {
           type: 'image/jpeg'
         });
         

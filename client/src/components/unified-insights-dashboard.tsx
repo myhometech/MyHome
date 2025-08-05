@@ -353,7 +353,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   return (
     <div className="space-y-6">
       {/* High-Level Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {/* All Items */}
         <Card 
           className={`border-l-4 border-l-blue-500 bg-blue-50/50 cursor-pointer hover:bg-blue-50 transition-colors ${
@@ -518,7 +518,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 {/* AI Document Insights Cards */}
                 {filteredInsights.length > 0 && (
                   <div>
-                    <div className="grid grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-2">
+                    <div className="mobile-insight-grid">
                       {filteredInsights.slice(0, 9).map((insight) => (
                         <Card 
                           key={insight.id} 
@@ -529,18 +529,19 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           }`}
                           onClick={() => handleInsightClick(insight)}
                         >
-                          <CardContent className="p-2">
-                            <div className="flex items-start justify-between mb-1">
-                              <div className="flex items-center gap-1">
-                                {insight.type === 'summary' && <Brain className="h-2 w-2 text-blue-600" />}
-                                {insight.type === 'contacts' && <Users className="h-2 w-2 text-green-600" />}
-                                {insight.type === 'financial_info' && <DollarSign className="h-2 w-2 text-green-600" />}
-                                {insight.type === 'compliance' && <Shield className="h-2 w-2 text-orange-600" />}
-                                {insight.type === 'key_dates' && <Calendar className="h-2 w-2 text-purple-600" />}
-                                {insight.type === 'action_items' && <CheckCircle className="h-2 w-2 text-blue-600" />}
-                                {insight.type.startsWith('vehicle:') && <FileText className="h-2 w-2 text-red-600" />}
-                                {!['summary', 'contacts', 'financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type) && !insight.type.startsWith('vehicle:') && <FileText className="h-2 w-2 text-gray-600" />}
-                                <Badge variant={insight.priority === 'high' ? 'destructive' : insight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs h-3 px-1">
+                          <CardContent className="p-3 sm:p-2">
+                            {/* Mobile: Stack metadata vertically, Desktop: Keep horizontal */}
+                            <div className="flex sm:flex-row flex-col items-start justify-between mb-2 sm:mb-1 gap-2 sm:gap-0">
+                              <div className="flex items-center gap-1.5 sm:gap-1">
+                                {insight.type === 'summary' && <Brain className="h-3 w-3 sm:h-2 sm:w-2 text-blue-600" />}
+                                {insight.type === 'contacts' && <Users className="h-3 w-3 sm:h-2 sm:w-2 text-green-600" />}
+                                {insight.type === 'financial_info' && <DollarSign className="h-3 w-3 sm:h-2 sm:w-2 text-green-600" />}
+                                {insight.type === 'compliance' && <Shield className="h-3 w-3 sm:h-2 sm:w-2 text-orange-600" />}
+                                {insight.type === 'key_dates' && <Calendar className="h-3 w-3 sm:h-2 sm:w-2 text-purple-600" />}
+                                {insight.type === 'action_items' && <CheckCircle className="h-3 w-3 sm:h-2 sm:w-2 text-blue-600" />}
+                                {insight.type.startsWith('vehicle:') && <FileText className="h-3 w-3 sm:h-2 sm:w-2 text-red-600" />}
+                                {!['summary', 'contacts', 'financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type) && !insight.type.startsWith('vehicle:') && <FileText className="h-3 w-3 sm:h-2 sm:w-2 text-gray-600" />}
+                                <Badge variant={insight.priority === 'high' ? 'destructive' : insight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs h-4 px-2 sm:h-3 sm:px-1">
                                   {insight.priority.charAt(0).toUpperCase()}
                                 </Badge>
                               </div>
@@ -549,10 +550,10 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                                   <Button 
                                     variant="ghost" 
                                     size="sm" 
-                                    className="h-4 w-4 p-0 opacity-60 hover:opacity-100"
+                                    className="h-5 w-5 sm:h-4 sm:w-4 p-0 opacity-60 hover:opacity-100"
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    <MoreHorizontal className="h-2 w-2" />
+                                    <MoreHorizontal className="h-3 w-3 sm:h-2 sm:w-2" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-40">
@@ -568,29 +569,34 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
-                            <h5 className="font-medium text-xs mb-1 line-clamp-1 leading-tight">{insight.title}</h5>
-                            <p className="text-xs text-gray-600 line-clamp-2 mb-1 leading-tight">
-                              {insight.content.length > 45 ? `${insight.content.substring(0, 45)}...` : insight.content}
+                            {/* Mobile: Allow 2 lines for title, Desktop: Keep 1 line */}
+                            <h5 className="mobile-card-title mb-2 sm:mb-1">{insight.title}</h5>
+                            {/* Mobile: Allow more content, Desktop: Keep compact */}
+                            <p className="mobile-card-content mb-2 sm:mb-1">
+                              {insight.content.length > 80 ? `${insight.content.substring(0, 80)}...` : insight.content}
                             </p>
-                            {insight.dueDate && (
-                              <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
-                                <Calendar className="h-2 w-2" />
-                                <span className="text-xs">{new Date(insight.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            {/* Mobile: Stack date and type info vertically */}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
+                              {insight.dueDate && (
+                                <div className="flex items-center gap-1 mobile-card-metadata">
+                                  <Calendar className="h-3 w-3 sm:h-2 sm:w-2" />
+                                  <span>{new Date(insight.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                </div>
+                              )}
+                              <div className="mobile-card-metadata capitalize truncate">
+                                {insight.type.replace('_', ' ').replace(':', ' ')}
                               </div>
-                            )}
-                            <div className="text-xs text-gray-500 capitalize truncate">
-                              {insight.type.replace('_', ' ').replace(':', ' ')}
                             </div>
                           </CardContent>
                         </Card>
                       ))}
                       {filteredInsights.length > 9 && (
                         <Card className="border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
-                          <CardContent className="p-2 text-center">
+                          <CardContent className="p-3 sm:p-2 text-center">
                             <div className="text-gray-500">
-                              <FileText className="h-3 w-3 mx-auto mb-1" />
-                              <p className="text-xs">+{filteredInsights.length - 9}</p>
-                              <Button variant="ghost" size="sm" className="h-4 text-xs mt-1 px-1" onClick={() => setPriorityFilter('all')}>
+                              <FileText className="h-4 w-4 sm:h-3 sm:w-3 mx-auto mb-2 sm:mb-1" />
+                              <p className="text-sm sm:text-xs mb-1">+{filteredInsights.length - 9}</p>
+                              <Button variant="ghost" size="sm" className="h-6 sm:h-4 text-sm sm:text-xs mt-1 px-2 sm:px-1" onClick={() => setPriorityFilter('all')}>
                                 View All
                               </Button>
                             </div>

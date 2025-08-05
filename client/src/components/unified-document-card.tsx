@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   FileText, 
   Image, 
@@ -33,7 +34,8 @@ import {
   Shield,
   ListTodo,
   Info,
-  Zap
+  Zap,
+  AlertCircle
 } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { EnhancedDocumentViewer } from "./enhanced-document-viewer";
@@ -56,6 +58,8 @@ interface Document {
   ocrProcessed: boolean | null;
   uploadedAt: string;
   expiryDate: string | null;
+  status?: string | null;
+  uploadSource?: string | null;
 }
 
 interface Category {
@@ -572,6 +576,25 @@ export default function UnifiedDocumentCard({
                       +{document.tags.length - 2}
                     </Badge>
                   )}
+                </div>
+              )}
+              
+              {/* TICKET 6: OCR failure badge for browser scans */}
+              {document.status === 'ocr_failed' && document.uploadSource === 'browser_scan' && (
+                <div className="flex items-center">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="destructive" className="text-xs bg-red-100 text-red-800 border-red-200 cursor-help">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          OCR failed
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>We couldn't read text from this scan – try rescanning.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )}
             </div>

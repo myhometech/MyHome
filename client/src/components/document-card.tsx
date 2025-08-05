@@ -711,65 +711,37 @@ export default function DocumentCard({
       </Card>
 
       {showModal && (
-        <EnhancedDocumentViewer
-          document={document}
-          onClose={() => {
-
-            setShowModal(false);
-          }}
-          onUpdate={onUpdate}
-        />
-      )}
-
-      {/* Old modal for reference - can be removed */}
-      {false && showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">{document.name}</h2>
-              <Button variant="ghost" size="sm" onClick={() => setShowModal(false)}>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold truncate">{document.name}</h2>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowModal(false)}
+                className="flex-shrink-0"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Category:</span> {category?.name || "Uncategorized"}
-                </div>
-                <div>
-                  <span className="font-medium">File Size:</span> {formatFileSize(document.fileSize)}
-                </div>
-                <div>
-                  <span className="font-medium">Uploaded:</span> {formatDate(document.uploadedAt)}
-                </div>
-                {document.expiryDate && (
-                  <div>
-                    <span className="font-medium">Important Date:</span> {document.expiryDate ? new Date(document.expiryDate).toLocaleDateString() : 'N/A'}
-                  </div>
-                )}
-              </div>
-              {document.extractedText && (
-                <div>
-                  <h3 className="font-medium mb-2">Extracted Text:</h3>
-                  <div className="bg-gray-50 p-3 rounded text-sm max-h-40 overflow-y-auto">
-                    {document.extractedText}
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Button onClick={handleDownload} size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
-                <Button onClick={handleDelete} variant="destructive" size="sm">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              </div>
+            <div className="h-full max-h-[calc(90vh-4rem)]">
+              <EnhancedDocumentViewer
+                document={document}
+                onClose={() => setShowModal(false)}
+                onUpdate={onUpdate}
+              />
             </div>
           </div>
         </div>
       )}
+
+
     </>
   );
 }

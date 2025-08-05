@@ -196,6 +196,19 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   const insights = insightsData?.insights || [];
   
+  // Add filtering state
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('high');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  // Filter insights based on selected filters
+  const filteredInsights = insights.filter(insight => {
+    const matchesPriority = priorityFilter === 'all' || insight.priority === priorityFilter;
+    const matchesType = typeFilter === 'all' || insight.type === typeFilter;
+    return matchesPriority && matchesType;
+  });
+
+  // Get unique types for filter dropdown
+  const insightTypes = ['all', ...Array.from(new Set(insights.map(i => i.type)))];
 
   
 
@@ -256,10 +269,35 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 <h3 className="text-lg font-semibold">AI Insights</h3>
                 <SmartHelpTooltip helpKey="ai-insights" variant="detailed" />
               </div>
-              <Button onClick={() => refetch()} disabled={isLoading} variant="outline" size="sm">
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
+              <div className="flex items-center gap-2">
+                <Select value={priorityFilter} onValueChange={(value: 'all' | 'high' | 'medium' | 'low') => setPriorityFilter(value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priority</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {insightTypes.map(type => (
+                      <SelectItem key={type} value={type}>
+                        {type === 'all' ? 'All Types' : type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => refetch()} disabled={isLoading} variant="outline" size="sm">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
             </div>
             
             {isLoading || manualEventsLoading ? (
@@ -270,70 +308,81 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
             ) : (
               <div className="space-y-6">
                 {/* AI Document Insights Cards */}
-                {insights.length > 0 && (
+                {filteredInsights.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <h4 className="text-md font-medium text-gray-700">Document Insights</h4>
-                      <SmartHelpTooltip helpKey="document-insights" />
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-md font-medium text-gray-700">Document Insights</h4>
+                        <SmartHelpTooltip helpKey="document-insights" />
+                        <Badge variant="outline" className="text-xs">
+                          {filteredInsights.length} of {insights.length}
+                        </Badge>
+                      </div>
+                      {priorityFilter === 'high' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPriorityFilter('all')}
+                          className="text-xs text-gray-500"
+                        >
+                          Show All
+                        </Button>
+                      )}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {insights.slice(0, 12).map((insight) => (
-                        <Card key={insight.id} className={`border ${
-                          insight.priority === 'high' ? 'border-red-200 bg-red-50' :
-                          insight.priority === 'medium' ? 'border-yellow-200 bg-yellow-50' :
-                          'border-green-200 bg-green-50'
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                      {filteredInsights.slice(0, 18).map((insight) => (
+                        <Card key={insight.id} className={`border-l-4 hover:shadow-sm transition-shadow ${
+                          insight.priority === 'high' ? 'border-l-red-500 bg-red-50' :
+                          insight.priority === 'medium' ? 'border-l-yellow-500 bg-yellow-50' :
+                          'border-l-green-500 bg-green-50'
                         }`}>
-                          <CardContent className="p-4">
+                          <CardContent className="p-3">
                             <div className="flex items-start justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                {insight.type === 'summary' && <Brain className="h-4 w-4 text-blue-600" />}
-                                {insight.type === 'contacts' && <Users className="h-4 w-4 text-green-600" />}
-                                {insight.type === 'financial_info' && <DollarSign className="h-4 w-4 text-green-600" />}
-                                {insight.type === 'compliance' && <Shield className="h-4 w-4 text-orange-600" />}
-                                {insight.type === 'key_dates' && <Calendar className="h-4 w-4 text-purple-600" />}
-                                {insight.type === 'action_items' && <CheckCircle className="h-4 w-4 text-blue-600" />}
-                                {insight.type.startsWith('vehicle:') && <FileText className="h-4 w-4 text-red-600" />}
-                                {!['summary', 'contacts', 'financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type) && !insight.type.startsWith('vehicle:') && <FileText className="h-4 w-4 text-gray-600" />}
-                                <Badge variant={insight.priority === 'high' ? 'destructive' : insight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs">
-                                  {insight.priority}
+                              <div className="flex items-center gap-1">
+                                {insight.type === 'summary' && <Brain className="h-3 w-3 text-blue-600" />}
+                                {insight.type === 'contacts' && <Users className="h-3 w-3 text-green-600" />}
+                                {insight.type === 'financial_info' && <DollarSign className="h-3 w-3 text-green-600" />}
+                                {insight.type === 'compliance' && <Shield className="h-3 w-3 text-orange-600" />}
+                                {insight.type === 'key_dates' && <Calendar className="h-3 w-3 text-purple-600" />}
+                                {insight.type === 'action_items' && <CheckCircle className="h-3 w-3 text-blue-600" />}
+                                {insight.type.startsWith('vehicle:') && <FileText className="h-3 w-3 text-red-600" />}
+                                {!['summary', 'contacts', 'financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type) && !insight.type.startsWith('vehicle:') && <FileText className="h-3 w-3 text-gray-600" />}
+                                <Badge variant={insight.priority === 'high' ? 'destructive' : insight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs h-4 px-1">
+                                  {insight.priority.charAt(0).toUpperCase()}
                                 </Badge>
                               </div>
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="h-6 px-2 text-xs"
+                                className="h-5 w-5 p-0 opacity-60 hover:opacity-100"
                                 onClick={() => handleStatusUpdate(insight.id, 'resolved')}
                               >
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Done
+                                <CheckCircle className="h-3 w-3" />
                               </Button>
                             </div>
-                            <h5 className="font-medium text-sm mb-1 line-clamp-2">{insight.title}</h5>
-                            <p className="text-xs text-gray-600 line-clamp-3 mb-2">{insight.content}</p>
+                            <h5 className="font-medium text-xs mb-1 line-clamp-2 leading-tight">{insight.title}</h5>
+                            <p className="text-xs text-gray-600 line-clamp-2 mb-2 leading-tight">
+                              {insight.content.length > 60 ? `${insight.content.substring(0, 60)}...` : insight.content}
+                            </p>
                             {insight.dueDate && (
-                              <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(insight.dueDate).toLocaleDateString()}
+                              <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                                <Calendar className="h-2 w-2" />
+                                <span className="text-xs">{new Date(insight.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                               </div>
                             )}
-                            <div className="flex items-center justify-between text-xs text-gray-500">
-                              <span className="capitalize">{insight.type.replace('_', ' ').replace(':', ' ')}</span>
-                              {insight.documentId && (
-                                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-                                  View Document
-                                </Button>
-                              )}
+                            <div className="text-xs text-gray-500 capitalize truncate">
+                              {insight.type.replace('_', ' ').replace(':', ' ')}
                             </div>
                           </CardContent>
                         </Card>
                       ))}
-                      {insights.length > 12 && (
-                        <Card className="border-dashed border-gray-300 bg-gray-50">
-                          <CardContent className="p-4 text-center">
+                      {filteredInsights.length > 18 && (
+                        <Card className="border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
+                          <CardContent className="p-3 text-center">
                             <div className="text-gray-500">
-                              <FileText className="h-8 w-8 mx-auto mb-2" />
-                              <p className="text-sm">+{insights.length - 12} more insights</p>
-                              <Button variant="ghost" size="sm" className="mt-2 text-xs">
+                              <FileText className="h-4 w-4 mx-auto mb-1" />
+                              <p className="text-xs">+{filteredInsights.length - 18}</p>
+                              <Button variant="ghost" size="sm" className="h-5 text-xs mt-1" onClick={() => setPriorityFilter('all')}>
                                 View All
                               </Button>
                             </div>
@@ -379,11 +428,23 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 )}
 
                 {/* Empty State */}
-                {insights.length === 0 && manualEvents.length === 0 && (
+                {filteredInsights.length === 0 && manualEvents.length === 0 && (
                   <div className="text-center py-8">
                     <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No Insights or Events Found</h3>
-                    <p className="text-gray-600 mb-4">Upload documents to generate AI insights or create manual events for important dates.</p>
+                    <h3 className="text-lg font-medium mb-2">
+                      {insights.length === 0 ? 'No Insights or Events Found' : 'No Insights Match Your Filters'}
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      {insights.length === 0 
+                        ? 'Upload documents to generate AI insights or create manual events for important dates.'
+                        : 'Try adjusting your filters to see more insights, or upload more documents.'
+                      }
+                    </p>
+                    {insights.length > 0 && (
+                      <Button variant="outline" onClick={() => { setPriorityFilter('all'); setTypeFilter('all'); }}>
+                        Clear Filters
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

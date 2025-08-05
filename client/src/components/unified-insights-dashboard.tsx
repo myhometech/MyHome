@@ -16,7 +16,8 @@ import {
   Users,
   Shield,
   X,
-  Grid
+  Grid,
+  FileText
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -104,7 +105,7 @@ function CompactInsightButton({ insight, onStatusUpdate }: CompactInsightButtonP
       
       {/* Insight icon */}
       <div className="flex-shrink-0">
-        {getInsightIcon(insight.type || 'summary')}
+        <Brain className="h-4 w-4" />
       </div>
       
       {/* Insight title */}
@@ -242,20 +243,6 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <Brain className="h-8 w-8 text-blue-600" />
-          <div>
-            <h1 className="text-2xl font-bold">AI Insights</h1>
-            <p className="text-gray-600">Intelligent document analysis and management</p>
-          </div>
-        </div>
-        <Button onClick={() => refetch()} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
 
 
 
@@ -344,9 +331,6 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                     <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">No Insights or Events Found</h3>
                     <p className="text-gray-600 mb-4">Upload documents to generate AI insights or create manual events for important dates.</p>
-                    <div className="flex justify-center">
-                      <AddDropdownMenu />
-                    </div>
                   </div>
                 )}
               </div>

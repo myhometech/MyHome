@@ -151,15 +151,7 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 <Home className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/insights">
-              <Button 
-                variant={location === "/insights" ? "default" : "ghost"} 
-                size="sm" 
-                className="p-2"
-              >
-                <Lightbulb className="h-4 w-4" />
-              </Button>
-            </Link>
+
             <Button 
               variant="ghost" 
               size="sm" 

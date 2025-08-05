@@ -351,7 +351,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                         <Button
                           variant="outline"
                           className="border-dashed"
-                          onClick={() => setLocation('/insights')}
+                          onClick={() => setLocation('/')}
                         >
                           +{manualEvents.length - 6} more events
                         </Button>

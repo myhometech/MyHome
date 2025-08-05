@@ -28,7 +28,7 @@ import Settings from "@/pages/settings";
 import AdminDashboard from "@/pages/admin";
 import FeatureFlagsAdmin from "@/pages/admin/feature-flags";
 import Pricing from "@/pages/pricing";
-import { InsightsPage } from "@/pages/insights";
+
 import DocumentPage from "@/pages/document";
 import UnifiedDocuments from "@/pages/unified-documents";
 import InsightsFirstPage from "@/pages/insights-first";
@@ -87,7 +87,7 @@ function Router() {
         <>
           <Route path="/" component={InsightsFirstPage} />
           <Route path="/documents" component={UnifiedDocuments} />
-          <Route path="/insights" component={InsightsPage} />
+
           <Route path="/document/:id" component={DocumentPage} />
           <Route path="/settings" component={Settings} />
           <Route path="/support" component={Support} />

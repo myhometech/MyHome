@@ -136,7 +136,7 @@ export default function TopInsightsWidget() {
             <p className="text-gray-600 mb-4">
               No actions needed right now — but we're keeping an eye out for anything important.
             </p>
-            <Link href="/insights">
+            <Link href="/">
               <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                 <Brain className="w-4 h-4 mr-2" />
                 Go to AI Insights Dashboard
@@ -159,7 +159,7 @@ export default function TopInsightsWidget() {
               {insights.length}
             </Badge>
           </CardTitle>
-          <Link href="/insights">
+          <Link href="/">
             <Button variant="ghost" size="sm" className="text-sm">
               View All →
             </Button>
@@ -212,7 +212,7 @@ export default function TopInsightsWidget() {
         
         {insights.length >= 5 && (
           <div className="mt-4 pt-3 border-t">
-            <Link href="/insights">
+            <Link href="/">
               <Button variant="outline" className="w-full" size="sm">
                 <Brain className="w-4 h-4 mr-2" />
                 View All Insights

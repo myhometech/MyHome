@@ -6,7 +6,7 @@ import Header from "@/components/header";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
 import AddDropdownMenu from "@/components/add-dropdown-menu";
-import InsightsSummaryDashboard from "@/components/insights-summary-dashboard";
+import { UnifiedInsightsDashboard } from "@/components/unified-insights-dashboard";
 
 import { useFeatures } from "@/hooks/useFeatures";
 import { 
@@ -236,11 +236,8 @@ export default function InsightsFirstPage() {
           />
         </div>
 
-        {/* AI Insights Summary Dashboard */}
-        <InsightsSummaryDashboard 
-          onFilterChange={handleDashboardFilterChange}
-          hideHeader={true}
-        />
+        {/* AI Insights Dashboard */}
+        <UnifiedInsightsDashboard />
 
         {/* AI Insights Section */}
         <div className="space-y-6" data-insights-section>

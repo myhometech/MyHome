@@ -332,7 +332,8 @@ export default function UnifiedDocumentCard({
     setIsEditing(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (confirm("Are you sure you want to delete this document? This action cannot be undone.")) {
       deleteDocumentMutation.mutate(document.id);
     }
@@ -476,19 +477,31 @@ export default function UnifiedDocumentCard({
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleStartEdit}>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartEdit();
+                    }}>
                       <Edit2 className="h-4 w-4 mr-2" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDownload}>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload();
+                    }}>
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShowShareDialog(true)}>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      setShowShareDialog(true);
+                    }}>
                       <FileSearch className="h-4 w-4 mr-2" />
                       Share
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDelete} className="text-red-600">
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(e);
+                    }} className="text-red-600">
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
                     </DropdownMenuItem>

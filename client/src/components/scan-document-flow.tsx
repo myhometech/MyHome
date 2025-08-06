@@ -90,12 +90,20 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       
       if (videoRef.current) {
         console.log('Setting video source and properties...');
+        
+        // Clear any existing source first
+        videoRef.current.srcObject = null;
+        
+        // Wait a tick then set the new stream
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         videoRef.current.srcObject = mediaStream;
         videoRef.current.autoplay = true;
         videoRef.current.playsInline = true;
         videoRef.current.muted = true;
         
-        // Force dimensions
+        // Force load and dimensions
+        videoRef.current.load();
         videoRef.current.style.width = '100%';
         videoRef.current.style.height = '100%';
         videoRef.current.style.objectFit = 'cover';
@@ -111,8 +119,16 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
             console.log('Video metadata loaded:', {
               videoWidth: videoRef.current!.videoWidth,
               videoHeight: videoRef.current!.videoHeight,
-              readyState: videoRef.current!.readyState
+              readyState: videoRef.current!.readyState,
+              hasVideo: videoRef.current!.videoWidth > 0
             });
+            
+            // Force a repaint if dimensions are 0
+            if (videoRef.current!.videoWidth === 0) {
+              console.log('Video width is 0, forcing reload...');
+              videoRef.current!.load();
+            }
+            
             resolve(void 0);
           };
           
@@ -668,15 +684,24 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     onStalled={() => console.log('Video stalled')}
                     onLoadStart={() => console.log('Video load start')}
                     onLoadedMetadata={() => console.log('Video metadata loaded event')}
+                    onTimeUpdate={() => {
+                      // Only log first time update to avoid spam
+                      if (videoRef.current && videoRef.current.currentTime > 0 && videoRef.current.currentTime < 0.1) {
+                        console.log('Video time update - stream is working');
+                      }
+                    }}
                     style={{ 
                       backgroundColor: '#000',
                       minWidth: '100%',
-                      minHeight: '100%'
+                      minHeight: '100%',
+                      transform: 'scaleX(-1)' // Mirror for selfie view
                     }}
                   />
-                  {/* Debug overlay to show if video is working */}
+                  {/* Debug overlay with more details */}
                   <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
-                    Camera Active
+                    <div>Camera: {stream ? 'Active' : 'Inactive'}</div>
+                    <div>Video: {videoRef.current?.videoWidth || 0}x{videoRef.current?.videoHeight || 0}</div>
+                    <div>State: {videoRef.current?.readyState || 'N/A'}</div>
                   </div>
                 </div>
               )}

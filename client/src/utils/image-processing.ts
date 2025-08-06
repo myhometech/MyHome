@@ -86,8 +86,12 @@ class ImageProcessor {
         corners = edgeResult.corners;
         confidence = edgeResult.confidence;
         
-        if (options.correctPerspective && corners && confidence > 0.6) {
+        if (options.correctPerspective && corners && confidence > 0.3) {
+          // Apply perspective correction which automatically crops to document boundaries
           processedMat = this.correctPerspective(src, corners);
+          console.log('✅ Document detected and cropped with confidence:', confidence);
+        } else if (corners) {
+          console.log('⚠️ Document detected but confidence too low for cropping:', confidence);
         }
       }
 
@@ -204,7 +208,7 @@ class ImageProcessor {
       contours.delete();
       hierarchy.delete();
 
-      if (bestContour && confidence > 0.3) {
+      if (bestContour && confidence > 0.2) { // Lower threshold for better detection
         // Extract corners from best contour
         const corners: { x: number; y: number }[] = [];
         const data = bestContour.data32S;
@@ -220,6 +224,7 @@ class ImageProcessor {
         const sortedCorners = this.sortCorners(corners);
         bestContour.delete();
         
+        console.log('🔍 Document edges detected:', { corners: sortedCorners, confidence });
         return { corners: sortedCorners, confidence };
       }
 

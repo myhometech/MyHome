@@ -41,7 +41,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     enhanceContrast: true,
     applySharpen: true,
     correctPerspective: true,
-    cropMargin: 20
+    cropMargin: 10 // Reduced for tighter cropping
   });
   const [selectedPageIndex, setSelectedPageIndex] = useState<number | null>(null);
   const [draggedPage, setDraggedPage] = useState<string | null>(null);
@@ -336,10 +336,23 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
             : page
         ));
 
-        toast({
-          title: "Processing Complete",
-          description: `Enhanced page with ${Math.round(processed.confidence * 100)}% confidence${processed.processingTime ? ` in ${Math.round(processed.processingTime)}ms` : ''}.`,
-        });
+        if (processed.confidence > 0.3) {
+          toast({
+            title: "Document Detected & Cropped",
+            description: `Document detected with ${Math.round(processed.confidence * 100)}% confidence and cropped to boundaries.`,
+          });
+        } else if (processed.confidence > 0) {
+          toast({
+            title: "Processing Complete",
+            description: `Low confidence detection (${Math.round(processed.confidence * 100)}%). Using original image.`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Processing Complete",
+            description: "No document edges detected. Using enhanced original image.",
+          });
+        }
       } else {
         // OpenCV not ready, use original image
         setCapturedPages(prev => prev.map(page => 

@@ -64,8 +64,10 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment', // Prefer back camera on mobile
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30 },
+          aspectRatio: { ideal: 1.7777777778 }
         }
       });
       
@@ -73,7 +75,29 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
+        videoRef.current.autoplay = true;
+        videoRef.current.playsInline = true;
+        videoRef.current.muted = true;
+        
+        // Wait for video metadata to load
+        await new Promise((resolve) => {
+          videoRef.current!.onloadedmetadata = () => {
+            console.log('Video metadata loaded:', {
+              videoWidth: videoRef.current!.videoWidth,
+              videoHeight: videoRef.current!.videoHeight
+            });
+            resolve(void 0);
+          };
+        });
+        
+        // Start playing the video
+        try {
+          await videoRef.current.play();
+          console.log('Video playing successfully');
+        } catch (playError) {
+          console.error('Video play failed:', playError);
+          throw new Error('Failed to start video playback');
+        }
       }
       
       setIsScanning(true);

@@ -20,6 +20,7 @@ export const trackScanEvent = (action: 'browser_scan_started' | 'browser_scan_up
   processingTime?: number;
   ocrError?: string;
   insightsCount?: number;
+  timestamp?: string;
 }) => {
   try {
     const event: AnalyticsEvent = {

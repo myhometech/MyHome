@@ -111,24 +111,35 @@ export class PDFConversionService {
         const imageBuffer = await fs.promises.readFile(imagePath);
         let processedImageBuffer = imageBuffer;
         
-        // Process image with Sharp for optimization
+        // Process image with Sharp for optimization - ensure valid JPEG output
         try {
           processedImageBuffer = await sharp(imageBuffer)
-            .jpeg({ quality: 85, progressive: false })
+            .jpeg({ 
+              quality: 85, 
+              progressive: false,
+              mozjpeg: true,
+              force: true // Force JPEG format even if input is different
+            })
             .toBuffer();
+          console.log(`Sharp processed page ${i + 1}: ${processedImageBuffer.length} bytes`);
         } catch (sharpError) {
           console.warn(`Sharp processing failed for page ${i + 1}, using original image:`, sharpError);
         }
 
         // Embed the image in the PDF
         let pdfImage;
-        const ext = path.extname(imagePath).toLowerCase();
         
-        if (ext === '.png') {
-          pdfImage = await pdfDoc.embedPng(processedImageBuffer);
-        } else {
-          // Default to JPEG for all other formats
+        // Try embedding as JPEG first, fall back to PNG if needed
+        try {
           pdfImage = await pdfDoc.embedJpg(processedImageBuffer);
+        } catch (jpegError) {
+          console.log(`JPEG embedding failed for ${imagePath}, trying PNG:`, jpegError.message);
+          try {
+            pdfImage = await pdfDoc.embedPng(processedImageBuffer);
+          } catch (pngError) {
+            console.error(`Both JPEG and PNG embedding failed for ${imagePath}:`, pngError);
+            throw new Error(`Image embedding failed: ${pngError.message}`);
+          }
         }
 
         // Get image dimensions

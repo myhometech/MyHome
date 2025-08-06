@@ -183,8 +183,8 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     // Draw current video frame to canvas
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // Convert to data URL
-    const originalImageData = canvas.toDataURL('image/jpeg', 0.8);
+    // Convert to data URL with higher quality and better format
+    const originalImageData = canvas.toDataURL('image/jpeg', 0.95);
     
     // Create initial page entry
     const pageId = Date.now().toString();
@@ -399,14 +399,40 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       for (let i = 0; i < capturedPages.length; i++) {
         const page = capturedPages[i];
         
-        // Convert data URL to blob
+        // Convert data URL to blob with proper JPEG format
         const response = await fetch(page.imageData);
         const blob = await response.blob();
         
-        // Create file with document-scan- prefix to trigger merge logic
-        const fileName = `document-scan-page-${String(i + 1).padStart(2, '0')}-${timestamp}.jpg`;
-        const file = new File([blob], fileName, { type: 'image/jpeg' });
-        files.push(file);
+        // Ensure we have a valid JPEG by re-creating it if needed
+        if (blob.type !== 'image/jpeg') {
+          console.log('Converting blob to JPEG format');
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          
+          await new Promise((resolve) => {
+            img.onload = () => {
+              canvas.width = img.width;
+              canvas.height = img.height;
+              ctx.drawImage(img, 0, 0);
+              resolve(void 0);
+            };
+            img.src = page.imageData;
+          });
+          
+          const jpegBlob = await new Promise<Blob>((resolve) => {
+            canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.95);
+          });
+          
+          const fileName = `document-scan-page-${String(i + 1).padStart(2, '0')}-${timestamp}.jpg`;
+          const file = new File([jpegBlob], fileName, { type: 'image/jpeg' });
+          files.push(file);
+        } else {
+          // Create file with document-scan- prefix to trigger merge logic
+          const fileName = `document-scan-page-${String(i + 1).padStart(2, '0')}-${timestamp}.jpg`;
+          const file = new File([blob], fileName, { type: 'image/jpeg' });
+          files.push(file);
+        }
       }
       
       stopCamera();

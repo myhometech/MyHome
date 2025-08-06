@@ -127,7 +127,7 @@ export function AddDropdownMenu({
             <DialogTitle>Upload Documents</DialogTitle>
           </DialogHeader>
           <div className="mt-4">
-            <UnifiedUploadButton onUpload={() => setShowUploadDialog(false)} />
+            <UnifiedUploadButton onUpload={() => setShowUploadDialog(false)} suppressDialog={true} />
           </div>
         </DialogContent>
       </Dialog>

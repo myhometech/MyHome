@@ -24,12 +24,18 @@ import {
   Image,
   Brain,
   AlertTriangle,
-  ArrowUp
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DocumentInsights } from "@/components/document-insights";
+import { Document, Page, pdfjs } from 'react-pdf';
+
+// Set up PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface EnhancedDocumentViewerProps {
   document: {
@@ -81,6 +87,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
   const [editExpiryDate, setEditExpiryDate] = useState("");
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [useReactPdf, setUseReactPdf] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -299,23 +308,88 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-blue-600" />
                     <span className="text-sm font-medium">PDF Document</span>
+                    {numPages && (
+                      <Badge variant="outline" className="text-xs">
+                        {numPages} pages
+                      </Badge>
+                    )}
                   </div>
-                  <Button
-                    onClick={onDownload}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1"
-                  >
-                    <Download className="w-3 h-3" />
-                    <span className="text-xs">Download to verify all pages</span>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {useReactPdf && numPages && numPages > 1 && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                          disabled={pageNumber <= 1}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <ChevronLeft className="w-3 h-3" />
+                        </Button>
+                        <span className="text-xs px-2">
+                          {pageNumber} / {numPages}
+                        </span>
+                        <Button
+                          onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                          disabled={pageNumber >= numPages}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <ChevronRight className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+                    <Button
+                      onClick={() => setUseReactPdf(!useReactPdf)}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                    >
+                      {useReactPdf ? 'Use Browser' : 'Enhanced View'}
+                    </Button>
+                    <Button
+                      onClick={onDownload}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span className="text-xs">Download</span>
+                    </Button>
+                  </div>
                 </div>
-                <iframe
-                  src={getPreviewUrl()}
-                  className="w-full h-full border-0 rounded-lg"
-                  title={document.name}
-                  style={{ height: 'calc(100% - 60px)' }}
-                />
+                
+                {useReactPdf ? (
+                  <div className="h-full overflow-auto bg-gray-100 p-4" style={{ height: 'calc(100% - 60px)' }}>
+                    <Document
+                      file={getPreviewUrl()}
+                      onLoadSuccess={({ numPages }) => {
+                        setNumPages(numPages);
+                        console.log(`📄 PDF loaded successfully with ${numPages} pages`);
+                      }}
+                      onLoadError={(error) => {
+                        console.error('PDF load error:', error);
+                        setUseReactPdf(false);
+                      }}
+                      className="flex justify-center"
+                    >
+                      <Page
+                        pageNumber={pageNumber}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                        className="shadow-lg"
+                        width={Math.min(800, window.innerWidth - 100)}
+                      />
+                    </Document>
+                  </div>
+                ) : (
+                  <iframe
+                    src={`${getPreviewUrl()}#toolbar=1&navpanes=1&scrollbar=1`}
+                    className="w-full h-full border-0 rounded-lg"
+                    title={document.name}
+                    style={{ height: 'calc(100% - 60px)' }}
+                    allow="fullscreen"
+                  />
+                )}
               </div>
             )}
 

@@ -863,6 +863,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               res.setHeader('Access-Control-Allow-Credentials', 'true');
               res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
               res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+              
+              // For PDFs, add headers to ensure proper display in iframe
+              if (document.mimeType === 'application/pdf') {
+                res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
+                res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+              }
               return res.send(fileBuffer);
             } catch (downloadError) {
               console.error('GCS download failed for preview:', downloadError);

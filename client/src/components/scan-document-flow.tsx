@@ -47,6 +47,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
   const [draggedPage, setDraggedPage] = useState<string | null>(null);
   const [showPagePreview, setShowPagePreview] = useState(false);
   const [previewAnimationId, setPreviewAnimationId] = useState<number | null>(null);
+  const [overlayOrientation, setOverlayOrientation] = useState<'landscape' | 'portrait'>('portrait');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -788,17 +789,34 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                 </div>
               )}
               
-              {/* Camera overlay guides */}
+              {/* Camera overlay guides with orientation support */}
               {isScanning && (
                 <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-56 border-2 border-white/50 rounded-lg">
+                  {/* Document frame overlay */}
+                  <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 border-2 border-white/50 rounded-lg ${
+                    overlayOrientation === 'portrait' ? 'w-56 h-80' : 'w-80 h-56'
+                  }`}>
                     <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white"></div>
                     <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white"></div>
                     <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white"></div>
                     <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white"></div>
                   </div>
+                  
+                  {/* Orientation toggle button */}
+                  <div className="absolute top-4 right-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOverlayOrientation(prev => prev === 'portrait' ? 'landscape' : 'portrait')}
+                      className="bg-black/50 text-white border-white/50 hover:bg-black/70"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-1" />
+                      {overlayOrientation === 'portrait' ? 'Portrait' : 'Landscape'}
+                    </Button>
+                  </div>
+                  
                   <div className="absolute bottom-20 md:bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded">
-                    Align document within frame
+                    Align document within frame • {overlayOrientation === 'portrait' ? 'Portrait mode' : 'Landscape mode'}
                   </div>
                 </div>
               )}

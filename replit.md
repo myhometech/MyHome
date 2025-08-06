@@ -162,7 +162,7 @@ Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot m
 - **Cloud Storage**: `@google-cloud/storage` (for Google Cloud Storage)
 
 ### Email Services
-- **Email Ingestion**: Complete Mailgun webhook integration with enterprise-grade security (IP whitelisting, HMAC verification, rate limiting). System fully functional in development and ready for production deployment.
+- **Email Ingestion**: Complete Mailgun webhook integration with enterprise-grade security (IP whitelisting, HMAC verification, rate limiting). System fully functional in development and production deployment configured. Users send documents to u[userID]@uploads.myhome-tech.com format for automatic processing.
 
 ### Monitoring and Security
 - **Error Tracking**: `@sentry/node`, `@sentry/react`

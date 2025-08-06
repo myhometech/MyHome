@@ -6,9 +6,9 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 channel = "stable-24_05"
 
 [deployment]
-deploymentTarget = "autoscale"
-build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+deploymentTarget = "autoscale"  
+build = ["esbuild", "server/index.ts", "--platform=node", "--packages=external", "--bundle", "--format=esm", "--outdir=dist"]
+run = ["node", "dist/index.js"]
 
 [[ports]]
 localPort = 5000

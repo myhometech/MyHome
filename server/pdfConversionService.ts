@@ -211,7 +211,10 @@ export class PDFConversionService {
       console.log(`🔄 PDF GENERATION: PDF bytes generated: ${pdfBytes.length} bytes`);
       
       await fs.promises.writeFile(outputPath, pdfBytes);
-      console.log(`✅ PDF GENERATION: Multi-page PDF successfully created with pdf-lib: ${outputPath}`);
+      
+      // Verify the PDF structure by getting page count
+      const pageCount = pdfDoc.getPageCount();
+      console.log(`✅ PDF GENERATION: Multi-page PDF successfully created with ${pageCount} pages: ${outputPath}`);
       
     } catch (error) {
       console.error('pdf-lib multi-page PDF generation failed:', error);

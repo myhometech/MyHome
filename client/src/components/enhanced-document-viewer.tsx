@@ -295,10 +295,26 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
             {!isLoading && !error && isPDF() && (
               <div className="h-full bg-white rounded-lg">
+                <div className="flex items-center justify-between p-2 border-b bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium">PDF Document</span>
+                  </div>
+                  <Button
+                    onClick={onDownload}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span className="text-xs">Download to verify all pages</span>
+                  </Button>
+                </div>
                 <iframe
                   src={getPreviewUrl()}
                   className="w-full h-full border-0 rounded-lg"
                   title={document.name}
+                  style={{ height: 'calc(100% - 60px)' }}
                 />
               </div>
             )}

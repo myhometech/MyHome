@@ -2941,12 +2941,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DEBUG ROUTE: Test deployment connectivity
+  app.get('/debug', (req, res) => {
+    console.log('🧪 Debug route accessed - API is alive');
+    res.send('API is alive - Email ingest route should be registered');
+  });
+
   // Simple GET and HEAD endpoints for /api/email-ingest (no security requirements for Mailgun route validation)
   // DEPLOYMENT UPDATE v3: Email ingestion endpoint active (force deployment refresh)
   app.get('/api/email-ingest', (req, res) => { 
+    console.log('🧪 Email ingest GET route accessed');
     res.status(200).send('Email ingestion endpoint active - v3 DEPLOYED'); 
   });
-  app.head('/api/email-ingest', (req, res) => { res.sendStatus(200); });
+  app.head('/api/email-ingest', (req, res) => { 
+    console.log('🧪 Email ingest HEAD route accessed');
+    res.sendStatus(200); 
+  });
 
   // TICKET: Enable Public Access and Harden Security for /api/email-ingest (Mailgun Integration)
   // Apply comprehensive security middleware stack

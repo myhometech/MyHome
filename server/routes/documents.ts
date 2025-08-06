@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { ImageProcessingService } from '../imageProcessingService';
 import { PDFOptimizationService } from '../pdfOptimizationService';
+import { EnhancedOCRStrategies } from '../enhancedOCRStrategies';
 import { storage } from '../storage';
 import type { AuthenticatedRequest } from '../middleware/auth';
 
@@ -35,6 +36,7 @@ const upload = multer({
 // Initialize services
 const imageProcessor = new ImageProcessingService('./uploads');
 const pdfOptimizer = new PDFOptimizationService('./uploads');
+const enhancedOCR = new EnhancedOCRStrategies();
 
 // DOC-303: Enhanced document upload with auto-categorization via rules and AI fallback
 router.post('/upload', upload.fields([
@@ -275,6 +277,113 @@ router.get('/:id/thumbnail', async (req: AuthenticatedRequest, res) => {
     res.status(500).json({
       message: 'Failed to serve thumbnail',
       error: error.message,
+    });
+  }
+});
+
+// Enhanced OCR retry endpoint for failed OCR cases
+router.post('/:id/retry-ocr', async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const documentId = parseInt(req.params.id);
+    const document = await storage.getDocument(documentId, req.user.id);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    console.log(`🔄 Retrying OCR for document ${documentId} with enhanced strategies`);
+
+    // Get the original file buffer
+    const fileBuffer = await storage.getFileBuffer(document.gcsPath);
+    
+    if (!fileBuffer) {
+      return res.status(400).json({ message: 'Document file not found' });
+    }
+
+    // Apply enhanced OCR strategies
+    const enhancedResult = await enhancedOCR.performAdvancedOCR(fileBuffer, {
+      enableMultipleStrategies: true,
+      enableImagePreprocessing: true,
+      enableAdaptiveThresholding: true,
+      enableDeskewing: true,
+      maxRetries: 5
+    });
+
+    // Get image analysis tips
+    const improvementTips = await enhancedOCR.analyzeImageForOCRTips(fileBuffer);
+
+    // Update document with new OCR text if better confidence
+    if (enhancedResult.confidence > 50 && enhancedResult.text.trim().length > 0) {
+      await storage.updateDocument(documentId, req.user.id, {
+        extractedText: enhancedResult.text,
+        ocrConfidence: enhancedResult.confidence
+      });
+      
+      console.log(`✅ Enhanced OCR improved confidence from unknown to ${enhancedResult.confidence}%`);
+    }
+
+    res.json({
+      success: true,
+      result: {
+        text: enhancedResult.text,
+        confidence: enhancedResult.confidence,
+        strategy: enhancedResult.strategy,
+        preprocessingApplied: enhancedResult.preprocessingApplied
+      },
+      tips: improvementTips,
+      updated: enhancedResult.confidence > 50
+    });
+
+  } catch (error) {
+    console.error('Enhanced OCR retry error:', error);
+    res.status(500).json({ 
+      message: 'Enhanced OCR retry failed', 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// OCR analysis endpoint - provides tips without retrying OCR
+router.post('/:id/analyze-for-ocr', async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const documentId = parseInt(req.params.id);
+    const document = await storage.getDocument(documentId, req.user.id);
+    
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Get the original file buffer
+    const fileBuffer = await storage.getFileBuffer(document.gcsPath);
+    
+    if (!fileBuffer) {
+      return res.status(400).json({ message: 'Document file not found' });
+    }
+
+    // Analyze image and provide tips
+    const tips = await enhancedOCR.analyzeImageForOCRTips(fileBuffer);
+
+    res.json({
+      success: true,
+      tips,
+      documentId: documentId,
+      currentOcrText: document.extractedText || '',
+      currentConfidence: document.ocrConfidence || 0
+    });
+
+  } catch (error) {
+    console.error('OCR analysis error:', error);
+    res.status(500).json({ 
+      message: 'OCR analysis failed', 
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

@@ -54,6 +54,14 @@ export class AdvancedOCRService {
       tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
       tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,!?@#$%&*()_+-=[]{}|;:\'\"<>/\\~`',
       preserve_interword_spaces: '1',
+      // Enhanced parameters for better OCR accuracy
+      textord_min_linesize: '2.5',
+      textord_tabfind_show_vlines: '0',
+      wordrec_enable_assoc: '1',
+      classify_enable_learning: '1',
+      tessedit_enable_doc_dict: '1',
+      load_system_dawg: '1',
+      load_freq_dawg: '1',
     });
   }
 
@@ -71,7 +79,7 @@ export class AdvancedOCRService {
       const originalMetadata = await image.metadata();
       
       // 1. Resize to optimal OCR resolution (300 DPI equivalent)
-      const targetWidth = Math.min(2400, originalMetadata.width || 1920);
+      const targetWidth = Math.min(3000, originalMetadata.width || 1920);
       image = image.resize(targetWidth, null, {
         kernel: sharp.kernel.lanczos3,
         withoutEnlargement: true
@@ -82,27 +90,39 @@ export class AdvancedOCRService {
       image = image.grayscale();
       enhancements.push('grayscale');
 
-      // 3. Normalize brightness and contrast
+      // 3. Advanced noise reduction using gaussian blur
+      image = image.blur(0.3);
+      enhancements.push('blur');
+
+      // 4. Normalize brightness and contrast with linear adjustment
+      image = image.linear(1.2, -(128 * 1.2) + 128);
+      enhancements.push('linear_contrast');
+
+      // 5. Apply histogram equalization effect via normalize
       image = image.normalize();
       enhancements.push('normalize');
 
-      // 4. Apply unsharp mask for edge enhancement
-      image = image.sharpen(1.0, 1.0, 2.0);
+      // 6. Apply unsharp mask for edge enhancement with stronger settings
+      image = image.sharpen(2.0, 1.0, 3.0);
       enhancements.push('sharpen');
 
-      // 5. Apply noise reduction
+      // 7. Apply median filter for additional noise reduction
       image = image.median(1);
-      enhancements.push('denoise');
+      enhancements.push('median_filter');
 
-      // 6. Enhance contrast for text clarity
+      // 8. Enhance contrast for text clarity with gamma correction
+      image = image.gamma(1.2);
+      enhancements.push('gamma');
+
+      // 9. Final brightness and contrast enhancement
       image = image.modulate({
-        brightness: 1.1,
+        brightness: 1.15,
         saturation: 1.0,
         hue: 0
       });
-      enhancements.push('contrast');
+      enhancements.push('final_contrast');
 
-      const enhancedBuffer = await image.jpeg({ quality: 95 }).toBuffer();
+      const enhancedBuffer = await image.jpeg({ quality: 98 }).toBuffer();
       const processedMetadata = await sharp(enhancedBuffer).metadata();
 
       return {
@@ -166,29 +186,64 @@ export class AdvancedOCRService {
           break;
           
         case 'bw':
-          // Convert to black and white with threshold
-          image = image.grayscale().threshold(128);
+          // Convert to black and white with adaptive threshold
+          // First convert to grayscale, then apply threshold
+          const stats = await image.grayscale().stats();
+          const avgBrightness = stats.channels[0].mean;
+          
+          // Adaptive threshold based on image brightness
+          let threshold = 128;
+          if (avgBrightness < 100) {
+            threshold = 100; // Lower threshold for dark images
+          } else if (avgBrightness > 180) {
+            threshold = 160; // Higher threshold for bright images
+          }
+          
+          image = image.grayscale().threshold(threshold);
           break;
           
         case 'auto':
-          // Analyze image to determine best color mode
-          const stats = await image.stats();
-          const isGrayscale = stats.channels.every(channel => 
-            Math.abs(channel.mean - stats.channels[0].mean) < 10
-          );
+          // Advanced analysis to determine best color mode
+          const colorStats = await image.stats();
+          
+          // Check if image is already grayscale
+          const isGrayscale = colorStats.channels.length === 1 || 
+            colorStats.channels.every(channel => 
+              Math.abs(channel.mean - colorStats.channels[0].mean) < 15
+            );
           
           if (isGrayscale) {
             image = image.grayscale();
+            
+            // For very low contrast grayscale images, try black and white
+            const contrast = colorStats.channels[0].stdev;
+            if (contrast < 30) {
+              const avgBrightness = colorStats.channels[0].mean;
+              const threshold = avgBrightness > 128 ? 160 : 100;
+              image = image.threshold(threshold);
+            }
+          } else {
+            // For color images, enhance saturation slightly to improve text contrast
+            image = image.modulate({
+              saturation: 0.8, // Reduce saturation to emphasize text
+              brightness: 1.0,
+              hue: 0
+            });
           }
           break;
           
         case 'color':
         default:
-          // Keep original colors
+          // Keep original colors but enhance for OCR
+          image = image.modulate({
+            saturation: 0.9, // Slightly reduce saturation
+            brightness: 1.05,
+            hue: 0
+          });
           break;
       }
 
-      return await image.jpeg({ quality: 90 }).toBuffer();
+      return await image.jpeg({ quality: 95 }).toBuffer();
     } catch (error) {
       console.error('Color filter error:', error);
       return imageBuffer;
@@ -196,7 +251,7 @@ export class AdvancedOCRService {
   }
 
   /**
-   * Extract text from enhanced image using OCR
+   * Extract text from enhanced image using OCR with multiple strategies
    */
   async extractTextFromImage(imageBuffer: Buffer): Promise<OCRResult> {
     if (!this.tesseractWorker) {
@@ -208,21 +263,72 @@ export class AdvancedOCRService {
     }
 
     try {
-      const result = await this.tesseractWorker.recognize(imageBuffer);
-      
-      return {
-        text: result.data.text,
-        confidence: result.data.confidence,
-        words: result.data.words.map(word => ({
-          text: word.text,
-          confidence: word.confidence,
-          bbox: word.bbox
-        }))
-      };
+      // Strategy 1: Default AUTO page segmentation
+      const result1 = await this.performOCRWithSettings(imageBuffer, {
+        tessedit_pageseg_mode: Tesseract.PSM.AUTO
+      });
+
+      // If confidence is low, try alternative strategies
+      if (result1.confidence < 60) {
+        console.log('Low confidence OCR, trying alternative strategies...');
+        
+        // Strategy 2: Single uniform block of text
+        const result2 = await this.performOCRWithSettings(imageBuffer, {
+          tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK
+        });
+
+        // Strategy 3: Single text line
+        const result3 = await this.performOCRWithSettings(imageBuffer, {
+          tessedit_pageseg_mode: Tesseract.PSM.SINGLE_LINE
+        });
+
+        // Strategy 4: Sparse text - find text in no particular order
+        const result4 = await this.performOCRWithSettings(imageBuffer, {
+          tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT
+        });
+
+        // Return the result with highest confidence
+        const results = [result1, result2, result3, result4];
+        const bestResult = results.reduce((prev, current) => 
+          current.confidence > prev.confidence ? current : prev
+        );
+
+        console.log(`Best OCR result confidence: ${bestResult.confidence}%`);
+        return bestResult;
+      }
+
+      return result1;
     } catch (error) {
       console.error('OCR extraction error:', error);
       throw new Error(`OCR extraction failed: ${error}`);
     }
+  }
+
+  /**
+   * Perform OCR with specific settings
+   */
+  private async performOCRWithSettings(
+    imageBuffer: Buffer, 
+    settings: { [key: string]: any }
+  ): Promise<OCRResult> {
+    if (!this.tesseractWorker) {
+      throw new Error('OCR worker not initialized');
+    }
+
+    // Apply settings
+    await this.tesseractWorker.setParameters(settings);
+    
+    const result = await this.tesseractWorker.recognize(imageBuffer);
+    
+    return {
+      text: result.data.text,
+      confidence: result.data.confidence,
+      words: (result.data.words || []).map((word: any) => ({
+        text: word.text,
+        confidence: word.confidence,
+        bbox: word.bbox
+      }))
+    };
   }
 
   /**

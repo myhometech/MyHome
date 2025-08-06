@@ -2941,6 +2941,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Basic GET endpoint for /api/email-ingest (no security requirements)
+  app.get('/api/email-ingest', async (req: any, res) => {
+    res.status(200).json({ 
+      status: 'ok',
+      message: 'Mailgun webhook endpoint is available',
+      methods: ['POST'],
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // TICKET: Enable Public Access and Harden Security for /api/email-ingest (Mailgun Integration)
   // Apply comprehensive security middleware stack
   app.post('/api/email-ingest', 

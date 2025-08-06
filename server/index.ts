@@ -138,6 +138,10 @@ app.use((req, res, next) => {
     console.log('ℹ️ Backup service disabled in production');
   }
 
+  // TEMPORARY: Direct route confirmation for deployment debugging
+  app.get('/debug', (req, res) => res.send('✅ App is live'));
+  app.post('/api/email-ingest', (req, res) => res.status(200).send('✅ Email Ingest Live'));
+
   const server = await registerRoutes(app);
   
   // Initialize manual event notification service (TICKET B2)

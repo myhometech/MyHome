@@ -127,10 +127,11 @@ Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot m
 
 ### Security & Monitoring
 - **Security Headers**: Helmet middleware for HTTP security headers (HSTS, CSP, X-Frame-Options).
-- **Rate Limiting**: Express rate limiting.
+- **Rate Limiting**: Express rate limiting with specialized webhook rate limiting.
 - **CORS Policy**: Strict CORS.
 - **Error Tracking**: Sentry integration for comprehensive error tracking and performance monitoring.
 - **Health Monitoring**: Multi-subsystem health checks (database, memory, disk, environment).
+- **Mailgun Security**: Comprehensive webhook security with IP whitelisting, HMAC signature verification, content-type validation, and enhanced logging for email-to-document ingestion pipeline.
 
 ### Automated Systems
 - **Automated Backup**: PostgreSQL and file storage backups to GCS with configurable retention.
@@ -161,7 +162,7 @@ Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot m
 - **Cloud Storage**: `@google-cloud/storage` (for Google Cloud Storage)
 
 ### Email Services
-- **Email Ingestion**: `sendgrid/mail` (for SendGrid webhooks)
+- **Email Ingestion**: Mailgun webhook integration with enterprise-grade security (IP whitelisting, HMAC verification, rate limiting)
 
 ### Monitoring and Security
 - **Error Tracking**: `@sentry/node`, `@sentry/react`

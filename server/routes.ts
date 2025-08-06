@@ -32,6 +32,13 @@ import passport from './passport';
 import authRoutes from './authRoutes';
 import { parseMailgunWebhook, verifyMailgunSignature, extractUserIdFromRecipient, validateEmailAttachments } from './mailgunService';
 import { setupMultiPageScanUpload } from './routes/multiPageScanUpload';
+import { 
+  mailgunIPWhitelist, 
+  mailgunWebhookRateLimit, 
+  mailgunWebhookLogger, 
+  validateMailgunContentType,
+  mailgunSignatureVerification 
+} from './middleware/mailgunSecurity';
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -2934,8 +2941,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // TICKET 1: Mailgun Inbound Email Webhook Endpoint
-  app.post('/api/mailgun/inbound-email', mailgunUpload.any(), async (req: any, res) => {
+  // TICKET: Enable Public Access and Harden Security for /api/email-ingest (Mailgun Integration)
+  // Apply comprehensive security middleware stack
+  app.post('/api/email-ingest', 
+    mailgunWebhookLogger,
+    mailgunWebhookRateLimit,
+    validateMailgunContentType,
+    mailgunIPWhitelist,
+    mailgunSignatureVerification,
+    mailgunUpload.any(), 
+    async (req: any, res) => {
     const processingStartTime = Date.now();
     let requestId: string | undefined;
     
@@ -2971,51 +2986,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userAgent: req.headers['user-agent'] || 'unknown'
       });
       
-      // TICKET 2: Verify Mailgun signature (required for security)
-      const signingKey = process.env.MAILGUN_API_KEY || process.env.MAILGUN_SIGNING_KEY;
-      const isDevMode = process.env.NODE_ENV === 'development';
-      
-      if (!signingKey) {
-        if (isDevMode) {
-          console.log('⚠️ DEVELOPMENT MODE: No MAILGUN_API_KEY configured, skipping signature verification');
-        } else {
-          console.error('❌ MAILGUN_API_KEY not configured - signature verification required');
-          return res.status(500).json({ 
-            error: 'Server configuration error: Mailgun API key not configured' 
-          });
-        }
-      }
+      // Security validation is now handled by middleware
+      console.log('🔒 All security checks passed - processing email');
 
-      // Skip signature verification in development mode for testing
-      if (signingKey) {
-        const isValidSignature = verifyMailgunSignature(
-          message.timestamp,
-          message.token, 
-          message.signature,
-          signingKey
-        );
-        
-        if (!isValidSignature) {
-          // TICKET 6: Log signature verification failures
-          EmailUploadLogger.logSignatureError({
-            sender: message.sender,
-            recipient: message.recipient,
-            timestamp: message.timestamp,
-            token: message.token?.substring(0, 8) + '...',
-            signatureLength: message.signature?.length || 0,
-            requestId
-          });
-          return res.status(401).json({ 
-            error: 'Invalid signature - request authentication failed' 
-          });
-        }
-        
-        console.log('✅ Mailgun signature verified successfully');
-      } else {
-        console.log('⚠️ DEVELOPMENT MODE: Skipping signature verification');
-      }
-
-      // TICKET 3: Extract and validate user from email subaddressing
+      // Extract and validate user from email subaddressing
       const userExtractionResult = extractUserIdFromRecipient(message.recipient);
       if (!userExtractionResult.userId) {
         // TICKET 6: Log user extraction failures

@@ -881,7 +881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.error('GCS download failed for preview:', downloadError);
               return res.status(500).json({ 
                 message: "Failed to load document preview",
-                error: downloadError?.message || 'Unknown error' 
+                error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
               });
             }
           }
@@ -3595,18 +3595,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
       
       let vehicleData;
-      let dvlaFields = [];
+      let dvlaFields: string[] = [];
       let userEditableFields = ['notes'];
       let dvlaError = null;
 
       if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
-        // DVLA lookup successful - use DVLA data
+        // DVLA lookup successful - use DVLA data with proper date conversion
+        const dvlaVehicle = dvlaLookupResult.vehicle;
         vehicleData = {
-          ...dvlaLookupResult.vehicle,
+          ...dvlaVehicle,
           userId,
           notes: notes || null,
-          source: 'dvla',
+          source: 'dvla' as const,
           dvlaLastRefreshed: new Date(),
+          // Convert string dates to Date objects
+          taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
+          motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
         };
         
         // Mark DVLA fields as read-only
@@ -3834,10 +3838,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create vehicle with DVLA data
+      // Create vehicle with DVLA data and proper date conversion
+      const dvlaVehicle = lookupResult.vehicle!;
       const vehicle = await storage.createVehicle({
-        ...lookupResult.vehicle!,
+        ...dvlaVehicle,
         userId,
+        vrn: dvlaVehicle.vrn || vrn,
+        source: 'dvla' as const,
+        dvlaLastRefreshed: new Date(),
+        // Convert string dates to Date objects
+        taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
+        motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
       });
       
       res.status(201).json({
@@ -3879,10 +3890,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update vehicle with fresh DVLA data
+      // Update vehicle with fresh DVLA data and proper date conversion
+      const dvlaVehicle = lookupResult.vehicle!;
       const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
-        ...lookupResult.vehicle!,
+        ...dvlaVehicle,
+        source: 'dvla' as const,
         dvlaLastRefreshed: new Date(),
+        // Convert string dates to Date objects
+        taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
+        motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
       });
       
       // TICKET 4: Generate insights after DVLA refresh
@@ -3890,13 +3906,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         if (updatedVehicle && (updatedVehicle.motExpiryDate || updatedVehicle.taxDueDate)) {
           console.log(`[TICKET 4] Generating insights after DVLA refresh for ${updatedVehicle.vrn}`);
-          vehicleInsights = await vehicleInsightService.generateVehicleInsights(
-            updatedVehicle,
-            userId,
-            { forceRegenerate: true } // Force regenerate on refresh
-          );
+          const insightResult = await vehicleInsightService.generateVehicleInsights(updatedVehicle);
           
-          const insightCount = Object.keys(vehicleInsights).length;
+          if (insightResult.success && insightResult.insights.length > 0) {
+            await vehicleInsightService.saveVehicleInsights(updatedVehicle, insightResult.insights);
+            vehicleInsights = insightResult.insights;
+          }
+          
+          const insightCount = vehicleInsights?.length || 0;
           if (insightCount > 0) {
             console.log(`[TICKET 4] Generated ${insightCount} insights after refresh for ${updatedVehicle.vrn}`);
           }

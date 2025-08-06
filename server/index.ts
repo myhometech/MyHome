@@ -122,6 +122,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // DEPLOYMENT DIAGNOSTIC: Confirm startup execution
+  console.log('🚀 STARTUP DIAGNOSTIC: server/index.ts executing at:', new Date().toISOString());
+  console.log('🚀 NODE_ENV:', process.env.NODE_ENV);
+  console.log('🚀 File path:', import.meta.url);
+  
   // PRODUCTION WHITE SCREEN FIX: Completely disable backup service in production
   if (process.env.NODE_ENV !== 'production') {
     try {
@@ -139,8 +144,15 @@ app.use((req, res, next) => {
   }
 
   // TEMPORARY: Direct route confirmation for deployment debugging
-  app.get('/debug', (req, res) => res.send('✅ App is live'));
-  app.post('/api/email-ingest', (req, res) => res.status(200).send('✅ Email Ingest Live'));
+  console.log('🔧 ROUTE REGISTRATION: Adding /debug and /api/email-ingest routes');
+  app.get('/debug', (req, res) => {
+    console.log('📞 /debug endpoint called');
+    res.send('✅ App is live - ' + new Date().toISOString());
+  });
+  app.post('/api/email-ingest', (req, res) => {
+    console.log('📞 /api/email-ingest endpoint called');
+    res.status(200).send('✅ Email Ingest Live - ' + new Date().toISOString());
+  });
 
   const server = await registerRoutes(app);
   

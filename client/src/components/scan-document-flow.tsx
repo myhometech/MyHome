@@ -166,10 +166,10 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         }
       }
       
-      setIsScanning(true);
-      
       // Start canvas preview loop since video element isn't working on mobile
       startCanvasPreview(mediaStream);
+      
+      setIsScanning(true);
     } catch (err: any) {
       console.error('Failed to access camera:', err);
       
@@ -207,8 +207,10 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     video.playsInline = true;
     video.muted = true;
     
+    let animationId: number | null = null;
+    
     const updateCanvas = () => {
-      if (previewCanvasRef.current && video.readyState >= 2 && isScanning) {
+      if (previewCanvasRef.current && video.readyState >= 2) {
         const canvas = previewCanvasRef.current;
         const ctx = canvas.getContext('2d');
         
@@ -217,10 +219,11 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
           canvas.height = video.videoHeight;
           ctx.drawImage(video, 0, 0);
         }
-        
-        const id = requestAnimationFrame(updateCanvas);
-        setPreviewAnimationId(id);
       }
+      
+      // Continue animation loop
+      animationId = requestAnimationFrame(updateCanvas);
+      setPreviewAnimationId(animationId);
     };
     
     video.addEventListener('loadeddata', () => {
@@ -231,8 +234,19 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       updateCanvas();
     });
     
+    // Also try to start when metadata is loaded
+    video.addEventListener('loadedmetadata', () => {
+      console.log('Canvas preview metadata loaded:', {
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight
+      });
+      if (video.videoWidth > 0) {
+        updateCanvas();
+      }
+    });
+    
     video.play().catch(console.error);
-  }, [isScanning]);
+  }, []);
 
   // Stop camera stream
   const stopCamera = useCallback(() => {

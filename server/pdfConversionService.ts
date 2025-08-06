@@ -17,28 +17,39 @@ export class PDFConversionService {
    */
   async convertMultipleImagesToPDF(imagePaths: string[], outputDir: string, documentName: string = 'scanned-document'): Promise<ConversionResult> {
     try {
-      console.log(`Converting ${imagePaths.length} scanned images to multi-page PDF using pdf-lib`);
+      console.log(`🔄 MULTI-PAGE PDF: Converting ${imagePaths.length} scanned images to multi-page PDF using pdf-lib`);
+      console.log(`🔄 MULTI-PAGE PDF: Image paths:`, imagePaths);
       
       if (imagePaths.length === 0) {
         throw new Error('No image paths provided');
       }
 
-      // Verify all files exist
-      for (const imagePath of imagePaths) {
+      // Verify all files exist and log their sizes
+      for (let i = 0; i < imagePaths.length; i++) {
+        const imagePath = imagePaths[i];
         if (!fs.existsSync(imagePath)) {
           throw new Error(`Image file not found: ${imagePath}`);
         }
+        const stats = fs.statSync(imagePath);
+        console.log(`🔄 MULTI-PAGE PDF: Page ${i + 1} - ${imagePath} (${stats.size} bytes)`);
       }
 
       // Generate PDF filename
       const timestamp = Date.now();
       const pdfFilename = `document-scan-${documentName}-${timestamp}.pdf`;
       const pdfPath = path.join(outputDir, pdfFilename);
+      console.log(`🔄 MULTI-PAGE PDF: Output path: ${pdfPath}`);
 
       // Create multi-page PDF
       await this.generateMultiPagePDFFromImages(imagePaths, pdfPath, documentName);
 
-      console.log(`Successfully converted ${imagePaths.length} images to multi-page PDF: ${pdfPath}`);
+      // Verify the PDF was created and check its size
+      if (!fs.existsSync(pdfPath)) {
+        throw new Error(`PDF file was not created: ${pdfPath}`);
+      }
+      
+      const pdfStats = fs.statSync(pdfPath);
+      console.log(`✅ MULTI-PAGE PDF: Successfully created PDF with ${imagePaths.length} pages: ${pdfPath} (${pdfStats.size} bytes)`);
       
       return {
         pdfPath,
@@ -100,15 +111,19 @@ export class PDFConversionService {
    */
   private async generateMultiPagePDFFromImages(imagePaths: string[], outputPath: string, documentName: string): Promise<void> {
     try {
+      console.log(`🔄 PDF GENERATION: Starting PDF generation for ${imagePaths.length} images`);
+      
       // Create a new PDF document
       const pdfDoc = await PDFDocument.create();
+      console.log(`🔄 PDF GENERATION: PDF document created`);
       
       for (let i = 0; i < imagePaths.length; i++) {
         const imagePath = imagePaths[i];
-        console.log(`Processing page ${i + 1}/${imagePaths.length}: ${imagePath}`);
+        console.log(`🔄 PDF GENERATION: Processing page ${i + 1}/${imagePaths.length}: ${imagePath}`);
         
         // Read and process the image
         const imageBuffer = await fs.promises.readFile(imagePath);
+        console.log(`🔄 PDF GENERATION: Read image buffer ${i + 1}: ${imageBuffer.length} bytes`);
         let processedImageBuffer = imageBuffer;
         
         // Process image with Sharp for better quality - ensure valid JPEG output
@@ -167,6 +182,7 @@ export class PDFConversionService {
 
         // Add a page with appropriate size
         const page = pdfDoc.addPage([pageWidth, pageHeight]);
+        console.log(`🔄 PDF GENERATION: Added page ${i + 1} with dimensions: ${pageWidth}x${pageHeight}`);
         
         // Draw the image to fill the entire page
         page.drawImage(pdfImage, {
@@ -175,7 +191,10 @@ export class PDFConversionService {
           width: pageWidth,
           height: pageHeight,
         });
+        console.log(`🔄 PDF GENERATION: Drew image on page ${i + 1}`);
       }
+
+      console.log(`🔄 PDF GENERATION: All ${imagePaths.length} pages processed, adding metadata...`);
 
       // Add metadata
       pdfDoc.setTitle(`Scanned Document - ${documentName} (${imagePaths.length} pages)`);
@@ -185,11 +204,14 @@ export class PDFConversionService {
       pdfDoc.setCreationDate(new Date());
       pdfDoc.setModificationDate(new Date());
 
+      console.log(`🔄 PDF GENERATION: Metadata added, saving PDF to: ${outputPath}`);
+
       // Save the PDF
       const pdfBytes = await pdfDoc.save();
-      await fs.promises.writeFile(outputPath, pdfBytes);
+      console.log(`🔄 PDF GENERATION: PDF bytes generated: ${pdfBytes.length} bytes`);
       
-      console.log(`Multi-page PDF successfully created with pdf-lib: ${outputPath}`);
+      await fs.promises.writeFile(outputPath, pdfBytes);
+      console.log(`✅ PDF GENERATION: Multi-page PDF successfully created with pdf-lib: ${outputPath}`);
       
     } catch (error) {
       console.error('pdf-lib multi-page PDF generation failed:', error);

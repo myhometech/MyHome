@@ -33,7 +33,9 @@ export function setupMultiPageScanUpload(app: Express) {
       const documentName = req.body.documentName || 'Scanned Document';
       const pageCount = parseInt(req.body.pageCount) || files.length;
 
-      console.log(`Processing multi-page scan upload: ${files.length} pages from user ${userId}`);
+      console.log(`🔄 UPLOAD: Processing multi-page scan upload: ${files.length} pages from user ${userId}`);
+      console.log(`🔄 UPLOAD: Document name: "${documentName}"`);
+      console.log(`🔄 UPLOAD: Page count: ${pageCount}`);
 
       if (!files || files.length === 0) {
         return res.status(400).json({ message: "No files uploaded" });
@@ -45,14 +47,23 @@ export function setupMultiPageScanUpload(app: Express) {
 
       // Sort files by name to maintain page order
       files.sort((a, b) => a.originalname.localeCompare(b.originalname));
+      console.log(`🔄 UPLOAD: Sorted files:`, files.map(f => f.originalname));
 
       // Convert multiple images to single PDF
       const imagePaths = files.map(file => file.path);
+      console.log(`🔄 UPLOAD: Starting PDF conversion for paths:`, imagePaths);
+      
       const pdfConversionResult = await pdfConversionService.convertMultipleImagesToPDF(
         imagePaths,
         uploadsDir,
         documentName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-')
       );
+      
+      console.log(`🔄 UPLOAD: PDF conversion result:`, { 
+        success: pdfConversionResult.success, 
+        pdfPath: pdfConversionResult.pdfPath,
+        error: pdfConversionResult.error 
+      });
 
       if (!pdfConversionResult.success) {
         // Clean up uploaded files

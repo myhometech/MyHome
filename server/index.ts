@@ -214,11 +214,21 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
+  
+  // DEPLOYMENT DEBUG: Log all registered routes before starting server
+  console.log('🔧 REGISTERED ROUTES SUMMARY:');
+  console.log('   GET / (root endpoint)');
+  console.log('   GET /debug');
+  console.log('   GET /api/email-ingest');
+  console.log('   POST /api/email-ingest');
+  console.log(`🚀 Starting server on port ${port} with NODE_ENV=${process.env.NODE_ENV}`);
+  
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    console.log(`🌐 Server ready at http://0.0.0.0:${port}`);
   });
 })();

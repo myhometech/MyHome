@@ -2941,6 +2941,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add root route for deployment verification
+  app.get('/', (req, res) => {
+    console.log('📞 Root endpoint called from routes.ts');
+    res.send('✅ MyHome API Server (routes.ts) - ' + new Date().toISOString());
+  });
+
   // DEBUG ROUTE: Test deployment connectivity with enhanced diagnostics
   app.get('/debug', (req, res) => {
     console.log('📞 /debug endpoint called');

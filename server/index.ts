@@ -126,6 +126,8 @@ app.use((req, res, next) => {
   console.log('🚀 STARTUP DIAGNOSTIC: server/index.ts executing at:', new Date().toISOString());
   console.log('🚀 NODE_ENV:', process.env.NODE_ENV);
   console.log('🚀 File path:', import.meta.url);
+  console.log('🚀 Process arguments:', process.argv);
+  console.log('🚀 Working directory:', process.cwd());
   
   // PRODUCTION WHITE SCREEN FIX: Completely disable backup service in production
   if (process.env.NODE_ENV !== 'production') {

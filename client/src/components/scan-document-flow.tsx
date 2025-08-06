@@ -89,10 +89,16 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       setStream(mediaStream);
       
       if (videoRef.current) {
+        console.log('Setting video source and properties...');
         videoRef.current.srcObject = mediaStream;
         videoRef.current.autoplay = true;
         videoRef.current.playsInline = true;
         videoRef.current.muted = true;
+        
+        // Force dimensions
+        videoRef.current.style.width = '100%';
+        videoRef.current.style.height = '100%';
+        videoRef.current.style.objectFit = 'cover';
         
         // Wait for video metadata to load
         await new Promise((resolve, reject) => {
@@ -121,6 +127,21 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         try {
           await videoRef.current.play();
           console.log('Video playing successfully');
+          
+          // Double-check video dimensions and stream
+          setTimeout(() => {
+            if (videoRef.current) {
+              console.log('Video status after play:', {
+                videoWidth: videoRef.current.videoWidth,
+                videoHeight: videoRef.current.videoHeight,
+                readyState: videoRef.current.readyState,
+                paused: videoRef.current.paused,
+                ended: videoRef.current.ended,
+                srcObject: !!videoRef.current.srcObject,
+                currentTime: videoRef.current.currentTime
+              });
+            }
+          }, 1000);
         } catch (playError) {
           console.error('Video play failed:', playError);
           throw new Error('Failed to start video playback');
@@ -633,19 +654,31 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                   </Button>
                 </div>
               ) : (
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  playsInline
-                  muted
-                  onLoadedData={() => console.log('Video data loaded')}
-                  onCanPlay={() => console.log('Video can play')}
-                  onPlaying={() => console.log('Video is playing')}
-                  onWaiting={() => console.log('Video is waiting')}
-                  onStalled={() => console.log('Video stalled')}
-                  style={{ backgroundColor: '#000' }}
-                />
+                <div className="relative w-full h-full">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                    autoPlay
+                    playsInline
+                    muted
+                    onLoadedData={() => console.log('Video data loaded')}
+                    onCanPlay={() => console.log('Video can play')}
+                    onPlaying={() => console.log('Video is playing')}
+                    onWaiting={() => console.log('Video is waiting')}
+                    onStalled={() => console.log('Video stalled')}
+                    onLoadStart={() => console.log('Video load start')}
+                    onLoadedMetadata={() => console.log('Video metadata loaded event')}
+                    style={{ 
+                      backgroundColor: '#000',
+                      minWidth: '100%',
+                      minHeight: '100%'
+                    }}
+                  />
+                  {/* Debug overlay to show if video is working */}
+                  <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
+                    Camera Active
+                  </div>
+                </div>
               )}
               
               {/* Camera overlay guides */}

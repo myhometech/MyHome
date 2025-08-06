@@ -34,8 +34,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DocumentInsights } from "@/components/document-insights";
 import { Document, Page, pdfjs } from 'react-pdf';
 
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+// Set up PDF.js worker with CDN path for better compatibility
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 interface EnhancedDocumentViewerProps {
   document: {
@@ -339,12 +339,18 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                       </div>
                     )}
                     <Button
-                      onClick={() => setUseReactPdf(!useReactPdf)}
+                      onClick={() => {
+                        setUseReactPdf(!useReactPdf);
+                        if (!useReactPdf) {
+                          setPageNumber(1);
+                          setNumPages(null);
+                        }
+                      }}
                       variant="outline"
                       size="sm"
                       className="text-xs"
                     >
-                      {useReactPdf ? 'Use Browser' : 'Enhanced View'}
+                      {useReactPdf ? 'Browser View' : 'Page View'}
                     </Button>
                     <Button
                       onClick={onDownload}
@@ -360,26 +366,55 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 
                 {useReactPdf ? (
                   <div className="h-full overflow-auto bg-gray-100 p-4" style={{ height: 'calc(100% - 60px)' }}>
-                    <Document
-                      file={getPreviewUrl()}
-                      onLoadSuccess={({ numPages }) => {
-                        setNumPages(numPages);
-                        console.log(`📄 PDF loaded successfully with ${numPages} pages`);
-                      }}
-                      onLoadError={(error) => {
-                        console.error('PDF load error:', error);
-                        setUseReactPdf(false);
-                      }}
-                      className="flex justify-center"
-                    >
-                      <Page
-                        pageNumber={pageNumber}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                        className="shadow-lg"
-                        width={Math.min(800, window.innerWidth - 100)}
-                      />
-                    </Document>
+                    <div className="flex justify-center">
+                      <Document
+                        file={{
+                          url: getPreviewUrl(),
+                          httpHeaders: {
+                            'Accept': 'application/pdf'
+                          },
+                          withCredentials: true
+                        }}
+                        onLoadSuccess={({ numPages }) => {
+                          setNumPages(numPages);
+                          console.log(`📄 PDF loaded successfully with ${numPages} pages`);
+                          toast({
+                            title: "PDF Loaded",
+                            description: `Document has ${numPages} pages`,
+                          });
+                        }}
+                        onLoadError={(error) => {
+                          console.error('PDF load error:', error);
+                          toast({
+                            title: "PDF Viewer Error",
+                            description: "Switching to browser viewer",
+                            variant: "destructive"
+                          });
+                          setUseReactPdf(false);
+                        }}
+                        loading={
+                          <div className="flex items-center justify-center py-8">
+                            <div className="text-center">
+                              <FileText className="w-8 h-8 mx-auto mb-2 animate-pulse" />
+                              <p className="text-sm text-gray-600">Loading PDF...</p>
+                            </div>
+                          </div>
+                        }
+                      >
+                        <Page
+                          pageNumber={pageNumber}
+                          renderTextLayer={false}
+                          renderAnnotationLayer={false}
+                          className="shadow-lg"
+                          width={Math.min(800, window.innerWidth - 100)}
+                          loading={
+                            <div className="flex items-center justify-center py-8">
+                              <div className="animate-pulse bg-gray-300 rounded h-96 w-full max-w-md"></div>
+                            </div>
+                          }
+                        />
+                      </Document>
+                    </div>
                   </div>
                 ) : (
                   <iframe

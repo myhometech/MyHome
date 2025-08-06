@@ -46,9 +46,11 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
   const [selectedPageIndex, setSelectedPageIndex] = useState<number | null>(null);
   const [draggedPage, setDraggedPage] = useState<string | null>(null);
   const [showPagePreview, setShowPagePreview] = useState(false);
+  const [previewAnimationId, setPreviewAnimationId] = useState<number | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
   // Camera initialization
@@ -165,6 +167,9 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       }
       
       setIsScanning(true);
+      
+      // Start canvas preview loop since video element isn't working on mobile
+      startCanvasPreview(mediaStream);
     } catch (err: any) {
       console.error('Failed to access camera:', err);
       
@@ -194,31 +199,73 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     }
   }, [toast]);
 
+  // Canvas preview for mobile compatibility
+  const startCanvasPreview = useCallback((mediaStream: MediaStream) => {
+    const video = document.createElement('video');
+    video.srcObject = mediaStream;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = true;
+    
+    const updateCanvas = () => {
+      if (previewCanvasRef.current && video.readyState >= 2) {
+        const canvas = previewCanvasRef.current;
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx && video.videoWidth > 0) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+        }
+      }
+      
+      if (isScanning) {
+        const id = requestAnimationFrame(updateCanvas);
+        setPreviewAnimationId(id);
+      }
+    };
+    
+    video.addEventListener('loadeddata', () => {
+      console.log('Canvas preview video loaded:', {
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight
+      });
+      updateCanvas();
+    });
+    
+    video.play().catch(console.error);
+  }, [isScanning]);
+
   // Stop camera stream
   const stopCamera = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
+    if (previewAnimationId) {
+      cancelAnimationFrame(previewAnimationId);
+      setPreviewAnimationId(null);
+    }
     setIsScanning(false);
-  }, [stream]);
+  }, [stream, previewAnimationId]);
 
   // Capture current frame with OpenCV processing
   const captureFrame = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!previewCanvasRef.current || !canvasRef.current) return;
 
-    const video = videoRef.current;
+    // Use the preview canvas as source since video element isn't working
+    const sourceCanvas = previewCanvasRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     
     if (!ctx) return;
 
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Set canvas dimensions to match source canvas
+    canvas.width = sourceCanvas.width;
+    canvas.height = sourceCanvas.height;
     
-    // Draw current video frame to canvas
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Draw current frame from preview canvas
+    ctx.drawImage(sourceCanvas, 0, 0, canvas.width, canvas.height);
     
     // Convert to data URL with higher quality and better format
     const originalImageData = canvas.toDataURL('image/jpeg', 0.95);
@@ -671,37 +718,30 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                 </div>
               ) : (
                 <div className="relative w-full h-full">
+                  {/* Hidden video element for stream access */}
                   <video
                     ref={videoRef}
-                    className="w-full h-full object-cover"
+                    className="hidden"
                     autoPlay
                     playsInline
                     muted
-                    onLoadedData={() => console.log('Video data loaded')}
-                    onCanPlay={() => console.log('Video can play')}
-                    onPlaying={() => console.log('Video is playing')}
-                    onWaiting={() => console.log('Video is waiting')}
-                    onStalled={() => console.log('Video stalled')}
-                    onLoadStart={() => console.log('Video load start')}
-                    onLoadedMetadata={() => console.log('Video metadata loaded event')}
-                    onTimeUpdate={() => {
-                      // Only log first time update to avoid spam
-                      if (videoRef.current && videoRef.current.currentTime > 0 && videoRef.current.currentTime < 0.1) {
-                        console.log('Video time update - stream is working');
-                      }
-                    }}
+                  />
+                  
+                  {/* Canvas preview that should work on mobile */}
+                  <canvas
+                    ref={previewCanvasRef}
+                    className="w-full h-full object-cover"
                     style={{ 
                       backgroundColor: '#000',
-                      minWidth: '100%',
-                      minHeight: '100%',
                       transform: 'scaleX(-1)' // Mirror for selfie view
                     }}
                   />
+                  
                   {/* Debug overlay with more details */}
                   <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
                     <div>Camera: {stream ? 'Active' : 'Inactive'}</div>
+                    <div>Canvas: {previewCanvasRef.current?.width || 0}x{previewCanvasRef.current?.height || 0}</div>
                     <div>Video: {videoRef.current?.videoWidth || 0}x{videoRef.current?.videoHeight || 0}</div>
-                    <div>State: {videoRef.current?.readyState || 'N/A'}</div>
                   </div>
                 </div>
               )}

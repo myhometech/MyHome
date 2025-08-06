@@ -148,7 +148,9 @@ app.use((req, res, next) => {
   console.log('🔧 ROUTE REGISTRATION: Registering all routes via routes.ts');
   console.log(`🚀 DEPLOYMENT MARKER: ${deploymentMarker}`);
   
+  // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
   const server = await registerRoutes(app);
+  console.log('✅ API routes registered successfully');
   
   // Initialize manual event notification service (TICKET B2)
   try {
@@ -171,6 +173,7 @@ app.use((req, res, next) => {
     await setupVite(app, server);
   } else {
     console.log('🔧 Setting up static file serving for production/deployment');
+    console.log('⚠️ IMPORTANT: Static file serving configured AFTER API routes to prevent route interception');
     try {
       serveStatic(app);
       console.log('✅ Static file serving configured successfully');

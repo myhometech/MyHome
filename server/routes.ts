@@ -2941,27 +2941,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // EMERGENCY FIX: Add root route to prevent 404 in production
-  app.get('/', (req, res) => {
-    console.log('📞 ROOT endpoint accessed');
-    console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
-    console.log('🔧 Request IP:', req.ip || req.socket.remoteAddress);
-    
-    // Always send a response to confirm routing works
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        console.log('🔧 Production mode: Attempting to serve index.html');
-        const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
-        console.log('🔧 Dist path:', distPath);
-        res.sendFile(path.resolve(distPath, "index.html"));
-      } catch (error) {
-        console.error('❌ Error serving index.html:', (error as Error).message);
-        res.status(200).send('✅ MyHome API is running - ' + new Date().toISOString());
-      }
-    } else {
-      res.send('✅ Development server running');
-    }
-  });
+  // ROOT ROUTE: Only define fallback for production mode
+  // In development, Vite middleware handles all frontend routing
 
   // DEBUG ROUTE: Test deployment connectivity with enhanced diagnostics
   app.get('/debug', (req, res) => {

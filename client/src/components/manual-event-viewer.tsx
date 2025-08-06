@@ -258,12 +258,12 @@ export function ManualEventViewer({ eventId, isOpen, onClose, onUpdate }: Manual
                       <Trash2 className="h-4 w-4 mr-2" />
                       {isDeleting ? 'Deleting...' : 'Delete Event'}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onClose}>
+                      <X className="h-4 w-4 mr-2" />
+                      Close
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                
-                <Button variant="ghost" size="sm" onClick={onClose}>
-                  <X className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           </DialogHeader>

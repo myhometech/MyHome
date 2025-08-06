@@ -170,6 +170,8 @@ app.use((req, res, next) => {
   const nodeEnv = process.env.NODE_ENV;
   const appEnv = app.get("env");
   const isDeployment = process.env.REPLIT_DEPLOYMENT === '1';
+  console.log('🚨 EXPRESS SERVER STARTUP: This confirms the server is executing');
+  console.log('🚨 REPLIT_DEPLOYMENT env:', process.env.REPLIT_DEPLOYMENT);
   console.log(`🔧 Environment check: NODE_ENV=${nodeEnv}, app.env=${appEnv}, isDeployment=${isDeployment}`);
   
   if (!isDeployment && appEnv === "development") {

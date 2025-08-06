@@ -395,23 +395,13 @@ export default function UnifiedDocumentCard({
     return <FileText className="h-4 w-4" />;
   };
 
-  const getFileTypeColor = () => {
+  const getFileTypeIconColor = () => {
     if (document.mimeType?.startsWith("image/")) {
-      return "from-emerald-50 to-teal-50 border-emerald-200";
+      return "bg-emerald-100 text-emerald-700 border-emerald-200";
     } else if (document.mimeType === "application/pdf") {
-      return "from-red-50 to-rose-50 border-red-200";
+      return "bg-red-100 text-red-700 border-red-200";
     } else {
-      return "from-blue-50 to-indigo-50 border-blue-200";
-    }
-  };
-
-  const getFileTypeAccent = () => {
-    if (document.mimeType?.startsWith("image/")) {
-      return "text-emerald-700";
-    } else if (document.mimeType === "application/pdf") {
-      return "text-red-700";
-    } else {
-      return "text-blue-700";
+      return "bg-blue-100 text-blue-700 border-blue-200";
     }
   };
 
@@ -440,7 +430,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`group hover:shadow-lg hover:scale-[1.02] transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer bg-gradient-to-br ${getFileTypeColor()} overflow-hidden`}
+        className={`group hover:shadow-md hover:scale-[1.01] transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer bg-white border-gray-200`}
         onClick={() => {
           if (bulkMode) {
             onToggleSelection?.();
@@ -452,10 +442,6 @@ export default function UnifiedDocumentCard({
         }}
       >
         <CardContent className="p-4 relative">
-          {/* Decorative corner accent */}
-          <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
-            <div className={`absolute -top-8 -right-8 w-16 h-16 ${getFileTypeColor().replace('from-', 'bg-').replace(' to-', '').split(' ')[0].replace('50', '100')} rotate-45 opacity-20`}></div>
-          </div>
           {/* Bulk selection checkbox */}
           {bulkMode && (
             <div className="absolute top-2 left-2 z-10">
@@ -508,8 +494,8 @@ export default function UnifiedDocumentCard({
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className={`p-2 rounded-lg ${getFileTypeColor().replace('from-', 'bg-').replace(' to-', '').split(' ')[0].replace('50', '100')} ${getFileTypeAccent()} shadow-sm`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${getFileTypeIconColor()} border shadow-sm`}>
                         {getFileIcon()}
                       </div>
                       <h3 className="font-semibold text-sm leading-tight text-gray-900 truncate flex-1">
@@ -591,7 +577,7 @@ export default function UnifiedDocumentCard({
                   <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                   <span className="font-medium text-gray-600">{formatFileSize(document.fileSize)}</span>
                 </div>
-                <div className="flex items-center gap-1 bg-white/70 px-2 py-1 rounded-full">
+                <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full">
                   <Clock className="h-3 w-3 text-gray-400" />
                   <span className="text-gray-500">{formatDate(document.uploadedAt)}</span>
                 </div>
@@ -599,7 +585,7 @@ export default function UnifiedDocumentCard({
               
               <div className="flex flex-wrap items-center gap-1 ml-auto">
                 {category && (
-                  <Badge variant="outline" className="text-xs bg-white/50 border-gray-300">
+                  <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300">
                     <FolderIcon className="h-3 w-3 mr-1" />
                     {category.name}
                   </Badge>
@@ -607,13 +593,13 @@ export default function UnifiedDocumentCard({
                 {document.tags && document.tags.length > 0 && (
                   <>
                     {document.tags.slice(0, 2).map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs bg-white/80">
+                      <Badge key={index} variant="secondary" className="text-xs bg-gray-100">
                         <Tag className="h-3 w-3 mr-1" />
                         {tag}
                       </Badge>
                     ))}
                     {document.tags.length > 2 && (
-                      <Badge variant="secondary" className="text-xs bg-white/80">
+                      <Badge variant="secondary" className="text-xs bg-gray-100">
                         +{document.tags.length - 2}
                       </Badge>
                     )}
@@ -642,7 +628,7 @@ export default function UnifiedDocumentCard({
             {/* Insight summary badges */}
             {showInsights && openInsights.length > 0 && (
               <div 
-                className="flex items-center gap-2 cursor-pointer hover:bg-white/60 p-2 rounded-lg transition-colors backdrop-blur-sm border border-white/20"
+                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors border border-gray-100"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

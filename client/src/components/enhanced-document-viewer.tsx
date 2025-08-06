@@ -34,8 +34,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DocumentInsights } from "@/components/document-insights";
 import { Document, Page, pdfjs } from 'react-pdf';
 
-// Set up PDF.js worker with CDN path for better compatibility
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// Set up PDF.js worker with correct extension
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface EnhancedDocumentViewerProps {
   document: {
@@ -90,6 +90,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [useReactPdf, setUseReactPdf] = useState(false);
+  const [pdfLoadTimeout, setPdfLoadTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -340,10 +341,27 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                     )}
                     <Button
                       onClick={() => {
+                        // Clear any existing timeout
+                        if (pdfLoadTimeout) {
+                          clearTimeout(pdfLoadTimeout);
+                        }
+                        
                         setUseReactPdf(!useReactPdf);
                         if (!useReactPdf) {
                           setPageNumber(1);
                           setNumPages(null);
+                          
+                          // Set a timeout to fall back if loading takes too long
+                          const timeout = setTimeout(() => {
+                            console.log('PDF loading timeout - falling back to browser view');
+                            setUseReactPdf(false);
+                            toast({
+                              title: "Loading timeout",
+                              description: "Using browser view instead",
+                            });
+                          }, 10000); // 10 second timeout
+                          
+                          setPdfLoadTimeout(timeout);
                         }
                       }}
                       variant="outline"
@@ -368,35 +386,58 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                   <div className="h-full overflow-auto bg-gray-100 p-4" style={{ height: 'calc(100% - 60px)' }}>
                     <div className="flex justify-center">
                       <Document
-                        file={{
-                          url: getPreviewUrl(),
-                          httpHeaders: {
-                            'Accept': 'application/pdf'
-                          },
-                          withCredentials: true
-                        }}
+                        file={getPreviewUrl()}
                         onLoadSuccess={({ numPages }) => {
+                          // Clear timeout on successful load
+                          if (pdfLoadTimeout) {
+                            clearTimeout(pdfLoadTimeout);
+                            setPdfLoadTimeout(null);
+                          }
                           setNumPages(numPages);
                           console.log(`📄 PDF loaded successfully with ${numPages} pages`);
-                          toast({
-                            title: "PDF Loaded",
-                            description: `Document has ${numPages} pages`,
-                          });
                         }}
                         onLoadError={(error) => {
+                          // Clear timeout on error
+                          if (pdfLoadTimeout) {
+                            clearTimeout(pdfLoadTimeout);
+                            setPdfLoadTimeout(null);
+                          }
                           console.error('PDF load error:', error);
                           toast({
-                            title: "PDF Viewer Error",
-                            description: "Switching to browser viewer",
-                            variant: "destructive"
+                            title: "Enhanced view failed",
+                            description: "Using browser view instead",
                           });
                           setUseReactPdf(false);
                         }}
+                        error={
+                          <div className="flex items-center justify-center py-8">
+                            <div className="text-center">
+                              <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-red-500" />
+                              <p className="text-sm text-gray-600">Failed to load PDF</p>
+                              <Button 
+                                onClick={() => setUseReactPdf(false)}
+                                variant="outline" 
+                                size="sm" 
+                                className="mt-2"
+                              >
+                                Use Browser View
+                              </Button>
+                            </div>
+                          </div>
+                        }
                         loading={
                           <div className="flex items-center justify-center py-8">
                             <div className="text-center">
                               <FileText className="w-8 h-8 mx-auto mb-2 animate-pulse" />
                               <p className="text-sm text-gray-600">Loading PDF...</p>
+                              <Button 
+                                onClick={() => setUseReactPdf(false)}
+                                variant="ghost" 
+                                size="sm" 
+                                className="mt-2"
+                              >
+                                Cancel & Use Browser View
+                              </Button>
                             </div>
                           </div>
                         }
@@ -406,12 +447,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                           renderTextLayer={false}
                           renderAnnotationLayer={false}
                           className="shadow-lg"
-                          width={Math.min(800, window.innerWidth - 100)}
-                          loading={
-                            <div className="flex items-center justify-center py-8">
-                              <div className="animate-pulse bg-gray-300 rounded h-96 w-full max-w-md"></div>
-                            </div>
-                          }
+                          width={Math.min(600, window.innerWidth - 150)}
                         />
                       </Document>
                     </div>

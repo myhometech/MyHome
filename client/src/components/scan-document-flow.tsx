@@ -296,8 +296,8 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     // Draw current frame from preview canvas
     ctx.drawImage(sourceCanvas, 0, 0, canvas.width, canvas.height);
     
-    // Convert to data URL with higher quality and better format
-    const originalImageData = canvas.toDataURL('image/jpeg', 0.95);
+    // Convert to data URL with maximum quality for better PDF output
+    const originalImageData = canvas.toDataURL('image/jpeg', 1.0);
     
     // Create initial page entry
     const pageId = Date.now().toString();

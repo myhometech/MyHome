@@ -111,11 +111,14 @@ export class PDFConversionService {
         const imageBuffer = await fs.promises.readFile(imagePath);
         let processedImageBuffer = imageBuffer;
         
-        // Process image with Sharp for optimization - ensure valid JPEG output
+        // Process image with Sharp for better quality - ensure valid JPEG output
         try {
+          const metadata = await sharp(imageBuffer).metadata();
+          console.log(`Original image dimensions: ${metadata.width}x${metadata.height}`);
+          
           processedImageBuffer = await sharp(imageBuffer)
             .jpeg({ 
-              quality: 85, 
+              quality: 95, // Increased quality from 85 to 95
               progressive: false,
               mozjpeg: true,
               force: true // Force JPEG format even if input is different
@@ -206,10 +209,17 @@ export class PDFConversionService {
       const imageBuffer = await fs.promises.readFile(imagePath);
       let processedImageBuffer = imageBuffer;
       
-      // Process image with Sharp for optimization
+      // Process image with Sharp for better quality
       try {
+        const metadata = await sharp(imageBuffer).metadata();
+        console.log(`Original image dimensions: ${metadata.width}x${metadata.height}`);
+        
         processedImageBuffer = await sharp(imageBuffer)
-          .jpeg({ quality: 85, progressive: false })
+          .jpeg({ 
+            quality: 95, // Higher quality for better image clarity
+            progressive: false,
+            mozjpeg: true
+          })
           .toBuffer();
       } catch (sharpError) {
         console.warn('Sharp processing failed, using original image:', sharpError);

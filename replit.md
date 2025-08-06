@@ -8,6 +8,8 @@ Preferred communication style: Simple, everyday language.
 Project Direction: Building iOS version of MyHome document management app.
 Essential Features: Phone camera scanning for document digitization, future Google Drive integration planned.
 Interface Design: Clean insights-first layout with single document library section below AI insights, single main heading structure.
+Document Cards: Subtle colored file type icons only (emerald for images, red for PDFs, blue for documents) with clean white backgrounds.
+Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot menu for actions (edit/delete).
 
 ### Application Behavior Preferences
 1. **Document Upload**: Auto-suggest categories using AI analysis with user confirmation before saving
@@ -106,12 +108,14 @@ Interface Design: Clean insights-first layout with single document library secti
 
 ### Manual Event Management System
 - **Full CRUD Operations**: Complete create, read, update, delete functionality for manual events.
+- **Modal Viewer Pattern**: ManualEventViewer component provides consistent viewing experience matching document pattern - click to view, 3-dot menu for actions.
 - **Visual Integration**: Manual events display alongside AI insights with distinct visual indicators (Manual badges, PenTool icons).
 - **Asset Linking**: Events can be linked to user properties (houses/cars) with visual indicators.
 - **Due Date Management**: Smart due date processing with urgency colors (overdue=red, today=orange, tomorrow=yellow, future=green).
 - **Multi-File Attachments**: Support for document attachments with drag-drop upload interface.
 - **Real-time Synchronization**: React Query integration with automatic cache invalidation across all views.
 - **Comprehensive Display**: Unified insights dashboard, detailed insights page with tabbed views, and integrated search functionality.
+- **Consistent UX**: Manual events follow same interaction pattern as documents - click opens modal view with dropdown menu access to editing.
 
 ### Smart Contextual Help System
 - **Comprehensive Help Tooltips**: Smart contextual help throughout the interface with different tooltip types (info, warning, success).

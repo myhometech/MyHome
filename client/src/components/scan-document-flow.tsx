@@ -61,14 +61,29 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         timestamp: new Date().toISOString()
       });
       
+      // Log available devices for debugging
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      console.log('Available video devices:', videoDevices.map(d => ({ label: d.label, deviceId: d.deviceId })));
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'environment', // Prefer back camera on mobile
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-          frameRate: { ideal: 30 },
-          aspectRatio: { ideal: 1.7777777778 }
+          facingMode: { ideal: 'environment' }, // Try to prefer back camera
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
+      });
+      
+      console.log('Media stream obtained:', {
+        active: mediaStream.active,
+        id: mediaStream.id,
+        tracks: mediaStream.getTracks().map(track => ({
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled,
+          readyState: track.readyState,
+          settings: track.getSettings ? track.getSettings() : 'N/A'
+        }))
       });
       
       setStream(mediaStream);
@@ -80,13 +95,25 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         videoRef.current.muted = true;
         
         // Wait for video metadata to load
-        await new Promise((resolve) => {
+        await new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Video metadata load timeout'));
+          }, 10000);
+          
           videoRef.current!.onloadedmetadata = () => {
+            clearTimeout(timeoutId);
             console.log('Video metadata loaded:', {
               videoWidth: videoRef.current!.videoWidth,
-              videoHeight: videoRef.current!.videoHeight
+              videoHeight: videoRef.current!.videoHeight,
+              readyState: videoRef.current!.readyState
             });
             resolve(void 0);
+          };
+          
+          videoRef.current!.onerror = (error) => {
+            clearTimeout(timeoutId);
+            console.error('Video element error:', error);
+            reject(new Error('Video element error'));
           };
         });
         
@@ -101,12 +128,30 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       }
       
       setIsScanning(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to access camera:', err);
-      setError('Unable to access camera. Please ensure camera permissions are granted.');
+      
+      let errorMessage = 'Unable to access camera. Please ensure camera permissions are granted.';
+      let toastTitle = "Camera Access Failed";
+      
+      if (err.name === 'NotAllowedError') {
+        errorMessage = 'Camera permission denied. Please allow camera access and try again.';
+        toastTitle = "Camera Permission Denied";
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = 'No camera found on this device.';
+        toastTitle = "Camera Not Found";
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = 'Camera is already in use by another application.';
+        toastTitle = "Camera In Use";
+      } else if (err.message.includes('timeout')) {
+        errorMessage = 'Camera failed to initialize. Please try again.';
+        toastTitle = "Camera Timeout";
+      }
+      
+      setError(errorMessage);
       toast({
-        title: "Camera Access Failed",
-        description: "Please check your camera permissions and try again.",
+        title: toastTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -568,6 +613,12 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                   autoPlay
                   playsInline
                   muted
+                  onLoadedData={() => console.log('Video data loaded')}
+                  onCanPlay={() => console.log('Video can play')}
+                  onPlaying={() => console.log('Video is playing')}
+                  onWaiting={() => console.log('Video is waiting')}
+                  onStalled={() => console.log('Video stalled')}
+                  style={{ backgroundColor: '#000' }}
                 />
               )}
               

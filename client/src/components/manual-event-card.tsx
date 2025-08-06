@@ -171,7 +171,7 @@ export function ManualEventCard({
     <>
       <Card 
         className={`group hover:shadow-md transition-all duration-200 ${dueDateInfo.bgColor} cursor-pointer`}
-        onClick={onClick}
+        onClick={onClick || (() => setShowEditModal(true))}
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
@@ -290,7 +290,7 @@ export function ManualEventCard({
 }
 
 // Compact version for dashboard summary
-export function CompactManualEventCard({ event, linkedAsset, onEdit }: ManualEventCardProps) {
+export function CompactManualEventCard({ event, linkedAsset, onEdit, onClick }: ManualEventCardProps) {
   const [showEditModal, setShowEditModal] = useState(false);
   
   const getCategoryIcon = (category: string) => {
@@ -347,7 +347,7 @@ export function CompactManualEventCard({ event, linkedAsset, onEdit }: ManualEve
       <Button
         variant="outline"
         className={`h-auto p-3 justify-start text-left ${dueDateInfo.bgColor} hover:shadow-sm`}
-        onClick={() => setShowEditModal(true)}
+        onClick={onClick || (() => setShowEditModal(true))}
       >
         <div className="flex items-center gap-3 w-full">
           <div className="flex items-center gap-2">

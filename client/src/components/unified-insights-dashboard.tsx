@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { InsightCard } from '@/components/insight-card';
 import { InsightsCalendar } from '@/components/insights-calendar';
 import { ManualEventCard, CompactManualEventCard } from '@/components/manual-event-card';
+import { ManualEventViewer } from '@/components/manual-event-viewer';
 import SmartHelpTooltip, { HelpBadge } from '@/components/smart-help-tooltip';
 import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
 
@@ -197,6 +198,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [selectedInsight, setSelectedInsight] = useState<DocumentInsight | null>(null);
+  const [selectedManualEvent, setSelectedManualEvent] = useState<string | null>(null);
 
   // Fetch user assets for linking manual events to assets
   const { data: userAssets = [] } = useQuery<UserAsset[]>({
@@ -625,6 +627,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             key={event.id}
                             event={event}
                             linkedAsset={linkedAsset}
+                            onClick={() => setSelectedManualEvent(event.id)}
                           />
                         );
                       })}
@@ -769,6 +772,19 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
             </div>
           </div>
         </div>
+      )}
+
+      {/* Manual Event Viewer Modal */}
+      {selectedManualEvent && (
+        <ManualEventViewer
+          eventId={selectedManualEvent}
+          isOpen={!!selectedManualEvent}
+          onClose={() => setSelectedManualEvent(null)}
+          onUpdate={() => {
+            // Refetch data when event is updated
+            refetch();
+          }}
+        />
       )}
 
     </div>

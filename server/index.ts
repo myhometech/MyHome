@@ -143,32 +143,11 @@ app.use((req, res, next) => {
     console.log('ℹ️ Backup service disabled in production');
   }
 
-  // TEMPORARY: Direct route confirmation for deployment debugging
+  // Register main routes to handle all routing - no duplicates needed
   const deploymentMarker = Date.now();
-  console.log('🔧 ROUTE REGISTRATION: Adding /debug and /api/email-ingest routes');
+  console.log('🔧 ROUTE REGISTRATION: Registering all routes via routes.ts');
   console.log(`🚀 DEPLOYMENT MARKER: ${deploymentMarker}`);
   
-  // Add root route for deployment verification
-  app.get('/', (req, res) => {
-    console.log('📞 Root endpoint called');
-    res.send('✅ MyHome API Server - ' + new Date().toISOString());
-  });
-  
-  app.get('/debug', (req, res) => {
-    console.log('📞 /debug endpoint called');
-    res.send('✅ App is live - ' + new Date().toISOString());
-  });
-  
-  app.get('/api/email-ingest', (req, res) => {
-    console.log('📞 /api/email-ingest GET endpoint called');
-    res.status(200).send('✅ Email Ingest Live - ' + new Date().toISOString());
-  });
-  
-  app.post('/api/email-ingest', (req, res) => {
-    console.log('📞 /api/email-ingest POST endpoint called');
-    res.status(200).send('✅ Email Ingest Live - ' + new Date().toISOString());
-  });
-
   const server = await registerRoutes(app);
   
   // Initialize manual event notification service (TICKET B2)

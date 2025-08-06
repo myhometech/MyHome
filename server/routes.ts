@@ -2942,7 +2942,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Simple GET and HEAD endpoints for /api/email-ingest (no security requirements for Mailgun route validation)
-  app.get('/api/email-ingest', (req, res) => { res.status(200).send('OK'); });
+  // DEPLOYMENT UPDATE v2: Email ingestion endpoint active (force deployment refresh)
+  app.get('/api/email-ingest', (req, res) => { 
+    res.status(200).send('Email ingestion endpoint active - v2'); 
+  });
   app.head('/api/email-ingest', (req, res) => { res.sendStatus(200); });
 
   // TICKET: Enable Public Access and Harden Security for /api/email-ingest (Mailgun Integration)

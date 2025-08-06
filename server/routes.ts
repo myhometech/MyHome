@@ -2941,15 +2941,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Basic GET endpoint for /api/email-ingest (no security requirements)
-  app.get('/api/email-ingest', async (req: any, res) => {
-    res.status(200).json({ 
-      status: 'ok',
-      message: 'Mailgun webhook endpoint is available',
-      methods: ['POST'],
-      timestamp: new Date().toISOString()
-    });
-  });
+  // Simple GET and HEAD endpoints for /api/email-ingest (no security requirements for Mailgun route validation)
+  app.get('/api/email-ingest', (req, res) => { res.status(200).send('OK'); });
+  app.head('/api/email-ingest', (req, res) => { res.sendStatus(200); });
 
   // TICKET: Enable Public Access and Harden Security for /api/email-ingest (Mailgun Integration)
   // Apply comprehensive security middleware stack

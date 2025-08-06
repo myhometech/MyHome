@@ -208,7 +208,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     video.muted = true;
     
     const updateCanvas = () => {
-      if (previewCanvasRef.current && video.readyState >= 2) {
+      if (previewCanvasRef.current && video.readyState >= 2 && isScanning) {
         const canvas = previewCanvasRef.current;
         const ctx = canvas.getContext('2d');
         
@@ -217,9 +217,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
           canvas.height = video.videoHeight;
           ctx.drawImage(video, 0, 0);
         }
-      }
-      
-      if (isScanning) {
+        
         const id = requestAnimationFrame(updateCanvas);
         setPreviewAnimationId(id);
       }
@@ -251,14 +249,31 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
 
   // Capture current frame with OpenCV processing
   const captureFrame = useCallback(async () => {
-    if (!previewCanvasRef.current || !canvasRef.current) return;
+    if (!previewCanvasRef.current || !canvasRef.current) {
+      console.log('Missing canvas references for capture');
+      return;
+    }
 
-    // Use the preview canvas as source since video element isn't working
     const sourceCanvas = previewCanvasRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('No canvas context available');
+      return;
+    }
+
+    if (sourceCanvas.width === 0 || sourceCanvas.height === 0) {
+      console.log('Source canvas has no dimensions:', { width: sourceCanvas.width, height: sourceCanvas.height });
+      toast({
+        title: "Camera Not Ready",
+        description: "Please wait for the camera to fully initialize before capturing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('Capturing frame from canvas:', { width: sourceCanvas.width, height: sourceCanvas.height });
 
     // Set canvas dimensions to match source canvas
     canvas.width = sourceCanvas.width;

@@ -35,7 +35,9 @@ import {
   ListTodo,
   Info,
   Zap,
-  AlertCircle
+  AlertCircle,
+  FolderIcon,
+  Tag
 } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { EnhancedDocumentViewer } from "./enhanced-document-viewer";
@@ -393,6 +395,26 @@ export default function UnifiedDocumentCard({
     return <FileText className="h-4 w-4" />;
   };
 
+  const getFileTypeColor = () => {
+    if (document.mimeType?.startsWith("image/")) {
+      return "from-emerald-50 to-teal-50 border-emerald-200";
+    } else if (document.mimeType === "application/pdf") {
+      return "from-red-50 to-rose-50 border-red-200";
+    } else {
+      return "from-blue-50 to-indigo-50 border-blue-200";
+    }
+  };
+
+  const getFileTypeAccent = () => {
+    if (document.mimeType?.startsWith("image/")) {
+      return "text-emerald-700";
+    } else if (document.mimeType === "application/pdf") {
+      return "text-red-700";
+    } else {
+      return "text-blue-700";
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -418,7 +440,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`group hover:shadow-md transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer`}
+        className={`group hover:shadow-lg hover:scale-[1.02] transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer bg-gradient-to-br ${getFileTypeColor()} overflow-hidden`}
         onClick={() => {
           if (bulkMode) {
             onToggleSelection?.();
@@ -429,7 +451,11 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-4">
+        <CardContent className="p-4 relative">
+          {/* Decorative corner accent */}
+          <div className="absolute top-0 right-0 w-16 h-16 overflow-hidden">
+            <div className={`absolute -top-8 -right-8 w-16 h-16 ${getFileTypeColor().replace('from-', 'bg-').replace(' to-', '').split(' ')[0].replace('50', '100')} rotate-45 opacity-20`}></div>
+          </div>
           {/* Bulk selection checkbox */}
           {bulkMode && (
             <div className="absolute top-2 left-2 z-10">
@@ -482,11 +508,16 @@ export default function UnifiedDocumentCard({
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <h3 className="font-medium text-sm leading-tight text-gray-900 truncate">
-                      {document.name}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg ${getFileTypeColor().replace('from-', 'bg-').replace(' to-', '').split(' ')[0].replace('50', '100')} ${getFileTypeAccent()} shadow-sm`}>
+                        {getFileIcon()}
+                      </div>
+                      <h3 className="font-semibold text-sm leading-tight text-gray-900 truncate flex-1">
+                        {document.name}
+                      </h3>
+                    </div>
                     {document.expiryDate && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <div className="flex items-center gap-1 text-xs text-gray-600 ml-7">
                         <Calendar className="h-3 w-3" />
                         <span>Due: {formatDate(document.expiryDate)}</span>
                       </div>
@@ -554,34 +585,43 @@ export default function UnifiedDocumentCard({
             </div>
 
             {/* Document metadata */}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-              <div className="flex items-center gap-1">
-                {getFileIcon()}
-                <span>{formatFileSize(document.fileSize)}</span>
-              </div>
-              {category && (
-                <Badge variant="outline" className="text-xs">
-                  {category.name}
-                </Badge>
-              )}
-              {document.tags && document.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {document.tags.slice(0, 2).map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                  {document.tags.length > 2 && (
-                    <Badge variant="secondary" className="text-xs">
-                      +{document.tags.length - 2}
-                    </Badge>
-                  )}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                  <span className="font-medium text-gray-600">{formatFileSize(document.fileSize)}</span>
                 </div>
-              )}
+                <div className="flex items-center gap-1 bg-white/70 px-2 py-1 rounded-full">
+                  <Clock className="h-3 w-3 text-gray-400" />
+                  <span className="text-gray-500">{formatDate(document.uploadedAt)}</span>
+                </div>
+              </div>
               
-              {/* TICKET 6: OCR failure badge for browser scans */}
-              {document.status === 'ocr_failed' && document.uploadSource === 'browser_scan' && (
-                <div className="flex items-center">
+              <div className="flex flex-wrap items-center gap-1 ml-auto">
+                {category && (
+                  <Badge variant="outline" className="text-xs bg-white/50 border-gray-300">
+                    <FolderIcon className="h-3 w-3 mr-1" />
+                    {category.name}
+                  </Badge>
+                )}
+                {document.tags && document.tags.length > 0 && (
+                  <>
+                    {document.tags.slice(0, 2).map((tag, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs bg-white/80">
+                        <Tag className="h-3 w-3 mr-1" />
+                        {tag}
+                      </Badge>
+                    ))}
+                    {document.tags.length > 2 && (
+                      <Badge variant="secondary" className="text-xs bg-white/80">
+                        +{document.tags.length - 2}
+                      </Badge>
+                    )}
+                  </>
+                )}
+                
+                {/* TICKET 6: OCR failure badge for browser scans */}
+                {document.status === 'ocr_failed' && document.uploadSource === 'browser_scan' && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -595,14 +635,14 @@ export default function UnifiedDocumentCard({
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Insight summary badges */}
             {showInsights && openInsights.length > 0 && (
               <div 
-                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                className="flex items-center gap-2 cursor-pointer hover:bg-white/60 p-2 rounded-lg transition-colors backdrop-blur-sm border border-white/20"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -611,23 +651,23 @@ export default function UnifiedDocumentCard({
               >
                 <div className="flex items-center gap-1">
                   <Brain className="h-3 w-3 text-blue-600" />
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                     {openInsights.length} insight{openInsights.length !== 1 ? 's' : ''}
                   </Badge>
                 </div>
                 {criticalInsights.length > 0 && (
-                  <Badge className="text-xs bg-red-100 text-red-800">
+                  <Badge className="text-xs bg-red-100 text-red-800 border-red-200">
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     {criticalInsights.length} critical
                   </Badge>
                 )}
                 {highestPriorityInsight && (
                   <div className="flex-1 min-w-0">
-                    <span className="text-xs text-gray-600 truncate">
+                    <span className="text-xs text-gray-700 truncate font-medium">
                       {highestPriorityInsight.title}
                     </span>
                     {highestPriorityInsight.dueDate && (
-                      <span className="text-xs text-orange-600 ml-2">
+                      <span className="text-xs text-orange-600 ml-2 font-medium">
                         {formatDueDate(highestPriorityInsight.dueDate)}
                       </span>
                     )}
@@ -635,8 +675,8 @@ export default function UnifiedDocumentCard({
                 )}
                 <div className="ml-auto">
                   {insightsExpanded || shouldAutoExpand ? 
-                    <ChevronDown className="h-3 w-3 text-gray-400" /> : 
-                    <ChevronRight className="h-3 w-3 text-gray-400" />
+                    <ChevronDown className="h-3 w-3 text-gray-500" /> : 
+                    <ChevronRight className="h-3 w-3 text-gray-500" />
                   }
                 </div>
               </div>
@@ -761,10 +801,7 @@ export default function UnifiedDocumentCard({
               </div>
             )}
 
-            {/* Upload date */}
-            <div className="text-xs text-gray-400">
-              Uploaded {formatDate(document.uploadedAt)}
-            </div>
+
           </div>
         </CardContent>
       </Card>

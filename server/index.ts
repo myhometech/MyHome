@@ -12,61 +12,77 @@ if (global.gc) {
 import { initializeSentry, monitorSystemHealth } from "./monitoring";
 initializeSentry();
 
-// Start system health monitoring
-monitorSystemHealth();
+// DEPLOYMENT FIX: Check deployment environment once
+const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
+
+if (!isDeployment) {
+  // Start system health monitoring
+  monitorSystemHealth();
+} else {
+  console.log('ℹ️  Deployment mode: Skipping system health monitoring');
+}
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
-// CRITICAL MEMORY MANAGEMENT: Emergency fixes for critical heap usage
-console.log('🚨 CRITICAL MEMORY MODE: Applying emergency memory management');
+if (!isDeployment) {
+  // CRITICAL MEMORY MANAGEMENT: Emergency fixes for critical heap usage (dev only)
+  console.log('🚨 CRITICAL MEMORY MODE: Applying emergency memory management');
 
-// Force garbage collection every 15 seconds (more aggressive)
-setInterval(() => {
-  if (global.gc) {
-    const beforeMem = process.memoryUsage();
-    global.gc();
-    const afterMem = process.memoryUsage();
-    const heapUsedMB = Math.round(afterMem.heapUsed/1024/1024);
-    const heapTotalMB = Math.round(afterMem.heapTotal/1024/1024);
-    const heapPercent = Math.round((afterMem.heapUsed / afterMem.heapTotal) * 100);
-    const freedMB = Math.round((beforeMem.heapUsed - afterMem.heapUsed)/1024/1024);
-    console.log(`🧹 GC: ${heapUsedMB}MB/${heapTotalMB}MB (${heapPercent}%) freed ${freedMB}MB`);
-    
-    // Emergency action if still critical
-    if (heapPercent > 95) {
-      console.error('🚨 EMERGENCY: Memory still critical after GC');
+  // Force garbage collection every 15 seconds (more aggressive)
+  setInterval(() => {
+    if (global.gc) {
+      const beforeMem = process.memoryUsage();
+      global.gc();
+      const afterMem = process.memoryUsage();
+      const heapUsedMB = Math.round(afterMem.heapUsed/1024/1024);
+      const heapTotalMB = Math.round(afterMem.heapTotal/1024/1024);
+      const heapPercent = Math.round((afterMem.heapUsed / afterMem.heapTotal) * 100);
+      const freedMB = Math.round((beforeMem.heapUsed - afterMem.heapUsed)/1024/1024);
+      console.log(`🧹 GC: ${heapUsedMB}MB/${heapTotalMB}MB (${heapPercent}%) freed ${freedMB}MB`);
+      
+      // Emergency action if still critical
+      if (heapPercent > 95) {
+        console.error('🚨 EMERGENCY: Memory still critical after GC');
+      }
     }
-  }
-}, 15000);
+  }, 15000);
+} else {
+  console.log('ℹ️  Deployment mode: Skipping aggressive memory management');
+}
 
-// Enable memory profiling
-process.env.MEMORY_PROFILING = 'true';
+// DEPLOYMENT FIX: Disable memory profiling in deployment environments
+if (!isDeployment) {
+  // Enable memory profiling
+  process.env.MEMORY_PROFILING = 'true';
 
-// Log initial memory state
-const initialMem = process.memoryUsage();
-console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap (${Math.round((initialMem.heapUsed/initialMem.heapTotal)*100)}%)`);
+  // Log initial memory state
+  const initialMem = process.memoryUsage();
+  console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap (${Math.round((initialMem.heapUsed/initialMem.heapTotal)*100)}%)`);
 
-// Import memory profiler, memory manager, session cleanup, and job monitoring
-Promise.all([
-  import('./memoryProfiler.js'),
-  import('./memoryManager.js'),
-  import('./sessionCleanup.js'),
-  import('./jobQueueMonitor.js')
-]).then(([{ memoryProfiler }, { memoryManager }, { sessionCleanup }]) => {
-  console.log('🔍 Memory profiler loaded');
-  console.log('🔧 Memory manager loaded');
-  console.log('🧹 Session cleanup loaded');
-  
-  // Take immediate snapshot
-  setTimeout(() => {
-    const report = memoryProfiler.generateReport();
-    console.log('📊 Memory Profile Report:', report);
-  }, 5000);
-}).catch(error => {
-  console.error('Failed to load memory profiler:', error);
-});
+  // Import memory profiler, memory manager, session cleanup, and job monitoring
+  Promise.all([
+    import('./memoryProfiler.js'),
+    import('./memoryManager.js'),
+    import('./sessionCleanup.js'),
+    import('./jobQueueMonitor.js')
+  ]).then(([{ memoryProfiler }, { memoryManager }, { sessionCleanup }]) => {
+    console.log('🔍 Memory profiler loaded');
+    console.log('🔧 Memory manager loaded');
+    console.log('🧹 Session cleanup loaded');
+    
+    // Take immediate snapshot
+    setTimeout(() => {
+      const report = memoryProfiler.generateReport();
+      console.log('📊 Memory Profile Report:', report);
+    }, 5000);
+  }).catch(error => {
+    console.error('Failed to load memory profiler:', error);
+  });
+} else {
+  console.log('ℹ️  Deployment mode: Skipping memory profiling and background services');
+}
 
 // Import backup service only in development to prevent memory issues
 let backupService: any = null;

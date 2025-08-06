@@ -4,11 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Home, Search, Bell, LogOut, Settings, Shield, Mail, HelpCircle, Lightbulb } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Home, Search, Bell, LogOut, Settings, Shield, Mail, HelpCircle, Lightbulb, Copy } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SmartSearch } from "@/components/smart-search";
 import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
+import { useToast } from "@/hooks/use-toast";
 import type { User, Document } from "@shared/schema";
 import { useState } from "react";
 
@@ -21,6 +23,7 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const { user } = useAuth();
   const [location] = useLocation();
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const { toast } = useToast();
   
   // Get notification count for imported documents
   const { data: importedDocsCount = 0 } = useQuery<number>({
@@ -28,6 +31,29 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
     refetchInterval: 30000, // Check every 30 seconds
     retry: false,
   });
+
+  const handleCopyEmail = async () => {
+    if (!user?.id) return;
+    
+    const uploadEmail = `u${user.id}@uploads.myhome-tech.com`;
+    
+    try {
+      await navigator.clipboard.writeText(uploadEmail);
+      toast({
+        title: "Upload email copied!",
+        description: `Copied ${uploadEmail} to clipboard`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Failed to copy email:", error);
+      toast({
+        title: "Copy failed",
+        description: "Unable to copy email to clipboard",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -130,6 +156,26 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
               </Button>
             </Link>
 
+            {/* Mobile Email Copy Button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="p-2" 
+                    onClick={handleCopyEmail}
+                    disabled={!user?.id}
+                  >
+                    <Mail className="h-4 w-4 text-gray-500 hover:text-blue-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-sm">Send files to this address — we'll upload them for you.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
             <Button 
               variant="ghost" 
               size="sm" 
@@ -148,20 +194,40 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
 
           {/* User Menu */}
           <div className="flex items-center space-x-2 md:space-x-4">
+            {/* Email upload copy button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="p-2" 
+                    onClick={handleCopyEmail}
+                    disabled={!user?.id}
+                  >
+                    <Mail className="h-4 w-4 text-gray-500 hover:text-blue-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-sm">Send files to this address — we'll upload them for you.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
             {/* Email import notification */}
-            <div className="relative hidden md:flex">
-              <Button variant="ghost" size="sm" className="p-2 relative">
-                <Mail className="h-4 w-4 text-gray-500" />
-                {importedDocsCount > 0 && (
+            {importedDocsCount > 0 && (
+              <div className="relative hidden md:flex">
+                <Button variant="ghost" size="sm" className="p-2 relative">
+                  <Bell className="h-4 w-4 text-amber-500" />
                   <Badge 
                     variant="destructive" 
                     className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px] min-w-[16px]"
                   >
                     {importedDocsCount}
                   </Badge>
-                )}
-              </Button>
-            </div>
+                </Button>
+              </div>
+            )}
             
             <Button variant="ghost" size="sm" className="p-2 hidden md:flex">
               <Bell className="h-4 w-4 text-gray-500" />

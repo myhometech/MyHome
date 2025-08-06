@@ -33,12 +33,28 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
   });
 
   const handleCopyEmail = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.error("No user ID available for email copy");
+      toast({
+        title: "Copy failed",
+        description: "User not authenticated",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
     
     const uploadEmail = `u${user.id}@uploads.myhome-tech.com`;
+    console.log("Attempting to copy email:", uploadEmail);
     
     try {
+      // Check if clipboard API is available
+      if (!navigator.clipboard) {
+        throw new Error("Clipboard API not available");
+      }
+      
       await navigator.clipboard.writeText(uploadEmail);
+      console.log("Email copied successfully to clipboard");
       toast({
         title: "Upload email copied!",
         description: `Copied ${uploadEmail} to clipboard`,
@@ -46,12 +62,40 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
       });
     } catch (error) {
       console.error("Failed to copy email:", error);
-      toast({
-        title: "Copy failed",
-        description: "Unable to copy email to clipboard",
-        variant: "destructive",
-        duration: 3000,
-      });
+      
+      // Fallback: Try to use the older execCommand method
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = uploadEmail;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        if (document.execCommand('copy')) {
+          document.body.removeChild(textArea);
+          console.log("Email copied using fallback method");
+          toast({
+            title: "Upload email copied!",
+            description: `Copied ${uploadEmail} to clipboard`,
+            duration: 3000,
+          });
+        } else {
+          throw new Error("execCommand copy failed");
+        }
+      } catch (fallbackError) {
+        console.error("Fallback copy method also failed:", fallbackError);
+        document.body.removeChild(document.querySelector('textarea[style*="position: fixed"]') || document.createElement('div'));
+        
+        // Final fallback: Show the email in a toast for manual copy
+        toast({
+          title: "Copy your upload email:",
+          description: uploadEmail,
+          duration: 10000,
+        });
+      }
     }
   };
 

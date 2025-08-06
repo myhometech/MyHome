@@ -123,7 +123,8 @@ app.use((req, res, next) => {
 
 (async () => {
   // DEPLOYMENT DIAGNOSTIC: Confirm startup execution
-  console.log('🚀 STARTUP DIAGNOSTIC: server/index.ts executing at:', new Date().toISOString());
+  console.log('🚀 PRODUCTION DEPLOYMENT: server/index.ts executing at:', new Date().toISOString());
+  console.log('🚀 DEPLOYMENT CONFIRMATION: Routes will be registered and server will start on port:', process.env.PORT || 5000);
   console.log('🚀 NODE_ENV:', process.env.NODE_ENV);
   console.log('🚀 File path:', import.meta.url);
   console.log('🚀 Process arguments:', process.argv);

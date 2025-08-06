@@ -784,27 +784,41 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white"></div>
                     <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white"></div>
                   </div>
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded">
+                  <div className="absolute bottom-20 md:bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded">
                     Align document within frame
                   </div>
                 </div>
               )}
             </div>
             
-            {/* Camera Controls - Fixed position for mobile */}
+            {/* Camera Controls - Always visible on mobile */}
             {isScanning && (
-              <div className="absolute bottom-4 left-4 right-4 md:relative md:bottom-auto md:left-auto md:right-auto md:flex md:justify-center md:gap-4 md:mt-4">
-                <div className="flex justify-center gap-2 md:gap-4">
-                  <Button onClick={stopCamera} variant="outline" size="sm" className="md:size-default">
-                    <X className="h-4 w-4 md:mr-2" />
-                    <span className="hidden md:inline">Stop Camera</span>
+              <>
+                {/* Mobile Controls - Fixed at bottom */}
+                <div className="md:hidden fixed bottom-4 left-4 right-4 z-50 bg-black/80 rounded-lg p-3">
+                  <div className="flex justify-center gap-3">
+                    <Button onClick={stopCamera} variant="outline" size="sm" className="bg-white/90">
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <Button onClick={captureFrame} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                      <Camera className="h-4 w-4 mr-2" />
+                      Capture Page
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Desktop Controls - Below camera */}
+                <div className="hidden md:flex justify-center gap-4 mt-4">
+                  <Button onClick={stopCamera} variant="outline">
+                    <X className="h-4 w-4 mr-2" />
+                    Stop Camera
                   </Button>
-                  <Button onClick={captureFrame} size="lg" className="flex-1 md:flex-initial">
+                  <Button onClick={captureFrame} size="lg">
                     <Camera className="h-4 w-4 mr-2" />
                     Capture Page
                   </Button>
                 </div>
-              </div>
+              </>
             )}
           </div>
           

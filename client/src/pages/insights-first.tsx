@@ -241,17 +241,15 @@ export default function InsightsFirstPage() {
             </div>
           </div>
           
-          <SmartHelpTooltip helpKey="document-upload" side="left" variant="detailed">
-            <AddDropdownMenu 
-              size="lg" 
-              className="bg-blue-600 hover:bg-blue-700"
-              onDocumentUpload={() => setShowUploadDialog(true)}
-              onManualDateCreate={() => {
-                // This will be handled by the AddDropdownMenu component
-                console.log('Manual date creation requested');
-              }}
-            />
-          </SmartHelpTooltip>
+          <AddDropdownMenu 
+            size="lg" 
+            className="bg-blue-600 hover:bg-blue-700"
+            onDocumentUpload={() => setShowUploadDialog(true)}
+            onManualDateCreate={() => {
+              // This will be handled by the AddDropdownMenu component
+              console.log('Manual date creation requested');
+            }}
+          />
         </div>
 
         {/* AI Insights Dashboard */}

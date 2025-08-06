@@ -829,7 +829,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                 <div className="md:hidden fixed bottom-4 left-4 right-4 z-50 bg-black/80 rounded-lg p-3">
                   <div className="flex justify-center gap-3">
                     <Button onClick={stopCamera} variant="outline" size="sm" className="bg-white/90">
-                      <X className="h-4 w-4" />
+                      <Check className="h-4 w-4" />
                     </Button>
                     <Button onClick={captureFrame} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
                       <Camera className="h-4 w-4 mr-2" />
@@ -841,7 +841,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                 {/* Desktop Controls - Below camera */}
                 <div className="hidden md:flex justify-center gap-4 mt-4">
                   <Button onClick={stopCamera} variant="outline">
-                    <X className="h-4 w-4 mr-2" />
+                    <Check className="h-4 w-4 mr-2" />
                     Stop Camera
                   </Button>
                   <Button onClick={captureFrame} size="lg">

@@ -3982,6 +3982,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PRODUCTION FIX: Add explicit API route protection to prevent static file conflicts
+  app.use('/api/*', (req, res, next) => {
+    // If we reach here, it means the API route wasn't handled above
+    // This should not happen in normal operation, but provides a fallback
+    console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
+  });
+
   app.use(sentryErrorHandler());
 
   const httpServer = createServer(app);

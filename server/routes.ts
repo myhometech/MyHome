@@ -3988,14 +3988,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Keep API route protection for unhandled routes
-  app.use('/api/*', (req, res, next) => {
-    console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
-    res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
-  });
+    // ✅ Debug route to confirm deployment
+    app.get("/debug", (req, res) => {
+      res.send(`✅ App is live - ${new Date().toISOString()}`);
+    });
 
-  app.use(sentryErrorHandler());
+    // ✅ Email ingest webhook GET + POST (for Mailgun)
+    app.get("/api/email-ingest", (req, res) => {
+      res.send("✅ Email Ingest GET Confirmed");
+    });
 
-  const httpServer = createServer(app);
-  return httpServer;
-}
+    app.post("/api/email-ingest", (req, res) => {
+      res.send("✅ Email Ingest Live");
+    });
+
+    // Keep API route protection for unhandled routes
+    app.use('/api/*', (req, res, next) => {
+      console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
+      res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
+    });
+
+    app.use(sentryErrorHandler());
+
+    const httpServer = createServer(app);
+    return httpServer;
+  }

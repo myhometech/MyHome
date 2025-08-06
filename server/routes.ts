@@ -2945,14 +2945,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // DEBUG ROUTE: Test deployment connectivity with enhanced diagnostics
   app.get('/debug', (req, res) => {
-    console.log('📞 /debug endpoint called');
+    console.log('📞 /debug endpoint called from routes.ts');
+    console.log('🔧 Environment:', process.env.NODE_ENV);
+    console.log('🔧 Deployment timestamp:', process.env.DEPLOYMENT_TIMESTAMP || 'not-set');
     res.send('✅ App is live - ' + new Date().toISOString());
   });
 
   // Simple GET endpoint for /api/email-ingest (no security requirements for Mailgun route validation)
   // DEPLOYMENT UPDATE v4: Email ingestion endpoint active with enhanced diagnostics
   app.get('/api/email-ingest', (req, res) => { 
-    console.log('📞 /api/email-ingest GET endpoint called');
+    console.log('📞 /api/email-ingest GET endpoint called from routes.ts');
+    console.log('🔧 Route registration confirmed for email ingestion');
     res.status(200).send('✅ Email Ingest Live - ' + new Date().toISOString()); 
   });
   app.head('/api/email-ingest', (req, res) => { 
@@ -2963,6 +2966,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TICKET: Enable Public Access and Harden Security for /api/email-ingest (Mailgun Integration)
   // Apply comprehensive security middleware stack
   app.post('/api/email-ingest', 
+    (req, res, next) => {
+      console.log('🚨 MAILGUN POST: Email ingestion route hit from routes.ts');
+      console.log('🚨 POST IP:', req.ip || req.socket.remoteAddress);
+      console.log('🚨 POST Headers:', Object.keys(req.headers));
+      next();
+    },
     mailgunWebhookLogger,
     mailgunWebhookRateLimit,
     validateMailgunContentType,

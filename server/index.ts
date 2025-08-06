@@ -168,6 +168,7 @@ app.use((req, res, next) => {
   // DEPLOYMENT FIX: Use consistent environment detection
   const nodeEnv = process.env.NODE_ENV;
   const appEnv = app.get("env");
+  const isDeployment = process.env.REPLIT_DEPLOYMENT === '1';
   console.log(`🔧 Environment check: NODE_ENV=${nodeEnv}, app.env=${appEnv}, isDeployment=${isDeployment}`);
   
   if (!isDeployment && appEnv === "development") {
@@ -208,6 +209,14 @@ app.use((req, res, next) => {
   console.log('   POST /api/email-ingest');
   console.log(`🚀 Starting server on port ${port} with NODE_ENV=${process.env.NODE_ENV}`);
   
+  // DEPLOYMENT FIX: Add deployment environment detection (already declared above)
+  
+  if (isDeployment) {
+    console.log('🚀 DEPLOYMENT MODE: Configuring for Replit deployment');
+    console.log('🚀 PORT configuration:', port);
+    console.log('🚀 REPLIT_DEPLOYMENT:', process.env.REPLIT_DEPLOYMENT);
+  }
+  
   server.listen({
     port,
     host: "0.0.0.0",
@@ -215,5 +224,10 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     console.log(`🌐 Server ready at http://0.0.0.0:${port}`);
+    
+    if (isDeployment) {
+      console.log('✅ DEPLOYMENT: Server successfully started and listening');
+      console.log('✅ DEPLOYMENT: Routes should now be accessible');
+    }
   });
 })();

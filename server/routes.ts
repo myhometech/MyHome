@@ -2996,8 +2996,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     mailgunWebhookRateLimit,
     validateMailgunContentType,
     mailgunIPWhitelist,
+    mailgunUpload.any(), // MOVE MULTER BEFORE SIGNATURE VERIFICATION
     mailgunSignatureVerification,
-    mailgunUpload.any(), 
     async (req: any, res) => {
     const processingStartTime = Date.now();
     let requestId: string | undefined;

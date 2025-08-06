@@ -32,6 +32,8 @@ export function parseMailgunWebhook(req: Request): ParsedMailgunWebhook {
     const body = req.body;
     const files = req.files as Express.Multer.File[] | undefined;
 
+    // Parse Mailgun webhook fields from multipart form data
+
     // Extract required fields
     const recipient = body.recipient;
     const sender = body.sender || body.from;

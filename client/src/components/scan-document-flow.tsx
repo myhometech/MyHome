@@ -643,7 +643,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[100vh] md:max-h-[90vh] overflow-hidden p-2 md:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
@@ -725,7 +725,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         
         <div className="flex flex-col lg:flex-row gap-4 h-[70vh]">
           {/* Camera Section */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col relative">
             <div className="relative bg-black rounded-lg overflow-hidden flex-1 flex items-center justify-center">
               {error ? (
                 <div className="text-center text-white p-8">
@@ -791,17 +791,19 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
               )}
             </div>
             
-            {/* Camera Controls */}
+            {/* Camera Controls - Fixed position for mobile */}
             {isScanning && (
-              <div className="flex justify-center gap-4 mt-4">
-                <Button onClick={stopCamera} variant="outline">
-                  <X className="h-4 w-4 mr-2" />
-                  Stop Camera
-                </Button>
-                <Button onClick={captureFrame} size="lg">
-                  <Camera className="h-4 w-4 mr-2" />
-                  Capture Page
-                </Button>
+              <div className="absolute bottom-4 left-4 right-4 md:relative md:bottom-auto md:left-auto md:right-auto md:flex md:justify-center md:gap-4 md:mt-4">
+                <div className="flex justify-center gap-2 md:gap-4">
+                  <Button onClick={stopCamera} variant="outline" size="sm" className="md:size-default">
+                    <X className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Stop Camera</span>
+                  </Button>
+                  <Button onClick={captureFrame} size="lg" className="flex-1 md:flex-initial">
+                    <Camera className="h-4 w-4 mr-2" />
+                    Capture Page
+                  </Button>
+                </div>
               </div>
             )}
           </div>

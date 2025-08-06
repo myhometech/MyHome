@@ -1,28 +1,29 @@
 #!/usr/bin/env node
 
-// Startup script to enable garbage collection
-// This script ensures --expose-gc is available for memory management
+// Start development server with garbage collection enabled
+// This ensures proper memory management for OCR and image processing
 
-console.log('🚀 Starting MyHome with garbage collection enabled...');
-console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+process.env.NODE_OPTIONS = '--expose-gc ' + (process.env.NODE_OPTIONS || '');
+process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Check if --expose-gc is already enabled
+console.log('🚀 Starting MyHome with enhanced memory management...');
+console.log('🔧 NODE_OPTIONS:', process.env.NODE_OPTIONS);
+console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+
+// Verify GC is available
 if (global.gc) {
-  console.log('✅ Garbage collection already exposed');
+  console.log('✅ Manual garbage collection is available');
+  // Test GC functionality
+  const beforeMem = process.memoryUsage();
+  global.gc();
+  const afterMem = process.memoryUsage();
+  console.log(`🧹 GC test: ${Math.round(beforeMem.heapUsed/1024/1024)}MB -> ${Math.round(afterMem.heapUsed/1024/1024)}MB`);
 } else {
-  console.log('⚠️  Garbage collection not exposed');
-  console.log('ℹ️  Attempting to enable via environment variable...');
-  
-  // Try setting NODE_OPTIONS to enable GC
-  if (!process.env.NODE_OPTIONS || !process.env.NODE_OPTIONS.includes('--expose-gc')) {
-    process.env.NODE_OPTIONS = (process.env.NODE_OPTIONS || '') + ' --expose-gc';
-    console.log(`🔧 Set NODE_OPTIONS: ${process.env.NODE_OPTIONS}`);
-  }
+  console.log('⚠️ Manual garbage collection not available');
 }
 
 // Import and start the server
-console.log('🎯 Loading server...');
-import('./server/index.ts').catch((error) => {
+import('./server/index.ts').catch(error => {
   console.error('❌ Failed to start server:', error);
   process.exit(1);
 });

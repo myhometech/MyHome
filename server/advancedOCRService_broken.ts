@@ -68,7 +68,7 @@ export class AdvancedOCRService {
 
       await this.tesseractWorker.setParameters({
         tessedit_pageseg_mode: Tesseract.PSM.AUTO,
-        tesseract_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
+        tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,!?@#$%&*()_+-=[]{}|;:\'\"<>/\\~`',
         preserve_interword_spaces: '1',
         // Enhanced parameters for better OCR accuracy
@@ -90,7 +90,7 @@ export class AdvancedOCRService {
   }
 
   /**
-   * Apply advanced image enhancements for better OCR with proper resource cleanup
+   * Apply advanced image enhancements for better OCR
    */
   async enhanceImageForOCR(imageBuffer: Buffer): Promise<{
     enhanced: Buffer;
@@ -105,75 +105,180 @@ export class AdvancedOCRService {
       bufferId = resourceTracker.trackBuffer(imageBuffer);
       
       sharpInstance = sharp(imageBuffer);
-      const originalMetadata = await sharpInstance.metadata();
+    
+    try {
+      let image = sharp(imageBuffer);
+      const originalMetadata = await image.metadata();
       
       // 1. Resize to optimal OCR resolution (300 DPI equivalent)
       const targetWidth = Math.min(3000, originalMetadata.width || 1920);
-      sharpInstance = sharpInstance.resize(targetWidth, null, {
+      image = image.resize(targetWidth, null, {
         kernel: sharp.kernel.lanczos3,
         withoutEnlargement: true
       });
       enhancements.push('resize');
 
-      // 2. Convert to grayscale for better OCR
-      sharpInstance = sharpInstance.grayscale();
+      // 2. Convert to grayscale for better OCR (unless color is specifically needed)
+      image = image.grayscale();
       enhancements.push('grayscale');
 
-      // 3. Advanced noise reduction
-      sharpInstance = sharpInstance.blur(0.3);
+      // 3. Advanced noise reduction using gaussian blur
+      image = image.blur(0.3);
       enhancements.push('blur');
 
-      // 4. Normalize brightness and contrast
-      sharpInstance = sharpInstance.linear(1.2, -(128 * 1.2) + 128);
+      // 4. Normalize brightness and contrast with linear adjustment
+      image = image.linear(1.2, -(128 * 1.2) + 128);
       enhancements.push('linear_contrast');
 
-      // 5. Apply histogram equalization
-      sharpInstance = sharpInstance.normalize();
+      // 5. Apply histogram equalization effect via normalize
+      image = image.normalize();
       enhancements.push('normalize');
 
-      // 6. Apply unsharp mask for edge enhancement
-      sharpInstance = sharpInstance.sharpen(2.0, 1.0, 3.0);
+      // 6. Apply unsharp mask for edge enhancement with stronger settings
+      image = image.sharpen(2.0, 1.0, 3.0);
       enhancements.push('sharpen');
 
-      // 7. Apply median filter for noise reduction
-      sharpInstance = sharpInstance.median(1);
+      // 7. Apply median filter for additional noise reduction
+      image = image.median(1);
       enhancements.push('median_filter');
 
-      // 8. Enhance contrast with gamma correction
-      sharpInstance = sharpInstance.gamma(1.2);
+      // 8. Enhance contrast for text clarity with gamma correction
+      image = image.gamma(1.2);
       enhancements.push('gamma');
 
-      const enhancedBuffer = await sharpInstance.jpeg({ quality: 95 }).toBuffer();
-      const finalMetadata = await sharp(enhancedBuffer).metadata();
+      // 9. Final brightness and contrast enhancement
+      image = image.modulate({
+        brightness: 1.15,
+        saturation: 1.0,
+        hue: 0
+      });
+      enhancements.push('final_contrast');
 
-      // Track the enhanced buffer
-      resourceTracker.trackBuffer(enhancedBuffer);
+      const enhancedBuffer = await image.jpeg({ quality: 98 }).toBuffer();
+      const processedMetadata = await sharp(enhancedBuffer).metadata();
 
       return {
         enhanced: enhancedBuffer,
         metadata: {
           enhancement: enhancements,
-          originalSize: {
-            width: originalMetadata.width || 0,
-            height: originalMetadata.height || 0
-          },
-          processedSize: {
-            width: finalMetadata.width || 0,
-            height: finalMetadata.height || 0
-          }
+          originalSize: { width: originalMetadata.width, height: originalMetadata.height },
+          processedSize: { width: processedMetadata.width, height: processedMetadata.height }
         }
       };
-
     } catch (error) {
-      console.error('Enhancement error:', error);
-      throw error;
-    } finally {
-      // Clean up resources
-      if (bufferId) {
-        await resourceTracker.releaseResource(bufferId);
+      console.error('Image enhancement error:', error);
+      throw new Error(`Image enhancement failed: ${error}`);
+    }
+  }
+
+  /**
+   * Apply perspective correction to document images
+   */
+  async correctPerspective(
+    imageBuffer: Buffer, 
+    corners?: { x: number; y: number }[]
+  ): Promise<Buffer> {
+    try {
+      let image = sharp(imageBuffer);
+      const metadata = await image.metadata();
+      
+      if (corners && corners.length === 4) {
+        // Apply perspective transformation based on detected corners
+        // This is a simplified implementation - in production, you'd use more sophisticated algorithms
+        const width = metadata.width || 1920;
+        const height = metadata.height || 1080;
+        
+        // Calculate transformation matrix and apply
+        // For now, we'll apply basic skew correction
+        image = image.affine([1, 0, 0, 1], {
+          background: { r: 255, g: 255, b: 255, alpha: 1 }
+        });
       }
-      // Sharp instances are automatically cleaned up by GC
-      sharpInstance = null;
+
+      return await image.jpeg({ quality: 95 }).toBuffer();
+    } catch (error) {
+      console.error('Perspective correction error:', error);
+      return imageBuffer; // Return original if correction fails
+    }
+  }
+
+  /**
+   * Apply intelligent color filtering
+   */
+  async applyColorFilter(
+    imageBuffer: Buffer, 
+    mode: 'auto' | 'color' | 'grayscale' | 'bw'
+  ): Promise<Buffer> {
+    try {
+      let image = sharp(imageBuffer);
+      
+      switch (mode) {
+        case 'grayscale':
+          image = image.grayscale();
+          break;
+          
+        case 'bw':
+          // Convert to black and white with adaptive threshold
+          // First convert to grayscale, then apply threshold
+          const stats = await image.grayscale().stats();
+          const avgBrightness = stats.channels[0].mean;
+          
+          // Adaptive threshold based on image brightness
+          let threshold = 128;
+          if (avgBrightness < 100) {
+            threshold = 100; // Lower threshold for dark images
+          } else if (avgBrightness > 180) {
+            threshold = 160; // Higher threshold for bright images
+          }
+          
+          image = image.grayscale().threshold(threshold);
+          break;
+          
+        case 'auto':
+          // Advanced analysis to determine best color mode
+          const colorStats = await image.stats();
+          
+          // Check if image is already grayscale
+          const isGrayscale = colorStats.channels.length === 1 || 
+            colorStats.channels.every(channel => 
+              Math.abs(channel.mean - colorStats.channels[0].mean) < 15
+            );
+          
+          if (isGrayscale) {
+            image = image.grayscale();
+            
+            // For very low contrast grayscale images, try black and white
+            const contrast = colorStats.channels[0].stdev;
+            if (contrast < 30) {
+              const avgBrightness = colorStats.channels[0].mean;
+              const threshold = avgBrightness > 128 ? 160 : 100;
+              image = image.threshold(threshold);
+            }
+          } else {
+            // For color images, enhance saturation slightly to improve text contrast
+            image = image.modulate({
+              saturation: 0.8, // Reduce saturation to emphasize text
+              brightness: 1.0,
+              hue: 0
+            });
+          }
+          break;
+          
+        case 'color':
+        default:
+          // Keep original colors but enhance for OCR
+          image = image.modulate({
+            saturation: 0.9, // Slightly reduce saturation
+            brightness: 1.05,
+            hue: 0
+          });
+          break;
+      }
+
+      return await image.jpeg({ quality: 95 }).toBuffer();
+    } catch (error) {
+      console.error('Color filter error:', error);
+      return imageBuffer;
     }
   }
 
@@ -189,12 +294,7 @@ export class AdvancedOCRService {
       throw new Error('OCR worker not initialized');
     }
 
-    let bufferId: string | null = null;
-
     try {
-      // Track the image buffer
-      bufferId = resourceTracker.trackBuffer(imageBuffer);
-
       // Strategy 1: Default AUTO page segmentation
       const result1 = await this.performOCRWithSettings(imageBuffer, {
         tessedit_pageseg_mode: Tesseract.PSM.AUTO
@@ -214,8 +314,13 @@ export class AdvancedOCRService {
           tessedit_pageseg_mode: Tesseract.PSM.SINGLE_LINE
         });
 
+        // Strategy 4: Sparse text - find text in no particular order
+        const result4 = await this.performOCRWithSettings(imageBuffer, {
+          tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT
+        });
+
         // Return the result with highest confidence
-        const results = [result1, result2, result3];
+        const results = [result1, result2, result3, result4];
         const bestResult = results.reduce((prev, current) => 
           current.confidence > prev.confidence ? current : prev
         );
@@ -228,11 +333,6 @@ export class AdvancedOCRService {
     } catch (error) {
       console.error('OCR extraction error:', error);
       throw new Error(`OCR extraction failed: ${error}`);
-    } finally {
-      // Clean up tracked buffer
-      if (bufferId) {
-        await resourceTracker.releaseResource(bufferId);
-      }
     }
   }
 
@@ -264,74 +364,62 @@ export class AdvancedOCRService {
   }
 
   /**
-   * Process multiple pages with comprehensive resource cleanup
+   * Process multiple pages for multi-page document scanning
    */
   async processMultiplePages(
     pages: {
       imageBuffer: Buffer;
+      corners?: { x: number; y: number }[];
       colorMode: 'auto' | 'color' | 'grayscale' | 'bw';
     }[]
   ): Promise<ProcessedPage[]> {
     const processedPages: ProcessedPage[] = [];
-    const resourceIds: string[] = [];
 
-    try {
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        console.log(`Processing page ${i + 1}/${pages.length}`);
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
+      console.log(`Processing page ${i + 1}/${pages.length}`);
 
-        // Track page buffer
-        const pageBufferId = resourceTracker.trackBuffer(page.imageBuffer);
-        resourceIds.push(pageBufferId);
+      try {
+        // 1. Apply perspective correction
+        const correctedImage = await this.correctPerspective(page.imageBuffer, page.corners);
+        
+        // 2. Apply color filtering
+        const filteredImage = await this.applyColorFilter(correctedImage, page.colorMode);
+        
+        // 3. Enhance image for OCR
+        const { enhanced, metadata } = await this.enhanceImageForOCR(filteredImage);
+        
+        // 4. Extract text using OCR
+        const ocrResult = await this.extractTextFromImage(enhanced);
 
-        try {
-          // 1. Enhance image for OCR
-          const { enhanced, metadata } = await this.enhanceImageForOCR(page.imageBuffer);
-          
-          // 2. Extract text using OCR
-          const ocrResult = await this.extractTextFromImage(enhanced);
+        processedPages.push({
+          imageBuffer: page.imageBuffer,
+          ocrResult,
+          enhancedImage: enhanced,
+          metadata: {
+            ...metadata,
+            compression: (enhanced.length / page.imageBuffer.length) * 100
+          }
+        });
 
-          processedPages.push({
-            imageBuffer: page.imageBuffer,
-            ocrResult,
-            enhancedImage: enhanced,
-            metadata: {
-              ...metadata,
-              compression: (enhanced.length / page.imageBuffer.length) * 100
-            }
-          });
-
-        } catch (error) {
-          console.error(`Error processing page ${i + 1}:`, error);
-          throw new Error(`Failed to process page ${i + 1}: ${error}`);
-        }
+      } catch (error) {
+        console.error(`Error processing page ${i + 1}:`, error);
+        throw new Error(`Failed to process page ${i + 1}: ${error}`);
       }
-
-      return processedPages;
-
-    } catch (error) {
-      console.error('Multi-page processing error:', error);
-      throw error;
-    } finally {
-      // Clean up all tracked resources
-      await Promise.allSettled(
-        resourceIds.map(id => resourceTracker.releaseResource(id))
-      );
     }
+
+    return processedPages;
   }
 
   /**
-   * Generate searchable PDF with embedded OCR text and resource cleanup
+   * Generate searchable PDF with embedded OCR text
    */
   async generateSearchablePDF(
     processedPages: ProcessedPage[],
     filename: string = 'scanned-document.pdf'
   ): Promise<{ pdfBuffer: Buffer; metadata: any }> {
-    let pdfDoc: PDFDocument | null = null;
-    const resourceIds: string[] = [];
-
     try {
-      pdfDoc = await PDFDocument.create();
+      const pdfDoc = await PDFDocument.create();
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
       
       let totalTextLength = 0;
@@ -339,10 +427,6 @@ export class AdvancedOCRService {
 
       for (let i = 0; i < processedPages.length; i++) {
         const processedPage = processedPages[i];
-        
-        // Track page resources
-        const pageResourceId = resourceTracker.trackBuffer(processedPage.enhancedImage);
-        resourceIds.push(pageResourceId);
         
         // Embed the enhanced image
         const image = await pdfDoc.embedJpg(processedPage.enhancedImage);
@@ -366,16 +450,17 @@ export class AdvancedOCRService {
           totalTextLength += ocrText.length;
 
           // Add invisible text overlay for search functionality
+          // Position text based on OCR word bounding boxes
           if (processedPage.ocrResult.words && processedPage.ocrResult.words.length > 0) {
             processedPage.ocrResult.words.forEach(word => {
-              if (word.confidence > 30) {
+              if (word.confidence > 30) { // Only include confident words
                 page.drawText(word.text, {
                   x: word.bbox.x0,
-                  y: imageDims.height - word.bbox.y1,
-                  size: Math.max(8, word.bbox.y1 - word.bbox.y0),
+                  y: imageDims.height - word.bbox.y1, // Flip Y coordinate
+                  size: Math.max(8, word.bbox.y1 - word.bbox.y0), // Estimate font size
                   font,
-                  color: rgb(1, 1, 1),
-                  opacity: 0.01,
+                  color: rgb(1, 1, 1), // White text (invisible)
+                  opacity: 0.01, // Nearly transparent
                 });
               }
             });
@@ -394,9 +479,6 @@ export class AdvancedOCRService {
       const pdfBytes = await pdfDoc.save();
       const pdfBuffer = Buffer.from(pdfBytes);
 
-      // Track the final PDF buffer
-      resourceTracker.trackBuffer(pdfBuffer);
-
       return {
         pdfBuffer,
         metadata: {
@@ -414,55 +496,19 @@ export class AdvancedOCRService {
     } catch (error) {
       console.error('PDF generation error:', error);
       throw new Error(`PDF generation failed: ${error}`);
-    } finally {
-      // Clean up all tracked resources
-      await Promise.allSettled(
-        resourceIds.map(id => resourceTracker.releaseResource(id))
-      );
-      
-      // Force garbage collection if available
-      if (global.gc) {
-        global.gc();
-        console.log('🧹 Forced GC after PDF generation');
-      }
     }
   }
 
   /**
-   * Clean up all OCR service resources
+   * Clean up resources
    */
   async cleanup(): Promise<void> {
-    console.log('🧹 Cleaning up OCR service resources...');
-    
-    try {
-      // Terminate Tesseract worker
-      if (this.tesseractWorker) {
-        await this.tesseractWorker.terminate();
-        this.tesseractWorker = null;
-        console.log('✅ Tesseract worker terminated');
-      }
-
-      // Release worker tracking
-      if (this.workerTrackingId) {
-        await resourceTracker.releaseResource(this.workerTrackingId);
-        this.workerTrackingId = null;
-      }
-
-      // Clear active buffers
-      this.activeBuffers.clear();
-
-      // Force garbage collection if available
-      if (global.gc) {
-        global.gc();
-        console.log('🧹 Forced GC in OCR cleanup');
-      }
-
-      console.log('✅ OCR service cleanup completed');
-    } catch (error) {
-      console.error('❌ Error during OCR cleanup:', error);
+    if (this.tesseractWorker) {
+      await this.tesseractWorker.terminate();
+      this.tesseractWorker = null;
     }
   }
 }
 
-// Export instance for backwards compatibility
+// Export singleton instance
 export const advancedOCRService = AdvancedOCRService.getInstance();

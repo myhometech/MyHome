@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { AdvancedOCRService } from './advancedOCRService';
+import { resourceTracker } from './resourceTracker';
 
 export interface OCRRetryOptions {
   enableMultipleStrategies: boolean;
@@ -54,42 +55,81 @@ export class EnhancedOCRStrategies {
       preprocessingApplied: []
     };
 
-    for (let i = 0; i < Math.min(strategies.length, options.maxRetries); i++) {
-      const strategy = strategies[i];
+    const resourceIds: string[] = [];
+
+    try {
+      // Track the input buffer
+      const inputBufferId = resourceTracker.trackBuffer(imageBuffer);
+      resourceIds.push(inputBufferId);
+
+      for (let i = 0; i < Math.min(strategies.length, options.maxRetries); i++) {
+        const strategy = strategies[i];
+        let preprocessedBufferId: string | null = null;
+        
+        try {
+          console.log(`📝 Trying OCR strategy: ${strategy.name}`);
+          
+          const preprocessedImage = await strategy.preprocessor(imageBuffer);
+          
+          // Track the preprocessed buffer
+          preprocessedBufferId = resourceTracker.trackBuffer(preprocessedImage.buffer);
+          resourceIds.push(preprocessedBufferId);
+          
+          const ocrResult = await this.ocrService.extractTextFromImage(preprocessedImage.buffer);
+          
+          const result: EnhancedOCRResult = {
+            text: ocrResult.text,
+            confidence: ocrResult.confidence,
+            strategy: strategy.name,
+            preprocessingApplied: preprocessedImage.applied
+          };
+
+          console.log(`📊 Strategy '${strategy.name}' confidence: ${result.confidence}%`);
+
+          if (result.confidence > bestResult.confidence) {
+            bestResult = result;
+          }
+
+          // Early exit if we achieved high confidence
+          if (result.confidence > 85) {
+            console.log(`✅ High confidence achieved with strategy: ${strategy.name}`);
+            break;
+          }
+
+        } catch (error) {
+          console.error(`❌ Strategy '${strategy.name}' failed:`, error);
+          continue;
+        } finally {
+          // Clean up preprocessed buffer immediately after use
+          if (preprocessedBufferId) {
+            await resourceTracker.releaseResource(preprocessedBufferId);
+          }
+        }
+      }
+
+      if (bestResult.confidence > 0) {
+        console.log(`🎯 Best result: ${bestResult.strategy} with ${bestResult.confidence}% confidence`);
+      } else {
+        console.log('⚠️ All OCR strategies failed');
+      }
+
+      return bestResult;
+
+    } catch (error) {
+      console.error('❌ Enhanced OCR failed:', error);
+      throw error;
+    } finally {
+      // Clean up all tracked resources
+      await Promise.allSettled(
+        resourceIds.map(id => resourceTracker.releaseResource(id))
+      );
       
-      try {
-        console.log(`📝 Trying OCR strategy: ${strategy.name}`);
-        
-        const preprocessedImage = await strategy.preprocessor(imageBuffer);
-        const ocrResult = await this.ocrService.extractTextFromImage(preprocessedImage.buffer);
-        
-        const result: EnhancedOCRResult = {
-          text: ocrResult.text,
-          confidence: ocrResult.confidence,
-          strategy: strategy.name,
-          preprocessingApplied: preprocessedImage.applied
-        };
-
-        console.log(`📊 Strategy '${strategy.name}' confidence: ${result.confidence}%`);
-
-        if (result.confidence > bestResult.confidence) {
-          bestResult = result;
-        }
-
-        // If we get high confidence, use this result
-        if (result.confidence > 80) {
-          console.log(`✅ High confidence result found with strategy: ${strategy.name}`);
-          return result;
-        }
-
-      } catch (error) {
-        console.error(`❌ Strategy '${strategy.name}' failed:`, error);
-        continue;
+      // Force garbage collection after processing
+      if (global.gc) {
+        global.gc();
+        console.log('🧹 Forced GC after enhanced OCR');
       }
     }
-
-    console.log(`🏆 Best OCR result: ${bestResult.strategy} (${bestResult.confidence}%)`);
-    return bestResult;
   }
 
   /**

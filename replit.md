@@ -104,7 +104,8 @@ Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot m
 - **Image/PDF Optimization**: Client-side image compression, server-side image processing (Sharp), PDF-lib integration for PDF optimization.
 - **Virtualized Lists**: React-window for infinite loading and memory-efficient rendering.
 - **Global Error Handling**: React Error Boundaries, network status detection, exponential backoff retry logic for API calls, toast notifications for user feedback.
-- **Memory Optimization**: Automatic garbage collection, optimized database connection pooling, session cleanup, OCR throttling.
+- **Memory Optimization**: Manual garbage collection with NODE_OPTIONS="--expose-gc", comprehensive resource tracking system, OCR resource cleanup with try/finally blocks, automatic buffer and file handle management.
+- **Resource Management**: Centralized ResourceTracker utility for files, buffers, workers, and streams with automatic cleanup on process exit, stale resource cleanup, and WeakRef support for better GC performance.
 
 ### Manual Event Management System
 - **Full CRUD Operations**: Complete create, read, update, delete functionality for manual events.

@@ -3,6 +3,7 @@ import path from 'path';
 import puppeteer from 'puppeteer';
 import { PDFDocument, rgb } from 'pdf-lib';
 import sharp from 'sharp';
+import { resourceTracker } from './resourceTracker';
 
 export interface ConversionResult {
   pdfPath: string;
@@ -13,9 +14,12 @@ export interface ConversionResult {
 
 export class PDFConversionService {
   /**
-   * Convert multiple scanned images to a single multi-page PDF
+   * Convert multiple scanned images to a single multi-page PDF with proper resource cleanup
    */
   async convertMultipleImagesToPDF(imagePaths: string[], outputDir: string, documentName: string = 'scanned-document'): Promise<ConversionResult> {
+    const resourceIds: string[] = [];
+    let pdfPath = '';
+
     try {
       console.log(`🔄 MULTI-PAGE PDF: Converting ${imagePaths.length} scanned images to multi-page PDF using pdf-lib`);
       console.log(`🔄 MULTI-PAGE PDF: Image paths:`, imagePaths);
@@ -24,12 +28,17 @@ export class PDFConversionService {
         throw new Error('No image paths provided');
       }
 
-      // Verify all files exist and log their sizes
+      // Verify all files exist and track them for cleanup
       for (let i = 0; i < imagePaths.length; i++) {
         const imagePath = imagePaths[i];
         if (!fs.existsSync(imagePath)) {
           throw new Error(`Image file not found: ${imagePath}`);
         }
+        
+        // Track image file for potential cleanup
+        const imageResourceId = resourceTracker.trackFile(imagePath);
+        resourceIds.push(imageResourceId);
+        
         const stats = fs.statSync(imagePath);
         console.log(`🔄 MULTI-PAGE PDF: Page ${i + 1} - ${imagePath} (${stats.size} bytes)`);
       }
@@ -37,8 +46,12 @@ export class PDFConversionService {
       // Generate PDF filename
       const timestamp = Date.now();
       const pdfFilename = `document-scan-${documentName}-${timestamp}.pdf`;
-      const pdfPath = path.join(outputDir, pdfFilename);
+      pdfPath = path.join(outputDir, pdfFilename);
       console.log(`🔄 MULTI-PAGE PDF: Output path: ${pdfPath}`);
+
+      // Track the output PDF file
+      const pdfResourceId = resourceTracker.trackFile(pdfPath);
+      resourceIds.push(pdfResourceId);
 
       // Create multi-page PDF
       await this.generateMultiPagePDFFromImages(imagePaths, pdfPath, documentName);
@@ -59,12 +72,48 @@ export class PDFConversionService {
 
     } catch (error: any) {
       console.error('Multi-page PDF conversion failed:', error);
+      
+      // Clean up on error - delete any partially created files
+      await this.cleanup(pdfPath);
+      
       return {
         pdfPath: '',
         originalImagePath: '',
         success: false,
         error: error.message
       };
+    } finally {
+      // Note: We don't auto-cleanup successful files here as they're needed
+      // But we ensure cleanup happens on errors or when explicitly called
+      if (global.gc) {
+        global.gc();
+        console.log('🧹 Forced GC after PDF conversion');
+      }
+    }
+  }
+
+  /**
+   * Clean up temporary files and resources
+   */
+  async cleanup(pdfPath?: string): Promise<void> {
+    console.log('🧹 Cleaning up PDF conversion resources...');
+    
+    try {
+      // Clean up partial PDF file if it exists
+      if (pdfPath && fs.existsSync(pdfPath)) {
+        fs.unlinkSync(pdfPath);
+        console.log(`🗑️ Cleaned up partial PDF: ${pdfPath}`);
+      }
+
+      // Force garbage collection if available
+      if (global.gc) {
+        global.gc();
+        console.log('🧹 Forced GC in PDF conversion cleanup');
+      }
+
+      console.log('✅ PDF conversion cleanup completed');
+    } catch (error) {
+      console.error('❌ Error during PDF conversion cleanup:', error);
     }
   }
 

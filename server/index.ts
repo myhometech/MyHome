@@ -173,7 +173,7 @@ app.use((req, res, next) => {
       serveStatic(app);
       console.log('✅ Static file serving configured successfully');
     } catch (error) {
-      console.error('❌ Static file serving failed:', error.message);
+      console.error('❌ Static file serving failed:', (error as Error).message);
       // Continue without static files to prevent total failure
     }
   }

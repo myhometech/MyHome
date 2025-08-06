@@ -149,87 +149,162 @@ class ImageProcessor {
       const gray = new this.cv.Mat();
       this.cv.cvtColor(src, gray, this.cv.COLOR_RGBA2GRAY);
 
-      // Apply Gaussian blur to reduce noise
-      const blurred = new this.cv.Mat();
-      this.cv.GaussianBlur(gray, blurred, new this.cv.Size(5, 5), 0);
+      // Try multiple detection strategies for better consistency
+      const strategies = [
+        { blur: 3, canny: [30, 80], epsilon: 0.02, minArea: 0.15 },
+        { blur: 5, canny: [50, 150], epsilon: 0.025, minArea: 0.1 }, 
+        { blur: 7, canny: [75, 200], epsilon: 0.03, minArea: 0.08 },
+        { blur: 3, canny: [20, 60], epsilon: 0.015, minArea: 0.2 }
+      ];
 
-      // Edge detection using Canny
-      const edges = new this.cv.Mat();
-      this.cv.Canny(blurred, edges, 50, 150);
+      let bestResult = { contour: null, confidence: 0, area: 0 };
 
-      // Morphological operations to close gaps
-      const kernel = this.cv.getStructuringElement(this.cv.MORPH_RECT, new this.cv.Size(3, 3));
-      const morphed = new this.cv.Mat();
-      this.cv.morphologyEx(edges, morphed, this.cv.MORPH_CLOSE, kernel);
+      for (const strategy of strategies) {
+        // Apply adaptive Gaussian blur
+        const blurred = new this.cv.Mat();
+        this.cv.GaussianBlur(gray, blurred, new this.cv.Size(strategy.blur, strategy.blur), 0);
 
-      // Find contours
-      const contours = new this.cv.MatVector();
-      const hierarchy = new this.cv.Mat();
-      this.cv.findContours(morphed, contours, hierarchy, this.cv.RETR_EXTERNAL, this.cv.CHAIN_APPROX_SIMPLE);
+        // Adaptive histogram equalization for better contrast
+        const clahe = new this.cv.Mat();
+        const claheObj = new this.cv.CLAHE(2.0, new this.cv.Size(8, 8));
+        claheObj.apply(blurred, clahe);
 
-      let bestContour = null;
-      let maxArea = 0;
-      let confidence = 0;
+        // Edge detection using adaptive Canny thresholds
+        const edges = new this.cv.Mat();
+        this.cv.Canny(clahe, edges, strategy.canny[0], strategy.canny[1]);
 
-      // Find the largest rectangular contour
-      for (let i = 0; i < contours.size(); i++) {
-        const contour = contours.get(i);
-        const area = this.cv.contourArea(contour);
+        // Enhanced morphological operations
+        const kernel1 = this.cv.getStructuringElement(this.cv.MORPH_RECT, new this.cv.Size(3, 3));
+        const kernel2 = this.cv.getStructuringElement(this.cv.MORPH_RECT, new this.cv.Size(5, 5));
         
-        // Only consider contours with reasonable area
-        if (area > src.rows * src.cols * 0.1) {
-          // Approximate contour to polygon
-          const epsilon = 0.02 * this.cv.arcLength(contour, true);
-          const approx = new this.cv.Mat();
-          this.cv.approxPolyDP(contour, approx, epsilon, true);
+        const morphed1 = new this.cv.Mat();
+        const morphed2 = new this.cv.Mat();
+        
+        // Close small gaps
+        this.cv.morphologyEx(edges, morphed1, this.cv.MORPH_CLOSE, kernel1);
+        // Dilate to strengthen edges
+        this.cv.morphologyEx(morphed1, morphed2, this.cv.MORPH_DILATE, kernel2);
 
-          // Check if it's a quadrilateral
-          if (approx.rows === 4 && area > maxArea) {
-            maxArea = area;
-            bestContour = approx.clone();
-            
-            // Calculate confidence based on area ratio and shape
-            const imageArea = src.rows * src.cols;
-            const areaRatio = area / imageArea;
-            confidence = Math.min(areaRatio * 2, 1.0); // Max confidence of 1.0
-          }
+        // Find contours
+        const contours = new this.cv.MatVector();
+        const hierarchy = new this.cv.Mat();
+        this.cv.findContours(morphed2, contours, hierarchy, this.cv.RETR_EXTERNAL, this.cv.CHAIN_APPROX_SIMPLE);
+
+        // Analyze contours
+        for (let i = 0; i < contours.size(); i++) {
+          const contour = contours.get(i);
+          const area = this.cv.contourArea(contour);
+          const imageArea = src.rows * src.cols;
           
-          approx.delete();
+          // More flexible area threshold
+          if (area > imageArea * strategy.minArea) {
+            // Adaptive polygon approximation
+            const perimeter = this.cv.arcLength(contour, true);
+            const epsilon = strategy.epsilon * perimeter;
+            const approx = new this.cv.Mat();
+            this.cv.approxPolyDP(contour, approx, epsilon, true);
+
+            // Accept quadrilaterals or pentagons (documents may have slightly curved edges)
+            if ((approx.rows === 4 || approx.rows === 5) && area > bestResult.area) {
+              // Additional validation: check if it's roughly rectangular
+              const boundingRect = this.cv.boundingRect(contour);
+              const rectArea = boundingRect.width * boundingRect.height;
+              const fillRatio = area / rectArea;
+              
+              // Calculate aspect ratio similarity to document
+              const aspectRatio = boundingRect.width / boundingRect.height;
+              const aspectScore = Math.min(aspectRatio, 1/aspectRatio); // Normalize to 0-1
+              
+              if (fillRatio > 0.7 && aspectScore > 0.4) { // More lenient thresholds
+                const areaRatio = area / imageArea;
+                const confidence = Math.min(
+                  (areaRatio * 1.8) + (fillRatio * 0.3) + (aspectScore * 0.2), 
+                  1.0
+                );
+                
+                if (confidence > bestResult.confidence) {
+                  if (bestResult.contour) bestResult.contour.delete();
+                  bestResult = {
+                    contour: approx.clone(),
+                    confidence: confidence,
+                    area: area
+                  };
+                }
+              }
+            }
+            
+            approx.delete();
+          }
+          contour.delete();
         }
-        contour.delete();
+
+        // Cleanup strategy iteration
+        blurred.delete();
+        clahe.delete();
+        claheObj.delete();
+        edges.delete();
+        kernel1.delete();
+        kernel2.delete();
+        morphed1.delete();
+        morphed2.delete();
+        contours.delete();
+        hierarchy.delete();
       }
 
       // Cleanup
       gray.delete();
-      blurred.delete();
-      edges.delete();
-      kernel.delete();
-      morphed.delete();
-      contours.delete();
-      hierarchy.delete();
 
-      if (bestContour && confidence > 0.2) { // Lower threshold for better detection
+      if (bestResult.contour && bestResult.confidence > 0.15) { // Even more lenient threshold
         // Extract corners from best contour
         const corners: { x: number; y: number }[] = [];
-        const data = bestContour.data32S;
+        const data = bestResult.contour.data32S;
         
-        for (let i = 0; i < bestContour.rows; i++) {
+        for (let i = 0; i < bestResult.contour.rows; i++) {
           corners.push({
             x: data[i * 2],
             y: data[i * 2 + 1]
           });
         }
 
+        // If we have more than 4 corners, find the 4 most prominent ones
+        let finalCorners = corners;
+        if (corners.length > 4) {
+          // Find convex hull to get the outermost points
+          const points = new this.cv.Mat(corners.length, 1, this.cv.CV_32SC2);
+          const pointData = points.data32S;
+          for (let i = 0; i < corners.length; i++) {
+            pointData[i * 2] = corners[i].x;
+            pointData[i * 2 + 1] = corners[i].y;
+          }
+          
+          const hull = new this.cv.Mat();
+          this.cv.convexHull(points, hull);
+          
+          // Extract hull points
+          const hullData = hull.data32S;
+          const hullCorners = [];
+          for (let i = 0; i < hull.rows; i++) {
+            const idx = hullData[i];
+            hullCorners.push(corners[idx]);
+          }
+          
+          // Take up to 4 corners
+          finalCorners = hullCorners.slice(0, 4);
+          
+          points.delete();
+          hull.delete();
+        }
+
         // Sort corners: top-left, top-right, bottom-right, bottom-left
-        const sortedCorners = this.sortCorners(corners);
-        bestContour.delete();
+        const sortedCorners = this.sortCorners(finalCorners);
+        bestResult.contour.delete();
         
-        console.log('🔍 Document edges detected:', { corners: sortedCorners, confidence });
-        return { corners: sortedCorners, confidence };
+        console.log(`📐 Document edges detected with confidence: ${bestResult.confidence.toFixed(2)} (${finalCorners.length} corners)`);
+        return { corners: sortedCorners, confidence: bestResult.confidence };
       }
 
-      if (bestContour) {
-        bestContour.delete();
+      if (bestResult.contour) {
+        bestResult.contour.delete();
       }
       
       return { corners: undefined, confidence: 0 };

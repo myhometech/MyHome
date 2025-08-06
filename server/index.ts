@@ -41,7 +41,7 @@ if (!isDeployment) {
       const heapPercent = Math.round((afterMem.heapUsed / afterMem.heapTotal) * 100);
       const freedMB = Math.round((beforeMem.heapUsed - afterMem.heapUsed)/1024/1024);
       console.log(`🧹 GC: ${heapUsedMB}MB/${heapTotalMB}MB (${heapPercent}%) freed ${freedMB}MB`);
-      
+
       // Emergency action if still critical
       if (heapPercent > 95) {
         console.error('🚨 EMERGENCY: Memory still critical after GC');
@@ -71,7 +71,7 @@ if (!isDeployment) {
     console.log('🔍 Memory profiler loaded');
     console.log('🔧 Memory manager loaded');
     console.log('🧹 Session cleanup loaded');
-    
+
     // Take immediate snapshot
     setTimeout(() => {
       const report = memoryProfiler.generateReport();
@@ -129,7 +129,7 @@ app.use((req, res, next) => {
   console.log('🚀 File path:', import.meta.url);
   console.log('🚀 Process arguments:', process.argv);
   console.log('🚀 Working directory:', process.cwd());
-  
+
   // PRODUCTION WHITE SCREEN FIX: Completely disable backup service in production
   if (process.env.NODE_ENV !== 'production') {
     try {
@@ -150,11 +150,11 @@ app.use((req, res, next) => {
   const deploymentMarker = Date.now();
   console.log('🔧 ROUTE REGISTRATION: Registering all routes via routes.ts');
   console.log(`🚀 DEPLOYMENT MARKER: ${deploymentMarker}`);
-  
+
   // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
   const server = await registerRoutes(app);
   console.log('✅ API routes registered successfully');
-  
+
   // Initialize manual event notification service (TICKET B2)
   try {
     const { manualEventNotificationService } = await import('./manualEventNotificationService');
@@ -174,7 +174,7 @@ app.use((req, res, next) => {
   console.log('🚨 REPLIT_DEPLOYMENT env:', process.env.REPLIT_DEPLOYMENT);
   console.log('🚨 Production detection:', { NODE_ENV: process.env.NODE_ENV, isDeployment });
   console.log(`🔧 Environment check: NODE_ENV=${nodeEnv}, app.env=${appEnv}, isDeployment=${isDeployment}`);
-  
+
   if (nodeEnv === "development" && !isDeployment) {
     console.log('🔧 Setting up Vite development server');
     await setupVite(app, server);
@@ -205,7 +205,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  
+
   // DEPLOYMENT DEBUG: Log all registered routes before starting server
   console.log('🔧 REGISTERED ROUTES SUMMARY:');
   console.log('   GET / (root endpoint)');
@@ -213,15 +213,15 @@ app.use((req, res, next) => {
   console.log('   GET /api/email-ingest');
   console.log('   POST /api/email-ingest');
   console.log(`🚀 Starting server on port ${port} with NODE_ENV=${process.env.NODE_ENV}`);
-  
+
   // DEPLOYMENT FIX: Add deployment environment detection (already declared above)
-  
+
   if (isDeployment) {
     console.log('🚀 DEPLOYMENT MODE: Configuring for Replit deployment');
     console.log('🚀 PORT configuration:', port);
     console.log('🚀 REPLIT_DEPLOYMENT:', process.env.REPLIT_DEPLOYMENT);
   }
-  
+
   server.listen({
     port,
     host: "0.0.0.0",
@@ -229,7 +229,7 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     console.log(`🌐 Server ready at http://0.0.0.0:${port}`);
-    
+
     if (isDeployment) {
       console.log('✅ DEPLOYMENT: Server successfully started and listening');
       console.log('✅ DEPLOYMENT: Routes should now be accessible');

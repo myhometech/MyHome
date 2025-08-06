@@ -71,7 +71,7 @@ export function setupMultiPageScanUpload(app: Express) {
       }
 
       // Create document data for the PDF
-      const timestamp = new Date().toISOString();
+      const timestamp = new Date();
       const pdfFileName = path.basename(pdfConversionResult.pdfPath);
       
       const documentData = {

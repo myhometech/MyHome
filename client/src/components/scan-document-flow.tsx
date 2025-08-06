@@ -761,8 +761,8 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     ref={previewCanvasRef}
                     className="w-full h-full object-cover"
                     style={{ 
-                      backgroundColor: '#000',
-                      transform: 'scaleX(-1)' // Mirror for selfie view
+                      backgroundColor: '#000'
+                      // Removed mirror transform for natural camera movement
                     }}
                   />
                   

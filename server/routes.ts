@@ -2941,11 +2941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add root route for deployment verification
-  app.get('/', (req, res) => {
-    console.log('📞 Root endpoint called from routes.ts');
-    res.send('✅ MyHome API Server (routes.ts) - ' + new Date().toISOString());
-  });
+  // Remove root route - let static file serving handle the frontend
 
   // DEBUG ROUTE: Test deployment connectivity with enhanced diagnostics
   app.get('/debug', (req, res) => {
@@ -3982,10 +3978,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PRODUCTION FIX: Add explicit API route protection to prevent static file conflicts
+  // Keep API route protection for unhandled routes
   app.use('/api/*', (req, res, next) => {
-    // If we reach here, it means the API route wasn't handled above
-    // This should not happen in normal operation, but provides a fallback
     console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
     res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
   });

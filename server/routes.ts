@@ -1285,7 +1285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: insight.type,
           title: insight.title,
           content: insight.content,
-          confidence: Math.round(insight.confidence * 100), // Convert to 0-100 scale
+          confidence: Math.round(insight.confidence * 100).toString(), // Convert to 0-100 scale as string
           priority: insight.priority,
           dueDate, // TICKET 4: Due date for actionable insights
           actionUrl, // TICKET 4: URL to take action
@@ -3827,6 +3827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert Date objects to strings for database storage
       const vehicleDataForStorage = {
         ...vehicleData,
+        vrn: vehicleData.vrn || vrn, // Ensure VRN is always present
         taxDueDate: (vehicleData as any).taxDueDate instanceof Date ? (vehicleData as any).taxDueDate.toISOString().split('T')[0] : (vehicleData as any).taxDueDate,
         motExpiryDate: (vehicleData as any).motExpiryDate instanceof Date ? (vehicleData as any).motExpiryDate.toISOString().split('T')[0] : (vehicleData as any).motExpiryDate
       };
@@ -3834,7 +3835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedVehicleData = insertVehicleSchema.parse(vehicleDataForStorage);
 
       // Create the vehicle
-      const createdVehicle = await storage.createVehicle(validatedVehicleData);
+      const createdVehicle = await storage.createVehicle(vehicleDataForStorage);
 
       // TICKET 4: Generate vehicle insights after creation
       try {
@@ -4037,8 +4038,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         source: 'dvla' as const,
         dvlaLastRefreshed: new Date(),
         // Convert Date objects to strings for database storage
-        taxDueDate: dvlaVehicle.taxDueDate ? (dvlaVehicle.taxDueDate instanceof Date ? dvlaVehicle.taxDueDate.toISOString().split('T')[0] : dvlaVehicle.taxDueDate) : null,
-        motExpiryDate: dvlaVehicle.motExpiryDate ? (dvlaVehicle.motExpiryDate instanceof Date ? dvlaVehicle.motExpiryDate.toISOString().split('T')[0] : dvlaVehicle.motExpiryDate) : null,
+        taxDueDate: dvlaVehicle.taxDueDate ? ((dvlaVehicle.taxDueDate as any) instanceof Date ? (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0] : dvlaVehicle.taxDueDate as string) : null,
+        motExpiryDate: dvlaVehicle.motExpiryDate ? ((dvlaVehicle.motExpiryDate as any) instanceof Date ? (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0] : dvlaVehicle.motExpiryDate as string) : null,
       });
 
       res.status(201).json({
@@ -4087,8 +4088,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         source: 'dvla' as const,
         dvlaLastRefreshed: new Date(),
         // Convert Date objects to strings for database storage
-        taxDueDate: dvlaVehicle.taxDueDate instanceof Date ? dvlaVehicle.taxDueDate.toISOString().split('T')[0] : dvlaVehicle.taxDueDate,
-        motExpiryDate: dvlaVehicle.motExpiryDate instanceof Date ? dvlaVehicle.motExpiryDate.toISOString().split('T')[0] : dvlaVehicle.motExpiryDate,
+        taxDueDate: (dvlaVehicle.taxDueDate as any) instanceof Date ? (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0] : dvlaVehicle.taxDueDate as string,
+        motExpiryDate: (dvlaVehicle.motExpiryDate as any) instanceof Date ? (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0] : dvlaVehicle.motExpiryDate as string,
       });
 
       // TICKET 4: Generate insights after DVLA refresh

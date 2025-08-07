@@ -215,6 +215,10 @@
   --text-secondary: hsl(215, 13.8%, 34.1%);
   --accent-green: hsl(158, 64%, 52%);
   --border-light: hsl(215, 20%, 89%);
+  
+  /* Extended color palette */
+  --accent-purple: hsl(239, 100%, 56%); /* #1E20FF - vibrant purple-blue */
+  --accent-cyan: hsl(180, 100%, 56%); /* #1EFFFD - bright cyan */
 }
 
 .dark {
@@ -244,6 +248,10 @@
   --text-secondary: hsl(220, 9%, 64%);
   --accent-green: hsl(158, 64%, 52%);
   --border-light: hsl(220, 13%, 18%);
+  
+  /* Extended color palette (same colors work in dark mode) */
+  --accent-purple: hsl(239, 100%, 56%); /* #1E20FF - vibrant purple-blue */
+  --accent-cyan: hsl(180, 100%, 56%); /* #1EFFFD - bright cyan */
 }
 
 @layer base {
@@ -275,5 +283,31 @@
   
   .bg-accent-green {
     background-color: hsl(var(--accent-green));
+  }
+  
+  /* Purple accent utilities */
+  .text-accent-purple {
+    color: hsl(var(--accent-purple));
+  }
+  
+  .bg-accent-purple {
+    background-color: hsl(var(--accent-purple));
+  }
+  
+  .border-accent-purple {
+    border-color: hsl(var(--accent-purple));
+  }
+  
+  /* Cyan accent utilities */
+  .text-accent-cyan {
+    color: hsl(var(--accent-cyan));
+  }
+  
+  .bg-accent-cyan {
+    background-color: hsl(var(--accent-cyan));
+  }
+  
+  .border-accent-cyan {
+    border-color: hsl(var(--accent-cyan));
   }
 }

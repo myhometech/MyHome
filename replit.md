@@ -10,6 +10,7 @@ Essential Features: Phone camera scanning for document digitization, future Goog
 Interface Design: Clean insights-first layout with single document library section below AI insights, single main heading structure.
 Document Cards: Subtle colored file type icons only (emerald for images, red for PDFs, blue for documents) with clean white backgrounds.
 Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot menu for actions (edit/delete).
+Color Palette: Extended the main blue (HSL(207, 90%, 54%) / #1E90FF) with two complementary colors: Purple-blue accent (#1E20FF / HSL(239, 100%, 56%)) and Cyan accent (#1EFFFD / HSL(180, 100%, 56%)) for enhanced visual hierarchy and accent elements.
 
 ### Application Behavior Preferences
 1. **Document Upload**: Auto-suggest categories using AI analysis with user confirmation before saving

@@ -1,7 +1,7 @@
 
-#!/usr/bin/env node
-
 // Force garbage collection via API endpoint
+import fetch from 'node-fetch';
+
 const forceGC = async () => {
   try {
     console.log('🗑️ Forcing garbage collection...');

@@ -678,9 +678,21 @@ export async function processDocumentOCRAndSummary(filePathOrGCSKey: string, fil
   }
 }
 
+/**
+ * Check if file is a DOCX document
+ */
+export function isDocxFile(mimeType: string): boolean {
+  const docxMimeTypes = [
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-word.document.macroEnabled.12',
+    'application/msword' // Legacy DOC files
+  ];
+  return docxMimeTypes.includes(mimeType);
+}
+
 export function supportsOCR(mimeType: string): boolean {
-  // Support OCR for both image files and PDFs
-  return isImageFile(mimeType) || isPDFFile(mimeType);
+  // Support OCR for images, PDFs, and DOCX files
+  return isImageFile(mimeType) || isPDFFile(mimeType) || isDocxFile(mimeType);
 }
 
 export async function processDocumentWithDateExtraction(
@@ -699,6 +711,37 @@ export async function processDocumentWithDateExtraction(
       extractedText = await extractTextFromImage(filePathOrGCSKey, mimeType);
     } else if (isPDFFile(mimeType)) {
       extractedText = await extractTextFromPDF(filePathOrGCSKey);
+    } else if (isDocxFile(mimeType)) {
+      // Process DOCX files using the conversion service
+      try {
+        const docxConversionService = await import('./docxConversionService');
+        const textExtractionResult = await docxConversionService.default.extractTextFromDocx(filePathOrGCSKey);
+        
+        if (textExtractionResult.success && textExtractionResult.extractedText) {
+          extractedText = textExtractionResult.extractedText;
+          console.log(`✅ DOCX text extracted: ${extractedText.length} characters from ${documentName}`);
+        } else {
+          console.warn(`⚠️ DOCX text extraction failed for ${documentName}, falling back to PDF conversion`);
+          // Fallback: try PDF conversion approach
+          const conversionResult = await docxConversionService.default.convertDocxToPdf(filePathOrGCSKey);
+          
+          if (conversionResult.success && conversionResult.pdfPath) {
+            extractedText = await extractTextFromPDF(conversionResult.pdfPath);
+            
+            // Clean up temporary PDF file
+            setTimeout(() => {
+              docxConversionService.default.cleanup([conversionResult.pdfPath!]);
+            }, 5000);
+            
+            console.log(`✅ DOCX processed via PDF conversion fallback: ${documentName}`);
+          } else {
+            extractedText = 'DOCX processing failed - no text extracted';
+          }
+        }
+      } catch (docxError) {
+        console.error(`❌ DOCX processing error for ${documentName}:`, docxError);
+        extractedText = 'DOCX processing failed - error during conversion';
+      }
     } else {
       extractedText = 'No text detected';
     }
@@ -710,9 +753,10 @@ export async function processDocumentWithDateExtraction(
     let extractedDates: ExtractedDate[] = [];
     let aiDates: AIExtractedDate[] = [];
     
-    if ((isImageFile(mimeType) || isPDFFile(mimeType)) && extractedText && 
+    if ((isImageFile(mimeType) || isPDFFile(mimeType) || isDocxFile(mimeType)) && extractedText && 
         extractedText !== 'No text detected' && 
-        !extractedText.includes('extraction attempted but no readable text found')) {
+        !extractedText.includes('extraction attempted but no readable text found') &&
+        !extractedText.includes('processing failed')) {
       
       // Get OCR-based dates using pattern matching
       const ocrDates = await extractExpiryDatesFromText(documentName, extractedText);

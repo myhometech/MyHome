@@ -76,7 +76,12 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
       const response = await fetch(`/api/documents/${documentId}/insights?tier=primary`);
       if (!response.ok) throw new Error('Failed to fetch insights');
       return await response.json();
-    }
+    },
+    // Add stale time to reduce unnecessary requests
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    // Only refetch on window focus if data is stale
+    refetchOnWindowFocus: false
   });
 
   const insights = insightData?.insights || [];

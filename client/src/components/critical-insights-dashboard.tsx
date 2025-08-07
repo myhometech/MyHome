@@ -95,8 +95,8 @@ export default function CriticalInsightsDashboard() {
       console.log('[DEBUG] Critical insights data:', data);
       return data;
     },
-    refetchInterval: 30000, // Refresh every 30 seconds for critical insights
-    staleTime: 0, // Always consider data stale to force fresh fetches
+    refetchInterval: 60000, // Refresh every 60 seconds for critical insights
+    staleTime: 30000, // Allow 30 seconds before considering data stale
   });
 
   // TICKET 8: Dismiss insight mutation

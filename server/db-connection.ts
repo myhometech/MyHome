@@ -19,7 +19,7 @@ function isTransientError(error: any): boolean {
     '08003', // Connection does not exist
     '08004', // Connection rejected
   ];
-  
+
   return transientCodes.some(code => 
     error.code === code || 
     error.message?.includes(code) ||
@@ -41,34 +41,34 @@ async function retryQuery<T>(
   operation: string = 'query'
 ): Promise<T> {
   let lastError: any;
-  
+
   for (let i = 0; i < attempts; i++) {
     try {
       console.log(`Attempting ${operation} (attempt ${i + 1}/${attempts})`);
       const result = await queryFn();
-      
+
       if (i > 0) {
         console.log(`${operation} succeeded after ${i + 1} attempts`);
       }
-      
+
       return result;
     } catch (err: any) {
       lastError = err;
       console.error(`${operation} attempt ${i + 1} failed:`, err.message);
-      
+
       // Don't retry on last attempt or non-transient errors
       if (i === attempts - 1 || !isTransientError(err)) {
         console.error(`${operation} failed permanently:`, err.message);
         throw err;
       }
-      
+
       // Exponential backoff: 1s, 2s, 4s
       const delay = 1000 * Math.pow(2, i);
       console.log(`Retrying ${operation} in ${delay}ms...`);
       await wait(delay);
     }
   }
-  
+
   throw lastError;
 }
 
@@ -129,18 +129,18 @@ export async function safeQuery<T = any>(
     return result;
   } catch (error: any) {
     console.error(`Database ${operation} failed:`, error.message);
-    
+
     // Check if circuit is open
     if (dbCircuitBreaker.opened) {
       console.warn('Circuit breaker is open, returning fallback result');
       return fallbackResult;
     }
-    
+
     // For critical operations, still throw the error
     if (operation.includes('critical') || operation.includes('auth')) {
       throw error;
     }
-    
+
     // For non-critical operations, return fallback
     return fallbackResult;
   }
@@ -177,7 +177,7 @@ export async function checkDatabaseHealth(): Promise<{
     const startTime = Date.now();
     await safeQuery('SELECT 1', [], 'health-check');
     const responseTime = Date.now() - startTime;
-    
+
     return {
       status: responseTime < 1000 ? 'healthy' : 'degraded',
       details: `Response time: ${responseTime}ms`,

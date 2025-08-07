@@ -112,6 +112,26 @@ Color Palette: Extended the main blue (HSL(207, 90%, 54%) / #1E90FF) with two co
 
 ## Recent Development Summary
 
+### August 7, 2025 - OCR-Before-Insights Feature Complete ✅
+- **Achievement**: Implemented automatic OCR triggering when users request insights for documents without extracted text
+- **User Experience Enhancement**: 
+  1. **Seamless Integration**: Users can now generate insights on any document, regardless of OCR status
+  2. **Smart Processing**: System automatically detects missing text and triggers OCR before insights
+  3. **Real-time Feedback**: Users see processing status with estimated completion times
+  4. **Auto-completion**: Frontend polls for OCR completion and automatically retries insights
+- **Technical Implementation**:
+  - Modified insights endpoint to auto-trigger OCR when extractedText is missing
+  - Enhanced file validation for both local and GCS stored documents
+  - Integrated high-priority OCR queue system for user-initiated requests
+  - Added 202 status responses with processing messages and polling support
+  - Updated frontend mutation with smart polling every 3 seconds
+  - Implemented automatic retry logic once OCR completes
+- **Components Enhanced**:
+  - `server/routes.ts` - OCR-before-insights endpoint logic with enhanced error handling
+  - `client/src/components/unified-document-card.tsx` - Smart polling and processing status
+  - Enhanced user messaging with estimated times and processing feedback
+- **Status**: ✅ **PRODUCTION READY** - Users can now generate insights on any document type with automatic OCR processing
+
 ### August 7, 2025 - Insight Job Type Error Fix ✅
 - **Achievement**: Fixed PostgreSQL 22P02 error blocking OCR→Insights pipeline
 - **Root Cause Resolved**: 

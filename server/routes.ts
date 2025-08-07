@@ -1213,6 +1213,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Import OCR queue and trigger processing
         const { ocrQueue } = await import('./ocrQueue');
         
+        // Check if document file exists before queuing OCR
+        const fileExists = document.gcsPath ? 
+          true : // Assume GCS files exist - will be verified in OCR process
+          fs.existsSync(document.filePath);
+          
+        if (!fileExists && !document.gcsPath) {
+          console.error(`❌ Document file not found: ${document.filePath}`);
+          return res.status(404).json({ 
+            message: "Document file not found on disk. Cannot extract text.",
+            debug: `File path: ${document.filePath}`
+          });
+        }
+
         try {
           // Queue OCR job with high priority for user-initiated request
           const jobId = await ocrQueue.addJob({
@@ -1225,7 +1238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isEmailImport: false
           });
 
-          console.log(`🔄 OCR job queued: ${jobId} for document ${documentId}`);
+          console.log(`🔄 OCR job queued: ${jobId} for document ${documentId} (${document.gcsPath ? 'GCS' : 'local'} file)`);
           
           // Return response indicating OCR is processing
           return res.status(202).json({ 
@@ -1240,7 +1253,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error(`❌ Failed to queue OCR for document ${documentId}:`, ocrError);
           return res.status(500).json({ 
             message: "Failed to start text extraction. Please try again.",
-            error: ocrError.message
+            error: ocrError.message,
+            debug: `File: ${document.gcsPath || document.filePath}`
           });
         }
       }

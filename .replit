@@ -17,7 +17,7 @@ externalPort = 80
 PORT = "5000"
 
 [workflows]
-runButton = "Start application"
+runButton = "Start application with GC"
 
 [[workflows.workflow]]
 name = "Project"
@@ -36,6 +36,15 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Start application with GC"
+author = 45314489
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=development tsx --expose-gc server/index.ts"
 
 [agent]
 integrations = ["javascript_google_analytics==1.0.0", "javascript_sendgrid==1.0.0", "javascript_database==1.0.0", "javascript_anthropic==1.0.0", "javascript_stripe==1.0.0", "javascript_gemini==1.0.0", "javascript_object_storage==1.0.0", "javascript_openai==1.0.0"]

@@ -30,7 +30,7 @@ if (!isDeployment) {
   // CRITICAL MEMORY MANAGEMENT: Emergency fixes for critical heap usage (dev only)
   console.log('🚨 CRITICAL MEMORY MODE: Applying emergency memory management');
 
-  // Force garbage collection every 15 seconds (more aggressive)
+  // Force garbage collection every 10 seconds (more aggressive for critical situation)
   setInterval(() => {
     if (global.gc) {
       const beforeMem = process.memoryUsage();
@@ -44,10 +44,17 @@ if (!isDeployment) {
 
       // Emergency action if still critical
       if (heapPercent > 95) {
-        console.error('🚨 EMERGENCY: Memory still critical after GC');
+        console.error('🚨 EMERGENCY: Memory still critical after GC - forcing emergency cleanup');
+        // Force a second GC pass for critical situations
+        setTimeout(() => {
+          if (global.gc) {
+            global.gc();
+            console.log('🆘 Emergency second GC pass completed');
+          }
+        }, 1000);
       }
     }
-  }, 15000);
+  }, 10000);
 } else {
   console.log('ℹ️  Deployment mode: Skipping aggressive memory management');
 }

@@ -209,7 +209,7 @@ Ensure all insights are actionable and provide real value to the user.`;
         type: this.validateInsightType(insight.type),
         title: insight.title || 'Untitled Insight',
         content: insight.content || '',
-        confidence: Math.max(0, Math.min(1, insight.confidence || 0.5)),
+        confidence: Math.max(0, Math.min(100, (insight.confidence || 0.5) * 100)), // Convert 0-1 to 0-100 scale
         priority: this.validatePriority(insight.priority),
         // INSIGHT-101: Add tier classification with validation
         tier: this.validateTier(insight.tier),

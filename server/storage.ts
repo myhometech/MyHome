@@ -1252,32 +1252,76 @@ export class DatabaseStorage implements IStorage {
       type: insight.type,
       priority: insight.priority,
       tier: insight.tier,
+      confidence: insight.confidence,
+      confidenceType: typeof insight.confidence,
       fullInsight: JSON.stringify(insight, null, 2)
     });
     
-    // Validate critical fields before database insertion
+    // Validate and sanitize critical fields before database insertion
     if (insight.documentId !== null && insight.documentId !== undefined) {
       if (typeof insight.documentId === 'string') {
         const parsed = parseInt(insight.documentId);
         if (isNaN(parsed)) {
-          console.error('❌ [INSIGHT ERROR] documentId string is not parseable:', insight.documentId);
+          console.error('❌ [INSIGHT_TYPE_ERROR] documentId string is not parseable:', insight.documentId);
           throw new Error(`Invalid documentId: cannot parse "${insight.documentId}" to integer`);
         }
         insight.documentId = parsed;
         console.log('🔧 [INSIGHT FIX] Converted documentId from string to number:', parsed);
       } else if (typeof insight.documentId !== 'number') {
-        console.error('❌ [INSIGHT ERROR] documentId is not a number:', insight.documentId, 'type:', typeof insight.documentId);
+        console.error('❌ [INSIGHT_TYPE_ERROR] documentId is not a number:', insight.documentId, 'type:', typeof insight.documentId);
         throw new Error(`Invalid documentId type: expected number, got ${typeof insight.documentId}`);
       }
     }
-    
-    const [newInsight] = await db
-      .insert(documentInsights)
-      .values(insight)
-      .returning();
+
+    // Fix confidence type mismatch - handle string/number conversion
+    if (insight.confidence !== null && insight.confidence !== undefined) {
+      if (typeof insight.confidence === 'string') {
+        const parsed = parseFloat(insight.confidence);
+        if (isNaN(parsed)) {
+          console.error('❌ [INSIGHT_TYPE_ERROR] confidence string is not parseable:', insight.confidence);
+          throw new Error(`Invalid confidence: cannot parse "${insight.confidence}" to numeric`);
+        }
+        (insight as any).confidence = parsed;
+        console.log('🔧 [INSIGHT FIX] Converted confidence from string to number:', parsed);
+      } else if (typeof insight.confidence !== 'number') {
+        console.error('❌ [INSIGHT_TYPE_ERROR] confidence is not a number:', insight.confidence, 'type:', typeof insight.confidence);
+        throw new Error(`Invalid confidence type: expected number, got ${typeof insight.confidence}`);
+      }
       
-    console.log('✅ [INSIGHT DEBUG] Successfully created insight:', newInsight.id);
-    return newInsight;
+      // Clamp confidence to 0-100 range
+      const numericConfidence = insight.confidence as number;
+      if (numericConfidence > 100) {
+        (insight as any).confidence = 100;
+        console.log('🔧 [INSIGHT FIX] Clamped confidence to max 100');
+      } else if (numericConfidence < 0) {
+        (insight as any).confidence = 0;
+        console.log('🔧 [INSIGHT FIX] Clamped confidence to min 0');
+      }
+    }
+    
+    try {
+      const [newInsight] = await db
+        .insert(documentInsights)
+        .values(insight)
+        .returning();
+        
+      console.log('✅ [INSIGHT DEBUG] Successfully created insight:', newInsight.id);
+      return newInsight;
+    } catch (dbError: any) {
+      console.error('❌ [INSIGHT_TYPE_ERROR] Database insertion failed:', {
+        error: dbError.message,
+        code: dbError.code,
+        insight: {
+          documentId: insight.documentId,
+          confidence: insight.confidence,
+          type: insight.type,
+          title: insight.title
+        }
+      });
+      
+      // Re-throw with structured error for debugging
+      throw new Error(`Insight database insertion failed (${dbError.code}): ${dbError.message}`);
+    }
   }
 
   // INSIGHT-102: Get insights for specific document with tier filtering

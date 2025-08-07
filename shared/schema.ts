@@ -338,7 +338,7 @@ export const documentInsights = pgTable("document_insights", {
   type: varchar("type", { length: 50 }).notNull(), // 'summary', 'action_items', 'key_dates', 'financial', 'expiring', etc.
   title: varchar("title").notNull(),
   content: text("content").notNull(),
-  confidence: integer("confidence").notNull(), // 0-100 (stored as integer for database efficiency)
+  confidence: numeric("confidence", { precision: 5, scale: 2 }).notNull(), // 0.00-100.00 (supports decimal confidence scores)
   priority: varchar("priority", { length: 10 }).notNull().default("medium"), // 'low', 'medium', 'high'
   dueDate: date("due_date"), // TICKET 4: Due date for actionable insights
   actionUrl: text("action_url"), // TICKET 4: URL to take action

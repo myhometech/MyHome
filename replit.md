@@ -109,3 +109,23 @@ Color Palette: Extended the main blue (HSL(207, 90%, 54%) / #1E90FF) with two co
 - **Error Tracking**: `@sentry/node`, `@sentry/react`
 - **Security Headers**: `helmet`
 - **Rate Limiting**: `express-rate-limit`
+
+## Recent Development Summary
+
+### August 7, 2025 - Insight Job Type Error Fix ✅
+- **Achievement**: Fixed PostgreSQL 22P02 error blocking OCR→Insights pipeline
+- **Root Cause Resolved**: 
+  1. **Schema Mismatch**: `confidence` column was INTEGER but receiving decimal values ("0.9")
+  2. **Type Conversion**: AI service passing 0-1 scale, database expecting 0-100 scale
+  3. **Error Cascade**: All insight jobs failing with invalid integer cast errors
+- **Technical Implementation**:
+  - Updated database schema: `confidence INTEGER` → `confidence NUMERIC(5,2)`
+  - Enhanced type validation with string→number conversion and range clamping
+  - Fixed AI service scale conversion (0-1 → 0-100) in `server/aiInsightService.ts`
+  - Added structured error logging with `[INSIGHT_TYPE_ERROR]` tags for monitoring
+  - Created recovery service for failed insight jobs from past 7 days
+- **Components Added**:
+  - `server/services/insightRecoveryService.ts` - Job recovery and reporting system
+  - `server/routes/insightRecoveryRoutes.ts` - Admin recovery endpoints
+  - Enhanced `server/storage.ts` with comprehensive type validation
+- **Status**: ✅ **PRODUCTION READY** - OCR→Insights pipeline restored, all type errors resolved

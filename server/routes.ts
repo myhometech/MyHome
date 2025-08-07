@@ -2999,6 +2999,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let requestId: string | undefined;
 
     try {
+      console.log('🚀 EMAIL INGEST: Handler started successfully');
+      console.log('🔍 Request body keys:', Object.keys(req.body || {}));
+      console.log('🔍 Request files count:', req.files ? req.files.length : 0);
       // Parse the webhook data first to get basic email info
       const webhookData = parseMailgunWebhook(req);
 
@@ -3420,8 +3423,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      // TICKET 6: Log critical system errors
-      console.error('❌ Critical error in email ingestion:', error instanceof Error ? error.message : String(error));
+      // TICKET 6: Log critical system errors with full stack trace
+      console.error('❌ CRITICAL ERROR IN EMAIL INGESTION:');
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('❌ Request details:', {
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        body: req.body ? Object.keys(req.body) : 'no body',
+        files: req.files ? req.files.length : 0
+      });
+
       EmailUploadLogger.logError({
         errorType: 'system',
         errorCode: 'WEBHOOK_PROCESSING_FAILED',
@@ -3436,7 +3450,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       captureError(error as Error, req);
       res.status(500).json({ 
         error: 'Internal server error processing email',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+        requestId
       });
     }
   });

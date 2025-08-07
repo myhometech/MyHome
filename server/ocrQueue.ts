@@ -9,6 +9,8 @@ interface OCRJob {
   priority: number;
   createdAt: Date;
   retries: number;
+  useCompression?: boolean; // Flag for compression retry attempts
+  isEmailImport?: boolean; // Flag for email import processing
 }
 
 interface QueueStats {
@@ -184,15 +186,33 @@ class OCRJobQueue {
         console.error(`Failed to update OCR failure status for document ${job.documentId}:`, updateError);
       }
       
-      // Retry logic
-      if (job.retries < 2) {
+      // Enhanced retry logic with compression fallback
+      if (job.retries < 3) { // Allow up to 3 retries (1 original + 2 compressed)
         job.retries++;
         job.priority = Math.max(1, job.priority - 1); // Lower priority for retries
+        
+        // Mark for compression retry on subsequent attempts
+        if (job.retries > 1) {
+          job.useCompression = true;
+          console.log(`🔄 Retrying OCR job with compression: ${job.id} (attempt ${job.retries + 1})`);
+        } else {
+          console.log(`🔄 Retrying OCR job: ${job.id} (attempt ${job.retries + 1})`);
+        }
+        
         this.queue.unshift(job); // Add back to front of queue
-        console.log(`🔄 Retrying OCR job: ${job.id} (attempt ${job.retries + 1})`);
       } else {
         this.stats.failed++;
-        console.error(`💀 OCR job permanently failed: ${job.id}`);
+        console.error(`💀 OCR job permanently failed after ${job.retries + 1} attempts: ${job.id}`);
+        
+        // Track permanent failure analytics
+        console.log('📊 Analytics: ocr.permanent_failure', {
+          jobId: job.id,
+          documentId: job.documentId,
+          userId: job.userId,
+          attempts: job.retries + 1,
+          lastError: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        });
       }
     } finally {
       this.processing.delete(job.id);

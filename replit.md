@@ -1,7 +1,7 @@
 # MyHome Application
 
 ## Overview
-MyHome is a comprehensive document management application for homeowners, designed to organize property-related documents. It features a web application (React + Node.js) and a native iOS app, both syncing through a shared backend API with a PostgreSQL database and authentication. The project aims to provide an intuitive platform for document digitization via camera scanning, with future integrations planned for cloud storage services like Google Drive.
+MyHome is a comprehensive document management application for homeowners, designed to organize property-related documents. It features a web application (React + Node.js) and a native iOS app, both syncing through a shared backend API with a PostgreSQL database and authentication. The project aims to provide an intuitive platform for document digitization via camera scanning, with future integrations planned for cloud storage services like Google Drive. The business vision is to provide an intuitive platform for document digitization, offering a solution for homeowners to manage property-related information efficiently and securely.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -23,169 +23,89 @@ Color Palette: Extended the main blue (HSL(207, 90%, 54%) / #1E90FF) with two co
 
 ## System Architecture
 
-### Web Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite
-- **Routing**: Wouter
-- **State Management**: TanStack Query (React Query)
-- **UI Framework**: Radix UI components with Tailwind CSS styling
-- **Component Library**: shadcn/ui
-- **Feature Management**: Subscription-based feature flagging system with FeatureGate components
-- **Unified Interface**: Insights-first UX with AI insights positioned above document library in single scrollable view
-- **Component Structure**: UnifiedDocumentCard for document management and UnifiedInsightsDashboard for AI insights display
-- **Modal System**: Comprehensive document viewer modal system with separate state management for insights-triggered document viewing, preventing conflicts with main page document selection
+### Web Frontend
+- **Framework**: React 18 with TypeScript, Vite, Wouter for routing, TanStack Query for state management.
+- **UI/UX**: Radix UI components with Tailwind CSS (shadcn/ui), unified insights-first UX, comprehensive document viewer modal system.
+- **Feature Management**: Subscription-based feature flagging with `FeatureGate` components.
 
-### Vehicle Management System
-- **Vehicle Insights**: AI-powered MOT and tax due date insights with priority classification
-- **Duplicate Prevention**: Intelligent deduplication based on VRN, type, and due date matching
-- **Template Fallback**: Resilient insight generation with template backup when AI services fail
-- **DVLA Integration**: Ready for real-time vehicle data enrichment and validation
+### iOS Native
+- **Framework**: SwiftUI for iOS 16.0+.
+- **Authentication**: Sign in with Apple integration.
+- **Document Scanning**: VisionKit with `VNDocumentCameraViewController`.
+- **Text Recognition**: Vision framework with `VNRecognizeTextRequest`.
+- **Storage**: Local file system + API sync with offline support.
 
-### iOS Native Architecture
-- **Framework**: SwiftUI for iOS 16.0+
-- **Authentication**: Sign in with Apple integration
-- **Document Scanning**: VisionKit with VNDocumentCameraViewController
-- **Text Recognition**: Vision framework with VNRecognizeTextRequest
-- **Storage**: Local file system + API sync
-- **State Management**: ObservableObject with Combine framework
-- **Offline Support**: Local document storage with background sync
-
-### Backend Architecture
-- **Runtime**: Node.js with Express.js framework
-- **Language**: TypeScript with ES modules
-- **Authentication**: Replit Auth with OpenID Connect (web) + Apple Sign In (iOS)
-- **Session Management**: Express sessions with PostgreSQL storage
-- **File Uploads**: Multer
-- **API Design**: RESTful endpoints with JSON responses
+### Backend
+- **Runtime**: Node.js with Express.js (TypeScript, ES modules).
+- **Authentication**: Replit Auth with OpenID Connect (web) + Apple Sign In (iOS), bcrypt hashing, PostgreSQL-backed sessions, route-level middleware. Supports multi-provider authentication.
+- **File Uploads**: Multer.
+- **API Design**: RESTful endpoints with JSON responses.
 
 ### Database Layer
-- **ORM**: Drizzle ORM
-- **Database**: PostgreSQL (configured for Neon serverless)
+- **ORM**: Drizzle ORM.
+- **Database**: PostgreSQL (configured for Neon serverless).
 - **Schema**: Users, Sessions, Categories, Documents tables.
 
-### Authentication System
-- **Provider**: Simple email/password authentication
-- **Password Security**: bcrypt hashing
-- **Session Storage**: PostgreSQL-backed sessions
-- **Authorization**: Route-level authentication middleware
-- **User Management**: Manual registration and login system
-- **Subscription Tiers**: Free and Premium tiers with feature access control. Supports multi-provider authentication (Google, Apple, Twitter).
-
-### Feature Flagging System
-- **Tiers**: Free (basic) and Premium (advanced + AI features)
-- **Components**: FeatureGate, PremiumFeature, FeatureLimitAlert
-- **Limits**: Free tier: 50 documents, 100MB storage; Premium: unlimited.
-- **Categories**: Core, Advanced, AI, Automation, Collaboration.
-
 ### File Management
-- **Storage**: Google Cloud Storage (myhometech-storage bucket) with automatic bucket creation and management.
-- **Supported Formats**: PDF, JPEG, PNG, WebP (and iPhone-specific formats like HEIC, HEIF, TIFF, BMP).
-- **File Size Limit**: 10MB per file for email ingestion; 50MB for multi-page document scans.
-- **Security**: File type validation, secure filename generation, AES-256-GCM encryption for all uploaded documents.
-- **Cloud Integration**: Automated backups to myhometech-backups bucket with configurable retention.
-
-### Document Organization
-- **Categories**: Predefined and user-creatable categories.
-- **Search**: Text-based search with PostgreSQL GIN indexes for full-text search.
-- **Filtering**: Category-based filtering.
-- **Views**: Grid and list view modes.
-- **Tags**: Optional tagging system.
+- **Storage**: Google Cloud Storage (`myhometech-storage` bucket) with AES-256-GCM encryption.
+- **Supported Formats**: PDF, JPEG, PNG, WebP, HEIC, HEIF, TIFF, BMP.
+- **File Size Limits**: 10MB per file for email ingestion; 50MB for multi-page scans.
+- **OCR Processing**: Tesseract.js with intelligent image enhancement.
 
 ### AI Integration
-- **AI Services**: Powered by Mistral LLM client (migrated from OpenAI for cost optimization).
-- **Capabilities**: Auto-categorization, AI-enhanced date extraction, AI-enhanced reminder suggestions, AI-powered content analysis (smart preview chips).
-- **Cost Optimization**: Utilizes pattern-first categorization and regex-based date extraction before AI calls, with confidence thresholds for AI integration.
+- **AI Services**: Mistral LLM client for auto-categorization, date extraction, reminder suggestions, and content analysis.
+- **Cost Optimization**: Pattern-first categorization and regex-based extraction before AI calls.
+- **Vehicle Insights**: AI-powered MOT and tax due date insights with deduplication.
 
-### Document Scanning & Processing
-- **Advanced Scanning**: Auto edge detection, multi-page scanning, perspective correction, auto-cropping, and multi-page PDF generation with embedded searchable OCR text.
-- **OCR Processing**: Tesseract.js integration with intelligent image enhancement and text recognition.
-- **Image Processing**: Gaussian blur, Sobel edge detection, auto-rotation, contrast/brightness auto-enhancement, noise reduction, image sharpening.
+### Feature Flagging
+- **Tiers**: Free (basic, limits) and Premium (advanced + AI, unlimited).
+- **Components**: `FeatureGate`, `PremiumFeature`, `FeatureLimitAlert`.
+
+### Manual Event Management
+- **Functionality**: Full CRUD operations for manual events.
+- **UX**: Consistent modal viewer pattern, visual integration with AI insights, asset linking, smart due date processing, multi-file attachments.
+- **Synchronization**: React Query for real-time updates.
 
 ### Performance & Error Handling
-- **Image/PDF Optimization**: Client-side image compression, server-side image processing (Sharp), PDF-lib integration for PDF optimization.
-- **Virtualized Lists**: React-window for infinite loading and memory-efficient rendering.
-- **Global Error Handling**: React Error Boundaries, network status detection, exponential backoff retry logic for API calls, toast notifications for user feedback.
-- **Memory Optimization**: Manual garbage collection with NODE_OPTIONS="--expose-gc", comprehensive resource tracking system, OCR resource cleanup with try/finally blocks, automatic buffer and file handle management.
-- **Resource Management**: Centralized ResourceTracker utility for files, buffers, workers, and streams with automatic cleanup on process exit, stale resource cleanup, and WeakRef support for better GC performance.
-
-### Manual Event Management System
-- **Full CRUD Operations**: Complete create, read, update, delete functionality for manual events.
-- **Modal Viewer Pattern**: ManualEventViewer component provides consistent viewing experience matching document pattern - click to view, 3-dot menu for actions.
-- **Visual Integration**: Manual events display alongside AI insights with distinct visual indicators (Manual badges, PenTool icons).
-- **Asset Linking**: Events can be linked to user properties (houses/cars) with visual indicators.
-- **Due Date Management**: Smart due date processing with urgency colors (overdue=red, today=orange, tomorrow=yellow, future=green).
-- **Multi-File Attachments**: Support for document attachments with drag-drop upload interface.
-- **Real-time Synchronization**: React Query integration with automatic cache invalidation across all views.
-- **Comprehensive Display**: Unified insights dashboard, detailed insights page with tabbed views, and integrated search functionality.
-- **Consistent UX**: Manual events follow same interaction pattern as documents - click opens modal view with dropdown menu access to editing.
-
-### Smart Contextual Help System
-- **Comprehensive Help Tooltips**: Smart contextual help throughout the interface with different tooltip types (info, warning, success).
-- **Feature Guidance**: Help tooltips for AI Insights, Document Library, bulk operations, categories, and upload functionality.
-- **Contextual Content**: Different help contexts including feature-intro, action-guide, and troubleshooting guidance.
-- **Reusable Component**: SmartHelpTooltip component supports different variants (default, compact, detailed) and positioning.
-- **Extensive Help Database**: Comprehensive help content covering document management, AI insights, manual events, and vehicle management features.
+- **Optimization**: Client/server-side image/PDF optimization, virtualized lists (React-window).
+- **Robustness**: Global error handling (React Error Boundaries), network status detection, exponential backoff, toast notifications.
+- **Memory Optimization**: Manual garbage collection, resource tracking, OCR resource cleanup.
 
 ### Security & Monitoring
-- **Security Headers**: Helmet middleware for HTTP security headers (HSTS, CSP, X-Frame-Options).
-- **Rate Limiting**: Express rate limiting with specialized webhook rate limiting.
-- **CORS Policy**: Strict CORS.
-- **Error Tracking**: Sentry integration for comprehensive error tracking and performance monitoring.
-- **Health Monitoring**: Multi-subsystem health checks (database, memory, disk, environment).
-- **Mailgun Security**: Comprehensive webhook security with IP whitelisting, HMAC signature verification, content-type validation, and enhanced logging for email-to-document ingestion pipeline.
+- **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS, Mailgun webhook security (IP whitelisting, HMAC verification).
+- **Monitoring**: Sentry integration for error tracking and performance.
+- **Health Checks**: Multi-subsystem health checks.
 
 ### Automated Systems
-- **Automated Backup**: PostgreSQL and file storage backups to GCS with configurable retention.
-- **CI/CD**: GitHub Actions for automated Docker builds and deployment.
-- **Storage Migration**: Migration scripts for transition to cloud-only storage.
-
-## Recent Changes
-
-### August 7, 2025 - Email Ingestion Production Success ✅
-- **Achievement**: Live email-to-document import system now fully operational
-- **Issues Resolved**: 
-  1. **Recipient Format**: Fixed parsing for production format `u[userID]@uploads.myhome-tech.com`
-  2. **Authentication**: Configured proper Mailgun secrets (`MAILGUN_API_KEY` and `MAILGUN_WEBHOOK_SIGNING_KEY`)
-  3. **Variable Mismatch**: Updated signing key lookup to check `MAILGUN_WEBHOOK_SIGNING_KEY` first
-  4. **Multer Limits**: Increased field limits (20→1000 fields, 20MB→50MB field size) for complex email payloads
-- **Technical Implementation**: 
-  - Enhanced webhook security with HMAC signature verification
-  - Comprehensive error logging and debugging capabilities
-  - Robust file processing pipeline from email attachments to cloud storage
-  - Automatic document categorization and OCR processing
-- **User Experience**: Users can now email documents to `u[userID]@uploads.myhome-tech.com` for automatic import
-- **Status**: ✅ **PRODUCTION READY** - Email import system confirmed working end-to-end
+- **Automated Backup**: PostgreSQL and file storage backups to GCS.
+- **CI/CD**: GitHub Actions for Docker builds and deployment.
 
 ## External Dependencies
 
-### Core Framework Dependencies
+### Core Framework
 - **React Ecosystem**: `react`, `react-dom`, `@tanstack/react-query`
 - **Backend**: `express`, `typescript`, `tsx`
 - **Database**: `drizzle-orm`, `@neondatabase/serverless`, `pg`
 - **Authentication**: `openid-client`, `passport`, `express-session`, `bcrypt`
 - **LLM Client**: `@mistralai/mistralai`
-- **Stripe**: `stripe`
+- **Payments**: `stripe`
 
 ### UI and Styling
 - **Component Library**: `@radix-ui/* components`, `shadcn/ui`
 - **Styling**: `tailwindcss`, `class-variance-authority`
 - **Icons**: `lucide-react`
-- **Utilities**: `clsx`, `tailwind-merge`
 
 ### File Handling and Processing
 - **Upload Processing**: `multer`, `buffer`
 - **Image Processing**: `sharp`, `browser-image-compression`
-- **PDF Processing**: `pdf-lib`, `puppeteer` (for email-to-PDF conversion)
+- **PDF Processing**: `pdf-lib`, `puppeteer`
 - **OCR**: `tesseract.js`
-- **Cloud Storage**: `@google-cloud/storage` (for Google Cloud Storage)
+- **Cloud Storage**: `@google-cloud/storage`
 
 ### Email Services
-- **Email Ingestion**: ✅ **FULLY OPERATIONAL** - Complete Mailgun webhook integration with enterprise-grade security (IP whitelisting, HMAC verification, rate limiting). Live production system confirmed working. Users email documents to `u[userID]@uploads.myhome-tech.com` for automatic processing, storage, and AI analysis.
+- **Email Ingestion**: Mailgun webhook integration for email-to-document import.
 
 ### Monitoring and Security
 - **Error Tracking**: `@sentry/node`, `@sentry/react`
 - **Security Headers**: `helmet`
 - **Rate Limiting**: `express-rate-limit`
-
-### Testing (Internal Dependencies for Development/CI)
-- `vitest`, `@testing-library/react`, `msw`, `supertest`

@@ -63,20 +63,36 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Add delay to prevent simultaneous requests overwhelming memory
+  const [shouldFetch, setShouldFetch] = useState(false);
+  
+  React.useEffect(() => {
+    const delay = Math.random() * 2000; // Random delay 0-2 seconds
+    const timer = setTimeout(() => setShouldFetch(true), delay);
+    return () => clearTimeout(timer);
+  }, [documentId]);
 
   // INSIGHT-102: Fetch only primary insights (no secondary access)
   const { data: insightData, isLoading, error } = useQuery({
     queryKey: ['/api/documents', documentId, 'insights', { tier: 'primary' }],
     queryFn: async () => {
-      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary`);
+      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=5`);
       if (!response.ok) throw new Error('Failed to fetch insights');
       return await response.json();
     },
-    // Add stale time to reduce unnecessary requests
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    // Only refetch on window focus if data is stale
-    refetchOnWindowFocus: false
+    // Aggressive caching to reduce memory pressure
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    // Enable memory optimization
+    select: (data) => ({
+      ...data,
+      insights: data.insights?.slice(0, 5) || [] // Limit insights to reduce memory
+    }),
+    // Only fetch when ready to prevent parallel overload
+    enabled: shouldFetch
   });
 
   const insights = insightData?.insights || [];

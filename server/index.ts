@@ -36,12 +36,12 @@ if (!isDeployment && global.gc) {
     const memUsage = process.memoryUsage();
     const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
     
-    // Only run GC if memory usage is very high
-    if (heapPercent > 85 && global.gc) {
+    // More aggressive GC due to current 97% heap usage
+    if (heapPercent > 80 && global.gc) {
       global.gc();
       console.log(`🧹 GC: Memory was ${heapPercent}%, running cleanup`);
     }
-  }, 30000); // Every 30 seconds instead of 10
+  }, 15000); // Every 15 seconds for current memory pressure
 }
 
 // SIMPLIFIED STARTUP: Minimal logging only

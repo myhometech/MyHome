@@ -1854,6 +1854,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all feature flags (admin only)
+  app.get('/api/admin/feature-flags', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const flags = await storage.getAllFeatureFlags();
+      res.json(flags);
+    } catch (error) {
+      console.error("Error fetching feature flags:", error);
+      res.status(500).json({ message: "Failed to fetch feature flags" });
+    }
+  });
+
+  // Get system activities for admin dashboard (admin only)
+  app.get('/api/admin/activities', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { severity } = req.query;
+      const activities = await storage.getSystemActivities(severity as string);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching system activities:", error);
+      res.status(500).json({ message: "Failed to fetch system activities" });
+    }
+  });
+
+  // Get search analytics (admin only)
+  app.get('/api/admin/search-analytics', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const analytics = await storage.getSearchAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching search analytics:", error);
+      res.status(500).json({ message: "Failed to fetch search analytics" });
+    }
+  });
+
+  // Get cloud usage (admin only)  
+  app.get('/api/admin/usage/gcs', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const usage = await storage.getGCSUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching GCS usage:", error);
+      res.status(500).json({ message: "Failed to fetch GCS usage" });
+    }
+  });
+
+  // Get OpenAI usage (admin only)
+  app.get('/api/admin/usage/openai', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const usage = await storage.getOpenAIUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching OpenAI usage:", error);
+      res.status(500).json({ message: "Failed to fetch OpenAI usage" });
+    }
+  });
+
+  // Get LLM usage analytics (admin only) - alias for openai usage
+  app.get('/api/admin/llm-usage/analytics', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const usage = await storage.getOpenAIUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching LLM usage analytics:", error);
+      res.status(500).json({ message: "Failed to fetch LLM usage analytics" });
+    }
+  });
+
+  // Toggle user status (admin only)
+  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { isActive } = req.body;
+      
+      await storage.updateUserStatus(userId, isActive);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
   app.get('/api/admin/activities', requireAuth, requireAdmin, async (req: any, res) => {
     try {
       const { severity } = req.query;

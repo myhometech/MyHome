@@ -1217,18 +1217,28 @@ export class DatabaseStorage implements IStorage {
     return overrides;
   }
 
-  async getFeatureFlagAnalytics(): Promise<any> {
+  async getFeatureFlagAnalytics(): Promise<{
+    totalFlags: string;
+    activeFlags: string;
+    premiumFlags: string;
+    averageRollout: string;
+  }> {
     // Get basic stats
     const totalFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags);
     const activeFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.enabled, true));
-    const totalOverrides = await db.select({ count: sql<number>`count(*)` }).from(featureFlagOverrides);
     const premiumFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.tierRequired, 'premium'));
+    
+    // Calculate average rollout percentage
+    const allFlags = await db.select().from(featureFlags);
+    const avgRollout = allFlags.length > 0 
+      ? allFlags.reduce((sum, flag) => sum + (flag.rolloutPercentage || 100), 0) / allFlags.length
+      : 0;
 
     return {
-      totalFlags: totalFlags[0]?.count || 0,
-      activeFlags: activeFlags[0]?.count || 0,
-      totalOverrides: totalOverrides[0]?.count || 0,
-      premiumFlags: premiumFlags[0]?.count || 0,
+      totalFlags: (totalFlags[0]?.count || 0).toString(),
+      activeFlags: (activeFlags[0]?.count || 0).toString(),
+      premiumFlags: (premiumFlags[0]?.count || 0).toString(),
+      averageRollout: Math.round(avgRollout).toString(),
     };
   }
 

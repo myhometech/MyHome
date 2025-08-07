@@ -1,13 +1,11 @@
-#!/usr/bin/env node
-
 // Minimal production server with aggressive memory management
-const { spawn } = require('child_process');
+import { spawn, execSync } from 'child_process';
 
 console.log('🚀 Starting production server with memory optimization...');
 
 // Kill any existing processes
 try {
-  require('child_process').execSync('pkill -f "dist/index.js"', { stdio: 'ignore' });
+  execSync('pkill -f "dist/index.js"', { stdio: 'ignore' });
 } catch (e) {
   // Ignore if no processes found
 }

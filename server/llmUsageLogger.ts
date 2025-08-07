@@ -143,7 +143,7 @@ export class LlmUsageLogger {
       const totalTokens = logs.reduce((sum, log) => sum + log.tokensUsed, 0);
       const totalCost = logs.reduce((sum, log) => sum + parseFloat(log.costUsd || '0'), 0);
       const averageResponseTime = logs.length > 0 
-        ? logs.reduce((sum, log) => sum + log.durationMs, 0) / logs.length 
+        ? logs.reduce((sum, log) => sum + (log.durationMs || 0), 0) / logs.length 
         : 0;
       const successfulRequests = logs.filter(log => log.status === 'success').length;
       const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
@@ -287,7 +287,7 @@ export class LlmUsageLogger {
       const totalTokens = logs.reduce((sum, log) => sum + log.tokensUsed, 0);
       const totalCost = logs.reduce((sum, log) => sum + parseFloat(log.costUsd || '0'), 0);
       const averageResponseTime = logs.length > 0 
-        ? logs.reduce((sum, log) => sum + log.durationMs, 0) / logs.length 
+        ? logs.reduce((sum, log) => sum + (log.durationMs || 0), 0) / logs.length 
         : 0;
       const successfulRequests = logs.filter(log => log.status === 'success').length;
       const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;

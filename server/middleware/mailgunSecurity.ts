@@ -109,19 +109,6 @@ export function mailgunSignatureVerification(req: Request, res: Response, next: 
       return next();
     }
 
-    // Extract signature fields from multipart form data
-    const timestamp = req.body?.timestamp;
-    const token = req.body?.token; 
-    const signature = req.body?.signature;
-    
-    console.log('🔍 Signature fields found:', {
-      hasTimestamp: !!timestamp,
-      hasToken: !!token,
-      hasSignature: !!signature,
-      timestamp: timestamp?.substring(0, 10) + '...',
-      tokenPreview: token?.substring(0, 8) + '...'
-    });
-
     const signingKey = process.env.MAILGUN_SIGNING_KEY || process.env.MAILGUN_API_KEY;
     
     if (!signingKey) {
@@ -131,20 +118,44 @@ export function mailgunSignatureVerification(req: Request, res: Response, next: 
         message: 'Mailgun signing key not configured'
       });
     }
+
+    // Extract signature fields from multipart form data (after multer processing)
+    const timestamp = req.body?.timestamp;
+    const token = req.body?.token; 
+    const signature = req.body?.signature;
+    
+    console.log('🔍 Signature fields found:', {
+      hasTimestamp: !!timestamp,
+      hasToken: !!token,
+      hasSignature: !!signature,
+      timestamp: timestamp ? String(timestamp).substring(0, 10) + '...' : 'missing',
+      tokenPreview: token ? String(token).substring(0, 8) + '...' : 'missing'
+    });
     
     if (!timestamp || !token || !signature) {
-      console.warn('⚠️ Missing signature fields, proceeding without verification for now');
-      console.log('🔧 TODO: Implement proper signature field extraction from multipart data');
-      return next();
+      console.error('❌ REJECTED: Missing required signature fields for webhook authentication');
+      console.log('📋 Required fields: timestamp, token, signature');
+      console.log('📋 Received fields:', Object.keys(req.body || {}));
+      
+      return res.status(400).json({ 
+        error: 'Missing signature fields',
+        message: 'Mailgun webhook signature verification requires timestamp, token, and signature fields',
+        receivedFields: Object.keys(req.body || {})
+      });
     }
     
-    const isValidSignature = verifyMailgunSignature(timestamp, token, signature, signingKey);
+    // Convert to strings if needed (multer might parse as different types)
+    const timestampStr = String(timestamp);
+    const tokenStr = String(token);
+    const signatureStr = String(signature);
+    
+    const isValidSignature = verifyMailgunSignature(timestampStr, tokenStr, signatureStr, signingKey);
     
     if (!isValidSignature) {
       console.warn('🚫 REJECTED: Invalid Mailgun signature', {
-        timestamp,
-        tokenPreview: token?.substring(0, 8) + '...',
-        signatureLength: signature?.length || 0,
+        timestamp: timestampStr,
+        tokenPreview: tokenStr.substring(0, 8) + '...',
+        signatureLength: signatureStr.length,
         clientIP: req.ip
       });
       
@@ -158,7 +169,16 @@ export function mailgunSignatureVerification(req: Request, res: Response, next: 
     next();
   } catch (error) {
     console.error('❌ Error during signature verification:', error);
-    console.log('⚠️ Allowing request to proceed despite signature verification error');
+    
+    // In production, we should fail securely rather than allow through
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(500).json({ 
+        error: 'Signature verification error',
+        message: 'Internal error during webhook authentication'
+      });
+    }
+    
+    console.log('⚠️ Development mode: Allowing request to proceed despite signature verification error');
     return next();
   }
 }

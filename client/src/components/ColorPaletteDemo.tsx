@@ -53,7 +53,7 @@ export const ColorPaletteDemo = () => {
               Cyan Border
             </div>
           </div>
-        </div>
+        </Card>
       </div>
 
       <div className="mt-8">

@@ -163,7 +163,7 @@ export default function UnifiedDocumentCard({
 
   const category = categories?.find(c => c.id === document.categoryId);
 
-  // Generate insights mutation - same as in DocumentInsights component
+  // Generate insights mutation with auto-OCR support
   const generateInsightsMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/documents/${document.id}/insights`, {
@@ -173,22 +173,77 @@ export default function UnifiedDocumentCard({
         },
         credentials: 'include'
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to generate insights');
+      
+      const responseData = await response.json();
+      
+      // Handle OCR processing response (202 status)
+      if (response.status === 202) {
+        return {
+          status: 'processing',
+          message: responseData.message,
+          ocrJobId: responseData.ocrJobId,
+          estimatedTime: responseData.estimatedTime
+        };
       }
-      return await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to generate insights');
+      }
+      
+      return responseData;
     },
     onSuccess: (data) => {
-      toast({
-        title: "Insights Generated",
-        description: `Generated ${data.insights?.length || 0} insights in ${data.processingTime || 0}ms`
-      });
-      // Invalidate insights queries to refresh the data
-      queryClient.invalidateQueries({
-        queryKey: [`/api/documents/${document.id}/insights`]
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
+      if (data.status === 'processing') {
+        // Handle OCR processing status
+        toast({
+          title: "Processing Document",
+          description: data.message || "Text extraction in progress. Insights will be available shortly.",
+          duration: 5000
+        });
+        
+        // Set up polling to check when OCR is complete
+        const pollForCompletion = () => {
+          const interval = setInterval(async () => {
+            try {
+              // Refetch document to check if extractedText is now available
+              const docResponse = await fetch(`/api/documents/${document.id}`, {
+                credentials: 'include'
+              });
+              
+              if (docResponse.ok) {
+                const docData = await docResponse.json();
+                if (docData.extractedText && docData.extractedText.trim()) {
+                  clearInterval(interval);
+                  
+                  // Retry insights generation now that OCR is complete
+                  setTimeout(() => {
+                    generateInsightsMutation.mutate();
+                  }, 1000);
+                }
+              }
+            } catch (error) {
+              console.error('Error polling for OCR completion:', error);
+            }
+          }, 3000); // Poll every 3 seconds
+          
+          // Stop polling after 2 minutes
+          setTimeout(() => clearInterval(interval), 120000);
+        };
+        
+        pollForCompletion();
+      } else {
+        // Handle successful insights generation
+        toast({
+          title: "Insights Generated",
+          description: `Generated ${data.insights?.length || 0} insights in ${data.processingTime || 0}ms`
+        });
+        
+        // Invalidate insights queries to refresh the data
+        queryClient.invalidateQueries({
+          queryKey: [`/api/documents/${document.id}/insights`]
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
+      }
     },
     onError: (error: any) => {
       console.error('Error generating insights:', error);

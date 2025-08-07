@@ -1199,11 +1199,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // Require extracted text for insight generation
+      // Auto-trigger OCR if extracted text is missing
       if (!document.extractedText || document.extractedText.trim() === '') {
-        return res.status(400).json({ 
-          message: "Document has no extracted text. Please run OCR processing first." 
-        });
+        console.log(`🔄 AUTO-OCR TRIGGER: Document ${documentId} missing extracted text, triggering OCR before insights`);
+        
+        // Check if document supports OCR
+        if (!supportsOCR(document.mimeType)) {
+          return res.status(400).json({ 
+            message: `Document type ${document.mimeType} does not support text extraction. Cannot generate insights.` 
+          });
+        }
+
+        // Import OCR queue and trigger processing
+        const { ocrQueue } = await import('./ocrQueue');
+        
+        try {
+          // Queue OCR job with high priority for user-initiated request
+          const jobId = await ocrQueue.addJob({
+            documentId,
+            fileName: document.fileName,
+            filePathOrGCSKey: document.gcsPath || document.filePath,
+            mimeType: document.mimeType,
+            userId,
+            priority: 1, // High priority for user-initiated insights
+            isEmailImport: false
+          });
+
+          console.log(`🔄 OCR job queued: ${jobId} for document ${documentId}`);
+          
+          // Return response indicating OCR is processing
+          return res.status(202).json({ 
+            message: "Document text extraction in progress. Insights will be available in 10-30 seconds.",
+            status: "processing",
+            ocrJobId: jobId,
+            estimatedTime: "10-30 seconds",
+            action: "refresh_insights"
+          });
+          
+        } catch (ocrError: any) {
+          console.error(`❌ Failed to queue OCR for document ${documentId}:`, ocrError);
+          return res.status(500).json({ 
+            message: "Failed to start text extraction. Please try again.",
+            error: ocrError.message
+          });
+        }
       }
 
       const insights = await aiInsightService.generateDocumentInsights(

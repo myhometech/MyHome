@@ -2952,6 +2952,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.send('✅ App is live - ' + new Date().toISOString());
   });
 
+  // ENHANCED DEBUG: More detailed server status
+  app.get('/api/status', (req, res) => {
+    console.log('📞 /api/status endpoint called');
+    res.json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      port: process.env.PORT || '5000',
+      routes: {
+        emailIngest: 'active',
+        debug: 'active'
+      }
+    });
+  });
+
   // Simple GET endpoint for /api/email-ingest (no security requirements for Mailgun route validation)
   // DEPLOYMENT UPDATE v4: Email ingestion endpoint active with enhanced diagnostics
   app.get('/api/email-ingest', (req, res) => { 

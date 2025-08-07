@@ -47,6 +47,16 @@
   opacity: 1;
 }
 
+/* Subtle card glow effect */
+.insight-content:hover {
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 0 20px -5px rgba(30, 144, 255, 0.15);
+}
+
+/* Enhanced confidence meter glow */
+.insight-content .bg-gradient-to-r {
+  box-shadow: 0 0 8px rgba(30, 144, 255, 0.3);
+}
+
 /* Mobile-specific optimizations */
 @media (max-width: 640px) {
   .insight-content {

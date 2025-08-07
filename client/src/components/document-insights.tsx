@@ -47,7 +47,11 @@ interface InsightResponse {
 
 const insightTypeConfig = {
   summary: { icon: FileText, label: 'Summary', color: 'bg-blue-100 text-blue-800' },
-  contacts: { icon: Users, label: 'Contacts', color: 'bg-indigo-100 text-indigo-800' }
+  contacts: { icon: Users, label: 'Contacts', color: 'bg-accent-purple/10 text-accent-purple border-accent-purple/20' },
+  action_items: { icon: Brain, label: 'Actions', color: 'bg-accent-cyan/10 text-accent-cyan border-accent-cyan/20' },
+  key_dates: { icon: Clock, label: 'Dates', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  financial_info: { icon: FileText, label: 'Financial', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  compliance: { icon: FileText, label: 'Compliance', color: 'bg-rose-100 text-rose-800 border-rose-200' }
 };
 
 const priorityConfig = {
@@ -266,7 +270,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
           disabled={isGenerating || generateInsightsMutation.isPending}
           size="sm"
           variant="outline"
-          className="text-xs sm:text-xs touch-target hover:bg-blue-50 hover:border-blue-200 transition-colors"
+          className="text-xs sm:text-xs touch-target hover:bg-gradient-to-r hover:from-blue-50 hover:to-accent-purple/10 hover:border-accent-purple/30 transition-all duration-300 shadow-sm hover:shadow-md"
           style={{ minHeight: '44px', minWidth: '44px' }}
         >
           {isGenerating || generateInsightsMutation.isPending ? (
@@ -288,15 +292,20 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
         <div className="text-center py-12 px-6">
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full opacity-50 animate-pulse"></div>
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 via-accent-purple/20 to-accent-cyan/20 rounded-full opacity-50 animate-pulse"></div>
             </div>
-            <Brain className="h-12 w-12 text-blue-600 mx-auto relative z-10" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-16 h-16 bg-gradient-to-tr from-accent-purple/30 to-accent-cyan/30 rounded-full opacity-30 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+            </div>
+            <Brain className="h-12 w-12 text-primary mx-auto relative z-10" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">Discover Key Insights</h3>
           <p className="text-gray-600 mb-6 text-sm max-w-md mx-auto leading-relaxed">
             No insights detected yet for this document. Our AI can extract important deadlines, contacts, summaries, and actionable items automatically.
           </p>
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-6 border border-blue-100">
+          <div className="bg-gradient-to-r from-blue-50 via-accent-purple/5 to-accent-cyan/10 rounded-lg p-4 mb-6 border border-blue-100 relative overflow-hidden">
+            <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-transparent via-white to-transparent"></div>
+            <div className="relative">
             <div className="flex items-start gap-3 text-left">
               <div className="bg-blue-600 rounded-full p-1 mt-0.5">
                 <Brain className="h-3 w-3 text-white" />
@@ -312,6 +321,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
               </div>
             </div>
           </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -325,7 +335,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
             return (
               <div 
                 key={insight.id} 
-                className={`group border border-gray-100 shadow-sm bg-white rounded-lg p-4 space-y-3 mb-4 insight-content hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg}`}
+                className={`group border border-gray-100 shadow-sm bg-white rounded-lg p-5 space-y-4 mb-4 insight-content hover:shadow-lg hover:border-gray-200 hover:-translate-y-1 hover:shadow-blue-100/50 transition-all duration-300 cursor-pointer border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} relative overflow-hidden`}
                 style={{
                   animationDelay: `${index * 100}ms`
                 }}
@@ -344,9 +354,9 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
                       <Badge variant="secondary" className="text-xs">
                         {Math.round(insight.confidence * 100)}%
                       </Badge>
-                      <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
                         <div 
-                          className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-1000 ease-out"
+                          className="h-full bg-gradient-to-r from-accent-purple via-primary to-accent-cyan rounded-full transition-all duration-1000 ease-out shadow-sm"
                           style={{ 
                             width: `${insight.confidence * 100}%`,
                             animationDelay: `${index * 200}ms`

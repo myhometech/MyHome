@@ -4,9 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { OCRErrorHandler } from './OCRErrorHandler';
+import '@/styles/insights.css';
 import { 
   Brain, 
   Clock, 
@@ -49,9 +51,24 @@ const insightTypeConfig = {
 };
 
 const priorityConfig = {
-  high: { color: 'bg-red-100 text-red-800 border-red-200', label: 'High Priority' },
-  medium: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'Medium Priority' },
-  low: { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Low Priority' }
+  high: { 
+    color: 'bg-red-100 text-red-800 border-red-200', 
+    label: 'High Priority',
+    cardBorder: 'border-l-red-500',
+    cardBg: 'bg-red-50/30'
+  },
+  medium: { 
+    color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
+    label: 'Medium Priority',
+    cardBorder: 'border-l-yellow-500',
+    cardBg: 'bg-yellow-50/30'
+  },
+  low: { 
+    color: 'bg-gray-100 text-gray-800 border-gray-200', 
+    label: 'Low Priority',
+    cardBorder: 'border-l-gray-400',
+    cardBg: 'bg-gray-50/30'
+  }
 };
 
 interface DocumentInsightsProps {
@@ -177,20 +194,36 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            AI Document Insights
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="ml-2">Loading insights...</span>
+      <div className="space-y-4">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-4 rounded" />
+            <Skeleton className="h-4 w-24" />
           </div>
-        </CardContent>
-      </Card>
+          <Skeleton className="h-8 w-20" />
+        </div>
+
+        {/* Insight Cards Skeleton */}
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-white rounded-lg p-4 space-y-3 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-5 w-16" />
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-5 w-24" />
+              </div>
+              <Skeleton className="h-6 w-6" />
+            </div>
+            <div>
+              <Skeleton className="h-4 w-3/4 mb-2" />
+              <Skeleton className="h-3 w-full mb-1" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+            <Skeleton className="h-3 w-32" />
+          </div>
+        ))}
+      </div>
     );
   }
 
@@ -233,7 +266,8 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
           disabled={isGenerating || generateInsightsMutation.isPending}
           size="sm"
           variant="outline"
-          className="text-xs"
+          className="text-xs sm:text-xs touch-target hover:bg-blue-50 hover:border-blue-200 transition-colors"
+          style={{ minHeight: '44px', minWidth: '44px' }}
         >
           {isGenerating || generateInsightsMutation.isPending ? (
             <>
@@ -251,12 +285,33 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
 
       {/* Content Area */}
       {insights.length === 0 ? (
-        <div className="text-center py-8">
-          <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 mb-4 text-sm">No key insights detected for this document</p>
-          <p className="text-xs text-gray-500 mb-6">
-            Click "Generate" to analyze this document with AI and extract actionable insights, deadlines, and important details
+        <div className="text-center py-12 px-6">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full opacity-50 animate-pulse"></div>
+            </div>
+            <Brain className="h-12 w-12 text-blue-600 mx-auto relative z-10" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Discover Key Insights</h3>
+          <p className="text-gray-600 mb-6 text-sm max-w-md mx-auto leading-relaxed">
+            No insights detected yet for this document. Our AI can extract important deadlines, contacts, summaries, and actionable items automatically.
           </p>
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-6 border border-blue-100">
+            <div className="flex items-start gap-3 text-left">
+              <div className="bg-blue-600 rounded-full p-1 mt-0.5">
+                <Brain className="h-3 w-3 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-900 mb-1">AI Analysis includes:</p>
+                <ul className="text-xs text-blue-700 space-y-1">
+                  <li>• Key dates and deadlines</li>
+                  <li>• Important contacts and entities</li>
+                  <li>• Document summaries</li>
+                  <li>• Actionable insights</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -270,7 +325,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
             return (
               <div 
                 key={insight.id} 
-                className="border-0 shadow-none bg-white rounded-lg p-4 space-y-3 mb-4 insight-content"
+                className={`group border border-gray-100 shadow-sm bg-white rounded-lg p-4 space-y-3 mb-4 insight-content hover:shadow-md hover:border-gray-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg}`}
                 style={{
                   animationDelay: `${index * 100}ms`
                 }}
@@ -285,18 +340,30 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
                       {priorityStyle.label}
                     </Badge>
 
-                    <Badge variant="secondary" className="text-xs">
-                      {Math.round(insight.confidence * 100)}% confidence
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="secondary" className="text-xs">
+                        {Math.round(insight.confidence * 100)}%
+                      </Badge>
+                      <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-1000 ease-out"
+                          style={{ 
+                            width: `${insight.confidence * 100}%`,
+                            animationDelay: `${index * 200}ms`
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteInsight(insight.id)}
                     disabled={deleteInsightMutation.isPending}
-                    className="text-gray-500 hover:text-red-600 h-6 w-6 p-0"
+                    className="text-gray-500 hover:text-red-600 h-8 w-8 p-0 sm:h-6 sm:w-6 opacity-0 group-hover:opacity-100 transition-opacity touch-target"
+                    style={{ minHeight: '44px', minWidth: '44px' }}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
                   </Button>
                 </div>
                 

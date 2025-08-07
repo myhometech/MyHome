@@ -1,0 +1,91 @@
+
+/* Document Insights Component Styles */
+
+/* Smooth card animations */
+.insight-content {
+  animation: slideUp 0.4s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes slideUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Touch-friendly targets for mobile */
+.touch-target {
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  .touch-target::after {
+    content: '';
+    position: absolute;
+    top: -10px;
+    bottom: -10px;
+    left: -10px;
+    right: -10px;
+    z-index: -1;
+  }
+}
+
+/* Confidence meter animation */
+@keyframes confidenceFill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--confidence-width);
+  }
+}
+
+/* Enhanced hover effects */
+.group:hover .opacity-0 {
+  opacity: 1;
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  .insight-content {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .insight-content .text-xs {
+    font-size: 0.75rem;
+  }
+  
+  .insight-content .text-sm {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+}
+
+/* Gradient background animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Loading skeleton shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}

@@ -3887,8 +3887,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         source: 'dvla' as const,
         dvlaLastRefreshed: new Date(),
         // Convert Date objects to strings for database storage
-        taxDueDate: dvlaVehicle.taxDueDate instanceof Date ? dvlaVehicle.taxDueDate.toISOString().split('T')[0] : dvlaVehicle.taxDueDate,
-        motExpiryDate: dvlaVehicle.motExpiryDate instanceof Date ? dvlaVehicle.motExpiryDate.toISOString().split('T')[0] : dvlaVehicle.motExpiryDate,
+        taxDueDate: dvlaVehicle.taxDueDate ? (dvlaVehicle.taxDueDate instanceof Date ? dvlaVehicle.taxDueDate.toISOString().split('T')[0] : dvlaVehicle.taxDueDate) : null,
+        motExpiryDate: dvlaVehicle.motExpiryDate ? (dvlaVehicle.motExpiryDate instanceof Date ? dvlaVehicle.motExpiryDate.toISOString().split('T')[0] : dvlaVehicle.motExpiryDate) : null,
       });
       
       res.status(201).json({

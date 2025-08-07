@@ -141,14 +141,19 @@ Color Palette: Extended the main blue (HSL(207, 90%, 54%) / #1E90FF) with two co
 
 ## Recent Changes
 
-### August 7, 2025 - Email Ingestion Production Format Fix
-- **Issue**: Live production email ingestion was failing with 500 errors due to recipient format mismatch
-- **Root Cause**: System expected format `upload+userID@myhome-tech.com` but Mailgun production uses `u[userID]@uploads.myhome-tech.com`
-- **Solution**: Updated `extractUserIdFromRecipient` function in `server/mailgunService.ts` to support both formats:
-  - Original development format: `upload+userID@domain`  
-  - Production Mailgun format: `u[userID]@uploads.myhome-tech.com`
-- **Testing**: End-to-end verification confirms successful email processing, file storage to GCS, and document creation
-- **Status**: ✅ Fixed - Email ingestion now processes production emails correctly with 200 responses
+### August 7, 2025 - Email Ingestion Production Troubleshooting & Security Fix
+- **Issue**: Live production email ingestion was failing with 500 errors during webhook processing
+- **Root Cause Analysis**: 
+  1. Initial recipient format mismatch fixed (supports both `upload+userID@domain` and `u[userID]@uploads.myhome-tech.com`)
+  2. Missing Mailgun webhook signing keys caused authentication failures
+  3. Variable name mismatch: code looked for `MAILGUN_SIGNING_KEY` but secrets were stored as `MAILGUN_WEBHOOK_SIGNING_KEY`
+- **Solution**: 
+  - Fixed recipient parsing for production format `u[userID]@uploads.myhome-tech.com`
+  - Configured proper Mailgun secrets: `MAILGUN_API_KEY` and `MAILGUN_WEBHOOK_SIGNING_KEY`
+  - Updated signing key lookup to check `MAILGUN_WEBHOOK_SIGNING_KEY` first
+  - Enhanced error logging with comprehensive debugging for signature verification failures
+- **Enhanced Security**: Added detailed logging for content-type validation, signature verification, and error tracking
+- **Status**: ✅ Ready for deployment - All authentication components configured and error handling improved
 
 ## External Dependencies
 

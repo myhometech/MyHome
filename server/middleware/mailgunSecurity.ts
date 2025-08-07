@@ -109,7 +109,14 @@ export function mailgunSignatureVerification(req: Request, res: Response, next: 
       return next();
     }
 
-    const signingKey = process.env.MAILGUN_SIGNING_KEY || process.env.MAILGUN_API_KEY;
+    const signingKey = process.env.MAILGUN_WEBHOOK_SIGNING_KEY || process.env.MAILGUN_SIGNING_KEY || process.env.MAILGUN_API_KEY;
+    
+    console.log('🔍 Signing key source:', {
+      hasWebhookSigningKey: !!process.env.MAILGUN_WEBHOOK_SIGNING_KEY,
+      hasSigningKey: !!process.env.MAILGUN_SIGNING_KEY,
+      hasApiKey: !!process.env.MAILGUN_API_KEY,
+      usingKey: signingKey ? 'configured' : 'missing'
+    });
     
     if (!signingKey) {
       console.error('❌ MAILGUN_SIGNING_KEY not configured');
@@ -168,13 +175,24 @@ export function mailgunSignatureVerification(req: Request, res: Response, next: 
     console.log('✅ Mailgun signature verification successful');
     next();
   } catch (error) {
-    console.error('❌ Error during signature verification:', error);
+    console.error('❌ CRITICAL ERROR during signature verification:', error);
+    console.error('❌ Error type:', typeof error);
+    console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('❌ Signature verification context:', {
+      timestamp: req.body?.timestamp,
+      hasToken: !!req.body?.token,
+      hasSignature: !!req.body?.signature,
+      signingKeyConfigured: !!process.env.MAILGUN_SIGNING_KEY || !!process.env.MAILGUN_API_KEY
+    });
     
     // In production, we should fail securely rather than allow through
     if (process.env.NODE_ENV === 'production') {
       return res.status(500).json({ 
         error: 'Signature verification error',
-        message: 'Internal error during webhook authentication'
+        message: 'Internal error during webhook authentication',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
       });
     }
     
@@ -247,19 +265,34 @@ export function mailgunWebhookLogger(req: Request, res: Response, next: NextFunc
  */
 export function validateMailgunContentType(req: Request, res: Response, next: NextFunction) {
   const contentType = req.get('Content-Type');
+  const userAgent = req.get('User-Agent') || '';
+  
+  // Log all incoming requests for debugging
+  console.log('🔍 CONTENT-TYPE CHECK:', {
+    contentType,
+    userAgent,
+    ip: req.ip,
+    method: req.method,
+    url: req.url
+  });
   
   if (!contentType || !contentType.startsWith('multipart/form-data')) {
     console.warn('🚫 REJECTED: Invalid Content-Type for Mailgun webhook', {
       contentType,
-      ip: req.ip
+      userAgent,
+      ip: req.ip,
+      isLikelyMailgun: userAgent.includes('Mailgun')
     });
     
     return res.status(400).json({
       error: 'Invalid Content-Type',
       message: 'Expected multipart/form-data for webhook requests',
-      received: contentType || 'none'
+      received: contentType || 'none',
+      userAgent,
+      hint: 'Ensure Mailgun webhook is configured to send multipart/form-data'
     });
   }
   
+  console.log('✅ CONTENT-TYPE VALID: Proceeding with multipart/form-data');
   next();
 }

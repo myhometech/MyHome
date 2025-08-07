@@ -2979,6 +2979,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendStatus(200); 
   });
 
+  // Debug endpoint to test webhook processing without full security (REMOVE IN PRODUCTION)
+  app.post('/api/email-ingest-debug', 
+    (req, res, next) => {
+      console.log('🧪 DEBUG: Email ingest debug route accessed');
+      console.log('🧪 DEBUG Content-Type:', req.get('Content-Type'));
+      console.log('🧪 DEBUG User-Agent:', req.get('User-Agent'));
+      console.log('🧪 DEBUG Body:', req.body);
+      next();
+    },
+    async (req: any, res) => {
+      try {
+        res.status(200).json({
+          message: 'Debug endpoint working',
+          contentType: req.get('Content-Type'),
+          userAgent: req.get('User-Agent'),
+          hasBody: !!req.body,
+          bodyKeys: req.body ? Object.keys(req.body) : [],
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('❌ DEBUG ENDPOINT ERROR:', error);
+        res.status(500).json({ error: 'Debug endpoint error', details: error instanceof Error ? error.message : String(error) });
+      }
+    }
+  );
+
   // TICKET: Enable Public Access and Harden Security for /api/email-ingest (Mailgun Integration)
   // Apply comprehensive security middleware stack
   app.post('/api/email-ingest', 

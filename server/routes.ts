@@ -69,7 +69,7 @@ const upload = multer({
       'image/tiff',    // TIFF format sometimes used by cameras
       'image/bmp'      // BMP format
     ];
-    
+
     // Also allow files with no specified mimetype (some camera uploads)
     if (!file.mimetype || allowedTypes.includes(file.mimetype)) {
       cb(null, true);
@@ -98,7 +98,7 @@ const mailgunUpload = multer({
       'image/webp',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // DOCX
     ];
-    
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -119,7 +119,7 @@ function getUserId(req: any): string {
 // TICKET 4: Helper function to generate dashboard-ready messages
 function generateInsightMessage(insight: any, documentName: string): string {
   const docName = documentName.length > 30 ? documentName.substring(0, 30) + '...' : documentName;
-  
+
   switch (insight.type) {
     case 'key_dates':
       return `${docName}: Important date identified - ${insight.title}`;
@@ -142,7 +142,7 @@ function generateInsightMessage(insight: any, documentName: string): string {
 function extractDueDate(insight: any): string | null {
   const content = (insight.content || '').toLowerCase();
   const dateRegex = /(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}-\d{1,2}-\d{4})/;
-  
+
   // Look for date patterns in the content
   const match = content.match(dateRegex);
   if (match) {
@@ -155,27 +155,27 @@ function extractDueDate(insight: any): string | null {
       // Invalid date format
     }
   }
-  
+
   // For certain types, set default due dates
   if (insight.type === 'action_items' && insight.priority === 'high') {
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
     return thirtyDaysFromNow.toISOString().split('T')[0];
   }
-  
+
   return null;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup error tracking middleware
   app.use(sentryRequestHandler());
-  
+
   // CORE-002: Security Headers and Rate Limiting
   app.use(securityHeaders);
   app.use(rateLimiter);
   app.use(cors(corsOptions));
   app.use(securityLogger);
-  
+
   // Setup simple authentication
   setupSimpleAuth(app);
 
@@ -190,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/register', async (req: any, res) => {
     try {
       const data = registerSchema.parse(req.body);
-      
+
       // Check if user already exists (only check email provider to avoid conflicts)
       const existingUser = await AuthService.findUserByEmailAndProvider(data.email!, "email");
       if (existingUser) {
@@ -203,7 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: data.firstName,
         lastName: data.lastName
       });
-      
+
       // Initialize default categories for new user
       const defaultCategories = [
         { name: 'Car', icon: 'fas fa-car', color: 'blue', userId: user.id },
@@ -212,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { name: 'Utilities', icon: 'fas fa-bolt', color: 'orange', userId: user.id },
         { name: 'Receipts', icon: 'fas fa-receipt', color: 'yellow', userId: user.id },
       ];
-      
+
       for (const category of defaultCategories) {
         try {
           await storage.createCategory(category);
@@ -220,10 +220,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Category ${category.name} creation skipped for user ${user.id}`);
         }
       }
-      
+
       // Store user in session
       req.session.user = user;
-      
+
       const { passwordHash, ...safeUser } = user;
       res.status(201).json({ 
         message: "Account created successfully", 
@@ -239,25 +239,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/login', async (req: any, res) => {
     try {
       const data = loginSchema.parse(req.body);
-      
+
       const user = await AuthService.authenticateEmailUser(data.email, data.password);
       if (!user) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
-      
+
       // Update last login timestamp
       await storage.updateUserLastLogin(user.id);
-      
+
       // Store user in session and save explicitly
       req.session.user = user;
-      
+
       // Force session save before responding
       req.session.save((err: any) => {
         if (err) {
           console.error("Session save error:", err);
           return res.status(500).json({ message: "Login failed - session error" });
         }
-        
+
         console.log("Session saved successfully for user:", user.id);
         const { passwordHash, ...safeUser } = user;
         res.json({ 
@@ -304,18 +304,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/forgot-password', async (req: any, res) => {
     try {
       const { email } = req.body;
-      
+
       if (!email) {
         return res.status(400).json({ message: "Email is required" });
       }
 
       const result = await AuthService.generatePasswordResetToken(email);
-      
+
       if (result.success) {
         // In a real application, you would send an email here
         // For now, we'll just log the token and return success
         console.log(`Password reset token for ${email}: ${result.token}`);
-        
+
         res.json({ 
           message: "If an account with this email exists, password reset instructions have been sent.",
           success: true
@@ -337,9 +337,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/verify-reset-token/:token', async (req: any, res) => {
     try {
       const { token } = req.params;
-      
+
       const result = await AuthService.verifyPasswordResetToken(token);
-      
+
       if (result.valid) {
         res.json({ valid: true, message: result.message });
       } else {
@@ -355,7 +355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/reset-password', async (req: any, res) => {
     try {
       const { token, password } = req.body;
-      
+
       if (!token || !password) {
         return res.status(400).json({ message: "Token and password are required" });
       }
@@ -365,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const result = await AuthService.resetPasswordWithToken(token, password);
-      
+
       if (result.success) {
         res.json({ success: true, message: result.message });
       } else {
@@ -422,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updates = insertCategorySchema.partial().parse(req.body);
       const updatedCategory = await storage.updateCategory(categoryId, userId, updates);
-      
+
       if (!updatedCategory) {
         return res.status(404).json({ message: "Category not found" });
       }
@@ -463,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use regular document search with filtering as reliable fallback
       const allDocuments = await storage.getDocuments(userId);
       const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 1);
-      
+
       const filteredResults = allDocuments.filter(doc => {
         const searchContent = [
           doc.name,
@@ -472,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           doc.summary,
           (doc.tags || []).join(' '),
         ].join(' ').toLowerCase();
-        
+
         return searchTerms.some(term => searchContent.includes(term));
       });
 
@@ -490,7 +490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
       const search = req.query.search as string;
       const expiryFilter = req.query.expiryFilter as 'expired' | 'expiring-soon' | 'this-month' | undefined;
-      
+
       const documents = await storage.getDocuments(userId, categoryId, search, expiryFilter);
       res.json(documents);
     } catch (error) {
@@ -527,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert scanned images to PDF format
       if (pdfConversionService.isImageFile(req.file.path) && (req.file.originalname.startsWith('processed_') || req.file.originalname.startsWith('document-scan-'))) {
         console.log(`Converting scanned document image to PDF: ${req.file.originalname}`);
-        
+
         try {
           const conversionResult = await pdfConversionService.convertImageToPDF(
             req.file.path,
@@ -565,7 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate storage key using consistent naming convention
       const documentId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
       const storageKey = StorageService.generateFileKey(userId, documentId, finalDocumentData.fileName);
-      
+
       // Upload to cloud storage using stream (memory-efficient)
       let cloudStorageKey = '';
       try {
@@ -581,7 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cloudStorageKey = await storage.upload(fileBuffer, storageKey, finalMimeType);
         }
         console.log(`File streamed to cloud storage: ${cloudStorageKey}`);
-        
+
         // Close stream immediately
         fileStream.destroy();
       } catch (storageError) {
@@ -596,12 +596,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate encryption for cloud-stored file
       let encryptedDocumentKey = '';
       let encryptionMetadata = '';
-      
+
       try {
         // For GCS, we encrypt the file buffer before upload
         const documentKey = EncryptionService.generateDocumentKey();
         encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
-        
+
         // Create metadata indicating cloud storage with encryption
         encryptionMetadata = JSON.stringify({
           storageType: 'cloud',
@@ -609,7 +609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           encrypted: true,
           algorithm: 'AES-256-GCM'
         });
-        
+
         console.log(`Document prepared for cloud storage with encryption: ${cloudStorageKey}`);
       } catch (encryptionError) {
         console.error('Document encryption setup failed:', encryptionError);
@@ -651,7 +651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Use OCR queue for memory-bounded processing
           const { ocrQueue } = await import('./ocrQueue.js');
-          
+
           await ocrQueue.addJob({
             documentId: document.id,
             fileName: finalDocumentData.fileName,
@@ -660,9 +660,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userId,
             priority: 5 // Normal priority
           });
-          
+
           console.log(`📝 OCR job queued for document ${document.id}`);
-          
+
           // Continue with tag suggestions using basic filename analysis
           const tagSuggestions = await tagSuggestionService.suggestTags(
             finalDocumentData.fileName,
@@ -670,7 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             finalMimeType,
             documentData.tags
           );
-          
+
           // Get the updated document with extracted text for tag suggestions
           const updatedDocument = await storage.getDocument(document.id, userId);
           if (updatedDocument?.extractedText) {
@@ -681,7 +681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               finalMimeType,
               documentData.tags
             );
-            
+
             // Add suggested tags to existing tags (if any)
             const combinedTags = [...documentData.tags];
             tagSuggestions.suggestedTags.forEach(suggestion => {
@@ -689,13 +689,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 combinedTags.push(suggestion.tag);
               }
             });
-            
+
             // Update document with suggested tags
             if (combinedTags.length > documentData.tags.length) {
               await storage.updateDocumentTags(document.id, userId, combinedTags);
             }
           }
-          
+
           console.log(`OCR, summary, date extraction, and tag suggestion completed for document ${document.id}`);
         } catch (ocrError) {
           console.error(`OCR and date extraction failed for document ${document.id}:`, ocrError);
@@ -707,7 +707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               finalMimeType
             );
             await storage.updateDocumentOCRAndSummary(document.id, userId, extractedText, summary);
-            
+
             // Generate tag suggestions for fallback OCR
             const tagSuggestions = await tagSuggestionService.suggestTags(
               finalDocumentData.fileName,
@@ -715,18 +715,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               req.file.mimetype,
               documentData.tags
             );
-            
+
             const combinedTags = [...documentData.tags];
             tagSuggestions.suggestedTags.forEach(suggestion => {
               if (suggestion.confidence >= 0.7 && !combinedTags.includes(suggestion.tag)) {
                 combinedTags.push(suggestion.tag);
               }
             });
-            
+
             if (combinedTags.length > documentData.tags.length) {
               await storage.updateDocumentTags(document.id, userId, combinedTags);
             }
-            
+
             console.log(`Fallback OCR with tag suggestions completed for document ${document.id}`);
           } catch (fallbackError) {
             console.error(`Fallback OCR also failed for document ${document.id}:`, fallbackError);
@@ -737,7 +737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const summary = `Document: ${req.file.originalname}. File type: ${req.file.mimetype}. Uploaded on ${new Date().toLocaleDateString()}.`;
           await storage.updateDocumentSummary(document.id, userId, summary);
-          
+
           // Generate tag suggestions based on filename only
           const tagSuggestions = await tagSuggestionService.suggestTags(
             req.file.originalname,
@@ -745,18 +745,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             req.file.mimetype,
             documentData.tags
           );
-          
+
           const combinedTags = [...documentData.tags];
           tagSuggestions.suggestedTags.forEach(suggestion => {
             if (suggestion.confidence >= 0.6 && !combinedTags.includes(suggestion.tag)) {
               combinedTags.push(suggestion.tag);
             }
           });
-          
+
           if (combinedTags.length > documentData.tags.length) {
             await storage.updateDocumentTags(document.id, userId, combinedTags);
           }
-          
+
           console.log(`Summary and tag suggestions generated for non-OCR document ${document.id}`);
         } catch (summaryError) {
           console.error(`Summary and tag generation failed for document ${document.id}:`, summaryError);
@@ -782,7 +782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documents = await storage.getDocuments(userId);
-      
+
       // Count documents imported via email in the last 24 hours
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recentlyImported = documents.filter(doc => {
@@ -790,7 +790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const isRecent = doc.uploadedAt ? new Date(doc.uploadedAt) > oneDayAgo : false;
         return hasEmailTag && isRecent;
       });
-      
+
       res.json(recentlyImported.length);
     } catch (error) {
       console.error('Error getting imported document count:', error);
@@ -804,16 +804,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
       }
-      
+
       res.json(document);
     } catch (error) {
       console.error("Error fetching document:", error);
@@ -826,11 +826,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       // Fast database lookup
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
@@ -853,11 +853,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (document.isEncrypted && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
-          
+
           // Check if this is a cloud storage document
           if (metadata.storageType === 'cloud' && metadata.storageKey) {
             console.log(`📁 GCS PREVIEW: Loading document ${metadata.storageKey} from cloud storage`);
-            
+
             const storage = storageProvider();
             try {
               // Always proxy the file through our server to prevent modal breaking redirects
@@ -870,7 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               res.setHeader('Access-Control-Allow-Credentials', 'true');
               res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
               res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-              
+
               // For PDFs, add headers to ensure proper display in iframe
               if (document.mimeType === 'application/pdf') {
                 res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
@@ -885,15 +885,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
           }
-          
+
           // Handle legacy encrypted local files
           const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey!);
-          
+
           // For images, create decrypted stream
           if (document.mimeType.startsWith('image/')) {
             res.setHeader('Content-Type', document.mimeType);
             res.setHeader('Cache-Control', 'public, max-age=3600');
-            
+
             const decryptedStream = EncryptionService.createDecryptStream(
               document.filePath, 
               documentKey, 
@@ -902,19 +902,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             decryptedStream.pipe(res);
             return;
           }
-          
+
           // For PDFs, decrypt and serve with proper headers
           if (document.mimeType === 'application/pdf') {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Cache-Control', 'public, max-age=3600');
             res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-            
+
             // CORS headers for react-pdf compatibility
             res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
             res.setHeader('Access-Control-Allow-Credentials', 'true');
             res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
             res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-            
+
             const decryptedStream = EncryptionService.createDecryptStream(
               document.filePath, 
               documentKey, 
@@ -923,7 +923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             decryptedStream.pipe(res);
             return;
           }
-          
+
           // For other encrypted file types
           return res.status(200).json({ 
             message: "Preview not supported for this encrypted file type",
@@ -950,16 +950,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Cache-Control', 'public, max-age=3600');
         res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-        
+
         // CORS headers for react-pdf compatibility
         res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
         res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-        
+
         // Support for partial content requests (important for PDF streaming)
         res.setHeader('Accept-Ranges', 'bytes');
-        
+
         const stat = fs.statSync(document.filePath);
         const fileSize = stat.size;
         const range = req.headers.range;
@@ -1000,7 +1000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user?.claims?.sub || 'demo-user-1';
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -1027,11 +1027,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const { name, expiryDate } = req.body;
 
       if (name && (typeof name !== 'string' || name.trim().length === 0)) {
@@ -1046,7 +1046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: name ? name.trim() : undefined,
         expiryDate: expiryDate === '' ? null : expiryDate
       });
-      
+
       if (!updatedDocument) {
         return res.status(404).json({ message: "Document not found" });
       }
@@ -1063,11 +1063,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -1104,11 +1104,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -1127,7 +1127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         storage
       );
-      
+
       res.json({ message: 'Document reprocessed successfully' });
     } catch (error: any) {
       console.error('Reprocess document error:', error);
@@ -1140,7 +1140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -1226,13 +1226,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error generating document insights:", error);
       captureError(error, req);
-      
+
       if (error.message.includes('quota exceeded')) {
         return res.status(429).json({ 
           message: "OpenAI API quota exceeded. Please check your billing and usage limits." 
         });
       }
-      
+
       res.status(500).json({ message: "Failed to generate document insights" });
     }
   });
@@ -1243,7 +1243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       const tier = req.query.tier as string; // INSIGHT-102: Optional tier filter ('primary', 'secondary')
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -1254,12 +1254,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const allInsights = await storage.getDocumentInsights(documentId, userId, tier);
-      
+
       // Filter out unwanted insight types at API level
       const insights = allInsights.filter(insight => 
         !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
       );
-      
+
       res.json({
         success: true,
         insights,
@@ -1292,7 +1292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasDueDate = req.query.has_due_date === 'true';
 
       let insights = await storage.getInsights(userId, status === 'all' ? undefined : status, type, priority);
-      
+
       // Get manual events and convert them to insights format
       const manualEvents = await storage.getManualTrackedEvents(userId);
       const manualInsights = manualEvents
@@ -1355,15 +1355,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/insights/metrics', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       // Get all insights for calculations
       const allInsights = await storage.getInsights(userId);
-      
+
       // Filter out unwanted insight types at API level
       const filteredAIInsights = allInsights.filter(insight => 
         !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
       );
-      
+
       // Include manual events as high priority insights
       const manualEvents = await storage.getManualTrackedEvents(userId);
       const manualInsights = manualEvents
@@ -1374,20 +1374,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: 'open' as const,
           type: 'manual_event' as const
         }));
-      
+
       // Combine all insights
       const combinedInsights = [...filteredAIInsights, ...manualInsights];
-      
+
       // Calculate metrics
       const openInsights = combinedInsights.filter(i => i.status === 'open' || !i.status);
       const highPriority = combinedInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
       const resolvedInsights = combinedInsights.filter(i => i.status === 'resolved');
-      
+
       // Type-specific metrics (open only) - exclude unwanted types
       const manualEventCount = combinedInsights.filter(i => i.type === 'manual_event' && (i.status === 'open' || !i.status));
       const summaryInsights = combinedInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status));
       const contactInsights = combinedInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status));
-      
+
       // Upcoming deadlines (within 30 days)
       const today = new Date();
       const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
@@ -1453,7 +1453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedInsight = await storage.updateInsightStatus(insightId, userId, status);
-      
+
       if (!updatedInsight) {
         return res.status(404).json({ message: "Insight not found" });
       }
@@ -1481,7 +1481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedInsight = await storage.updateInsightStatus(insightId, userId, status);
-      
+
       if (!updatedInsight) {
         console.log(`[DEBUG] Insight ${insightId} not found for user ${userId}`);
         return res.status(404).json({ message: "Insight not found" });
@@ -1504,7 +1504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const insightId = req.params.id;
 
       const deletedInsight = await storage.deleteInsight(insightId, userId);
-      
+
       if (!deletedInsight) {
         return res.status(404).json({ message: "Insight not found" });
       }
@@ -1524,7 +1524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       const insightId = req.params.insightId;
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -1547,11 +1547,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -1575,11 +1575,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -1589,20 +1589,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
-          
+
           // Handle cloud storage documents with GCS download
           if (metadata.storageType === 'cloud' && metadata.storageKey) {
             console.log(`📁 GCS DOWNLOAD: Downloading document ${metadata.storageKey} from cloud storage`);
-            
+
             try {
               const storage = storageProvider();
               const fileBuffer = await storage.download(metadata.storageKey);
-              
+
               // Set appropriate headers for download
               res.setHeader('Content-Type', document.mimeType);
               res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
               res.setHeader('Cache-Control', 'private, max-age=3600');
-              
+
               res.send(fileBuffer);
               return;
             } catch (gcsError: any) {
@@ -1613,21 +1613,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
           }
-          
+
           // Handle local encrypted documents (legacy)
           const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey);
-          
+
           // Create decrypted stream
           const decryptedStream = EncryptionService.createDecryptStream(
             document.filePath, 
             documentKey, 
             document.encryptionMetadata
           );
-          
+
           // Set appropriate headers
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
-          
+
           decryptedStream.pipe(res);
           return;
         } catch (decryptionError) {
@@ -1639,28 +1639,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if file exists and handle missing files gracefully
       if (!fs.existsSync(document.filePath)) {
         console.error(`File not found: ${document.filePath} for document ${document.id}`);
-        
+
         // Try to find the file in uploads directory with original filename
         const uploadsDir = path.join(process.cwd(), 'uploads');
         const possiblePath = path.join(uploadsDir, document.fileName);
-        
+
         // Extract filename from file path if it contains a full path
         const pathBasename = path.basename(document.filePath);
         const basenameAttempt = path.join(uploadsDir, pathBasename);
-        
+
         if (fs.existsSync(possiblePath)) {
           console.log(`Found file at alternative path: ${possiblePath}`);
           res.download(possiblePath, document.fileName);
           return;
         }
-        
+
         // Try with the basename from the stored path
         if (fs.existsSync(basenameAttempt)) {
           console.log(`Found file at basename path: ${basenameAttempt}`);
           res.download(basenameAttempt, document.fileName);
           return;
         }
-        
+
         // Check if it's a relative path that needs to be resolved
         const resolvedPath = path.resolve(document.filePath);
         if (fs.existsSync(resolvedPath)) {
@@ -1668,7 +1668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.download(resolvedPath, document.fileName);
           return;
         }
-        
+
         return res.status(404).json({ 
           message: "File not found on server",
           debug: {
@@ -1705,7 +1705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const stats = await storage.getEncryptionStats();
       const hasMasterKey = !!process.env.DOCUMENT_MASTER_KEY;
-      
+
       res.json({
         ...stats,
         hasMasterKey,
@@ -1772,11 +1772,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const { isActive } = req.body;
-      
+
       if (typeof isActive !== 'boolean') {
         return res.status(400).json({ message: "isActive must be a boolean" });
       }
-      
+
       await storage.updateUserStatus(userId, isActive);
       res.json({ message: "User status updated successfully" });
     } catch (error) {
@@ -1851,26 +1851,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document sharing routes
-  
+
   // Share a document
   app.post('/api/documents/:id/share', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       const { email, permissions = 'view' } = req.body;
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       if (!email || typeof email !== 'string') {
         return res.status(400).json({ message: "Valid email address is required" });
       }
-      
+
       if (permissions && !['view', 'edit'].includes(permissions)) {
         return res.status(400).json({ message: "Permissions must be 'view' or 'edit'" });
       }
-      
+
       const share = await storage.shareDocument(documentId, userId, email, permissions);
       res.json(share);
     } catch (error: any) {
@@ -1887,11 +1887,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const shares = await storage.getDocumentShares(documentId, userId);
       res.json(shares);
     } catch (error: any) {
@@ -1908,11 +1908,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const shareId = parseInt(req.params.shareId);
-      
+
       if (isNaN(shareId)) {
         return res.status(400).json({ message: "Invalid share ID" });
       }
-      
+
       await storage.unshareDocument(shareId, userId);
       res.json({ message: "Document unshared successfully" });
     } catch (error) {
@@ -1933,7 +1933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  
+
   // Import Stripe route handlers
   const { 
     createCheckoutSession, 
@@ -1950,10 +1950,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/stripe/create-portal-session', requireAuth, createPortalSession);
   app.get('/api/stripe/subscription-status', requireAuth, getSubscriptionStatus);
   app.post('/api/stripe/cancel-subscription', requireAuth, cancelSubscription);
-  
+
   // Stripe webhook (no auth required - verified by signature)
   app.post('/api/stripe/webhook', processWebhook);
-  
+
   // Manual subscription update for testing
   app.post('/api/stripe/manual-update', requireAuth, async (req: any, res) => {
     try {
@@ -1969,7 +1969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  
+
   // Category suggestion endpoint
   const { suggestDocumentCategory } = await import('./routes/categorySuggestion');
   app.post('/api/documents/suggest-category', requireAuth, suggestDocumentCategory);
@@ -2017,7 +2017,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(postId)) {
         return res.status(400).json({ message: "Invalid post ID" });
       }
-      
+
       const data = insertBlogPostSchema.partial().parse(req.body);
       const post = await storage.updateBlogPost(postId, data);
       res.json(post);
@@ -2033,7 +2033,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(postId)) {
         return res.status(400).json({ message: "Invalid post ID" });
       }
-      
+
       await storage.deleteBlogPost(postId);
       res.json({ message: "Blog post deleted successfully" });
     } catch (error) {
@@ -2045,7 +2045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  
+
   // OCR configuration and status endpoint
   app.get('/api/ocr/config', async (req, res) => {
     try {
@@ -2068,7 +2068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           no_api_key_required: true
         }
       };
-      
+
       res.json(config);
     } catch (error) {
       console.error("Error getting OCR config:", error);
@@ -2084,16 +2084,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
       }
-      
+
       // Reprocess the document with date extraction
       if (supportsOCR(document.mimeType)) {
         await processDocumentWithDateExtraction(
@@ -2178,7 +2178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const { reminderSuggestionService } = await import('./reminderSuggestionService');
       const result = await reminderSuggestionService.batchProcessDocuments(userId);
-      
+
       res.json({
         message: "Batch processing completed",
         processed: result.processed,
@@ -2211,7 +2211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -2238,7 +2238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents/analyze-tags', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       // Get all user documents with tags
       const userDocuments = await storage.getDocuments(userId);
       const documentsWithTags = userDocuments
@@ -2323,16 +2323,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const reminderId = parseInt(req.params.id);
-      
+
       if (isNaN(reminderId)) {
         return res.status(400).json({ message: "Invalid reminder ID" });
       }
-      
+
       const updatedReminder = await storage.updateExpiryReminder(reminderId, userId, req.body);
       if (!updatedReminder) {
         return res.status(404).json({ message: "Reminder not found" });
       }
-      
+
       res.json(updatedReminder);
     } catch (error) {
       console.error("Error updating expiry reminder:", error);
@@ -2344,11 +2344,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const reminderId = parseInt(req.params.id);
-      
+
       if (isNaN(reminderId)) {
         return res.status(400).json({ message: "Invalid reminder ID" });
       }
-      
+
       await storage.deleteExpiryReminder(reminderId, userId);
       res.json({ message: "Reminder deleted successfully" });
     } catch (error) {
@@ -2362,16 +2362,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const reminderId = parseInt(req.params.id);
       const { isCompleted } = req.body;
-      
+
       if (isNaN(reminderId)) {
         return res.status(400).json({ message: "Invalid reminder ID" });
       }
-      
+
       const updatedReminder = await storage.markReminderCompleted(reminderId, userId, isCompleted);
       if (!updatedReminder) {
         return res.status(404).json({ message: "Reminder not found" });
       }
-      
+
       res.json(updatedReminder);
     } catch (error) {
       console.error("Error marking reminder as completed:", error);
@@ -2382,7 +2382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // ===== MANUAL TRACKED EVENTS ROUTES (TICKET B1) =====
-  
+
   // Get all manual tracked events for the authenticated user
   app.get('/api/manual-events', requireAuth, async (req: any, res) => {
     try {
@@ -2400,12 +2400,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const eventId = req.params.id;
-      
+
       const event = await storage.getManualTrackedEvent(eventId, userId);
       if (!event) {
         return res.status(404).json({ message: "Manual tracked event not found" });
       }
-      
+
       res.json(event);
     } catch (error) {
       console.error("Error fetching manual tracked event:", error);
@@ -2417,15 +2417,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/manual-events', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       // Validate request body
       const validatedData = insertManualTrackedEventSchema.parse(req.body);
-      
+
       const event = await storage.createManualTrackedEvent({
         ...validatedData,
         createdBy: userId,
       });
-      
+
       res.status(201).json(event);
     } catch (error: any) {
       console.error("Error creating manual tracked event:", error);
@@ -2444,15 +2444,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const eventId = req.params.id;
-      
+
       // Validate request body (allowing partial updates)
       const validatedData = insertManualTrackedEventSchema.partial().parse(req.body);
-      
+
       const event = await storage.updateManualTrackedEvent(eventId, userId, validatedData);
       if (!event) {
         return res.status(404).json({ message: "Manual tracked event not found" });
       }
-      
+
       res.json(event);
     } catch (error: any) {
       console.error("Error updating manual tracked event:", error);
@@ -2471,7 +2471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const eventId = req.params.id;
-      
+
       await storage.deleteManualTrackedEvent(eventId, userId);
       res.json({ message: "Manual tracked event deleted successfully" });
     } catch (error) {
@@ -2481,13 +2481,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== MANUAL EVENT NOTIFICATION ROUTES (TICKET B2) =====
-  
+
   // Manually trigger notifications for the authenticated user (testing endpoint)
   app.post('/api/manual-events/trigger-notifications', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const { manualEventNotificationService } = await import('./manualEventNotificationService');
-      
+
       await manualEventNotificationService.triggerUserNotifications(userId);
       res.json({ message: "Notifications triggered successfully" });
     } catch (error) {
@@ -2502,7 +2502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const eventId = req.params.id;
       const { manualEventNotificationService } = await import('./manualEventNotificationService');
-      
+
       const shouldNotify = await manualEventNotificationService.checkEventNotification(eventId, userId);
       res.json({ shouldNotify, eventId });
     } catch (error) {
@@ -2512,7 +2512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== FEATURE FLAG ADMIN ROUTES =====
-  
+
   // Initialize feature flags on server start
   featureFlagService.initializeFeatureFlags().catch(console.error);
 
@@ -2581,7 +2581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.toggleFeatureFlag(flagId, enabled);
       featureFlagService.clearCache();
-      
+
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error toggling feature flag:", error);
@@ -2616,7 +2616,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { userId: targetUserId, featureFlagName, isEnabled, overrideReason, expiresAt } = req.body;
-      
+
       await featureFlagService.setUserOverride(
         targetUserId, 
         featureFlagName, 
@@ -2624,7 +2624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         overrideReason,
         expiresAt ? new Date(expiresAt) : undefined
       );
-      
+
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error creating feature flag override:", error);
@@ -2701,7 +2701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk Operations API Endpoints
-  
+
   // Bulk update documents (tags, category, name)
   app.patch('/api/documents/bulk-update', requireAuth, async (req: any, res) => {
     try {
@@ -2722,7 +2722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { searchOptimizationService } = await import('./searchOptimizationService');
       const result = await searchOptimizationService.bulkUpdateDocuments(userId, documentIds, updates);
-      
+
       res.json({
         message: `Bulk update completed: ${result.success} successful, ${result.failed} failed`,
         ...result
@@ -2749,7 +2749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { searchOptimizationService } = await import('./searchOptimizationService');
       const result = await searchOptimizationService.bulkDeleteDocuments(userId, documentIds);
-      
+
       res.json({
         message: `Bulk delete completed: ${result.success} successful, ${result.failed} failed`,
         ...result
@@ -2765,18 +2765,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
-      
+
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const { searchOptimizationService } = await import('./searchOptimizationService');
       const { performanceMonitoringService } = await import('./performanceMonitoringService');
-      
+
       const searchAnalytics = searchOptimizationService.getSearchAnalytics();
       const performanceAnalytics = performanceMonitoringService.getPerformanceAnalytics(24);
       const recommendations = performanceMonitoringService.getOptimizationRecommendations();
-      
+
       res.json({
         search: searchAnalytics,
         performance: performanceAnalytics,
@@ -2810,23 +2810,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🔄 Resetting StorageService to use new GCS credentials...');
       StorageService.reset();
-      
+
       const storage = storageProvider();
       const testKey = `test/${Date.now()}/test-file.txt`;
       const testContent = Buffer.from('GCS Test File - ' + new Date().toISOString());
-      
+
       console.log('🧪 Testing GCS upload...');
       await storage.upload(testContent, testKey, 'text/plain');
-      
+
       console.log('🧪 Testing GCS download...');
       const downloadedContent = await storage.download(testKey);
-      
+
       console.log('🧪 Testing GCS signed URL...');
       const signedUrl = await storage.getSignedUrl(testKey, 300);
-      
+
       console.log('🧪 Testing GCS delete...');
       await storage.delete(testKey);
-      
+
       res.json({
         success: true,
         message: 'GCS functionality fully operational with new credentials',
@@ -2840,7 +2840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         signedUrlGenerated: !!signedUrl,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error('GCS test failed:', error);
       res.status(500).json({
@@ -2858,7 +2858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Advanced scanning routes
   app.use('/api/scanning', advancedScanningRoutes);
-  
+
   // Setup multi-page scan upload routes
   setupMultiPageScanUpload(app);
 
@@ -2884,9 +2884,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/user-assets', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       console.log("[DEBUG USER-ASSETS] Raw request body:", JSON.stringify(req.body, null, 2));
-      
+
       // Validate the request with the discriminated union schema from the frontend
       // This will check that house assets have address/postcode and car assets have make/model/year
       const houseSchema = z.object({
@@ -2909,7 +2909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assetSchema = z.discriminatedUnion("type", [houseSchema, carSchema]);
       const validatedData = assetSchema.parse(req.body);
       console.log("[DEBUG USER-ASSETS] Validated data:", JSON.stringify(validatedData, null, 2));
-      
+
       const assetData = { ...validatedData, userId };
       const asset = await storage.createUserAsset(assetData);
       res.json(asset);
@@ -2928,11 +2928,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const assetId = parseInt(req.params.id);
-      
+
       if (isNaN(assetId)) {
         return res.status(400).json({ message: "Invalid asset ID" });
       }
-      
+
       await storage.deleteUserAsset(assetId, userId);
       res.json({ message: "Asset deleted successfully" });
     } catch (error) {
@@ -2982,11 +2982,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: any, res) => {
     const processingStartTime = Date.now();
     let requestId: string | undefined;
-    
+
     try {
       // Parse the webhook data first to get basic email info
       const webhookData = parseMailgunWebhook(req);
-      
+
       if (!webhookData.isValid) {
         // TICKET 6: Log webhook validation errors
         EmailUploadLogger.logError({
@@ -3004,7 +3004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { message } = webhookData;
-      
+
       // TICKET 6: Log webhook reception with email details
       requestId = EmailUploadLogger.logWebhookReceived({
         recipient: message.recipient,
@@ -3014,7 +3014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalSize: message.attachments?.reduce((sum, att) => sum + att.size, 0) || 0,
         userAgent: req.headers['user-agent'] || 'unknown'
       });
-      
+
       // Security validation is now handled by middleware
       console.log('🔒 All security checks passed - processing email');
 
@@ -3038,7 +3038,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const userId = userExtractionResult.userId;
-      
+
       // Debug: Verify userId is properly extracted
       console.log('🐛 DEBUG: Extracted userId:', { 
         userId, 
@@ -3088,7 +3088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           requestId,
           error: error instanceof Error ? error : undefined
         });
-        
+
         // Determine if it's a database connection issue or invalid user ID format
         if (error instanceof Error && error.message.includes('invalid input syntax')) {
           return res.status(400).json({ 
@@ -3096,7 +3096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             details: 'User ID must be a valid UUID or alphanumeric string'
           });
         }
-        
+
         return res.status(500).json({ 
           error: 'Database error while verifying user',
           details: 'Please try again later'
@@ -3105,7 +3105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // TICKET 4: Validate and filter attachments with comprehensive checks
       const attachmentValidation = validateEmailAttachments(message.attachments);
-      
+
       // Reject emails with no valid attachments
       if (!attachmentValidation.hasValidAttachments) {
         // TICKET 6: Log attachment validation failures
@@ -3118,7 +3118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           invalidAttachments: attachmentValidation.invalidAttachments.map(att => `${att.filename} (${att.error})`),
           requestId
         });
-        
+
         return res.status(400).json({
           error: 'No valid attachments found',
           details: 'Emails must contain at least one valid attachment (PDF, JPG, PNG, WebP, DOCX ≤10MB)',
@@ -3149,18 +3149,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TICKET 5: Integrate with document ingestion pipeline
       const processedDocuments: any[] = [];
       const documentErrors: any[] = [];
-      
+
       // Process each valid attachment through the document pipeline
       for (const attachment of attachmentValidation.validAttachments) {
         const attachmentStartTime = Date.now();
         try {
           console.log(`📧 Processing email attachment: ${attachment.filename} (${attachment.size} bytes)`);
           console.log('📧 userId type and value:', typeof userId, userId);
-          
+
           // Generate document metadata for email ingestion
           const documentName = attachment.filename.replace(/\.[^/.]+$/, ""); // Remove extension
           const finalMimeType = attachment.contentType;
-          
+
           // Prepare document data for validation
           const documentDataToValidate = {
             userId: userId, // Add the userId field
@@ -3173,9 +3173,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             uploadSource: 'email', // Mark as email upload
             status: 'pending' // Start as pending
           };
-          
+
           console.log('📧 Document data before validation:', JSON.stringify(documentDataToValidate, null, 2));
-          
+
           // Validate document data using existing schema
           const documentData = insertDocumentSchema.parse(documentDataToValidate);
 
@@ -3185,7 +3185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Generate storage key using existing convention
           const storageKey = StorageService.generateFileKey(userId, document.id.toString(), attachment.filename);
-          
+
           // Upload to cloud storage
           let cloudStorageKey = '';
           try {
@@ -3205,7 +3205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               requestId,
               error: storageError instanceof Error ? storageError : undefined
             });
-            
+
             await storage.deleteDocument(document.id, userId); // Cleanup document record
             documentErrors.push({
               filename: attachment.filename,
@@ -3217,11 +3217,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Generate encryption metadata (following existing pattern)
           let encryptedDocumentKey = '';
           let encryptionMetadata = '';
-          
+
           try {
             const documentKey = EncryptionService.generateDocumentKey();
             encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
-            
+
             encryptionMetadata = JSON.stringify({
               storageType: 'cloud',
               storageKey: cloudStorageKey,
@@ -3234,7 +3234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           } catch (encryptionError) {
             console.error('❌ Encryption setup failed for', attachment.filename, ':', encryptionError);
-            
+
             // Cleanup cloud storage
             try {
               const storageService = storageProvider();
@@ -3242,7 +3242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } catch (cleanupError) {
               console.error('Failed to cleanup cloud storage after encryption error:', cleanupError);
             }
-            
+
             await storage.deleteDocument(document.id, userId);
             documentErrors.push({
               filename: attachment.filename,
@@ -3268,7 +3268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (supportsOCR(finalMimeType) || isPDFFile(finalMimeType)) {
             try {
               const { ocrQueue } = await import('./ocrQueue.js');
-              
+
               await ocrQueue.addJob({
                 documentId: document.id,
                 fileName: attachment.filename,
@@ -3277,22 +3277,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 userId,
                 priority: 3 // Higher priority for email imports
               });
-              
+
               console.log(`🔍 Queued OCR job for email document ${document.id}`);
-              
+
               // Generate tag suggestions based on filename and email context
               const emailTags = ['email-imported'];
               if (message.subject) {
                 emailTags.push(...message.subject.toLowerCase().split(/\s+/).filter(word => word.length > 3).slice(0, 3));
               }
-              
+
               const tagSuggestions = await tagSuggestionService.suggestTags(
                 attachment.filename,
                 `Email from: ${message.sender}\nSubject: ${message.subject}\n${message.bodyPlain?.substring(0, 500) || ''}`,
                 finalMimeType,
                 emailTags
               );
-              
+
               // Update document with enhanced tags
               const combinedTags = [...emailTags];
               tagSuggestions.suggestedTags.forEach(suggestion => {
@@ -3300,10 +3300,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   combinedTags.push(suggestion.tag);
                 }
               });
-              
+
               await storage.updateDocumentTags(document.id, userId, combinedTags);
               console.log(`🏷️ Updated document ${document.id} with ${combinedTags.length} tags`);
-              
+
             } catch (ocrError) {
               console.error(`OCR processing failed for document ${document.id}:`, ocrError);
               // Document is still valid even if OCR fails
@@ -3355,7 +3355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             requestId,
             error: documentError instanceof Error ? documentError : undefined
           });
-          
+
           documentErrors.push({
             filename: attachment.filename,
             error: documentError instanceof Error ? documentError.message : 'Unknown processing error'
@@ -3422,7 +3422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requestId,
         error: error instanceof Error ? error : undefined
       });
-      
+
       captureError(error as Error, req);
       res.status(500).json({ 
         error: 'Internal server error processing email',
@@ -3438,13 +3438,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ANDROID-303: OCR Error Handling and Analytics Routes
   setupOCRErrorRoutes(app);
-  
+
   // Add Canny JWT routes
   const cannyRoutes = await import('./routes/cannyRoutes.js');
   app.use('/api', cannyRoutes.default);
 
   // ===== VEHICLE MANAGEMENT ROUTES (TICKET 1 & 2) =====
-  
+
   // Import DVLA service and vehicle schema
   const { dvlaLookupService } = await import('./dvlaLookupService');
   const { insertVehicleSchema } = await import('@shared/schema');
@@ -3453,7 +3453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/vehicles/lookup', requireAuth, async (req: any, res) => {
     try {
       const { vrn } = req.body;
-      
+
       if (!vrn) {
         return res.status(400).json({ 
           success: false,
@@ -3463,7 +3463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Perform DVLA lookup
       const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
-      
+
       if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
         return res.json({
           success: true,
@@ -3502,12 +3502,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const vehicleId = req.params.id;
-      
+
       const vehicle = await storage.getVehicle(vehicleId, userId);
       if (!vehicle) {
         return res.status(404).json({ message: "Vehicle not found" });
       }
-      
+
       res.json(vehicle);
     } catch (error) {
       console.error("Error fetching vehicle:", error);
@@ -3521,16 +3521,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const vehicleId = req.params.id;
       const { notes } = req.body;
-      
+
       // Check if vehicle exists and belongs to user
       const existingVehicle = await storage.getVehicle(vehicleId, userId);
       if (!existingVehicle) {
         return res.status(404).json({ message: "Vehicle not found" });
       }
-      
+
       // Update only the notes field
       const updatedVehicle = await storage.updateVehicle(vehicleId, userId, { notes });
-      
+
       res.json(updatedVehicle);
     } catch (error) {
       console.error("Error updating vehicle:", error);
@@ -3543,7 +3543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const vehicleId = req.params.id;
-      
+
       // Check if vehicle exists and belongs to user
       const existingVehicle = await storage.getVehicle(vehicleId, userId);
       if (!existingVehicle) {
@@ -3559,7 +3559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Perform DVLA lookup
       const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
-      
+
       if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
         // Update vehicle with fresh DVLA data, preserving user notes
         const updatedVehicleData = {
@@ -3599,14 +3599,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/vehicles', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       console.log("[DEBUG] Raw request body:", JSON.stringify(req.body, null, 2));
-      
+
       // Validate request body using TICKET 3 schema
       const validatedData = createVehicleSchema.parse(req.body);
       console.log("[DEBUG] Validated input data:", JSON.stringify(validatedData, null, 2));
       const { vrn, notes, ...manualFields } = validatedData;
-      
+
       // Check if vehicle already exists for this user
       const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
       if (existingVehicle) {
@@ -3618,7 +3618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Attempt DVLA lookup first
       const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
-      
+
       let vehicleData;
       let dvlaFields: string[] = [];
       let userEditableFields = ['notes'];
@@ -3637,7 +3637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
           motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
         };
-        
+
         // Mark DVLA fields as read-only
         dvlaFields = [
           'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
@@ -3655,7 +3655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Use manual fields as fallback
           ...manualFields,
         };
-        
+
         // All fields are user-editable when DVLA fails
         userEditableFields = [
           'notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour'
@@ -3664,7 +3664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Debug logging for validation issues
       console.log("[DEBUG] Vehicle data before validation:", JSON.stringify(vehicleData, null, 2));
-      
+
       // Validate the vehicle data before creating
       try {
         const validatedVehicleData = insertVehicleSchema.parse(vehicleData);
@@ -3673,25 +3673,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("[DEBUG] Validation failed:", JSON.stringify(validationError, null, 2));
         throw validationError;
       }
-      
+
       // Convert Date objects to strings for database storage
       const vehicleDataForStorage = {
         ...vehicleData,
         taxDueDate: (vehicleData as any).taxDueDate instanceof Date ? (vehicleData as any).taxDueDate.toISOString().split('T')[0] : (vehicleData as any).taxDueDate,
         motExpiryDate: (vehicleData as any).motExpiryDate instanceof Date ? (vehicleData as any).motExpiryDate.toISOString().split('T')[0] : (vehicleData as any).motExpiryDate
       };
-      
+
       const validatedVehicleData = insertVehicleSchema.parse(vehicleDataForStorage);
-      
+
       // Create the vehicle
       const createdVehicle = await storage.createVehicle(validatedVehicleData);
-      
+
       // TICKET 4: Generate vehicle insights after creation
       try {
         if (createdVehicle.motExpiryDate || createdVehicle.taxDueDate) {
           console.log(`[TICKET 4] Generating insights for vehicle ${createdVehicle.vrn}`);
           const insightResult = await vehicleInsightService.generateVehicleInsights(createdVehicle);
-          
+
           if (insightResult.success && insightResult.insights.length > 0) {
             await vehicleInsightService.saveVehicleInsights(createdVehicle, insightResult.insights);
             console.log(`[TICKET 4] Generated ${insightResult.insights.length} vehicle insights for ${createdVehicle.vrn}`);
@@ -3701,7 +3701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('[TICKET 4] Error generating vehicle insights:', error);
         // Don't fail vehicle creation if insight generation fails
       }
-      
+
       // TICKET 3 response format
       const response = {
         vehicle: createdVehicle,
@@ -3716,7 +3716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         })
       };
-      
+
       res.status(201).json(response);
     } catch (error: any) {
       console.error("Error creating vehicle:", error);
@@ -3736,7 +3736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const vehicleId = req.params.id;
-      
+
       // Get existing vehicle to check source
       const existingVehicle = await storage.getVehicle(vehicleId, userId);
       if (!existingVehicle) {
@@ -3747,12 +3747,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingVehicle.source === 'dvla') {
         // For DVLA-enriched vehicles, only allow user field updates
         const validatedData = updateVehicleUserFieldsSchema.parse(req.body);
-        
+
         const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
           ...validatedData,
           updatedAt: new Date(),
         });
-        
+
         const response = {
           vehicle: updatedVehicle,
           dvlaEnriched: true,
@@ -3764,7 +3764,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userEditableFields: ['notes'],
           message: "Only user-editable fields updated. DVLA fields are read-only."
         };
-        
+
         res.json(response);
       } else {
         // For manual vehicles, allow full updates
@@ -3775,11 +3775,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           taxDueDate: requestData.taxDueDate instanceof Date ? requestData.taxDueDate.toISOString().split('T')[0] : requestData.taxDueDate,
           motExpiryDate: requestData.motExpiryDate instanceof Date ? requestData.motExpiryDate.toISOString().split('T')[0] : requestData.motExpiryDate
         };
-        
+
         const validatedData = insertVehicleSchema.partial().parse(dataForStorage);
-        
+
         const updatedVehicle = await storage.updateVehicle(vehicleId, userId, validatedData);
-        
+
         const response = {
           vehicle: updatedVehicle,
           dvlaEnriched: false,
@@ -3790,7 +3790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
           ]
         };
-        
+
         res.json(response);
       }
     } catch (error: any) {
@@ -3810,7 +3810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const vehicleId = req.params.id;
-      
+
       await storage.deleteVehicle(vehicleId, userId);
       res.json({ message: "Vehicle deleted successfully" });
     } catch (error) {
@@ -3820,18 +3820,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== DVLA LOOKUP ROUTES (TICKET 2) =====
-  
+
   // Lookup vehicle data from DVLA by VRN
   app.post('/api/vehicles/dvla-lookup', requireAuth, async (req: any, res) => {
     try {
       const { vrn } = req.body;
-      
+
       if (!vrn || typeof vrn !== 'string') {
         return res.status(400).json({ message: "VRN is required" });
       }
 
       const result = await dvlaLookupService.lookupVehicleByVRN(vrn);
-      
+
       if (!result.success) {
         return res.status(result.error?.status || 500).json({
           message: result.error?.message || "DVLA lookup failed",
@@ -3854,7 +3854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const { vrn } = req.body;
-      
+
       if (!vrn || typeof vrn !== 'string') {
         return res.status(400).json({ message: "VRN is required" });
       }
@@ -3870,7 +3870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Perform DVLA lookup
       const lookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
-      
+
       if (!lookupResult.success) {
         return res.status(lookupResult.error?.status || 500).json({
           message: lookupResult.error?.message || "DVLA lookup failed",
@@ -3890,7 +3890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         taxDueDate: dvlaVehicle.taxDueDate ? (dvlaVehicle.taxDueDate instanceof Date ? dvlaVehicle.taxDueDate.toISOString().split('T')[0] : dvlaVehicle.taxDueDate) : null,
         motExpiryDate: dvlaVehicle.motExpiryDate ? (dvlaVehicle.motExpiryDate instanceof Date ? dvlaVehicle.motExpiryDate.toISOString().split('T')[0] : dvlaVehicle.motExpiryDate) : null,
       });
-      
+
       res.status(201).json({
         success: true,
         vehicle,
@@ -3913,7 +3913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const vehicleId = req.params.id;
-      
+
       // Get existing vehicle
       const existingVehicle = await storage.getVehicle(vehicleId, userId);
       if (!existingVehicle) {
@@ -3922,7 +3922,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Perform DVLA lookup
       const lookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
-      
+
       if (!lookupResult.success) {
         return res.status(lookupResult.error?.status || 500).json({
           message: lookupResult.error?.message || "DVLA lookup failed",
@@ -3940,19 +3940,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         taxDueDate: dvlaVehicle.taxDueDate instanceof Date ? dvlaVehicle.taxDueDate.toISOString().split('T')[0] : dvlaVehicle.taxDueDate,
         motExpiryDate: dvlaVehicle.motExpiryDate instanceof Date ? dvlaVehicle.motExpiryDate.toISOString().split('T')[0] : dvlaVehicle.motExpiryDate,
       });
-      
+
       // TICKET 4: Generate insights after DVLA refresh
       let vehicleInsights = null;
       try {
         if (updatedVehicle && (updatedVehicle.motExpiryDate || updatedVehicle.taxDueDate)) {
           console.log(`[TICKET 4] Generating insights after DVLA refresh for ${updatedVehicle.vrn}`);
           const insightResult = await vehicleInsightService.generateVehicleInsights(updatedVehicle);
-          
+
           if (insightResult.success && insightResult.insights.length > 0) {
             await vehicleInsightService.saveVehicleInsights(updatedVehicle, insightResult.insights);
             vehicleInsights = insightResult.insights;
           }
-          
+
           const insightCount = vehicleInsights?.length || 0;
           if (insightCount > 0) {
             console.log(`[TICKET 4] Generated ${insightCount} insights after refresh for ${updatedVehicle.vrn}`);
@@ -3961,7 +3961,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error(`[TICKET 4] Failed to generate insights after refresh:`, error);
       }
-      
+
       res.json({
         success: true,
         vehicle: updatedVehicle,

@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 // Production startup script that builds server-only bundle to avoid static file conflicts
 import { spawn, execSync } from 'child_process';
 import { existsSync } from 'fs';

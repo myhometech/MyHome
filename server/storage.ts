@@ -1667,35 +1667,74 @@ export class DatabaseStorage implements IStorage {
     }>;
     trend: 'up' | 'down' | 'stable';
     trendPercentage: number;
+    successRate: number;
   }> {
-    // Mock implementation - in production this would query OpenAI usage logs
-    return {
-      totalTokens: 125000,
-      costThisMonth: 18.75,
-      requestsThisMonth: 450,
-      modelBreakdown: [
-        {
-          model: 'gpt-4o',
-          tokens: 85000,
-          cost: 12.50,
-          requests: 280,
-        },
-        {
-          model: 'gpt-4o-mini',
-          tokens: 30000,
-          cost: 4.25,
-          requests: 120,
-        },
-        {
-          model: 'gpt-3.5-turbo',
-          tokens: 10000,
-          cost: 2.00,
-          requests: 50,
+    // Real LLM usage data from database logs
+    try {
+      const { llmUsageLogger } = await import('./llmUsageLogger');
+      
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      
+      // Get current month analytics
+      const currentMonthAnalytics = await llmUsageLogger.getUsageAnalytics(startOfMonth, now);
+      
+      // Get previous month for trend comparison
+      const previousMonthAnalytics = await llmUsageLogger.getUsageAnalytics(previousMonth, endOfPreviousMonth);
+      
+      // Calculate trend
+      let trend: 'up' | 'down' | 'stable' = 'stable';
+      let trendPercentage = 0;
+      
+      if (previousMonthAnalytics.totalCost > 0) {
+        const percentageChange = ((currentMonthAnalytics.totalCost - previousMonthAnalytics.totalCost) / previousMonthAnalytics.totalCost) * 100;
+        trendPercentage = Math.abs(percentageChange);
+        
+        if (Math.abs(percentageChange) > 5) {
+          trend = percentageChange > 0 ? 'up' : 'down';
         }
-      ],
-      trend: 'down',
-      trendPercentage: 8.3,
-    };
+      }
+      
+      // Convert provider breakdown to model breakdown
+      const modelBreakdown: Array<{
+        model: string;
+        tokens: number;
+        cost: number;
+        requests: number;
+      }> = Object.entries(currentMonthAnalytics.byProvider).map(([provider, data]) => ({
+        model: provider === 'together.ai' ? 'Mistral-7B-Instruct' : 
+               provider === 'openai' ? 'GPT-4o' :
+               provider,
+        tokens: data.tokens,
+        cost: Math.round(data.cost * 100) / 100,
+        requests: data.requests,
+      }));
+      
+      return {
+        totalTokens: currentMonthAnalytics.totalTokens,
+        costThisMonth: Math.round(currentMonthAnalytics.totalCost * 100) / 100,
+        requestsThisMonth: currentMonthAnalytics.totalRequests,
+        modelBreakdown,
+        trend,
+        trendPercentage: Math.round(trendPercentage * 10) / 10,
+        successRate: Math.round(currentMonthAnalytics.successRate * 10) / 10,
+      };
+      
+    } catch (error) {
+      console.error('Failed to fetch real LLM usage:', error);
+      // Return zeros on error instead of mock data
+      return {
+        totalTokens: 0,
+        costThisMonth: 0,
+        requestsThisMonth: 0,
+        modelBreakdown: [],
+        trend: 'stable',
+        trendPercentage: 0,
+        successRate: 0,
+      };
+    }
   }
 
   // Manual Tracked Events operations (TICKET B1)

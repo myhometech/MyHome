@@ -9,14 +9,9 @@ import { apiRequest } from '@/lib/queryClient';
 import { OCRErrorHandler } from './OCRErrorHandler';
 import { 
   Brain, 
-  CheckCircle, 
   Clock, 
-  DollarSign,
   FileText, 
-  ListTodo, 
-  Calendar,
   Users,
-  Shield,
   Loader2,
   Trash2
 } from 'lucide-react';
@@ -71,7 +66,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
 
   // INSIGHT-102: Fetch only primary insights (no secondary access)
   const { data: insightData, isLoading, error } = useQuery({
-    queryKey: ['/api/documents', documentId, 'insights', 'primary'],
+    queryKey: ['/api/documents', documentId, 'insights', { tier: 'primary' }],
     queryFn: async () => {
       const response = await fetch(`/api/documents/${documentId}/insights?tier=primary`);
       if (!response.ok) throw new Error('Failed to fetch insights');
@@ -186,7 +181,9 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   if (error) {
     // ANDROID-303: Handle insight generation errors and provide appropriate feedback
     const errorMessage = error?.message || 'Unknown error';
-    const isInsightError = errorMessage.includes('INSIGHT_') || errorMessage.includes('insight');
+    const isInsightError = errorMessage.toLowerCase().includes('insight') || 
+                          errorMessage.includes('INSIGHT_') ||
+                          error?.code === 'INSIGHT_ERROR';
     
     return (
       <Card>

@@ -173,8 +173,9 @@ export function extractUserIdFromRecipient(recipient: string): { userId: string 
     // Normalize recipient to lowercase for consistent parsing
     const normalizedRecipient = recipient.toLowerCase().trim();
 
-    // Support subaddressing format: upload+userId@domain
-    // Ensure there's exactly one @ symbol and the format is correct
+    // Support both subaddressing formats:
+    // 1. upload+userId@domain (original format)
+    // 2. u[userID]@uploads.myhome-tech.com (production Mailgun format)
     const atCount = (normalizedRecipient.match(/@/g) || []).length;
     if (atCount !== 1) {
       return {
@@ -183,6 +184,7 @@ export function extractUserIdFromRecipient(recipient: string): { userId: string 
       };
     }
 
+    // Try original subaddress format: upload+userId@domain
     const subaddressMatch = normalizedRecipient.match(/^upload\+([^@]+)@([^@]+)$/);
     if (subaddressMatch) {
       const userId = subaddressMatch[1];
@@ -196,11 +198,31 @@ export function extractUserIdFromRecipient(recipient: string): { userId: string 
         };
       }
 
-      // Log successful extraction for monitoring
-      console.log(`✅ Extracted user ID from subaddress:`, {
+      console.log(`✅ Extracted user ID from subaddress format:`, {
         recipient: normalizedRecipient,
         userId,
         domain
+      });
+
+      return { userId };
+    }
+
+    // Try production format: u[userID]@uploads.myhome-tech.com
+    const productionMatch = normalizedRecipient.match(/^u([^@]+)@uploads\.myhome-tech\.com$/);
+    if (productionMatch) {
+      const userId = productionMatch[1];
+
+      // Validate user ID format (alphanumeric, hyphens, underscores)
+      if (!/^[a-z0-9\-_]+$/.test(userId)) {
+        return {
+          userId: null,
+          error: `Invalid user ID format in production format: ${userId}. Must contain only letters, numbers, hyphens, and underscores`
+        };
+      }
+
+      console.log(`✅ Extracted user ID from production format:`, {
+        recipient: normalizedRecipient,
+        userId
       });
 
       return { userId };
@@ -210,14 +232,14 @@ export function extractUserIdFromRecipient(recipient: string): { userId: string 
     if (normalizedRecipient.match(/^upload@/)) {
       return {
         userId: null,
-        error: 'Missing user ID in subaddress. Use format: upload+userID@myhome-tech.com'
+        error: 'Missing user ID in subaddress. Use format: upload+userID@myhome-tech.com or u[userID]@uploads.myhome-tech.com'
       };
     }
 
     // Unrecognized format
     return {
       userId: null,
-      error: `Unsupported recipient format: ${normalizedRecipient}. Expected format: upload+userID@myhome-tech.com`
+      error: `Unsupported recipient format: ${normalizedRecipient}. Expected format: upload+userID@myhome-tech.com or u[userID]@uploads.myhome-tech.com`
     };
 
   } catch (error) {

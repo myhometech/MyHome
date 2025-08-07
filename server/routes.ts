@@ -3048,19 +3048,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           error: 'Invalid recipient format',
           details: userExtractionResult.error,
-          expectedFormat: 'upload+userID@myhome-tech.com'
+          expectedFormat: 'upload+userID@myhome-tech.com or u[userID]@uploads.myhome-tech.com'
         });
       }
 
       const userId = userExtractionResult.userId;
 
-      // Debug: Verify userId is properly extracted
-      console.log('🐛 DEBUG: Extracted userId:', { 
-        userId, 
-        type: typeof userId, 
-        truthyValue: !!userId,
-        stringLength: userId?.length || 'undefined'
-      });
+
 
       // Verify user exists with comprehensive error handling
       let user;
@@ -3427,6 +3421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       // TICKET 6: Log critical system errors
+      console.error('❌ Critical error in email ingestion:', error instanceof Error ? error.message : String(error));
       EmailUploadLogger.logError({
         errorType: 'system',
         errorCode: 'WEBHOOK_PROCESSING_FAILED',

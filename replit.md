@@ -141,14 +141,14 @@ Color Palette: Extended the main blue (HSL(207, 90%, 54%) / #1E90FF) with two co
 
 ## Recent Changes
 
-### August 7, 2025 - Deployment Configuration Fix
-- **Issue**: Production deployment was failing with SyntaxError due to shebang line in `start-production.js` and CommonJS syntax incompatibility with ES modules
-- **Solution**: 
-  - Removed shebang line (`#!/usr/bin/env node`) from `start-production.js`
-  - Converted `start-production.js` from CommonJS to ES module syntax (replaced `require()` with `import`)
-  - Updated `server/production-start.js` to use ES module syntax and renamed to `.mjs` extension
-- **Result**: Deployment script now compatible with project's ES module configuration (`"type": "module"` in package.json)
-- **Status**: ✅ Fixed - Production server starts successfully without syntax errors
+### August 7, 2025 - Email Ingestion Production Format Fix
+- **Issue**: Live production email ingestion was failing with 500 errors due to recipient format mismatch
+- **Root Cause**: System expected format `upload+userID@myhome-tech.com` but Mailgun production uses `u[userID]@uploads.myhome-tech.com`
+- **Solution**: Updated `extractUserIdFromRecipient` function in `server/mailgunService.ts` to support both formats:
+  - Original development format: `upload+userID@domain`  
+  - Production Mailgun format: `u[userID]@uploads.myhome-tech.com`
+- **Testing**: End-to-end verification confirms successful email processing, file storage to GCS, and document creation
+- **Status**: ✅ Fixed - Email ingestion now processes production emails correctly with 200 responses
 
 ## External Dependencies
 

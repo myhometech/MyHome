@@ -191,11 +191,35 @@ export function VirtualizedDocumentList({
   }
 
   if (error) {
+    console.error('Document loading error:', error);
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center text-gray-600">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <p className="text-lg font-medium">Failed to load documents</p>
-          <p className="text-sm mt-1">Please try refreshing the page</p>
+          <p className="text-sm mt-2 mb-4">
+            {error instanceof Error ? error.message : 'Please check your connection and try again'}
+          </p>
+          <div className="space-x-2">
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline"
+              size="sm"
+            >
+              Refresh Page
+            </Button>
+            <Button 
+              onClick={() => {
+                console.log('Retrying document fetch...');
+                // Trigger refetch if available
+                if (typeof refetch === 'function') refetch();
+              }} 
+              variant="default"
+              size="sm"
+            >
+              Try Again
+            </Button>
+          </div>
         </div>
       </div>
     );

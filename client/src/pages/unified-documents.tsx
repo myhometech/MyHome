@@ -383,6 +383,7 @@ export default function UnifiedDocuments() {
   };
 
   if (documentsError) {
+    console.error('Documents page error:', documentsError);
     return (
       <div className="min-h-screen bg-gray-50">
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
@@ -391,10 +392,26 @@ export default function UnifiedDocuments() {
             <CardContent className="p-6 text-center">
               <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">Failed to Load Documents</h3>
-              <p className="text-gray-600 mb-4">There was an error loading your documents.</p>
-              <Button onClick={() => window.location.reload()}>
-                Try Again
-              </Button>
+              <p className="text-gray-600 mb-4">
+                {documentsError instanceof Error 
+                  ? `Error: ${documentsError.message}` 
+                  : 'There was an error loading your documents. Please check your connection.'
+                }
+              </p>
+              <div className="space-x-2">
+                <Button onClick={() => window.location.reload()}>
+                  Refresh Page
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    console.log('Retrying document fetch...');
+                    queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+                  }}
+                >
+                  Retry
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </main>

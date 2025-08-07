@@ -207,6 +207,7 @@ export default function InsightsFirstPage() {
   };
 
   if (documentsError) {
+    console.error('Insights page documents error:', documentsError);
     return (
       <div className="min-h-screen bg-gray-50">
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
@@ -215,10 +216,20 @@ export default function InsightsFirstPage() {
             <CardContent className="p-8 text-center">
               <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">Unable to load documents</h3>
-              <p className="text-gray-600 mb-4">Please try refreshing the page.</p>
-              <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/documents"] })}>
-                Retry
-              </Button>
+              <p className="text-gray-600 mb-4">
+                {documentsError instanceof Error 
+                  ? `Connection error: ${documentsError.message}` 
+                  : 'Please check your internet connection and try again.'
+                }
+              </p>
+              <div className="space-x-2">
+                <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/documents"] })}>
+                  Retry
+                </Button>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Refresh Page
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </main>

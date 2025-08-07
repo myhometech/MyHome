@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { initializeFrontendSentry } from "@/lib/monitoring";
+import NetworkStatusBanner from "@/components/network-status-banner";
 
 // Initialize frontend error tracking
 try {
@@ -119,8 +120,9 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <Toaster />
+          <NetworkStatusBanner />
           <Router />
+          <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>

@@ -768,41 +768,7 @@ export default function UnifiedDocumentCard({
                                 </div>
                               )}
                             </div>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 px-2 text-xs"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  updateInsightStatusMutation.mutate({
-                                    insightId: insight.id,
-                                    status: 'resolved'
-                                  });
-                                }}
-                                disabled={updateInsightStatusMutation.isPending}
-                              >
-                                {updateInsightStatusMutation.isPending ? 'Processing...' : 'Done'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-6 px-2 text-xs"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  console.log('[DEBUG] Dismiss button clicked for insight:', insight.id);
-                                  updateInsightStatusMutation.mutate({
-                                    insightId: insight.id,
-                                    status: 'dismissed'
-                                  });
-                                }}
-                                disabled={updateInsightStatusMutation.isPending}
-                              >
-                                {updateInsightStatusMutation.isPending ? 'Dismissing...' : 'Dismiss'}
-                              </Button>
-                            </div>
+
                           </div>
                         </div>
                       );

@@ -9,6 +9,7 @@ import { Brain, Filter, RefreshCw, TrendingUp, AlertCircle, CheckCircle, Clock, 
 import { InsightCard } from './insight-card';
 import { InsightsCalendar } from './insights-calendar';
 import { DocumentInsight } from '@shared/schema';
+import { Label } from '@/components/ui/label';
 
 interface InsightsResponse {
   insights: DocumentInsight[];
@@ -61,7 +62,7 @@ export function AIInsightsDashboard() {
   });
 
   const insights = insightsData?.insights || [];
-  
+
   // TICKET 8: Since we're filtering at the API level, all returned insights match the active tab
   const tabInsights = insights;
 
@@ -180,7 +181,7 @@ export function AIInsightsDashboard() {
         </Card>
       </div>
 
-      {/* TICKET 9: View Toggle and Filters Section */}
+      {/* Filters & View Toggle Section */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -219,7 +220,7 @@ export function AIInsightsDashboard() {
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">Status</label>
+              <Label className="text-sm font-medium mb-2 block">Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="All statuses" />
@@ -233,7 +234,7 @@ export function AIInsightsDashboard() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Type</label>
+              <Label className="text-sm font-medium mb-2 block">Type</Label>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="All types" />
@@ -250,7 +251,7 @@ export function AIInsightsDashboard() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Priority</label>
+              <Label className="text-sm font-medium mb-2 block">Priority</label>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="All priorities" />
@@ -264,7 +265,7 @@ export function AIInsightsDashboard() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Sort By</label>
+              <Label className="text-sm font-medium mb-2 block">Sort By</label>
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sort by" />

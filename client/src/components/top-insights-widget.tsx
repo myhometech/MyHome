@@ -136,7 +136,7 @@ export default function TopInsightsWidget() {
             <p className="text-gray-600 mb-4">
               No actions needed right now — but we're keeping an eye out for anything important.
             </p>
-            <Link href="/">
+            <Link href="/insights">
               <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                 <Brain className="w-4 h-4 mr-2" />
                 Go to AI Insights Dashboard
@@ -155,15 +155,32 @@ export default function TopInsightsWidget() {
           <CardTitle className="flex items-center gap-2 text-lg">
             <Brain className="w-5 h-5 text-blue-600" />
             AI Insights
-            <Badge variant="secondary" className="ml-2">
-              {insights.length}
-            </Badge>
+            <div className="flex gap-1 ml-2">
+              <Badge variant="secondary" className="text-xs">
+                {insights.length} shown
+              </Badge>
+              {data?.total && data.total > insights.length && (
+                <Badge variant="outline" className="text-xs text-orange-600 border-orange-200">
+                  +{data.total - insights.length} more
+                </Badge>
+              )}
+            </div>
           </CardTitle>
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="text-sm">
-              View All →
-            </Button>
-          </Link>
+          <div className="flex gap-1">
+            {data?.total && data.total > 10 && (
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => {
+                // Quick filter to high priority only
+                window.location.href = '/insights?priority=high';
+              }}>
+                High Priority
+              </Button>
+            )}
+            <Link href="/insights">
+              <Button variant="ghost" size="sm" className="text-sm">
+                Manage →
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -199,23 +216,69 @@ export default function TopInsightsWidget() {
                       {insight.title}
                     </p>
                   </div>
-                  <Link href={`/document/${insight.documentId}`}>
-                    <Button size="sm" variant="outline" className="shrink-0 text-xs">
-                      View
+                  <div className="flex gap-1">
+                    <Link href={`/document/${insight.documentId}`}>
+                      <Button size="sm" variant="outline" className="shrink-0 text-xs px-2">
+                        View
+                      </Button>
+                    </Link>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="shrink-0 text-xs px-2 text-gray-500 hover:text-gray-700"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Quick dismiss functionality
+                        fetch(`/api/insights/${insight.id}/status`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ status: 'dismissed' })
+                        }).then(() => {
+                          // Refresh the widget
+                          window.location.reload();
+                        });
+                      }}
+                    >
+                      ×
                     </Button>
-                  </Link>
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
         
-        {insights.length >= 5 && (
+        {data?.total && data.total > insights.length && (
           <div className="mt-4 pt-3 border-t">
-            <Link href="/">
+            <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+              <span>{data.total - insights.length} more insights available</span>
+              <div className="flex gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs h-6 px-2"
+                  onClick={() => {
+                    // Bulk dismiss all low priority
+                    if (confirm('Dismiss all low priority insights?')) {
+                      fetch('/api/insights/bulk-dismiss', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ priority: 'low' })
+                      }).then(() => window.location.reload());
+                    }
+                  }}
+                >
+                  Dismiss Low Priority
+                </Button>
+              </div>
+            </div>
+            <Link href="/insights">
               <Button variant="outline" className="w-full" size="sm">
                 <Brain className="w-4 h-4 mr-2" />
-                View All Insights
+                Manage All Insights ({data.total})
               </Button>
             </Link>
           </div>

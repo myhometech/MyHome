@@ -1,6 +1,4 @@
 
-#!/usr/bin/env node
-
 // PRODUCTION STARTUP DIAGNOSTIC SCRIPT - Complete rewrite for Replit deployment
 console.log('='.repeat(80));
 console.log('🚀 PRODUCTION DEPLOYMENT STARTUP DIAGNOSTICS');
@@ -30,8 +28,9 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // File system diagnostics
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { createRequire } from 'module';
 
 console.log('\n📁 FILE SYSTEM DIAGNOSTICS:');
 console.log('📍 Current Directory:', process.cwd());
@@ -73,6 +72,7 @@ console.log('✅ dist/index.js found');
 // Syntax check the built file
 console.log('\n🔍 SYNTAX VALIDATION:');
 try {
+  const require = createRequire(import.meta.url);
   require.resolve(serverPath);
   console.log('✅ dist/index.js syntax is valid');
 } catch (error) {
@@ -97,7 +97,7 @@ console.log('='.repeat(80));
 
 // Start the actual server
 try {
-  require(serverPath);
+  const { default: serverModule } = await import(serverPath);
   console.log('✅ Server module loaded successfully');
 } catch (error) {
   console.error('❌ FATAL SERVER STARTUP ERROR:', error.message);

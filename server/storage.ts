@@ -1243,10 +1243,40 @@ export class DatabaseStorage implements IStorage {
 
   // DOC-501: Document insights operations
   async createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight> {
+    console.log('🔍 [INSIGHT DEBUG] Creating insight with values:', {
+      id: insight.id,
+      documentId: insight.documentId,
+      documentIdType: typeof insight.documentId,
+      userId: insight.userId,
+      userIdType: typeof insight.userId,
+      type: insight.type,
+      priority: insight.priority,
+      tier: insight.tier,
+      fullInsight: JSON.stringify(insight, null, 2)
+    });
+    
+    // Validate critical fields before database insertion
+    if (insight.documentId !== null && insight.documentId !== undefined) {
+      if (typeof insight.documentId === 'string') {
+        const parsed = parseInt(insight.documentId);
+        if (isNaN(parsed)) {
+          console.error('❌ [INSIGHT ERROR] documentId string is not parseable:', insight.documentId);
+          throw new Error(`Invalid documentId: cannot parse "${insight.documentId}" to integer`);
+        }
+        insight.documentId = parsed;
+        console.log('🔧 [INSIGHT FIX] Converted documentId from string to number:', parsed);
+      } else if (typeof insight.documentId !== 'number') {
+        console.error('❌ [INSIGHT ERROR] documentId is not a number:', insight.documentId, 'type:', typeof insight.documentId);
+        throw new Error(`Invalid documentId type: expected number, got ${typeof insight.documentId}`);
+      }
+    }
+    
     const [newInsight] = await db
       .insert(documentInsights)
       .values(insight)
       .returning();
+      
+    console.log('✅ [INSIGHT DEBUG] Successfully created insight:', newInsight.id);
     return newInsight;
   }
 
@@ -1658,7 +1688,15 @@ export class DatabaseStorage implements IStorage {
         .select({ id: documents.id })
         .from(documents)
         .where(and(
-          inArray(documents.id, event.linkedDocumentIds.map(id => parseInt(id))),
+          inArray(documents.id, event.linkedDocumentIds.map(id => {
+            console.log('🔍 [PARSE DEBUG] Converting event.linkedDocumentId:', id, 'type:', typeof id);
+            const parsed = parseInt(id);
+            if (isNaN(parsed)) {
+              console.error('❌ [PARSE ERROR] Invalid event document ID:', id);
+              throw new Error(`Invalid event document ID: ${id}`);
+            }
+            return parsed;
+          })),
           eq(documents.userId, event.createdBy)
         ));
       
@@ -1673,7 +1711,15 @@ export class DatabaseStorage implements IStorage {
         .select({ id: userAssets.id })
         .from(userAssets)
         .where(and(
-          eq(userAssets.id, parseInt(event.linkedAssetId)),
+          eq(userAssets.id, (() => {
+            console.log('🔍 [PARSE DEBUG] Converting event.linkedAssetId:', event.linkedAssetId, 'type:', typeof event.linkedAssetId);
+            const parsed = parseInt(event.linkedAssetId);
+            if (isNaN(parsed)) {
+              console.error('❌ [PARSE ERROR] Invalid event asset ID:', event.linkedAssetId);
+              throw new Error(`Invalid event asset ID: ${event.linkedAssetId}`);
+            }
+            return parsed;
+          })()),
           eq(userAssets.userId, event.createdBy)
         ));
       
@@ -1706,7 +1752,15 @@ export class DatabaseStorage implements IStorage {
         .select({ id: documents.id })
         .from(documents)
         .where(and(
-          inArray(documents.id, updates.linkedDocumentIds.map(id => parseInt(id))),
+          inArray(documents.id, updates.linkedDocumentIds.map(id => {
+            console.log('🔍 [PARSE DEBUG] Converting linkedDocumentId:', id, 'type:', typeof id);
+            const parsed = parseInt(id);
+            if (isNaN(parsed)) {
+              console.error('❌ [PARSE ERROR] Invalid document ID:', id);
+              throw new Error(`Invalid document ID: ${id}`);
+            }
+            return parsed;
+          })),
           eq(documents.userId, userId)
         ));
       
@@ -1721,7 +1775,15 @@ export class DatabaseStorage implements IStorage {
         .select({ id: userAssets.id })
         .from(userAssets)
         .where(and(
-          eq(userAssets.id, parseInt(updates.linkedAssetId)),
+          eq(userAssets.id, (() => {
+            console.log('🔍 [PARSE DEBUG] Converting linkedAssetId:', updates.linkedAssetId, 'type:', typeof updates.linkedAssetId);
+            const parsed = parseInt(updates.linkedAssetId);
+            if (isNaN(parsed)) {
+              console.error('❌ [PARSE ERROR] Invalid asset ID:', updates.linkedAssetId);
+              throw new Error(`Invalid asset ID: ${updates.linkedAssetId}`);
+            }
+            return parsed;
+          })()),
           eq(userAssets.userId, userId)
         ));
       

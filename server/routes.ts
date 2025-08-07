@@ -1179,8 +1179,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const actionUrl = `/documents/${documentId}`;
         const dueDate = extractDueDate(insight);
 
+        console.log('🔍 [ROUTE DEBUG] Creating insight with documentId:', documentId, 'type:', typeof documentId);
+        console.log('🔍 [ROUTE DEBUG] Insight confidence:', insight.confidence, 'rounded:', Math.round(insight.confidence * 100));
+        console.log('🔍 [ROUTE DEBUG] Processing time:', insights.processingTime, 'type:', typeof insights.processingTime);
+        
         await storage.createDocumentInsight({
-          documentId,
+          documentId, // Should be number from parseInt above
           userId,
           insightId: insight.id,
           message, // TICKET 4: User-facing message

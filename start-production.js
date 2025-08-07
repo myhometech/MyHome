@@ -13,7 +13,7 @@ console.log('🚀 PRODUCTION STARTUP: Building server-only bundle to avoid stati
 // Build ONLY the server bundle - no static files that confuse Replit
 try {
   console.log('🔨 Building server bundle...');
-  execSync('esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist --outfile=dist/index.js', { stdio: 'inherit' });
+  execSync('esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist', { stdio: 'inherit' });
   console.log('✅ Server bundle built successfully');
 } catch (error) {
   console.error('❌ Build failed:', error.message);

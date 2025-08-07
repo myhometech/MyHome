@@ -18,7 +18,7 @@ export function initializeSentry() {
     // Enhanced error tracking
     integrations: [
       // HTTP request monitoring  
-      Sentry.httpIntegration({ tracing: true }),
+      Sentry.httpIntegration(),
       // Console integration
       Sentry.consoleIntegration(),
       // OnUncaughtException integration

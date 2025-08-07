@@ -84,10 +84,10 @@ const upload = multer({
 const mailgunUpload = multer({
   storage: multer.memoryStorage(), // Store in memory for webhook processing
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit per file
-    files: 5, // Maximum 5 attachments
-    fieldSize: 20 * 1024 * 1024, // 20MB field size for large email content
-    fields: 20 // Maximum 20 form fields
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file (Mailgun standard)
+    files: 10, // Maximum 10 attachments (increased for multiple attachments)
+    fieldSize: 50 * 1024 * 1024, // 50MB field size for large email content with inline images
+    fields: 1000 // Maximum 1000 form fields (increased for complex emails with many headers)
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [

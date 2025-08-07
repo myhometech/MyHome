@@ -8,9 +8,9 @@ Preferred communication style: Simple, everyday language.
 Project Direction: Building iOS version of MyHome document management app.
 Essential Features: Phone camera scanning for document digitization, future Google Drive integration planned.
 Interface Design: Clean insights-first layout with single document library section below AI insights, single main heading structure.
-Document Cards: Subtle colored file type icons only (emerald for images, red for PDFs, blue for documents) with clean white backgrounds.
+Document Cards: Subtle colored file type icons only (emerald for images, calm red for PDFs, blue for documents) with warm ivory backgrounds (#FAF4EF).
 Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot menu for actions (edit/delete).
-Color Palette: Extended the main blue (HSL(207, 90%, 54%) / #1E90FF) with two complementary colors: Purple-blue accent (#1E20FF / HSL(239, 100%, 56%)) and Cyan accent (#1EFFFD / HSL(180, 100%, 56%)) for enhanced visual hierarchy and accent elements.
+Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting colors for a homely feel: Warm Background (#FAF4EF linen/ivory), Trust Base (#2B2F40 slate blue), Sage Green (#A5C9A1), Dusty Lavender (#A1A4D6), and Soft Coral (#E28F83). Document type colors: Emerald for images, calm red (#E74C3C) for PDFs, blue for documents.
 
 ### Application Behavior Preferences
 1. **Document Upload**: Auto-suggest categories using AI analysis with user confirmation before saving

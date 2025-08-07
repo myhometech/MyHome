@@ -189,17 +189,17 @@
 }
 
 :root {
-  --background: hsl(0, 0%, 100%);
+  --background: #FAF4EF; /* Warm ivory instead of stark white */
   --foreground: hsl(220, 14.3%, 4.1%);
   --muted: hsl(220, 4.8%, 95.9%);
   --muted-foreground: hsl(220, 5.3%, 44.7%);
-  --popover: hsl(0, 0%, 100%);
+  --popover: #FAF4EF; /* Warm ivory for popovers */
   --popover-foreground: hsl(220, 14.3%, 4.1%);
-  --card: hsl(0, 0%, 100%);
+  --card: #FAF4EF; /* Warm ivory for cards */
   --card-foreground: hsl(220, 14.3%, 4.1%);
   --border: hsl(220, 5.9%, 90%);
   --input: hsl(220, 5.9%, 90%);
-  --primary: hsl(207, 90%, 54%);
+  --primary: hsl(207, 90%, 54%); /* Primary Blue maintained */
   --primary-foreground: hsl(211, 100%, 99%);
   --secondary: hsl(220, 4.8%, 95.9%);
   --secondary-foreground: hsl(220, 9.8%, 10%);
@@ -210,15 +210,22 @@
   --ring: hsl(220, 14.3%, 4.1%);
   --radius: 0.5rem;
   
-  /* Custom colors matching the design */
-  --surface: hsl(215, 25%, 98%);
+  /* Custom colors for warmer, homely feel */
+  --surface: hsl(215, 25%, 98%); /* Light blue-gray surfaces */
   --text-secondary: hsl(215, 13.8%, 34.1%);
-  --accent-green: hsl(158, 64%, 52%);
   --border-light: hsl(215, 20%, 89%);
   
-  /* Extended color palette */
-  --accent-purple: hsl(239, 100%, 56%); /* #1E20FF - vibrant purple-blue */
-  --accent-cyan: hsl(180, 100%, 56%); /* #1EFFFD - bright cyan */
+  /* New warm color palette */
+  --warm-background: #FAF4EF; /* Linen/warm ivory */
+  --trust-base: #2B2F40; /* Slate Blue for sidebars, headers */
+  --sage-green: #A5C9A1; /* Secondary actions, confirmations */
+  --dusty-lavender: #A1A4D6; /* Icon accents, tags */
+  --soft-coral: #E28F83; /* Warm highlights, mild attention */
+  
+  /* Document type colors (warmer tones) */
+  --doc-emerald: hsl(158, 64%, 52%); /* Images - emerald green */
+  --doc-red: #E74C3C; /* PDFs - calm red */
+  --doc-blue: hsl(207, 90%, 54%); /* Documents - primary blue */
 }
 
 .dark {
@@ -285,29 +292,65 @@
     background-color: hsl(var(--accent-green));
   }
   
-  /* Purple accent utilities */
-  .text-accent-purple {
-    color: hsl(var(--accent-purple));
+  /* Warm color utilities */
+  .bg-warm-background {
+    background-color: var(--warm-background);
   }
   
-  .bg-accent-purple {
-    background-color: hsl(var(--accent-purple));
+  .bg-trust-base {
+    background-color: var(--trust-base);
   }
   
-  .border-accent-purple {
-    border-color: hsl(var(--accent-purple));
+  .text-trust-base {
+    color: var(--trust-base);
   }
   
-  /* Cyan accent utilities */
-  .text-accent-cyan {
-    color: hsl(var(--accent-cyan));
+  .text-sage-green {
+    color: var(--sage-green);
   }
   
-  .bg-accent-cyan {
-    background-color: hsl(var(--accent-cyan));
+  .bg-sage-green {
+    background-color: var(--sage-green);
   }
   
-  .border-accent-cyan {
-    border-color: hsl(var(--accent-cyan));
+  .border-sage-green {
+    border-color: var(--sage-green);
+  }
+  
+  .text-dusty-lavender {
+    color: var(--dusty-lavender);
+  }
+  
+  .bg-dusty-lavender {
+    background-color: var(--dusty-lavender);
+  }
+  
+  .border-dusty-lavender {
+    border-color: var(--dusty-lavender);
+  }
+  
+  .text-soft-coral {
+    color: var(--soft-coral);
+  }
+  
+  .bg-soft-coral {
+    background-color: var(--soft-coral);
+  }
+  
+  .border-soft-coral {
+    border-color: var(--soft-coral);
+  }
+  
+  /* Document type color utilities */
+  .text-doc-emerald {
+    color: var(--doc-emerald);
+  }
+  
+  .text-doc-red {
+    color: var(--doc-red);
+  }
+  
+  .text-doc-blue {
+    color: var(--doc-blue);
   }
 }

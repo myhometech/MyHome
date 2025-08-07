@@ -71,7 +71,7 @@ export default function InsightsFirstPage() {
   const [insightPriorityFilter, setInsightPriorityFilter] = useState<string>("all");
   const [insightStatusFilter, setInsightStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("priority");
-  
+
   // Multi-select state
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
@@ -92,7 +92,7 @@ export default function InsightsFirstPage() {
         description: `${result.success || selectedDocuments.size} documents deleted successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`,
         variant: result.failed > 0 ? "destructive" : "default",
       });
-      
+
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
       setSelectedDocuments(new Set());
@@ -134,7 +134,13 @@ export default function InsightsFirstPage() {
   // Fetch documents
   const { data: documents = [], isLoading: documentsLoading, error: documentsError } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
-    retry: false,
+    queryFn: async () => {
+      const response = await fetch("/api/documents", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch documents");
+      return response.json();
+    },
   });
 
   // Fetch categories
@@ -158,9 +164,9 @@ export default function InsightsFirstPage() {
     const matchesSearch = !searchQuery || 
       doc.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       doc.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesCategory = selectedCategory === null || doc.categoryId === selectedCategory;
-    
+
     return matchesSearch && matchesCategory;
   });
 
@@ -240,7 +246,7 @@ export default function InsightsFirstPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-      
+
       <main className="container mx-auto px-4 py-8 space-y-6">
         {/* Header with MyHome Title and Add Document Button */}
         <div className="flex items-center justify-between">
@@ -251,7 +257,7 @@ export default function InsightsFirstPage() {
               <p className="text-gray-600">Smart insights from your document library</p>
             </div>
           </div>
-          
+
           <AddDropdownMenu 
             size="lg" 
             className="bg-blue-600 hover:bg-blue-700"
@@ -288,7 +294,7 @@ export default function InsightsFirstPage() {
                   <SmartHelpTooltip helpKey="document-categories" />
                 </div>
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant={selectedCategory === null ? 'default' : 'outline'}
@@ -357,7 +363,7 @@ export default function InsightsFirstPage() {
                 </Button>
               </SmartHelpTooltip>
             </div>
-            
+
             <div className="text-sm text-gray-600">
               {bulkMode && selectedDocuments.size > 0 
                 ? `${selectedDocuments.size} selected`
@@ -389,7 +395,7 @@ export default function InsightsFirstPage() {
                       </>
                     )}
                   </Button>
-                  
+
                   {selectedDocuments.size > 0 && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>

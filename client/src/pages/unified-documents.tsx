@@ -127,6 +127,12 @@ export default function UnifiedDocuments() {
       if (!response.ok) throw new Error("Failed to fetch documents");
       return response.json();
     },
+    retry: (failureCount, error: any) => {
+      if (error?.status === 401 || error?.status === 403) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 
   // Fetch all insights for filtering

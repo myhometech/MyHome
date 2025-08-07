@@ -263,7 +263,7 @@ export default function UnifiedUploadButton({ onUpload, suppressDialog = false }
   const handleFileUpload = () => {
     if (fileInputRef.current) {
       fileInputRef.current.removeAttribute('capture');
-      fileInputRef.current.setAttribute('accept', 'application/pdf,image/*');
+      fileInputRef.current.setAttribute('accept', 'application/pdf,image/*,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx');
       fileInputRef.current.click();
     }
   };

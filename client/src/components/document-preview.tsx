@@ -34,6 +34,9 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   // Helper functions
   const isImage = () => document.mimeType.startsWith('image/');
   const isPDF = () => document.mimeType === 'application/pdf';
+  const isDocx = () => document.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+                      document.mimeType === 'application/vnd.ms-word.document.macroEnabled.12' ||
+                      document.mimeType === 'application/msword';
   const getPreviewUrl = () => `/api/documents/${document.id}/preview`;
 
   // Initialize loading state
@@ -154,7 +157,30 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
             </div>
           )}
 
-          {!isLoading && !error && !isImage() && !isPDF() && (
+          {!isLoading && !error && isDocx() && (
+            <div className="flex items-center justify-center h-96 bg-blue-50">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-8 h-8 text-blue-600" />
+                </div>
+                <p className="text-lg font-medium text-gray-900">DOCX Document</p>
+                <p className="text-sm text-gray-600 mb-4">
+                  Word document processed and ready for AI insights
+                </p>
+                <div className="space-y-2">
+                  <Button onClick={onDownload} variant="outline" className="w-full">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Original DOCX
+                  </Button>
+                  <p className="text-xs text-gray-500">
+                    Text extracted for analysis and insights generation
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isLoading && !error && !isImage() && !isPDF() && !isDocx() && (
             <div className="flex items-center justify-center h-96 bg-gray-50">
               <div className="text-center">
                 <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />

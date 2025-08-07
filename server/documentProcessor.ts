@@ -1,6 +1,18 @@
 import { extractTextFromImage, extractTextFromPDF, isImageFile, isPDFFile } from './ocrService.js';
 import { generateDocumentSummary, extractExpiryDatesFromText } from './ocrService.js';
 
+/**
+ * Check if file is a DOCX document
+ */
+function isDocxFile(mimeType: string): boolean {
+  const docxMimeTypes = [
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-word.document.macroEnabled.12',
+    'application/msword' // Legacy DOC files
+  ];
+  return docxMimeTypes.includes(mimeType);
+}
+
 export interface ProcessedDocument {
   extractedText: string;
   summary: string | null;
@@ -36,6 +48,36 @@ export class DocumentProcessor {
         // Process image files with enhanced OCR
         extractedText = await extractTextFromImage(filePath, mimeType);
         processingType = 'scanned_document';
+      } else if (isDocxFile(mimeType)) {
+        // Process DOCX files - extract text directly using Mammoth
+        const docxConversionService = await import('./docxConversionService');
+        const textExtractionResult = await docxConversionService.default.extractTextFromDocx(filePath);
+        
+        if (textExtractionResult.success && textExtractionResult.extractedText) {
+          extractedText = textExtractionResult.extractedText;
+          processingType = 'pdf'; // Treat as structured document like PDF
+          
+          console.log(`✅ DOCX text extracted: ${extractedText.length} characters from ${fileName}`);
+        } else {
+          // Fallback: try PDF conversion approach
+          console.log(`Falling back to PDF conversion for DOCX: ${fileName}`);
+          const conversionResult = await docxConversionService.default.convertDocxToPdf(filePath);
+          
+          if (conversionResult.success && conversionResult.pdfPath) {
+            const { extractTextFromPDF } = await import('./ocrService');
+            extractedText = await extractTextFromPDF(conversionResult.pdfPath);
+            processingType = 'pdf';
+            
+            // Clean up temporary PDF file
+            setTimeout(() => {
+              docxConversionService.default.cleanup([conversionResult.pdfPath!]);
+            }, 5000);
+            
+            console.log(`✅ DOCX processed via PDF conversion fallback: ${fileName}`);
+          } else {
+            throw new Error(`DOCX processing failed: ${textExtractionResult.error}`);
+          }
+        }
       } else {
         throw new Error(`Unsupported file type: ${mimeType}`);
       }

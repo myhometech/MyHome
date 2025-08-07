@@ -17,6 +17,7 @@ import { tagSuggestionService } from "./tagSuggestionService";
 import { aiInsightService } from "./aiInsightService";
 import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
+import docxConversionService from './docxConversionService';
 import { featureFlagService } from './featureFlagService';
 import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQuery } from './monitoring';
 
@@ -67,7 +68,11 @@ const upload = multer({
       'image/heic',    // iPhone HEIC format
       'image/heif',    // iPhone HEIF format
       'image/tiff',    // TIFF format sometimes used by cameras
-      'image/bmp'      // BMP format
+      'image/bmp',     // BMP format
+      // DOCX support
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-word.document.macroEnabled.12',
+      'application/msword' // Legacy DOC files
     ];
 
     // Also allow files with no specified mimetype (some camera uploads)
@@ -524,8 +529,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let finalFilePath = req.file.path;
       let finalMimeType = req.file.mimetype;
 
-      // Convert scanned images to PDF format
-      if (pdfConversionService.isImageFile(req.file.path) && (req.file.originalname.startsWith('processed_') || req.file.originalname.startsWith('document-scan-'))) {
+      // DOCX Conversion: Convert DOCX files to PDF for viewing and OCR
+      if (docxConversionService.isDocxFile(req.file.mimetype)) {
+        console.log(`Converting DOCX document to PDF: ${req.file.originalname}`);
+        
+        try {
+          const conversionResult = await docxConversionService.convertDocxToPdf(
+            req.file.path,
+            uploadsDir
+          );
+          
+          if (conversionResult.success && conversionResult.pdfPath) {
+            // Create a secondary PDF file linked to the original DOCX
+            const pdfDocumentData = {
+              ...documentData,
+              filePath: conversionResult.pdfPath,
+              mimeType: 'application/pdf',
+              name: documentData.name.replace(/\.(docx|doc)$/i, '.pdf'),
+              fileName: documentData.fileName.replace(/\.(docx|doc)$/i, '.pdf'),
+              tags: [...(documentData.tags || []), 'converted-from-docx']
+            };
+            
+            // Keep the original DOCX as primary, PDF as secondary for viewing
+            finalFilePath = conversionResult.pdfPath;
+            finalMimeType = 'application/pdf';
+            finalDocumentData = pdfDocumentData;
+            
+            console.log(`✅ DOCX converted to PDF for viewing: ${conversionResult.pdfPath}`);
+          } else {
+            console.warn(`DOCX conversion failed: ${conversionResult.error}, keeping original DOCX`);
+            // Continue with original DOCX file - will be processed differently in document processor
+          }
+        } catch (conversionError) {
+          console.error('DOCX conversion error:', conversionError);
+          // Continue with original DOCX if conversion fails
+        }
+      }
+      // Convert scanned images to PDF format  
+      else if (pdfConversionService.isImageFile(req.file.path) && (req.file.originalname.startsWith('processed_') || req.file.originalname.startsWith('document-scan-'))) {
         console.log(`Converting scanned document image to PDF: ${req.file.originalname}`);
 
         try {

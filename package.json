@@ -105,6 +105,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.453.0",
     "mailparser": "^3.7.4",
+    "mammoth": "^1.10.0",
     "memoizee": "^0.4.17",
     "memorystore": "^1.6.7",
     "msw": "^2.10.4",

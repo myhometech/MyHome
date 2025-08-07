@@ -20,7 +20,7 @@ const SUPPORTED_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // DOCX
 ];
 
-const SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.docx'];
+const SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.docx', '.doc'];
 
 // TICKET 1: Security - blocked dangerous file types
 const BLOCKED_EXTENSIONS = ['.exe', '.bat', '.scr', '.vbs', '.js', '.ps1', '.cmd', '.com', '.pif', '.jar'];

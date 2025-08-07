@@ -3,7 +3,11 @@
  * Finds and reprocesses documents that were uploaded via email but missed OCR processing
  */
 
-import { storage } from './server/storage.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+// Use CommonJS require for server modules
+const { storage } = require('./server/storage.ts');
 
 async function reprocessEmailDocuments() {
   console.log('🔧 EMAIL DOCUMENT REPROCESSING UTILITY');
@@ -45,7 +49,7 @@ async function reprocessEmailDocuments() {
     });
     
     // Import OCR queue for reprocessing
-    const { ocrQueue } = await import('./server/ocrQueue.js');
+    const { ocrQueue } = require('./server/ocrQueue.ts');
     
     let reprocessed = 0;
     let skipped = 0;
@@ -58,7 +62,7 @@ async function reprocessEmailDocuments() {
         console.log(`   Created: ${doc.createdAt}`);
         
         // Check if file supports OCR with the updated function
-        const { supportsOCR } = await import('./server/ocrService.js');
+        const { supportsOCR } = require('./server/ocrService.ts');
         
         if (!supportsOCR(doc.mimeType)) {
           console.log(`   ⏭️ SKIPPED: File type ${doc.mimeType} doesn't support OCR`);

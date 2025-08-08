@@ -11,7 +11,7 @@ import { EmailUploadLogger } from './emailUploadLogger';
 import { dvlaLookupService } from './dvlaLookupService';
 import { vehicleInsightService } from './vehicleInsightService';
 import { z } from 'zod';
-import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
+import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, isPDFFile } from "./ocrService";
 
 import { tagSuggestionService } from "./tagSuggestionService";
 import { aiInsightService } from "./aiInsightService";
@@ -189,20 +189,20 @@ const requireAdmin = async (req: any, res: any, next: any) => {
   try {
     console.log('🔧 [ADMIN CHECK] User:', req.user?.email, 'Role:', req.user?.role, 'Path:', req.path);
     console.log('🔧 [ADMIN CHECK] Session user:', req.session?.user?.email, 'Role:', req.session?.user?.role);
-    
+
     // Check both session and req.user for compatibility
     const user = req.user || req.session?.user;
-    
+
     if (!user) {
       console.log('❌ [ADMIN CHECK] No user found in session or req.user');
       return res.status(401).json({ error: "Authentication required" });
     }
-    
+
     if (user.role !== 'admin') {
       console.log('❌ [ADMIN CHECK] Admin access denied for user:', user.email, 'role:', user.role);
       return res.status(403).json({ error: "Admin access required" });
     }
-    
+
     // Ensure req.user is set for downstream handlers
     req.user = user;
     console.log('✅ [ADMIN CHECK] Admin access granted for', user.email);
@@ -226,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ANTI-UPSTREAM CSP OVERRIDE: Run after security headers to ensure final CSP
   // Check deployment environment
   const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
-  
+
   app.use((req, res, next) => {
     // Aggressive header removal to prevent any CSP interference
     res.removeHeader("Content-Security-Policy");
@@ -236,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.removeHeader("x-frame-options");
     res.removeHeader("X-Content-Security-Policy"); // Legacy webkit
     res.removeHeader("X-WebKit-CSP"); // Legacy webkit
-    
+
     // Set our comprehensive CSP policy
     const cspPolicy = isDeployment 
       ? [
@@ -260,14 +260,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "object-src 'none'",
           "frame-ancestors 'none'"
         ].join('; ') + ';';
-        
+
     console.log('🔒 Setting CSP policy (isDeployment=' + isDeployment + '):', cspPolicy.substring(0, 100) + '...');
-    
+
     // Set multiple CSP headers for maximum compatibility
     res.setHeader("Content-Security-Policy", cspPolicy);
     res.setHeader("X-Content-Security-Policy", cspPolicy); // Legacy IE
     res.setHeader("X-WebKit-CSP", cspPolicy); // Legacy WebKit
-    
+
     // Force override any middleware that might set headers later
     const originalSetHeader = res.setHeader.bind(res);
     res.setHeader = function(name, value) {
@@ -282,19 +282,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       return originalSetHeader(name, value);
     };
-    
+
     // Monitor for upstream interference
     res.on('finish', () => {
       const finalHeaders = res.getHeaders();
       const finalCSP = finalHeaders['content-security-policy'];
-      
+
       // Always log what we're sending vs what's final
       if (req.path.includes('.html') || req.path === '/') {
         console.log('🔍 CSP Debug - Path:', req.path);
         console.log('🔍 Expected CSP:', cspPolicy.substring(0, 100) + '...');
         console.log('🔍 Final CSP:', finalCSP ? finalCSP.substring(0, 100) + '...' : 'NONE');
       }
-      
+
       if (finalCSP !== cspPolicy) {
         console.error('🚨 UPSTREAM CSP INTERFERENCE DETECTED!');
         console.error('🚨 Path:', req.path);
@@ -303,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('🚨 All Response Headers:', Object.keys(finalHeaders));
       }
     });
-    
+
     next();
   });
 
@@ -1976,7 +1976,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🔧 Admin stats endpoint called');
       const stats = await storage.getAdminStats();
-      
+
       // Ensure consistent response format
       const response = {
         totalUsers: stats.totalUsers || 0,
@@ -1986,7 +1986,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalStorage: stats.totalStorageBytes || 0,
         avgProcessingTime: stats.uploadsThisMonth || 0 // Map to available property
       };
-      
+
       console.log('🔧 Admin stats response:', response);
       res.json(response);
     } catch (error) {
@@ -2122,11 +2122,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🔧 Admin activities endpoint called');
       const { severity } = req.query;
       const activities = await storage.getSystemActivities(severity as string);
-      
+
       // Return empty array if no activities found
       const response = Array.isArray(activities) ? activities : [];
       console.log('🔧 Found activities:', response.length);
-      
+
       res.json(response);
     } catch (error) {
       console.error('❌ Admin activities error:', error);
@@ -3716,7 +3716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Update document with cloud storage and encryption details
           const updateData = {
-            filePath: cloudStorageKey, // Store cloud storage key as file path
+            filePath: cloudStorageKey, // Store cloud storage key instead of local path
             gcsPath: cloudStorageKey,
             encryptedDocumentKey,
             encryptionMetadata,
@@ -3828,6 +3828,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // TICKET 6: Log processing summary
       const totalProcessingTime = Date.now() - processingStartTime;
+      console.log(`[${requestId}] Email processing summary:`, {
+        totalAttachments: attachmentValidation.validAttachments.length,
+        processedDocuments: processedDocuments.length,
+        failedDocuments: documentErrors.length,
+        processingTime: `${Date.now() - startTime}ms`
+      });
+
+      // Log processing summary
       EmailUploadLogger.logProcessingSummary({
         userId,
         sender: message.sender,
@@ -3836,9 +3844,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalAttachments: attachmentValidation.validAttachments.length,
         successfulDocuments: processedDocuments.length,
         failedDocuments: documentErrors.length,
-        totalProcessingTimeMs: totalProcessingTime,
+        totalProcessingTimeMs: Date.now() - startTime,
         requestId
       });
+
+      // Log OCR queue status for debugging
+      console.log(`[${requestId}] 🔍 OCR processing will be triggered automatically for supported document types`);
+      console.log(`[${requestId}] 📧 Email documents created - OCR and insights will process in background`);
+
+      if (processedDocuments.length > 0) {
+        console.log(`[${requestId}] ✅ ${processedDocuments.length} documents successfully created and queued for processing`);
+      }
+
 
       // Record email processing in the database
       try {

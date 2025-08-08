@@ -458,7 +458,56 @@ export class AttachmentProcessor {
 
     const document = await storage.createDocument(documentData);
     console.log(`Document metadata stored with ID: ${document.id}, Category: ${categoryResult.categoryId} (${categoryResult.source})`);
+    
+    // Queue OCR processing for email documents that support it
+    await this.queueOCRProcessing(document.id, params);
+    
     return document.id;
+  }
+
+  /**
+   * Queue OCR processing for email documents
+   */
+  private async queueOCRProcessing(
+    documentId: number,
+    params: {
+      userId: string;
+      filename: string;
+      originalFilename: string;
+      gcsPath: string;
+      mimeType: string;
+      fileSize: number;
+      emailMetadata: { from: string; subject: string };
+    }
+  ): Promise<void> {
+    try {
+      // Check if document supports OCR
+      const { supportsOCR } = await import('./ocrService');
+      
+      if (!supportsOCR(params.mimeType)) {
+        console.log(`Skipping OCR for ${params.originalFilename} - unsupported file type: ${params.mimeType}`);
+        return;
+      }
+
+      // Import and queue OCR job
+      const { ocrQueue } = await import('./ocrQueue');
+      
+      await ocrQueue.addJob({
+        documentId,
+        fileName: params.originalFilename,
+        filePathOrGCSKey: params.gcsPath,
+        mimeType: params.mimeType,
+        userId: params.userId,
+        priority: 3, // Higher priority for email imports
+        isEmailImport: true // Flag for email import processing
+      });
+
+      console.log(`✅ OCR job queued for email document ${documentId}: ${params.originalFilename}`);
+
+    } catch (error) {
+      console.error(`❌ Failed to queue OCR for email document ${documentId}:`, error);
+      // Don't throw - document creation should still succeed even if OCR queueing fails
+    }
   }
 
   /**

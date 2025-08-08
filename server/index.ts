@@ -70,20 +70,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// EXPLICIT CSP FIX: Override with permissive CSP for static assets
-app.use((req, res, next) => {
-  res.setHeader("Content-Security-Policy", [
-    "default-src 'self';",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval';",
-    "style-src 'self' 'unsafe-inline';",
-    "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *;",
-    "font-src 'self' data:;",
-    "connect-src 'self' wss: ws:;",
-    "object-src 'none';",
-    "frame-ancestors 'none';"
-  ].join(' '));
-  next();
-});
+// CSP will be set by hard override at the end of middleware chain
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -252,6 +239,12 @@ app.use((req, res, next) => {
       // Continue without static files to prevent total failure
     }
   }
+
+  // HARD CSP OVERRIDE: Apply after all other middleware to ensure it takes precedence
+  app.use((req, res, next) => {
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://myhome-docs.com; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none';");
+    next();
+  });
 
   // Add error handling AFTER static file setup to avoid interfering with routes
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

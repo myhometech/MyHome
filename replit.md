@@ -22,6 +22,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 7. Document Deletion: Premium trash bin (30-day) + confirmation dialogs for all users
 
 ## Recent Changes
+- **2025-08-08**: Fixed CSP policy blocking static assets - implemented hard override middleware to ensure permissive CSP headers take precedence over any restrictive policies from upstream middleware.
 - **2025-08-08**: Standardized all admin API calls to use centralized client (client/src/api/client.ts) - removed direct fetch calls, hardcoded URLs, and ensured proper runtime configuration support for all environments.
 - **2025-08-08**: Fixed all 37 backend routing TypeScript errors in server/routes.ts - removed mock database conflicts, added proper Drizzle imports, fixed type safety issues. Backend now compiles cleanly and all API endpoints functional.
 - **2025-08-08**: Added proper HTML meta tags for SEO/social sharing, removed development script from production build.

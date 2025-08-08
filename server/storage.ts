@@ -1311,7 +1311,7 @@ export class DatabaseStorage implements IStorage {
       // Get active users count  
       console.log('📊 Fetching active users...');
       const activeUsersResult = await this.db.execute(sql`
-        SELECT COUNT(*)::int as count FROM users WHERE isActive = true
+        SELECT COUNT(*)::int as count FROM users WHERE "isActive" = true
       `);
       const activeUsers = activeUsersResult[0]?.count || 0;
       console.log('📊 Active users:', activeUsers);
@@ -1388,18 +1388,18 @@ export class DatabaseStorage implements IStorage {
         SELECT 
           u.id,
           u.email,
-          u.firstName,
-          u.lastName,
+          u."firstName",
+          u."lastName",
           u.role,
-          u.isActive,
-          u.lastLoginAt,
-          u.createdAt,
+          u."isActive",
+          u."lastLoginAt",
+          u."createdAt",
           COUNT(DISTINCT d.id)::int as documentCount,
-          COALESCE(SUM(d.fileSize), 0)::bigint as storageUsed
+          COALESCE(SUM(d."fileSize"), 0)::bigint as storageUsed
         FROM users u
-        LEFT JOIN documents d ON u.id = d.userId
-        GROUP BY u.id, u.email, u.firstName, u.lastName, u.role, u.isActive, u.lastLoginAt, u.createdAt
-        ORDER BY u.createdAt DESC
+        LEFT JOIN documents d ON u.id = d."userId"
+        GROUP BY u.id, u.email, u."firstName", u."lastName", u.role, u."isActive", u."lastLoginAt", u."createdAt"
+        ORDER BY u."createdAt" DESC
       `);
 
       console.log(`🔍 Raw query result: ${result?.length || 0} rows`);
@@ -1416,8 +1416,8 @@ export class DatabaseStorage implements IStorage {
         lastName: row.lastName,
         role: row.role,
         isActive: row.isActive,
-        documentCount: parseInt(row.documentCount || '0', 10),
-        storageUsed: parseInt(row.storageUsed || '0', 10),
+        documentCount: parseInt(row.documentcount || '0', 10),
+        storageUsed: parseInt(row.storageused || '0', 10),
         lastLoginAt: row.lastLoginAt,
         createdAt: row.createdAt
       }));
@@ -1521,7 +1521,7 @@ export class DatabaseStorage implements IStorage {
     try {
       await this.db
         .update(users)
-        .set({ isActive, updatedAt: new Date().toISOString() })
+        .set({ isActive, updatedAt: new Date() })
         .where(eq(users.id, userId));
     } catch (error) {
       console.error('Error updating user status:', error);

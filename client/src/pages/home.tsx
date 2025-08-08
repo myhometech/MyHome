@@ -550,12 +550,23 @@ export default function Home() {
       return response.json();
     },
     retry: false,
+    staleTime: 0, // Always fetch fresh data
+    refetchOnWindowFocus: true,
   });
 
   // Fetch categories
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
     retry: false,
+  });
+
+  // Debug logging for documents
+  console.log('[HOME DEBUG] Documents state:', {
+    documents: documents,
+    documentsLength: documents?.length,
+    documentsLoading: documentsLoading,
+    selectedCategory: selectedCategory,
+    searchQuery: searchQuery
   });
 
   // Mock components for demonstration purposes, replace with actual imports

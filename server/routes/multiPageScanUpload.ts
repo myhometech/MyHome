@@ -27,6 +27,11 @@ const pdfConversionService = new PDFConversionService();
 export function setupMultiPageScanUpload(app: Express) {
   // Multi-page scan upload endpoint
   app.post('/api/documents/multi-page-scan-upload', requireAuth, upload.array('pages', 20), async (req: any, res) => {
+    console.log(`🚀 UPLOAD: Multi-page scan upload request received`);
+    console.log(`🚀 UPLOAD: Request headers:`, req.headers['content-type']);
+    console.log(`🚀 UPLOAD: Request body keys:`, Object.keys(req.body));
+    console.log(`🚀 UPLOAD: Request files:`, req.files ? req.files.length : 'none');
+
     try {
       const files = req.files as Express.Multer.File[];
       const userId = getUserId(req);
@@ -34,7 +39,7 @@ export function setupMultiPageScanUpload(app: Express) {
       const documentName = req.body.documentName || 'Scanned Document';
       const pageCount = parseInt(req.body.pageCount) || files.length;
 
-      console.log(`🔄 UPLOAD: Processing multi-page scan upload: ${files.length} pages from user ${userId}`);
+      console.log(`🔄 UPLOAD: Processing multi-page scan upload: ${files ? files.length : 0} pages from user ${userId}`);
       console.log(`🔄 UPLOAD: Document name: "${documentName}"`);
       console.log(`🔄 UPLOAD: Page count: ${pageCount}`);
 
@@ -226,21 +231,33 @@ export function setupMultiPageScanUpload(app: Express) {
         throw new Error(`${errorMessage}: ${processingError.message}`);
       }
     } catch (error: any) {
-      console.error("Error processing multi-page scan upload:", error);
+      console.error("❌ UPLOAD ERROR: Processing multi-page scan upload failed:", error);
+      console.error("❌ UPLOAD ERROR: Stack trace:", error.stack);
 
       // Clean up any uploaded files on error
       if (req.files) {
         const files = req.files as Express.Multer.File[];
         files.forEach(file => {
           try {
-            fs.unlinkSync(file.path);
+            if (file.path) {
+              fs.unlinkSync(file.path);
+            }
           } catch (cleanupError) {
             console.warn(`Failed to cleanup file: ${file.path}`);
           }
         });
       }
 
-      res.status(500).json({ message: error.message || "Failed to process multi-page scan upload" });
+      // Provide detailed error information for debugging
+      const errorResponse = {
+        success: false,
+        message: error.message || "Failed to process multi-page scan upload",
+        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      };
+
+      console.error("❌ UPLOAD ERROR: Sending error response:", errorResponse);
+      res.status(500).json(errorResponse);
     }
   });
 }

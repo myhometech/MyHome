@@ -137,7 +137,7 @@ const developmentCSP = {
 
 // Helmet security configuration
 export const securityHeaders = helmet({
-  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? productionCSP : developmentCSP,
+  contentSecurityPolicy: false, // Disabled - using explicit CSP middleware in index.ts
   
   // HTTP Strict Transport Security
   hsts: {

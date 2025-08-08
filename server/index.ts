@@ -70,6 +70,21 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// EXPLICIT CSP FIX: Override with permissive CSP for static assets
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", [
+    "default-src 'self';",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval';",
+    "style-src 'self' 'unsafe-inline';",
+    "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *;",
+    "font-src 'self' data:;",
+    "connect-src 'self' wss: ws:;",
+    "object-src 'none';",
+    "frame-ancestors 'none';"
+  ].join(' '));
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

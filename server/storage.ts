@@ -1305,32 +1305,36 @@ export class DatabaseStorage implements IStorage {
       const totalUsersResult = await this.db.execute(sql`
         SELECT COUNT(*)::int as count FROM users
       `);
-      const totalUsers = totalUsersResult[0]?.count || 0;
-      console.log('📊 Total users:', totalUsers);
+      const totalUsersRow = Array.isArray(totalUsersResult) ? totalUsersResult[0] : totalUsersResult.rows?.[0];
+      const totalUsers = totalUsersRow?.count || 0;
+      console.log('📊 Total users:', totalUsers, 'from result:', totalUsersRow);
 
       // Get active users count  
       console.log('📊 Fetching active users...');
       const activeUsersResult = await this.db.execute(sql`
         SELECT COUNT(*)::int as count FROM users WHERE is_active = true
       `);
-      const activeUsers = activeUsersResult[0]?.count || 0;
-      console.log('📊 Active users:', activeUsers);
+      const activeUsersRow = Array.isArray(activeUsersResult) ? activeUsersResult[0] : activeUsersResult.rows?.[0];
+      const activeUsers = activeUsersRow?.count || 0;
+      console.log('📊 Active users:', activeUsers, 'from result:', activeUsersRow);
 
       // Get total documents count
       console.log('📊 Fetching total documents...');
       const totalDocumentsResult = await this.db.execute(sql`
         SELECT COUNT(*)::int as count FROM documents
       `);
-      const totalDocuments = totalDocumentsResult[0]?.count || 0;
-      console.log('📊 Total documents:', totalDocuments);
+      const totalDocumentsRow = Array.isArray(totalDocumentsResult) ? totalDocumentsResult[0] : totalDocumentsResult.rows?.[0];
+      const totalDocuments = totalDocumentsRow?.count || 0;
+      console.log('📊 Total documents:', totalDocuments, 'from result:', totalDocumentsRow);
 
       // Get total storage used
       console.log('📊 Fetching storage usage...');
       const totalStorageBytesResult = await this.db.execute(sql`
         SELECT COALESCE(SUM(file_size), 0)::bigint as total FROM documents
       `);
-      const totalStorageBytes = totalStorageBytesResult[0]?.total || 0;
-      console.log('📊 Total storage bytes:', totalStorageBytes);
+      const totalStorageBytesRow = Array.isArray(totalStorageBytesResult) ? totalStorageBytesResult[0] : totalStorageBytesResult.rows?.[0];
+      const totalStorageBytes = totalStorageBytesRow?.total || 0;
+      console.log('📊 Total storage bytes:', totalStorageBytes, 'from result:', totalStorageBytesRow);
 
       // Get uploads this month
       console.log('📊 Fetching uploads this month...');
@@ -1338,8 +1342,9 @@ export class DatabaseStorage implements IStorage {
         SELECT COUNT(*)::int as count FROM documents 
         WHERE uploaded_at >= date_trunc('month', CURRENT_DATE)
       `);
-      const uploadsThisMonth = uploadsThisMonthResult[0]?.count || 0;
-      console.log('📊 Uploads this month:', uploadsThisMonth);
+      const uploadsThisMonthRow = Array.isArray(uploadsThisMonthResult) ? uploadsThisMonthResult[0] : uploadsThisMonthResult.rows?.[0];
+      const uploadsThisMonth = uploadsThisMonthRow?.count || 0;
+      console.log('📊 Uploads this month:', uploadsThisMonth, 'from result:', uploadsThisMonthRow);
 
       // Get new users this month
       console.log('📊 Fetching new users this month...');
@@ -1347,8 +1352,9 @@ export class DatabaseStorage implements IStorage {
         SELECT COUNT(*)::int as count FROM users 
         WHERE created_at >= date_trunc('month', CURRENT_DATE)
       `);
-      const newUsersThisMonth = newUsersThisMonthResult[0]?.count || 0;
-      console.log('📊 New users this month:', newUsersThisMonth);
+      const newUsersThisMonthRow = Array.isArray(newUsersThisMonthResult) ? newUsersThisMonthResult[0] : newUsersThisMonthResult.rows?.[0];
+      const newUsersThisMonth = newUsersThisMonthRow?.count || 0;
+      console.log('📊 New users this month:', newUsersThisMonth, 'from result:', newUsersThisMonthRow);
 
       const stats = {
         totalUsers: parseInt(totalUsers.toString(), 10),

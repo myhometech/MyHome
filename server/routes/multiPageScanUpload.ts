@@ -2,6 +2,7 @@ import { Express } from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { requireAuth } from '../simpleAuth';
 import { storage } from '../storage';
 import { PDFConversionService } from '../pdfConversionService';
@@ -9,6 +10,9 @@ import { StorageService, storageProvider } from '../storage/StorageService';
 import { EncryptionService } from '../encryptionService';
 import { ocrQueue } from '../ocrQueue';
 import { nanoid } from 'nanoid';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function getUserId(req: any): string {
   return req.user?.id || req.session?.user?.id;

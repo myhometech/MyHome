@@ -158,8 +158,19 @@ app.use((req, res, next) => {
     try {
       serveStatic(app);
       console.log('✅ Static file serving configured successfully for production');
+      
+      // Log static file directory status
+      const path = require('path');
+      const fs = require('fs');
+      const distPath = path.resolve(process.cwd(), "dist/public");
+      console.log('🔍 Static directory exists:', fs.existsSync(distPath));
+      if (fs.existsSync(distPath)) {
+        const files = fs.readdirSync(distPath);
+        console.log('🔍 Static files found:', files.slice(0, 5)); // Show first 5 files
+      }
     } catch (error) {
       console.error('❌ Static file serving failed:', (error as Error).message);
+      console.error('❌ This means the frontend build is missing or misconfigured');
       // Continue without static files to prevent total failure
     }
   }

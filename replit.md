@@ -1,7 +1,7 @@
 # MyHome Application
 
 ## Overview
-MyHome is a comprehensive document management application for homeowners, designed to organize property-related documents. It features a web application (React + Node.js) and a native iOS app, both syncing through a shared backend API with a PostgreSQL database and authentication. The project aims to provide an intuitive platform for document digitization via camera scanning, with future integrations planned for cloud storage services like Google Drive. The business vision is to provide an intuitive platform for document digitization, offering a solution for homeowners to manage property-related information efficiently and securely.
+MyHome is a comprehensive document management application for homeowners, providing an intuitive platform for digitizing and organizing property-related documents. It features a web application (React + Node.js) and a native iOS app, both syncing through a shared backend API with a PostgreSQL database and authentication. Key capabilities include phone camera scanning for document digitization. The business vision is to offer a secure and efficient solution for managing property-related information.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -13,18 +13,18 @@ Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot m
 Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting colors for a homely feel: Warm Background (#FAF4EF linen/ivory), Trust Base (#2B2F40 slate blue), Sage Green (#A5C9A1), Dusty Lavender (#A1A4D6), and Soft Coral (#E28F83). Document type colors: Emerald for images, calm red (#E74C3C) for PDFs, blue for documents.
 
 ### Application Behavior Preferences
-1. **Document Upload**: Auto-suggest categories using AI analysis with user confirmation before saving
-2. **Premium Features**: Hide premium features completely from free users for clean interface
-3. **Free User Limits**: Block uploads when free users hit 50-document limit with upgrade message
-4. **Email Forwarding**: Show as discrete dashboard option linking to settings (not prominent)
-5. **Email Import Notifications**: Notification badge/counter + tag documents as "imported via email"
-6. **Mobile Camera**: Allow offline scanning with local storage, sync/process when online
-7. **Document Deletion**: Premium trash bin (30-day) + confirmation dialogs for all users
+1. Document Upload: Auto-suggest categories using AI analysis with user confirmation before saving
+2. Premium Features: Hide premium features completely from free users for clean interface
+3. Free User Limits: Block uploads when free users hit 50-document limit with upgrade message
+4. Email Forwarding: Show as discrete dashboard option linking to settings (not prominent)
+5. Email Import Notifications: Notification badge/counter + tag documents as "imported via email"
+6. Mobile Camera: Allow offline scanning with local storage, sync/process when online
+7. Document Deletion: Premium trash bin (30-day) + confirmation dialogs for all users
 
 ## System Architecture
 
 ### Web Frontend
-- **Framework**: React 18 with TypeScript, Vite, Wouter for routing, TanStack Query for state management.
+- **Framework**: React 18 with TypeScript, Vite, Wouter, TanStack Query.
 - **UI/UX**: Radix UI components with Tailwind CSS (shadcn/ui), unified insights-first UX, comprehensive document viewer modal system.
 - **Feature Management**: Subscription-based feature flagging with `FeatureGate` components.
 
@@ -115,96 +115,3 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Error Tracking**: `@sentry/node`, `@sentry/react`
 - **Security Headers**: `helmet`
 - **Rate Limiting**: `express-rate-limit`
-
-## Recent Development Summary
-
-### August 8, 2025 - Build-time Security Guard Implementation Complete ✅
-- **Achievement**: Implemented comprehensive build-time guard to prevent development references in production builds
-- **Security Enhancement**:
-  1. **Forbidden Pattern Detection**: Scans for localhost:5173, vite, hmr, and WebSocket references
-  2. **Flexible Build Detection**: Automatically finds build output in client/dist or dist/public
-  3. **CI-Ready Integration**: Exit codes and clear error reporting for automated builds
-  4. **Text File Scanning**: Comprehensive check of HTML, JS, CSS, JSON, and other text files
-- **Technical Implementation**:
-  - Created `scripts/forbid-dev-refs.mjs` with intelligent path detection
-  - Implemented regex-based pattern matching for development references
-  - Added comprehensive error reporting with file paths and matched patterns
-  - Tested both success and failure scenarios with proper exit codes
-- **Components Created**:
-  - `scripts/forbid-dev-refs.mjs` - Main guard script with flexible build detection
-  - `BUILD_GUARD_IMPLEMENTATION.md` - Complete implementation documentation
-- **Status**: ✅ **PRODUCTION READY** - Guard script prevents dev references from reaching production
-
-### August 8, 2025 - Express Static Hosting + Runtime Config System Complete ✅
-- **Achievement**: Implemented complete Express static hosting with runtime configuration system  
-- **Configuration System**:
-  1. **Runtime Config Loading**: Frontend loads configuration from /config.json endpoint dynamically
-  2. **Environment Agnostic**: No hardcoded development URLs in production builds
-  3. **Production Static Serving**: Express serves client/dist with proper SPA fallback routing
-  4. **Health Monitoring**: /healthz endpoint provides status, version, and timestamp
-- **Technical Implementation**:
-  - Added /config.json endpoint serving configuration files from server/public or client/public
-  - Implemented /healthz health check endpoint with proper JSON responses  
-  - Enhanced production static serving with SPA fallback for non-API routes
-  - Created environment-specific config files (dev, staging, production)
-- **Components Enhanced**:
-  - `server/index.ts` - Added pre-middleware endpoints for config and health checks
-  - `server/public/config.json` - Environment-specific configuration files
-  - Production static serving logic with proper route precedence
-- **Status**: ✅ **PRODUCTION READY** - Complete runtime configuration system with static hosting
-
-### August 7, 2025 - OCR-Before-Insights Feature Complete ✅
-- **Achievement**: Implemented automatic OCR triggering when users request insights for documents without extracted text
-- **User Experience Enhancement**: 
-  1. **Seamless Integration**: Users can now generate insights on any document, regardless of OCR status
-  2. **Smart Processing**: System automatically detects missing text and triggers OCR before insights
-  3. **Real-time Feedback**: Users see processing status with estimated completion times
-  4. **Auto-completion**: Frontend polls for OCR completion and automatically retries insights
-- **Technical Implementation**:
-  - Modified insights endpoint to auto-trigger OCR when extractedText is missing
-  - Enhanced file validation for both local and GCS stored documents
-  - Integrated high-priority OCR queue system for user-initiated requests
-  - Added 202 status responses with processing messages and polling support
-  - Updated frontend mutation with smart polling every 3 seconds
-  - Implemented automatic retry logic once OCR completes
-- **Components Enhanced**:
-  - `server/routes.ts` - OCR-before-insights endpoint logic with enhanced error handling
-  - `client/src/components/unified-document-card.tsx` - Smart polling and processing status
-  - Enhanced user messaging with estimated times and processing feedback
-- **Status**: ✅ **PRODUCTION READY** - Users can now generate insights on any document type with automatic OCR processing
-
-### August 7, 2025 - Insight Job Type Error Fix ✅
-- **Achievement**: Fixed PostgreSQL 22P02 error blocking OCR→Insights pipeline
-- **Root Cause Resolved**: 
-  1. **Schema Mismatch**: `confidence` column was INTEGER but receiving decimal values ("0.9")
-  2. **Type Conversion**: AI service passing 0-1 scale, database expecting 0-100 scale
-  3. **Error Cascade**: All insight jobs failing with invalid integer cast errors
-- **Technical Implementation**:
-  - Updated database schema: `confidence INTEGER` → `confidence NUMERIC(5,2)`
-  - Enhanced type validation with string→number conversion and range clamping
-  - Fixed AI service scale conversion (0-1 → 0-100) in `server/aiInsightService.ts`
-  - Added structured error logging with `[INSIGHT_TYPE_ERROR]` tags for monitoring
-  - Created recovery service for failed insight jobs from past 7 days
-- **Components Added**:
-  - `server/services/insightRecoveryService.ts` - Job recovery and reporting system
-  - `server/routes/insightRecoveryRoutes.ts` - Admin recovery endpoints
-  - Enhanced `server/storage.ts` with comprehensive type validation
-- **Status**: ✅ **PRODUCTION READY** - OCR→Insights pipeline restored, all type errors resolved
-
-### August 7, 2025 - Application Startup Issues Resolved ✅
-- **Achievement**: Fixed critical server startup failures preventing application launch
-- **Root Cause Resolved**:
-  1. **Port Conflicts**: Multiple tsx processes conflicting on port 5000 
-  2. **TypeScript Errors**: Type mismatches in vehicle date handling and confidence scoring
-  3. **Database Type Issues**: Date to string conversion problems in vehicle management
-- **Technical Implementation**:
-  - Identified and killed conflicting Node.js processes using port 5000
-  - Fixed confidence field type conversion (number to string) in document insights
-  - Resolved Date/string type mismatches in vehicle taxDueDate and motExpiryDate fields
-  - Enhanced type safety with proper type assertions for Date object handling
-  - Ensured VRN field validation in vehicle creation endpoints
-- **Components Fixed**:
-  - `server/index.ts` - Server startup and port binding
-  - `server/routes.ts` - Vehicle and document insight type handling
-  - Database connection and route registration restored
-- **Status**: ✅ **PRODUCTION READY** - Application successfully running on port 5000

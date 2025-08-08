@@ -142,6 +142,7 @@ export default function Login() {
                         <Input 
                           placeholder="your@email.com" 
                           className="pl-10"
+                          data-testid="login-email"
                           {...field} 
                         />
                       </div>
@@ -164,6 +165,7 @@ export default function Login() {
                           type={showPassword ? "text" : "password"}
                           placeholder="Enter your password"
                           className="pl-10 pr-10"
+                          data-testid="login-password"
                           {...field} 
                         />
                         <Button
@@ -186,7 +188,7 @@ export default function Login() {
                 )}
               />
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" data-testid="login-submit" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
 

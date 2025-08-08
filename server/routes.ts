@@ -248,7 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "connect-src 'self' data: https://api.stripe.com https://api.openai.com https://storage.googleapis.com https://*.sentry.io",
           "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
           "object-src 'none'",
-          "frame-ancestors 'none'"
+          "frame-ancestors 'self' https://myhome-docs.com"
         ].join('; ') + '; '
       : [
           "default-src 'self'",
@@ -258,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "font-src 'self' data:",
           "connect-src 'self' data: wss: ws: https://*.replit.app https://*.replit.dev https://*.sentry.io",
           "object-src 'none'",
-          "frame-ancestors 'none'"
+          "frame-ancestors 'self' https://myhome-docs.com"
         ].join('; ') + '; ';
 
     console.log('🔒 Setting CSP policy (isDeployment=' + isDeployment + '):', cspPolicy.substring(0, 100) + '...');

@@ -215,10 +215,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
   
   app.use((req, res, next) => {
-    // Remove any existing CSP headers that might be set by upstream proxies or other middleware
+    // Aggressive header removal to prevent any CSP interference
     res.removeHeader("Content-Security-Policy");
     res.removeHeader("content-security-policy");
     res.removeHeader("Content-security-policy");
+    res.removeHeader("X-Frame-Options");
+    res.removeHeader("x-frame-options");
+    res.removeHeader("X-Content-Security-Policy"); // Legacy webkit
+    res.removeHeader("X-WebKit-CSP"); // Legacy webkit
     
     // Set our comprehensive CSP policy
     const cspPolicy = isDeployment 
@@ -245,15 +249,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ].join('; ') + ';';
         
     console.log('🔒 Setting CSP policy (isDeployment=' + isDeployment + '):', cspPolicy.substring(0, 100) + '...');
+    
+    // Set multiple CSP headers for maximum compatibility
     res.setHeader("Content-Security-Policy", cspPolicy);
+    res.setHeader("X-Content-Security-Policy", cspPolicy); // Legacy IE
+    res.setHeader("X-WebKit-CSP", cspPolicy); // Legacy WebKit
+    
+    // Force override any middleware that might set headers later
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = function(name, value) {
+      // Block any attempt to set CSP headers other than our own
+      if (name.toLowerCase().includes('content-security-policy') && value !== cspPolicy) {
+        console.warn('🚨 Blocked attempt to override CSP:', name, value.substring(0, 50) + '...');
+        return res;
+      }
+      if (name.toLowerCase() === 'x-frame-options') {
+        console.warn('🚨 Blocked X-Frame-Options header that could interfere with CSP');
+        return res;
+      }
+      return originalSetHeader(name, value);
+    };
     
     // Monitor for upstream interference
     res.on('finish', () => {
       const finalHeaders = res.getHeaders();
       const finalCSP = finalHeaders['content-security-policy'];
       
+      // Always log what we're sending vs what's final
+      if (req.path.includes('.html') || req.path === '/') {
+        console.log('🔍 CSP Debug - Path:', req.path);
+        console.log('🔍 Expected CSP:', cspPolicy.substring(0, 100) + '...');
+        console.log('🔍 Final CSP:', finalCSP ? finalCSP.substring(0, 100) + '...' : 'NONE');
+      }
+      
       if (finalCSP !== cspPolicy) {
         console.error('🚨 UPSTREAM CSP INTERFERENCE DETECTED!');
+        console.error('🚨 Path:', req.path);
         console.error('🚨 Expected CSP:', cspPolicy);
         console.error('🚨 Actual CSP:', finalCSP);
         console.error('🚨 All Response Headers:', Object.keys(finalHeaders));

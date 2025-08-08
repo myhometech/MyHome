@@ -404,6 +404,8 @@ export default function Home() {
   // Bulk operations mutations
   const bulkDeleteMutation = useMutation({
     mutationFn: async (documentIds: number[]) => {
+      console.log('Home bulk delete request:', { documentIds, count: documentIds.length });
+      
       const response = await fetch('/api/documents/bulk-delete', {
         method: 'DELETE',
         headers: {
@@ -414,7 +416,9 @@ export default function Home() {
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to delete documents: ${response.status}`);
+        const errorData = await response.json();
+        console.error('Home bulk delete failed:', errorData);
+        throw new Error(`Failed to delete documents: ${response.status} - ${errorData.message || 'Unknown error'}`);
       }
       
       return response.json();

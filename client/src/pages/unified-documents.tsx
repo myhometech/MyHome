@@ -151,6 +151,8 @@ export default function UnifiedDocuments() {
   // Bulk operations mutations
   const bulkDeleteMutation = useMutation({
     mutationFn: async (documentIds: number[]) => {
+      console.log('Bulk delete request:', { documentIds, count: documentIds.length });
+      
       const response = await fetch('/api/documents/bulk-delete', {
         method: 'DELETE',
         headers: {
@@ -161,7 +163,9 @@ export default function UnifiedDocuments() {
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to delete documents: ${response.status}`);
+        const errorData = await response.json();
+        console.error('Bulk delete failed:', errorData);
+        throw new Error(`Failed to delete documents: ${response.status} - ${errorData.message || 'Unknown error'}`);
       }
       
       return response.json();

@@ -134,8 +134,13 @@ export function YourAssetsSection() {
 
   const bulkDeleteAssets = useMutation({
     mutationFn: async (ids: string[]) => {
+      // For user assets, we need to call individual delete endpoints
+      // since there's no bulk delete for assets yet
       await Promise.all(
-        ids.map(id => fetch(`/api/user-assets/${id}`, { method: "DELETE" }))
+        ids.map(id => fetch(`/api/user-assets/${id}`, { 
+          method: "DELETE",
+          credentials: 'include'
+        }))
       );
     },
     onSuccess: () => {

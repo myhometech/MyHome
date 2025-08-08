@@ -3287,9 +3287,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const { documentIds } = req.body;
 
-      console.log('Bulk delete request:', { userId, documentIds, bodyKeys: Object.keys(req.body || {}) });
+      console.log('Bulk delete request:', { 
+        userId, 
+        documentIds, 
+        documentIdsType: typeof documentIds,
+        bodyKeys: Object.keys(req.body || {}),
+        fullBody: req.body 
+      });
 
       if (!documentIds) {
+        console.log('❌ BULK DELETE: No documentIds provided');
         return res.status(400).json({ 
           message: "Document IDs are required",
           received: req.body,
@@ -3298,6 +3305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!Array.isArray(documentIds)) {
+        console.log('❌ BULK DELETE: documentIds is not an array:', typeof documentIds, documentIds);
         return res.status(400).json({ 
           message: "Document IDs must be an array",
           received: typeof documentIds,
@@ -3306,6 +3314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (documentIds.length === 0) {
+        console.log('❌ BULK DELETE: Empty documentIds array');
         return res.status(400).json({ 
           message: "Document IDs array cannot be empty",
           received: documentIds
@@ -3313,17 +3322,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (documentIds.length > 50) {
+        console.log('❌ BULK DELETE: Too many documents:', documentIds.length);
         return res.status(400).json({ message: "Maximum 50 documents can be deleted at once" });
       }
 
       // Validate that all IDs are numbers
       const invalidIds = documentIds.filter(id => !Number.isInteger(id) || id <= 0);
       if (invalidIds.length > 0) {
+        console.log('❌ BULK DELETE: Invalid document IDs found:', invalidIds);
         return res.status(400).json({ 
           message: "All document IDs must be positive integers",
-          invalidIds
+          invalidIds,
+          allIds: documentIds
         });
       }
+
+      console.log('✅ BULK DELETE: Validation passed, processing', documentIds.length, 'documents');
 
       const { searchOptimizationService } = await import('./searchOptimizationService');
       const result = await searchOptimizationService.bulkDeleteDocuments(userId, documentIds);

@@ -605,6 +605,13 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         timestamp: new Date().toISOString()
       });
 
+      console.log(`🔐 Preparing authenticated upload with ${files.length} files`);
+      console.log(`📝 FormData contents:`, {
+        uploadSource: 'browser_scan',
+        documentName: documentName,
+        pageCount: files.length
+      });
+
       // Upload to server for PDF creation with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
@@ -613,13 +620,17 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         const response = await fetch('/api/documents/multi-page-scan-upload', {
           method: 'POST',
           body: formData,
-          signal: controller.signal
+          signal: controller.signal,
+          credentials: 'include'  // Include authentication cookies
         });
 
         clearTimeout(timeoutId);
 
+        console.log(`📡 Upload response: ${response.status} ${response.statusText}`);
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ message: 'Unknown server error' }));
+          console.error(`❌ Upload failed with status ${response.status}:`, errorData);
           throw new Error(`Server error (${response.status}): ${errorData.message || 'Failed to create PDF document'}`);
         }
 

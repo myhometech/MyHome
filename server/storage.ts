@@ -276,12 +276,36 @@ export class DatabaseStorage implements IStorage {
 
   // Helper function to extract result consistently
   private extractResult(result: any, field: string = 'count') {
-    if (Array.isArray(result) && result.length > 0) {
-      return result[0][field];
+    console.log('🔍 [EXTRACT DEBUG] Raw result:', { 
+      isArray: Array.isArray(result), 
+      hasRows: !!result?.rows,
+      resultKeys: result ? Object.keys(result) : [],
+      resultLength: result?.length,
+      firstItem: result?.[0]
+    });
+
+    // Handle direct array results
+    if (Array.isArray(result) && result.length > 0 && result[0] && typeof result[0] === 'object') {
+      const value = result[0][field];
+      console.log('🔍 [EXTRACT DEBUG] Array result:', { field, value });
+      return value !== undefined ? value : 0;
     }
+
+    // Handle { rows: [] } format
     if (result?.rows && Array.isArray(result.rows) && result.rows.length > 0) {
-      return result.rows[0][field];
+      const value = result.rows[0][field];
+      console.log('🔍 [EXTRACT DEBUG] Rows result:', { field, value });
+      return value !== undefined ? value : 0;
     }
+
+    // Handle single object result
+    if (result && typeof result === 'object' && !Array.isArray(result) && result[field] !== undefined) {
+      const value = result[field];
+      console.log('🔍 [EXTRACT DEBUG] Object result:', { field, value });
+      return value;
+    }
+
+    console.log('🔍 [EXTRACT DEBUG] No match, returning 0');
     return 0;
   }
 
@@ -1413,54 +1437,51 @@ export class DatabaseStorage implements IStorage {
         return 0;
       };
 
-      // Get total users count
+      // Use Drizzle ORM methods for more reliable queries
       console.log('📊 Fetching total users...');
-      const totalUsersResult = await this.db.execute(sql`
-        SELECT COUNT(*)::int as count FROM users
-      `);
-      const totalUsers = extractResult(totalUsersResult);
+      const totalUsersResult = await this.db.select({ count: sql<number>`count(*)::int` }).from(users);
+      const totalUsers = totalUsersResult[0]?.count || 0;
       console.log('📊 Total users:', totalUsers);
 
       // Get active users count  
       console.log('📊 Fetching active users...');
-      const activeUsersResult = await this.db.execute(sql`
-        SELECT COUNT(*)::int as count FROM users WHERE is_active = true
-      `);
-      const activeUsers = extractResult(activeUsersResult);
+      const activeUsersResult = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(users)
+        .where(eq(users.isActive, true));
+      const activeUsers = activeUsersResult[0]?.count || 0;
       console.log('📊 Active users:', activeUsers);
 
       // Get total documents count
       console.log('📊 Fetching total documents...');
-      const totalDocumentsResult = await this.db.execute(sql`
-        SELECT COUNT(*)::int as count FROM documents
-      `);
-      const totalDocuments = extractResult(totalDocumentsResult);
+      const totalDocumentsResult = await this.db.select({ count: sql<number>`count(*)::int` }).from(documents);
+      const totalDocuments = totalDocumentsResult[0]?.count || 0;
       console.log('📊 Total documents:', totalDocuments);
 
       // Get total storage used
       console.log('📊 Fetching storage usage...');
-      const totalStorageBytesResult = await this.db.execute(sql`
-        SELECT COALESCE(SUM(file_size), 0)::bigint as total FROM documents
-      `);
-      const totalStorageBytes = extractResult(totalStorageBytesResult, 'total');
+      const totalStorageBytesResult = await this.db
+        .select({ total: sql<number>`coalesce(sum(${documents.fileSize}), 0)::bigint` })
+        .from(documents);
+      const totalStorageBytes = totalStorageBytesResult[0]?.total || 0;
       console.log('📊 Total storage bytes:', totalStorageBytes);
 
       // Get uploads this month
       console.log('📊 Fetching uploads this month...');
-      const uploadsThisMonthResult = await this.db.execute(sql`
-        SELECT COUNT(*)::int as count FROM documents 
-        WHERE uploaded_at >= date_trunc('month', CURRENT_DATE)
-      `);
-      const uploadsThisMonth = extractResult(uploadsThisMonthResult);
+      const uploadsThisMonthResult = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(documents)
+        .where(sql`${documents.uploadedAt} >= date_trunc('month', CURRENT_DATE)`);
+      const uploadsThisMonth = uploadsThisMonthResult[0]?.count || 0;
       console.log('📊 Uploads this month:', uploadsThisMonth);
 
       // Get new users this month
       console.log('📊 Fetching new users this month...');
-      const newUsersThisMonthResult = await this.db.execute(sql`
-        SELECT COUNT(*)::int as count FROM users 
-        WHERE created_at >= date_trunc('month', CURRENT_DATE)
-      `);
-      const newUsersThisMonth = extractResult(newUsersThisMonthResult);
+      const newUsersThisMonthResult = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(users)
+        .where(sql`${users.createdAt} >= date_trunc('month', CURRENT_DATE)`);
+      const newUsersThisMonth = newUsersThisMonthResult[0]?.count || 0;
       console.log('📊 New users this month:', newUsersThisMonth);
 
       const stats = {
@@ -1497,45 +1518,42 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('🔍 Executing getAllUsersWithStats query...');
 
-      const result = await this.db.execute(sql`
-        SELECT 
-          u.id,
-          u.email,
-          u.first_name,
-          u.last_name,
-          u.role,
-          u.is_active,
-          u.last_login_at,
-          u.created_at,
-          COUNT(DISTINCT d.id)::int as documentCount,
-          COALESCE(SUM(d.file_size), 0)::bigint as storageUsed
-        FROM users u
-        LEFT JOIN documents d ON u.id = d.user_id
-        GROUP BY u.id, u.email, u.first_name, u.last_name, u.role, u.is_active, u.last_login_at, u.created_at
-        ORDER BY u.created_at DESC
-      `);
+      const result = await this.db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+          isActive: users.isActive,
+          lastLoginAt: users.lastLoginAt,
+          createdAt: users.createdAt,
+          documentCount: sql<number>`COUNT(DISTINCT ${documents.id})::int`,
+          storageUsed: sql<number>`COALESCE(SUM(${documents.fileSize}), 0)::bigint`,
+        })
+        .from(users)
+        .leftJoin(documents, eq(users.id, documents.userId))
+        .groupBy(users.id, users.email, users.firstName, users.lastName, users.role, users.isActive, users.lastLoginAt, users.createdAt)
+        .orderBy(desc(users.createdAt));
 
-      console.log(`🔍 Raw query result: ${result?.length || 0} rows`);
+      console.log(`🔍 Query returned ${result?.length || 0} users`);
 
       if (!result || result.length === 0) {
         console.log('⚠️ No users found in database');
         return [];
       }
 
-      // Handle both array and non-array results from db.execute
-      const resultRows = Array.isArray(result) ? result : (result.rows || []);
-      
-      const users = resultRows.map((row: any) => ({
+      const users = result.map((row: any) => ({
         id: row.id,
         email: row.email,
-        firstName: row.first_name,
-        lastName: row.last_name,
+        firstName: row.firstName,
+        lastName: row.lastName,
         role: row.role,
-        isActive: row.is_active,
-        documentCount: parseInt(row.documentcount || '0', 10),
-        storageUsed: parseInt(row.storageused || '0', 10),
-        lastLoginAt: row.last_login_at,
-        createdAt: row.created_at
+        isActive: row.isActive,
+        documentCount: parseInt(row.documentCount?.toString() || '0', 10),
+        storageUsed: parseInt(row.storageUsed?.toString() || '0', 10),
+        lastLoginAt: row.lastLoginAt,
+        createdAt: row.createdAt
       }));
 
       console.log(`🔍 Processed ${users.length} users:`, users.map(u => ({ id: u.id, email: u.email, role: u.role })));

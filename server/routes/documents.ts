@@ -388,4 +388,76 @@ router.post('/:id/analyze-for-ocr', async (req: AuthenticatedRequest, res) => {
   }
 });
 
+// Get document preview/download
+router.get('/:id/preview', async (req: AuthenticatedRequest, res) => {
+  console.log('📋 Preview route hit, user:', req.user ? 'authenticated' : 'not authenticated');
+  
+  if (!req.user) {
+    console.log('❌ No user found in request');
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const documentId = parseInt(req.params.id);
+    const userId = req.user.id;
+
+    console.log(`🔍 Preview request for document ${documentId} by user ${userId}`);
+
+    if (isNaN(documentId)) {
+      console.log(`❌ Invalid document ID: ${req.params.id}`);
+      return res.status(400).json({ message: 'Invalid document ID' });
+    }
+
+    const document = await storage.getDocument(documentId, userId);
+    if (!document) {
+      console.log(`❌ Document ${documentId} not found for user ${userId}`);
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    console.log(`✅ Found document: ${document.fileName}, type: ${document.mimeType}`);
+
+    // Set appropriate headers
+    res.setHeader('Content-Type', document.mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+
+    // For PDFs, add headers to ensure proper display in iframe
+    if (document.mimeType === 'application/pdf') {
+      res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
+      res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    }
+
+    // Handle cloud storage documents
+    if (document.gcsPath) {
+      try {
+        const fileBuffer = await storage.getFileBuffer(document.gcsPath);
+        if (!fileBuffer) {
+          console.log(`❌ File buffer not found for ${document.gcsPath}`);
+          return res.status(404).json({ message: 'File not found in storage' });
+        }
+        return res.send(fileBuffer);
+      } catch (error) {
+        console.error('Failed to get file from storage:', error);
+        return res.status(500).json({ message: 'Failed to load document' });
+      }
+    }
+
+    // Handle legacy local files
+    const fs = require('fs');
+    if (fs.existsSync(document.filePath)) {
+      return res.sendFile(require('path').resolve(document.filePath));
+    } else {
+      console.log(`❌ Local file not found: ${document.filePath}`);
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+  } catch (error: any) {
+    console.error('Document preview error:', error);
+    res.status(500).json({
+      message: 'Failed to load document preview',
+      error: error.message,
+    });
+  }
+});
+
 export default router;

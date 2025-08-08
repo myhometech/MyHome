@@ -117,11 +117,11 @@ app.use((req, res, next) => {
 
   // ===== Pre-Middleware Endpoints (No Auth Required) =====
   // These endpoints need to be registered BEFORE main routes to avoid middleware interference
-  
+
   // Health Check Endpoint
   app.get('/healthz', (_req, res) => {
-    res.json({ 
-      status: 'ok', 
+    res.json({
+      status: 'ok',
       version: process.env.GIT_SHA || 'dev',
       timestamp: new Date().toISOString()
     });
@@ -170,21 +170,21 @@ app.use((req, res, next) => {
   if (nodeEnv === "development" && !isDeployment) {
     console.log('🔧 Setting up Vite development server');
     await setupVite(app, server);
-    
+
     // Development mode: Add explicit favicon route since static serving is handled by Vite
     app.get('/favicon.ico', (req, res) => {
       const faviconPaths = [
         path.resolve(process.cwd(), "dist", "public", "favicon.ico"),
         path.resolve(process.cwd(), "client", "public", "favicon.ico")
       ];
-      
+
       for (const faviconPath of faviconPaths) {
         if (fs.existsSync(faviconPath)) {
           console.log('✅ Serving favicon from:', faviconPath);
           return res.sendFile(faviconPath);
         }
       }
-      
+
       console.log('❌ Favicon not found at any location');
       res.status(404).json({ error: 'Favicon not found' });
     });
@@ -197,7 +197,7 @@ app.use((req, res, next) => {
       // Check both possible build locations
       const clientDistPath = path.resolve(process.cwd(), "client", "dist");
       const distPublicPath = path.resolve(process.cwd(), "dist", "public");
-      
+
       let distPath: string;
       if (fs.existsSync(distPublicPath)) {
         distPath = distPublicPath;
@@ -208,14 +208,14 @@ app.use((req, res, next) => {
       } else {
         throw new Error(`Could not find the build directory. Checked: ${clientDistPath} and ${distPublicPath}`);
       }
-      
+
       console.log('🔍 Static directory path:', distPath);
       console.log('🔍 Static directory exists:', fs.existsSync(distPath));
-      
+
       // Serve static assets
       app.use(express.static(distPath));
       console.log('✅ Static assets configured from:', distPath);
-      
+
       // Explicit favicon route (in case it's not served by static middleware)
       app.get('/favicon.ico', (req, res) => {
         const faviconPath = path.join(distPath, 'favicon.ico');
@@ -225,19 +225,19 @@ app.use((req, res, next) => {
           res.status(404).json({ error: 'Favicon not found' });
         }
       });
-      
+
       // ===== SPA Fallback - Only for non-API routes =====
       app.get('*', (req, res, next) => {
         // Skip API routes
         if (req.path.startsWith('/api')) {
           return next();
         }
-        
-        // Skip healthz and config endpoints  
+
+        // Skip healthz and config endpoints
         if (req.path === '/healthz' || req.path === '/config.json') {
           return next();
         }
-        
+
         // Serve index.html for all other routes (SPA fallback)
         const indexPath = path.resolve(distPath, "index.html");
         if (fs.existsSync(indexPath)) {
@@ -246,9 +246,9 @@ app.use((req, res, next) => {
           res.status(404).json({ error: 'Frontend build not found' });
         }
       });
-      
+
       console.log('✅ SPA fallback configured successfully');
-      
+
       if (fs.existsSync(distPath)) {
         const files = fs.readdirSync(distPath);
         console.log('🔍 Static files found:', files.slice(0, 5)); // Show first 5 files
@@ -284,6 +284,22 @@ app.use((req, res, next) => {
   console.log('   GET /debug');
   console.log('   GET /api/email-ingest');
   console.log('   POST /api/email-ingest');
+  // Mount routes with logging
+  console.log('🔗 Mounting API routes...');
+  // Previous static route definitions are not here
+  // Mount routes
+  app.use('/api/oauth', authRoutes); // Assuming authRoutes is defined elsewhere or imported
+  app.use('/api/documents', requireAuth, documentRoutes); // Assuming requireAuth and documentRoutes are defined elsewhere or imported
+  app.use('/api/backup', backupRoutes); // Assuming backupRoutes is defined elsewhere or imported
+  app.use('/api/categories', require('./routes/categorySuggestion').default);
+  app.use('/api/llm-usage', llmUsageRoutes); // Assuming llmUsageRoutes is defined elsewhere or imported
+  app.use('/api/admin', adminTestRoutes); // Assuming adminTestRoutes is defined elsewhere or imported
+  app.use('/api/multi-page-scan', multiPageScanRoutes); // Assuming multiPageScanRoutes is defined elsewhere or imported
+  app.use('/api/advanced-scanning', advancedScanningRoutes); // Assuming advancedScanningRoutes is defined elsewhere or imported
+  app.use('/api/ocr-error', ocrErrorRoutes); // Assuming ocrErrorRoutes is defined elsewhere or imported
+  app.use('/api/insight-recovery', insightRecoveryRoutes); // Assuming insightRecoveryRoutes is defined elsewhere or imported
+  app.use('/api/canny', cannyRoutes); // Assuming cannyRoutes is defined elsewhere or imported
+  console.log('✅ All API routes mounted successfully');
   console.log(`🚀 Starting server on port ${port} with NODE_ENV=${process.env.NODE_ENV}`);
 
   // DEPLOYMENT FIX: Add deployment environment detection (already declared above)

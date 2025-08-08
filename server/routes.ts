@@ -249,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
           "object-src 'none'",
           "frame-ancestors 'none'"
-        ].join('; ') + ';'
+        ].join('; ') + '; '
       : [
           "default-src 'self'",
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://*.replit.app https://*.replit.dev blob:",
@@ -259,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "connect-src 'self' data: wss: ws: https://*.replit.app https://*.replit.dev",
           "object-src 'none'",
           "frame-ancestors 'none'"
-        ].join('; ') + ';';
+        ].join('; ') + '; ';
 
     console.log('🔒 Setting CSP policy (isDeployment=' + isDeployment + '):', cspPolicy.substring(0, 100) + '...');
 
@@ -1018,35 +1018,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Document preview endpoint - optimized for fast PDF loading
   app.get('/api/documents/:id/preview', requireAuth, async (req: any, res) => {
     try {
-      const userId = getUserId(req);
+      const userId = req.user?.claims?.sub || 'demo-user-1';
       const documentId = parseInt(req.params.id);
 
-      console.log(`📋 Document preview request - ID: ${documentId}, User: ${userId}`);
+      console.log(`🔍 Preview request for document ${documentId} by user ${userId}`);
 
       if (isNaN(documentId)) {
-        console.log(`❌ Invalid document ID format: ${req.params.id}`);
-        return res.status(400).json({ message: 'Invalid document ID format' });
+        console.log(`❌ Invalid document ID: ${req.params.id}`);
+        return res.status(400).json({ message: "Invalid document ID" });
       }
 
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
-        console.log(`❌ Document not found - ID: ${documentId}, User: ${userId}`);
-
-        // Check if document exists for any user (for debugging)
-        const anyUserDoc = await storage.db.query.documents.findFirst({
-          where: (documents, { eq }) => eq(documents.id, documentId)
-        });
-
-        if (anyUserDoc) {
-          console.log(`🔒 Document ${documentId} exists but belongs to user: ${anyUserDoc.userId}`);
-          return res.status(403).json({ message: "Access denied to this document" });
-        } else {
-          console.log(`🚫 Document ${documentId} does not exist in database`);
-          return res.status(404).json({ message: "Document not found" });
-        }
+        console.log(`❌ Document ${documentId} not found for user ${userId}`);
+        return res.status(404).json({ message: "Document not found" });
       }
 
-      console.log(`✅ Document found - ${document.name} (${document.mimeType})`);
+      console.log(`✅ Found document: ${document.fileName}, type: ${document.mimeType}`);
 
       // Check if file exists on disk
       if (!fs.existsSync(document.filePath)) {
@@ -2069,9 +2057,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalUsers: stats.totalUsers || 0,
         activeUsers: stats.activeUsers || 0,
         totalDocuments: stats.totalDocuments || 0,
-        documentsThisMonth: stats.uploadsThisMonth || 0, // Map to available property
+        documentsThisMonth: stats.totalStorageBytes || 0, // Map to available property
         totalStorage: stats.totalStorageBytes || 0,
-        avgProcessingTime: stats.avgProcessingTime || 0 // Map to available property
+        avgProcessingTime: stats.uploadsThisMonth || 0 // Map to available property
       };
 
       console.log('🔧 Admin stats response:', response);
@@ -3942,6 +3930,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[${requestId}] 🔍 OCR processing will be triggered automatically for supported document types`);
       console.log(`[${requestId}] 📧 Email documents created - OCR and insights will process in background`);
 
+      if (processedDocuments.length > 0) {
+        console.log(`[${requestId}] ✅ ${processedDocuments.length} documents successfully created and queued for processing`);
+      }
+
+
       // Record email processing in the database
       try {
         await storage.createEmailForward({
@@ -4052,8 +4045,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Keep API route protection for unhandled routes
     app.use('/api/*', (req, res, next) => {
-      console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
-      res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
+      console.log(`🔍 Unmatched API route: ${req.method} ${req.originalUrl}`);
+      res.status(404).json({ 
+        message: 'API route not found',
+        path: req.originalUrl,
+        method: req.method 
+      });
     });
 
     app.use(sentryErrorHandler());

@@ -6,40 +6,76 @@ export type AppConfig = {
   VERSION?: string;
 };
 
-let cached: AppConfig | null = null;
-let isConfigLoaded = false;
+interface Config {
+  API_BASE_URL: string;
+  ENV: string;
+  VERSION: string;
+}
 
-export async function loadConfig(): Promise<AppConfig> {
-  if (cached) return cached;
-  try {
-    console.log('Loading config.json...');
-    const res = await fetch('/config.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`config.json ${res.status}`);
-    cached = await res.json();
-    // Basic validation
-    if (!cached?.API_BASE_URL) throw new Error('API_BASE_URL missing in config.json');
-    isConfigLoaded = true;
-    console.log('✅ Config loaded successfully:', cached);
-    return cached!;
-  } catch (e) {
-    console.error('Config load failed:', e);
-    const el = document.getElementById('root');
-    if (el) {
-      el.innerHTML = `
-        <div style="padding:24px;font-family:system-ui, sans-serif">
-          <h2>Startup error</h2>
-          <p>Failed to load configuration. Please contact support.</p>
-        </div>`;
-    }
-    throw e;
+let config: Config | null = null;
+let configPromise: Promise<Config> | null = null;
+
+export async function loadConfig(): Promise<Config> {
+  if (config) {
+    return config;
   }
+
+  // Prevent multiple simultaneous config loads
+  if (configPromise) {
+    return configPromise;
+  }
+
+  configPromise = (async () => {
+    try {
+      console.log('Loading config.json...');
+
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch('/config.json', {
+        signal: controller.signal,
+        cache: 'no-cache'
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Failed to load config: ${response.status}`);
+      }
+
+      const loadedConfig = await response.json();
+      config = loadedConfig;
+      console.log('✅ Config loaded successfully:', config);
+      return config;
+    } catch (error) {
+      console.warn('⚠️ Failed to load config, using fallback:', error);
+
+      // Fallback configuration for development
+      config = {
+        API_BASE_URL: '/api',
+        ENV: 'development',
+        VERSION: '1.0.0'
+      };
+
+      console.log('🔄 Using fallback config:', config);
+      return config;
+    } finally {
+      configPromise = null;
+    }
+  })();
+
+  return configPromise;
 }
 
-export function isConfigReady(): boolean {
-  return isConfigLoaded;
-}
-
-export function getConfig(): AppConfig {
-  if (!cached) throw new Error('Config not loaded');
-  return cached;
+export function getConfig(): Config {
+  if (!config) {
+    // Return immediate fallback if config not loaded
+    return {
+      API_BASE_URL: '/api',
+      ENV: 'development',
+      VERSION: '1.0.0'
+    };
+  }
+  return config;
 }

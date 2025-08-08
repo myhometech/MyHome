@@ -35,7 +35,7 @@ if (!isDeployment && global.gc) {
   setInterval(() => {
     const memUsage = process.memoryUsage();
     const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
-    
+
     // More aggressive GC due to current 97% heap usage
     if (heapPercent > 80 && global.gc) {
       global.gc();
@@ -48,7 +48,7 @@ if (!isDeployment && global.gc) {
 if (!isDeployment) {
   const initialMem = process.memoryUsage();
   console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap`);
-  
+
   // Load only session cleanup to prevent memory leaks
   import('./sessionCleanup.js').then(({ sessionCleanup }) => {
     console.log('🧹 Session cleanup loaded');
@@ -142,7 +142,7 @@ app.use((req, res, next) => {
   // DEPLOYMENT FIX: Use consistent environment detection
   const nodeEnv = process.env.NODE_ENV;
   const appEnv = app.get("env");
-  const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
+  // const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production'; // Redundant declaration, using the one declared at the top
   console.log('🚨 EXPRESS SERVER STARTUP: This confirms the server is executing');
   console.log('🚨 REPLIT_DEPLOYMENT env:', process.env.REPLIT_DEPLOYMENT);
   console.log('🚨 Production detection:', { NODE_ENV: process.env.NODE_ENV, isDeployment });
@@ -177,7 +177,8 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
+  const port = parseInt(process.env.PORT || "5000", 10);
+  const host = process.env.HOST || "0.0.0.0";
 
   // DEPLOYMENT DEBUG: Log all registered routes before starting server
   console.log('🔧 REGISTERED ROUTES SUMMARY:');
@@ -197,11 +198,11 @@ app.use((req, res, next) => {
 
   server.listen({
     port,
-    host: "0.0.0.0",
+    host,
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
-    console.log(`🌐 Server ready at http://0.0.0.0:${port}`);
+    console.log(`🌐 Server ready at http://${host}:${port}`);
 
     if (isDeployment) {
       console.log('✅ DEPLOYMENT: Server successfully started and listening');

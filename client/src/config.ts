@@ -29,9 +29,9 @@ export async function loadConfig(): Promise<Config> {
     try {
       console.log('Loading config.json...');
 
-      // Add timeout to prevent hanging
+      // Much shorter timeout to prevent hanging
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
 
       const response = await fetch('/config.json', {
         signal: controller.signal,
@@ -49,9 +49,9 @@ export async function loadConfig(): Promise<Config> {
       console.log('✅ Config loaded successfully:', config);
       return config;
     } catch (error) {
-      console.warn('⚠️ Failed to load config, using fallback:', error);
+      console.warn('⚠️ Config loading failed, using immediate fallback:', error);
 
-      // Fallback configuration for development
+      // Immediate fallback configuration
       config = {
         API_BASE_URL: '/api',
         ENV: 'development',

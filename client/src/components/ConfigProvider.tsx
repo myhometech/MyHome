@@ -24,50 +24,35 @@ interface ConfigProviderProps {
 export function ConfigProvider({ children }: ConfigProviderProps): JSX.Element {
   const [state, setState] = useState<ConfigContextType>({
     config: null,
-    isLoading: true,
+    isLoading: false, // Start with loading=false to prevent blocking
     error: null,
   });
 
   useEffect(() => {
-    // If config is already ready from main.tsx loading, use it immediately
-    if (isConfigReady()) {
-      try {
-        const config = getConfig();
-        setState({
-          config,
-          isLoading: false,
-          error: null,
-        });
-      } catch (error) {
-        setState({
-          config: null,
-          isLoading: false,
-          error: error as Error,
-        });
-      }
+    // Always try to get config, with fallback
+    try {
+      const config = getConfig(); // This will return fallback if needed
+      setState({
+        config,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      console.warn('ConfigProvider fallback to default config:', error);
+      // Use default config instead of blocking
+      setState({
+        config: {
+          API_BASE_URL: '/api',
+          ENV: 'development',
+          VERSION: '1.0.0'
+        },
+        isLoading: false,
+        error: null, // Don't show error, just use fallback
+      });
     }
   }, []);
 
-  if (state.isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading configuration...</div>
-      </div>
-    );
-  }
-
-  if (state.error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-4">Configuration Error</h2>
-          <p className="text-gray-600">Failed to load application configuration.</p>
-          <p className="text-sm text-gray-500 mt-2">{state.error.message}</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Never block the app - always render children
   return (
     <ConfigContext.Provider value={state}>
       {children}

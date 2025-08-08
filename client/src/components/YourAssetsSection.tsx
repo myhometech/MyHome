@@ -134,27 +134,37 @@ export function YourAssetsSection() {
 
   const bulkDeleteAssets = useMutation({
     mutationFn: async (ids: string[]) => {
-      // For user assets, we need to call individual delete endpoints
-      // since there's no bulk delete for assets yet
-      const results = await Promise.all(
-        ids.map(async (id) => {
-          const response = await fetch(`/api/user-assets/${id}`, { 
-            method: "DELETE",
-            credentials: 'include'
-          });
-          if (!response.ok) {
-            throw new Error(`Failed to delete asset ${id}: ${response.status}`);
-          }
-          return response;
-        })
-      );
-      return results;
+      console.log('Bulk delete assets request:', { assetIds: ids, count: ids.length });
+      
+      const response = await fetch('/api/user-assets/bulk-delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ assetIds: ids }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Bulk delete assets failed:', errorData);
+        throw new Error(`Failed to delete assets: ${response.status} - ${errorData.message || 'Unknown error'}`);
+      }
+      
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/user-assets"] });
       setSelectedAssets(new Set());
       setBulkMode(false);
-      toast({ title: "Assets deleted", description: `Successfully deleted ${selectedAssets.size} assets.` });
+      
+      const successMessage = `Successfully deleted ${result.success} assets${result.failed > 0 ? `, ${result.failed} failed` : ''}`;
+      
+      toast({ 
+        title: "Bulk Delete Complete", 
+        description: successMessage,
+        variant: result.failed > 0 ? "destructive" : "default"
+      });
     },
     onError: (error) => {
       console.error('Bulk delete assets error:', error);

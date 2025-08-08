@@ -3519,6 +3519,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete user assets
+  app.delete('/api/user-assets/bulk-delete', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { assetIds } = req.body;
+
+      if (!Array.isArray(assetIds) || assetIds.length === 0) {
+        return res.status(400).json({ message: "Invalid asset IDs" });
+      }
+
+      console.log(`Bulk deleting ${assetIds.length} assets for user ${userId}`);
+
+      let successCount = 0;
+      let failureCount = 0;
+      const errors: string[] = [];
+
+      for (const assetId of assetIds) {
+        try {
+          const id = parseInt(assetId);
+          if (isNaN(id)) {
+            errors.push(`Invalid asset ID: ${assetId}`);
+            failureCount++;
+            continue;
+          }
+
+          await storage.deleteUserAsset(id, userId);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to delete asset ${assetId}:`, error);
+          errors.push(`Failed to delete asset ${assetId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          failureCount++;
+        }
+      }
+
+      res.json({
+        success: successCount,
+        failed: failureCount,
+        errors: errors,
+        message: `Deleted ${successCount} assets${failureCount > 0 ? `, ${failureCount} failed` : ''}`
+      });
+
+    } catch (error) {
+      console.error("Bulk delete assets error:", error);
+      res.status(500).json({ message: "Failed to bulk delete assets" });
+    }
+  });
+
   app.delete('/api/user-assets/:id', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);

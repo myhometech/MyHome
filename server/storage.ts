@@ -1314,12 +1314,14 @@ export class DatabaseStorage implements IStorage {
       const totalUsersResult = await this.db.select({ count: sql<number>`count(*)` }).from(users);
       const totalUsers = totalUsersResult[0]?.count || 0;
 
-      // Get active users - skip lastLoginAt check since column doesn't exist
-      // Use updatedAt as a proxy for activity
+      // Get active users - Use updatedAt as a proxy for activity
       const activeUsersResult = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(users)
-        .where(sql`${users.updatedAt} IS NOT NULL AND ${users.updatedAt} >= ${thirtyDaysAgo.toISOString()}`);
+        .where(and(
+          isNotNull(users.updatedAt),
+          sql`${users.updatedAt} >= ${thirtyDaysAgo.toISOString()}`
+        ));
       const activeUsers = activeUsersResult[0]?.count || 0;
 
       // Get total documents
@@ -1328,7 +1330,7 @@ export class DatabaseStorage implements IStorage {
 
       // Get total storage used
       const storageResult = await this.db
-        .select({ total: sql<number>`sum(${documents.fileSize})` })
+        .select({ total: sql<number>`coalesce(sum(${documents.fileSize}), 0)` })
         .from(documents);
       const totalStorageBytes = storageResult[0]?.total || 0;
 
@@ -1606,7 +1608,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Get actual storage from documents table
       const storageResult = await this.db
-        .select({ total: sql<number>`coalesce(sum(file_size), 0)` })
+        .select({ total: sql<number>`coalesce(sum(${documents.fileSize}), 0)` })
         .from(documents);
 
       const totalStorageBytes = storageResult[0]?.total || 0;

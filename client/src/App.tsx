@@ -37,16 +37,14 @@ import UnifiedDocuments from "@/pages/unified-documents";
 import InsightsFirstPage from "@/pages/insights-first";
 import { Support } from "@/pages/support";
 
-// Placeholder imports for routes that were added in the changes
-import Insights from "@/pages/insights"; // Assuming this path exists
-import InsightsFirst from "@/pages/insights-first"; // Assuming this path exists
-import SharedWithMe from "@/pages/shared-with-me"; // Assuming this path exists
-import FeatureFlagsPage from "@/pages/admin/feature-flags"; // Assuming this path exists
+// Additional page imports
+import Insights from "@/pages/insights";
+import SharedWithMe from "@/pages/shared-with-me";
 
 
 function Router() {
   const authResult = useAuth();
-  const { user = null, isLoading, refetch } = authResult;
+  const { user, isLoading, refetch } = authResult;
   const [, setLocation] = useLocation();
 
   // Re-check auth on page focus to handle OAuth redirects
@@ -103,11 +101,11 @@ function Router() {
           <Route path="/documents" component={UnifiedDocuments} />
           <Route path="/document/:id" component={DocumentPage} />
           <Route path="/insights" component={Insights} />
-          <Route path="/insights-first" component={InsightsFirst} />
+          <Route path="/insights-first" component={InsightsFirstPage} />
           <Route path="/settings" component={Settings} />
           <Route path="/shared-with-me" component={SharedWithMe} />
           <Route path="/admin" component={AdminDashboard} />
-          <Route path="/admin/feature-flags" component={FeatureFlagsPage} />
+          <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
           {/* Redirect auth routes to home for logged in users */}
           <Route path="/login" component={() => <Redirect to="/" />} />
           <Route path="/register" component={() => <Redirect to="/" />} />

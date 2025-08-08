@@ -34,7 +34,10 @@ import {
   Plus,
   BarChart3,
   Zap,
-  Share2
+  Share2,
+  AlertTriangle,
+  Folder,
+  Calendar as CalendarIcon // Alias to avoid conflict if Calendar is used elsewhere
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -236,7 +239,7 @@ function QuickActionCards() {
     {
       title: "Add Important Date",
       description: "Track key dates and deadlines",
-      icon: Calendar,
+      icon: CalendarIcon,
       color: "purple",
       action: "manual_event",
       helpContent: helpContent.manualEvents
@@ -347,10 +350,6 @@ function QuickActionCards() {
 }
 
 export default function Home() {
-  const { toast } = useToast();
-  const { hasFeature, features } = useFeatures();
-  const limits = { documents: features.BULK_OPERATIONS ? 999999 : 50 }; // Simple limits logic
-  const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -535,12 +534,55 @@ export default function Home() {
     retry: false,
   });
 
+  // Mock components for demonstration purposes, replace with actual imports
+  const CriticalInsightsDashboard = () => <div className="bg-gray-100 p-4 rounded-lg">Critical Insights Dashboard</div>;
+  const TopInsightsWidget = () => <div className="bg-gray-100 p-4 rounded-lg">Top Insights Widget</div>;
+  const UnifiedInsightsDashboard = ({ filter }: { filter: any }) => <div className="bg-gray-100 p-4 rounded-lg">Unified Insights Dashboard (Filter: {JSON.stringify(filter)})</div>;
+  const YourAssetsSection = () => <div className="bg-gray-100 p-4 rounded-lg">Your Assets Section</div>;
 
-
-  const handleFileUpload = (files: File[]) => {
-    queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+  const handleFilterChange = (filter: any) => {
+    // This is the filter for the UnifiedInsightsDashboard, not the main dashboard overview cards
+    // It's currently a placeholder and might need adjustment based on how UnifiedInsightsDashboard uses filters.
   };
 
+  const { data: user, isLoading: userLoading } = useQuery({
+    queryKey: ['/api/auth/user'],
+    queryFn: async () => {
+      const response = await fetch('/api/auth/user', { credentials: 'include' });
+      if (!response.ok) throw new Error('Not authenticated');
+      return response.json();
+    },
+  });
+
+  console.log('Home component rendering with user:', user, 'loading:', userLoading);
+
+  if (userLoading) {
+    return (
+      <div className="min-h-screen bg-surface space-y-8">
+        <Header searchQuery="" onSearchChange={() => {}} /> {/* Pass dummy props to Header */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-8 bg-gray-200 rounded w-64 mb-2 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-96 animate-pulse"></div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 mt-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardContent className="p-6">
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Render the main dashboard content
   return (
     <div className="min-h-screen bg-surface">
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
@@ -837,7 +879,6 @@ export default function Home() {
           </div>
         </div>
       </main>
-
     </div>
   );
 }

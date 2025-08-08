@@ -432,11 +432,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDocument(id: number, userId: string): Promise<Document | undefined> {
-    const [document] = await this.db
-      .select()
-      .from(documents)
-      .where(and(eq(documents.id, id), eq(documents.userId, userId)));
-    return document;
+    console.log(`🔍 Searching for document - ID: ${id}, User: ${userId}`);
+
+    const document = await this.db.query.documents.findFirst({
+      where: (documents, { eq, and }) => and(
+        eq(documents.id, id),
+        eq(documents.userId, userId)
+      ),
+    });
+
+    if (document) {
+      console.log(`✅ Document found: ${document.name}`);
+    } else {
+      console.log(`❌ No document found for ID: ${id}, User: ${userId}`);
+    }
+
+    return document || null;
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {
@@ -938,7 +949,7 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(featureFlags)
         .orderBy(featureFlags.name);
-      
+
       console.log(`📊 Feature flags query returned ${result?.length || 0} flags`);
       return result || [];
     } catch (error) {

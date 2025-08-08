@@ -1021,28 +1021,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
 
-      console.log(`🔍 PREVIEW: Attempting to serve document ${documentId} for user ${userId}`);
+      console.log(`📋 Document preview request - ID: ${documentId}, User: ${userId}`);
 
       if (isNaN(documentId)) {
-        console.log(`❌ PREVIEW: Invalid document ID format: ${req.params.id}`);
+        console.log(`❌ Invalid document ID format: ${req.params.id}`);
         return res.status(400).json({ message: 'Invalid document ID format' });
       }
 
       const document = await storage.getDocument(documentId, userId);
-
       if (!document) {
-        console.log(`❌ PREVIEW: Document ${documentId} not found for user ${userId}`);
-        return res.status(404).json({ message: 'Document not found' });
+        console.log(`❌ Document not found - ID: ${documentId}, User: ${userId}`);
+
+        // Check if document exists for any user (for debugging)
+        const anyUserDoc = await storage.db.query.documents.findFirst({
+          where: (documents, { eq }) => eq(documents.id, documentId)
+        });
+
+        if (anyUserDoc) {
+          console.log(`🔒 Document ${documentId} exists but belongs to user: ${anyUserDoc.userId}`);
+          return res.status(403).json({ message: "Access denied to this document" });
+        } else {
+          console.log(`🚫 Document ${documentId} does not exist in database`);
+          return res.status(404).json({ message: "Document not found" });
+        }
       }
 
-      console.log(`📄 PREVIEW: Found document:`, {
-        id: document.id,
-        name: document.name,
-        filePath: document.filePath,
-        mimeType: document.mimeType,
-        fileSize: document.fileSize,
-        fileExists: fs.existsSync(document.filePath)
-      });
+      console.log(`✅ Document found - ${document.name} (${document.mimeType})`);
 
       // Check if file exists on disk
       if (!fs.existsSync(document.filePath)) {
@@ -2065,9 +2069,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalUsers: stats.totalUsers || 0,
         activeUsers: stats.activeUsers || 0,
         totalDocuments: stats.totalDocuments || 0,
-        documentsThisMonth: stats.totalStorageBytes || 0, // Map to available property
+        documentsThisMonth: stats.uploadsThisMonth || 0, // Map to available property
         totalStorage: stats.totalStorageBytes || 0,
-        avgProcessingTime: stats.uploadsThisMonth || 0 // Map to available property
+        avgProcessingTime: stats.avgProcessingTime || 0 // Map to available property
       };
 
       console.log('🔧 Admin stats response:', response);
@@ -3937,11 +3941,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log OCR queue status for debugging
       console.log(`[${requestId}] 🔍 OCR processing will be triggered automatically for supported document types`);
       console.log(`[${requestId}] 📧 Email documents created - OCR and insights will process in background`);
-
-      if (processedDocuments.length > 0) {
-        console.log(`[${requestId}] ✅ ${processedDocuments.length} documents successfully created and queued for processing`);
-      }
-
 
       // Record email processing in the database
       try {

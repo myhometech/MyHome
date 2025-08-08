@@ -8,7 +8,7 @@ import rateLimit from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
 
 // Content Security Policy configuration
-const contentSecurityPolicy = {
+const productionCSP = {
   directives: {
     defaultSrc: ["'self'"],
     scriptSrc: [
@@ -17,7 +17,9 @@ const contentSecurityPolicy = {
       "'unsafe-eval'", // Required for Vite HMR in development
       "https://js.stripe.com",
       "https://cdn.jsdelivr.net",
-      "https://unpkg.com"
+      "https://unpkg.com",
+      "https://docs.opencv.org",
+      "https://replit.com"
     ],
     styleSrc: [
       "'self'",
@@ -64,9 +66,71 @@ const contentSecurityPolicy = {
   }
 };
 
+// Development CSP with more permissive settings
+const developmentCSP = {
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: [
+      "'self'",
+      "'unsafe-inline'",
+      "'unsafe-eval'",
+      "https://js.stripe.com",
+      "https://cdn.jsdelivr.net",
+      "https://unpkg.com",
+      "https://docs.opencv.org",
+      "https://replit.com",
+      "blob:"
+    ],
+    styleSrc: [
+      "'self'",
+      "'unsafe-inline'",
+      "https://fonts.googleapis.com",
+      "https://cdn.jsdelivr.net"
+    ],
+    fontSrc: [
+      "'self'",
+      "https://fonts.gstatic.com",
+      "data:"
+    ],
+    imgSrc: [
+      "'self'",
+      "data:",
+      "blob:",
+      "https://storage.googleapis.com",
+      "https://*.googleusercontent.com",
+      "https://images.unsplash.com",
+      "https://myhome-docs.com",
+      "*" // More permissive for development
+    ],
+    connectSrc: [
+      "'self'",
+      "https://api.stripe.com",
+      "https://api.openai.com",
+      "https://api.perplexity.ai",
+      "https://storage.googleapis.com",
+      "wss://localhost:*",
+      "ws://localhost:*",
+      "wss://*",
+      "ws://*"
+    ],
+    frameSrc: [
+      "'self'",
+      "https://js.stripe.com",
+      "https://hooks.stripe.com",
+      "https://storage.googleapis.com",
+      "https://*.googleapis.com"
+    ],
+    objectSrc: ["'none'"],
+    mediaSrc: ["'self'", "blob:", "data:"],
+    workerSrc: ["'self'", "blob:"],
+    childSrc: ["'self'", "blob:"],
+    formAction: ["'self'"]
+  }
+};
+
 // Helmet security configuration
 export const securityHeaders = helmet({
-  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? contentSecurityPolicy : false,
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? productionCSP : developmentCSP,
   
   // HTTP Strict Transport Security
   hsts: {

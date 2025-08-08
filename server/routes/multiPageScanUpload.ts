@@ -111,21 +111,32 @@ export function setupMultiPageScanUpload(app: Express) {
           throw new Error(`PDF conversion failed: ${conversionResult.error || 'Unknown conversion error'}`);
         }
 
-        if (!conversionResult.pdfPath || !fs.existsSync(conversionResult.pdfPath)) {
-          throw new Error('PDF file was not created successfully');
+        if (!conversionResult.pdfPath) {
+          throw new Error('PDF conversion did not return a file path');
+        }
+
+        // Verify PDF exists immediately after conversion
+        if (!fs.existsSync(conversionResult.pdfPath)) {
+          throw new Error(`PDF file was not created at expected location: ${conversionResult.pdfPath}`);
         }
 
         console.log(`✅ UPLOAD: PDF created successfully: ${conversionResult.pdfPath}`);
 
-        // Read the PDF file
-        const pdfBuffer = await fs.promises.readFile(conversionResult.pdfPath);
+        // CRITICAL: Read the PDF file IMMEDIATELY before any cleanup can occur
         const pdfStats = fs.statSync(conversionResult.pdfPath);
-
-        if (pdfBuffer.length === 0) {
+        console.log(`📄 UPLOAD: PDF file size: ${pdfStats.size} bytes`);
+        
+        if (pdfStats.size === 0) {
           throw new Error('Generated PDF file is empty');
         }
 
-        console.log(`📄 UPLOAD: PDF file size: ${pdfStats.size} bytes`);
+        const pdfBuffer = await fs.promises.readFile(conversionResult.pdfPath);
+        
+        if (pdfBuffer.length === 0) {
+          throw new Error('Generated PDF file is empty after reading');
+        }
+
+        console.log(`📄 UPLOAD: PDF buffer loaded: ${pdfBuffer.length} bytes`);
 
         // Generate unique file name for storage
         const fileId = nanoid();

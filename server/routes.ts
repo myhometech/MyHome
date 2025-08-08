@@ -3242,12 +3242,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const { documentIds } = req.body;
 
-      if (!Array.isArray(documentIds) || documentIds.length === 0) {
-        return res.status(400).json({ message: "Document IDs array is required" });
+      console.log('Bulk delete request:', { userId, documentIds, bodyKeys: Object.keys(req.body || {}) });
+
+      if (!documentIds) {
+        return res.status(400).json({ 
+          message: "Document IDs are required",
+          received: req.body,
+          expected: "{ documentIds: [1, 2, 3] }"
+        });
+      }
+
+      if (!Array.isArray(documentIds)) {
+        return res.status(400).json({ 
+          message: "Document IDs must be an array",
+          received: typeof documentIds,
+          value: documentIds
+        });
+      }
+
+      if (documentIds.length === 0) {
+        return res.status(400).json({ 
+          message: "Document IDs array cannot be empty",
+          received: documentIds
+        });
       }
 
       if (documentIds.length > 50) {
         return res.status(400).json({ message: "Maximum 50 documents can be deleted at once" });
+      }
+
+      // Validate that all IDs are numbers
+      const invalidIds = documentIds.filter(id => !Number.isInteger(id) || id <= 0);
+      if (invalidIds.length > 0) {
+        return res.status(400).json({ 
+          message: "All document IDs must be positive integers",
+          invalidIds
+        });
       }
 
       const { searchOptimizationService } = await import('./searchOptimizationService');
@@ -3259,7 +3289,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error in bulk delete:", error);
-      res.status(500).json({ message: "Failed to perform bulk delete" });
+      res.status(500).json({ 
+        message: "Failed to perform bulk delete",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

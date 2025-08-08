@@ -25,7 +25,7 @@ export async function loadConfig(): Promise<Config> {
     return configPromise;
   }
 
-  configPromise = (async () => {
+  configPromise = (async (): Promise<Config> => {
     try {
       console.log('Loading config.json...');
 
@@ -65,7 +65,7 @@ export async function loadConfig(): Promise<Config> {
     }
   })();
 
-  return configPromise;
+  return configPromise as Promise<Config>;
 }
 
 export function getConfig(): Config {

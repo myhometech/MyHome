@@ -78,15 +78,23 @@ export function setupMultiPageScanUpload(app: Express) {
       try {
         console.log(`🔄 UPLOAD: Creating temporary files for ${files.length} pages`);
 
-        // Save uploaded files to temporary directory
+        // Use the files that multer already saved to disk
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
+          
+          // Multer already saved the file to disk using 'dest' option
+          if (!file.path || !fs.existsSync(file.path)) {
+            throw new Error(`Uploaded file ${i + 1} not found at: ${file.path}`);
+          }
+          
+          // Copy to our temp directory with proper naming
           const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '');
           const tempImagePath = path.join(tempDir, `temp-page-${i + 1}-${Date.now()}-${sanitizedName}`);
-
-          await fs.promises.writeFile(tempImagePath, file.buffer);
+          
+          // Copy the file to our temp location
+          await fs.promises.copyFile(file.path, tempImagePath);
           tempImagePaths.push(tempImagePath);
-          console.log(`🔄 UPLOAD: Saved temp file ${i + 1}: ${tempImagePath} (${file.size} bytes)`);
+          console.log(`🔄 UPLOAD: Copied temp file ${i + 1}: ${tempImagePath} (${file.size} bytes)`);
         }
 
         console.log(`🔄 UPLOAD: Converting ${tempImagePaths.length} images to PDF`);

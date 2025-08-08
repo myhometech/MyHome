@@ -45,7 +45,7 @@ export function FileUpload({
         className
       )}
     >
-      <input {...getInputProps()} />
+      <input {...getInputProps()} data-testid="doc-upload-input" />
       {children}
     </div>
   );

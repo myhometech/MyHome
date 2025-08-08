@@ -772,6 +772,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
         type="file"
         multiple
         className="hidden"
+        data-testid="doc-upload-input"
         onChange={handleFileInput}
         accept="application/pdf,image/*"
       />
@@ -917,6 +918,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
                 onClick={handleUpload}
                 disabled={selectedFiles.length === 0 || uploadMutation.isPending}
                 className="bg-primary hover:bg-blue-700"
+                data-testid="upload-submit"
               >
                 {uploadMutation.isPending ? (
                   <>

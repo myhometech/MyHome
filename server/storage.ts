@@ -1772,20 +1772,20 @@ export class DatabaseStorage implements IStorage {
       }));
 
       // Get user tier breakdown
-      const userTiersResult = await this.db.execute(sql`
-        SELECT 
-          subscription_tier,
-          COUNT(*)::int as count
-        FROM users 
-        GROUP BY subscription_tier
-      `);
+      // Get user tier breakdown using the correct column name
+      const userTiersResult = await this.db
+        .select({
+          tier: users.subscriptionTier,
+          count: sql<number>`count(*)::int`
+        })
+        .from(users)
+        .groupBy(users.subscriptionTier);
 
-      const tiersRows = Array.isArray(userTiersResult) ? userTiersResult : (userTiersResult.rows || []);
       let freeUsers = 0;
       let premiumUsers = 0;
 
-      for (const row of tiersRows) {
-        if (row.subscription_tier === 'premium') {
+      for (const row of userTiersResult) {
+        if (row.tier === 'premium') {
           premiumUsers = row.count;
         } else {
           freeUsers = row.count;

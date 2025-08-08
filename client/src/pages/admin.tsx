@@ -68,23 +68,47 @@ export default function AdminDashboard() {
   });
 
   // Add missing analytics queries to admin dashboard
-  const { data: llmUsage } = useQuery({
+  const { data: llmUsage, error: llmError } = useQuery({
     queryKey: ['/api/admin/llm-usage/analytics'],
-    refetchInterval: 60000, // Refresh every minute
+    queryFn: async () => {
+      const response = await fetch('/api/admin/llm-usage/analytics', { credentials: 'include' });
+      if (!response.ok) throw new Error(`Failed to fetch LLM usage: ${response.status}`);
+      return response.json();
+    },
+    enabled: isAuthenticated && userWithRole?.role === 'admin',
+    refetchInterval: 60000,
   });
 
-  const { data: activityAnalytics } = useQuery({
+  const { data: activityAnalytics, error: activityError } = useQuery({
     queryKey: ['/api/admin/activity-analytics'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/activity-analytics', { credentials: 'include' });
+      if (!response.ok) throw new Error(`Failed to fetch activity analytics: ${response.status}`);
+      return response.json();
+    },
+    enabled: isAuthenticated && userWithRole?.role === 'admin',
     refetchInterval: 30000,
   });
 
-  const { data: searchAnalytics } = useQuery({
+  const { data: searchAnalytics, error: searchError } = useQuery({
     queryKey: ['/api/admin/search-analytics'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/search-analytics', { credentials: 'include' });
+      if (!response.ok) throw new Error(`Failed to fetch search analytics: ${response.status}`);
+      return response.json();
+    },
+    enabled: isAuthenticated && userWithRole?.role === 'admin',
     refetchInterval: 30000,
   });
 
-  const { data: cloudUsage } = useQuery({
+  const { data: cloudUsage, error: cloudError } = useQuery({
     queryKey: ['/api/admin/cloud-usage'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/cloud-usage', { credentials: 'include' });
+      if (!response.ok) throw new Error(`Failed to fetch cloud usage: ${response.status}`);
+      return response.json();
+    },
+    enabled: isAuthenticated && userWithRole?.role === 'admin',
     refetchInterval: 30000,
   });
 

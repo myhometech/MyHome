@@ -21,6 +21,16 @@ export function ActivityLog() {
 
   const { data: activities, isLoading } = useQuery<SystemActivity[]>({
     queryKey: ['/api/admin/activities', severityFilter],
+    queryFn: async () => {
+      const params = severityFilter !== 'all' ? `?severity=${severityFilter}` : '';
+      const response = await fetch(`/api/admin/activities${params}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch activities: ${response.status}`);
+      }
+      return response.json();
+    },
   });
 
   const getSeverityIcon = (severity: string) => {

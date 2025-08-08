@@ -34,10 +34,28 @@ export function FeatureFlagsPanel() {
 
   const { data: flags, isLoading: flagsLoading } = useQuery<FeatureFlag[]>({
     queryKey: ['/api/admin/feature-flags'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/feature-flags', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch feature flags: ${response.status}`);
+      }
+      return response.json();
+    },
   });
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery<FeatureFlagAnalytics>({
     queryKey: ['/api/admin/feature-flag-analytics'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/feature-flag-analytics', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch feature flag analytics: ${response.status}`);
+      }
+      return response.json();
+    },
   });
 
   const toggleFlagMutation = useMutation({

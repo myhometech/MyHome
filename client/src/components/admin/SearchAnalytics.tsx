@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
-import { Search, TrendingUp, AlertTriangle, Crown, Calendar } from "lucide-react";
+import { Search, TrendingUp, Users, BarChart3, Calendar, Crown } from "lucide-react";
 
 interface SearchAnalytics {
   totalSearches: number;
@@ -33,6 +33,22 @@ export function SearchAnalytics() {
 
   const { data: analytics, isLoading } = useQuery<SearchAnalytics>({
     queryKey: ['/api/admin/search-analytics', timeRange, tierFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (timeRange !== '7d') {
+        params.append('timeRange', timeRange);
+      }
+      if (tierFilter !== 'all') {
+        params.append('tier', tierFilter);
+      }
+      const response = await fetch(`/api/admin/search-analytics?${params.toString()}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch search analytics: ${response.status}`);
+      }
+      return response.json();
+    },
   });
 
   const formatPercentage = (value: number) => {
@@ -55,6 +71,10 @@ export function SearchAnalytics() {
       </div>
     );
   }
+
+  const totalSearchesForTier = analytics.searchesByTier.free + analytics.searchesByTier.premium;
+  const premiumPercentage = totalSearchesForTier > 0 ? (analytics.searchesByTier.premium / totalSearchesForTier) * 100 : 0;
+  const freePercentage = totalSearchesForTier > 0 ? (analytics.searchesByTier.free / totalSearchesForTier) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -140,10 +160,10 @@ export function SearchAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatPercentage(analytics.searchesByTier.premium / (analytics.searchesByTier.free + analytics.searchesByTier.premium))}
+              {formatPercentage(premiumPercentage)}
             </div>
             <p className="text-xs text-muted-foreground">
-              vs {formatPercentage(analytics.searchesByTier.free / (analytics.searchesByTier.free + analytics.searchesByTier.premium))} free
+              vs {formatPercentage(freePercentage)} free
             </p>
           </CardContent>
         </Card>

@@ -24,6 +24,8 @@ const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_E
 // }
 
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
+import fs from "fs";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -124,7 +126,35 @@ app.use((req, res, next) => {
   console.log('🔧 ROUTE REGISTRATION: Registering all routes via routes.ts');
   console.log(`🚀 DEPLOYMENT MARKER: ${deploymentMarker}`);
 
-  // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
+  // ===== Pre-Middleware Endpoints (No Auth Required) =====
+  // These endpoints need to be registered BEFORE main routes to avoid middleware interference
+  
+  // Health Check Endpoint
+  app.get('/healthz', (_req, res) => {
+    res.json({ 
+      status: 'ok', 
+      version: process.env.GIT_SHA || 'dev',
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Config File Serving
+  app.get('/config.json', (_req, res) => {
+    const configPath = path.resolve(process.cwd(), 'server', 'public', 'config.json');
+    if (!fs.existsSync(configPath)) {
+      // Fallback to client config if server config doesn't exist
+      const fallbackConfigPath = path.resolve(process.cwd(), 'client', 'public', 'config.json');
+      if (fs.existsSync(fallbackConfigPath)) {
+        res.sendFile(fallbackConfigPath);
+      } else {
+        res.status(404).json({ error: 'Configuration file not found' });
+      }
+    } else {
+      res.sendFile(configPath);
+    }
+  });
+
+  // CRITICAL FIX: Register routes AFTER pre-middleware endpoints
   const server = await registerRoutes(app);
   console.log('✅ API routes registered successfully');
 
@@ -153,17 +183,46 @@ app.use((req, res, next) => {
     await setupVite(app, server);
   } else {
     console.log('🔧 PRODUCTION MODE: Setting up static file serving for deployment');
-    console.log('🔧 Static files will be served from dist/public directory');
+    console.log('🔧 Static files will be served from client/dist directory');
     console.log('⚠️ IMPORTANT: Static file serving configured AFTER API routes to prevent route interception');
     try {
-      serveStatic(app);
-      console.log('✅ Static file serving configured successfully for production');
+      // ===== Static Frontend Assets =====
+      const distPath = path.resolve(process.cwd(), "client", "dist");
       
-      // Log static file directory status
-      const path = require('path');
-      const fs = require('fs');
-      const distPath = path.resolve(process.cwd(), "dist/public");
+      console.log('🔍 Static directory path:', distPath);
       console.log('🔍 Static directory exists:', fs.existsSync(distPath));
+      
+      if (!fs.existsSync(distPath)) {
+        throw new Error(`Could not find the build directory: ${distPath}, make sure to build the client first`);
+      }
+      
+      // Serve static assets from client/dist
+      app.use(express.static(distPath));
+      console.log('✅ Static assets configured from:', distPath);
+      
+      // ===== SPA Fallback - Only for non-API routes =====
+      app.get('*', (req, res, next) => {
+        // Skip API routes
+        if (req.path.startsWith('/api')) {
+          return next();
+        }
+        
+        // Skip healthz and config endpoints  
+        if (req.path === '/healthz' || req.path === '/config.json') {
+          return next();
+        }
+        
+        // Serve index.html for all other routes (SPA fallback)
+        const indexPath = path.resolve(distPath, "index.html");
+        if (fs.existsSync(indexPath)) {
+          res.sendFile(indexPath);
+        } else {
+          res.status(404).json({ error: 'Frontend build not found' });
+        }
+      });
+      
+      console.log('✅ SPA fallback configured successfully');
+      
       if (fs.existsSync(distPath)) {
         const files = fs.readdirSync(distPath);
         console.log('🔍 Static files found:', files.slice(0, 5)); // Show first 5 files

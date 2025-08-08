@@ -74,7 +74,12 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 ### Security & Monitoring
 - **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS, Mailgun webhook security (IP whitelisting, HMAC verification).
 - **Monitoring**: Sentry integration for error tracking and performance.
-- **Health Checks**: Multi-subsystem health checks.
+- **Health Checks**: Multi-subsystem health checks via `/healthz` endpoint.
+
+### Runtime Configuration
+- **Frontend Config**: Runtime configuration loading via `/config.json` endpoint for dynamic API base URL configuration.
+- **Environment Agnostic**: No hardcoded dev URLs in frontend build; all API calls use runtime-configured base URL.
+- **Production Static Serving**: Express serves client/dist static assets with SPA fallback for non-API routes.
 
 ### Automated Systems
 - **Automated Backup**: PostgreSQL and file storage backups to GCS.

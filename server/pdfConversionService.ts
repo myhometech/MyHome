@@ -24,15 +24,28 @@ export class PDFConversionService {
       console.log(`🔄 MULTI-PAGE PDF: Converting ${imagePaths.length} scanned images to multi-page PDF using pdf-lib`);
       console.log(`🔄 MULTI-PAGE PDF: Image paths:`, imagePaths);
       
-      if (imagePaths.length === 0) {
-        throw new Error('No image paths provided');
+      if (!imagePaths || imagePaths.length === 0) {
+        throw new Error('No image paths provided for PDF conversion');
       }
 
-      // Verify all files exist and track them for cleanup
+      if (imagePaths.length > 20) {
+        throw new Error(`Too many images (${imagePaths.length}). Maximum 20 pages allowed.`);
+      }
+
+      // Verify all files exist and validate them
       for (let i = 0; i < imagePaths.length; i++) {
         const imagePath = imagePaths[i];
+        if (!imagePath || typeof imagePath !== 'string') {
+          throw new Error(`Invalid image path at index ${i}: ${imagePath}`);
+        }
+        
         if (!fs.existsSync(imagePath)) {
           throw new Error(`Image file not found: ${imagePath}`);
+        }
+        
+        // Check if it's actually an image file
+        if (!this.isImageFile(imagePath)) {
+          throw new Error(`File is not a supported image format: ${imagePath}`);
         }
         
         // Track image file for potential cleanup
@@ -40,12 +53,27 @@ export class PDFConversionService {
         resourceIds.push(imageResourceId);
         
         const stats = fs.statSync(imagePath);
-        console.log(`🔄 MULTI-PAGE PDF: Page ${i + 1} - ${imagePath} (${stats.size} bytes)`);
+        if (stats.size === 0) {
+          throw new Error(`Image file is empty: ${imagePath}`);
+        }
+        
+        if (stats.size > 10 * 1024 * 1024) { // 10MB per image
+          throw new Error(`Image file too large (${Math.round(stats.size / 1024 / 1024)}MB): ${imagePath}`);
+        }
+        
+        console.log(`🔄 MULTI-PAGE PDF: Page ${i + 1} - ${path.basename(imagePath)} (${stats.size} bytes)`);
       }
 
-      // Generate PDF filename
+      // Validate output directory
+      if (!fs.existsSync(outputDir)) {
+        console.log(`📁 Creating output directory: ${outputDir}`);
+        fs.mkdirSync(outputDir, { recursive: true });
+      }
+
+      // Generate PDF filename with sanitization
       const timestamp = Date.now();
-      const pdfFilename = `document-scan-${documentName}-${timestamp}.pdf`;
+      const sanitizedName = documentName.replace(/[^a-zA-Z0-9-_\s]/g, '').trim() || 'scanned-document';
+      const pdfFilename = `document-scan-${sanitizedName}-${timestamp}.pdf`;
       pdfPath = path.join(outputDir, pdfFilename);
       console.log(`🔄 MULTI-PAGE PDF: Output path: ${pdfPath}`);
 
@@ -54,14 +82,23 @@ export class PDFConversionService {
       resourceIds.push(pdfResourceId);
 
       // Create multi-page PDF
-      await this.generateMultiPagePDFFromImages(imagePaths, pdfPath, documentName);
+      console.log(`🔄 MULTI-PAGE PDF: Starting PDF generation...`);
+      await this.generateMultiPagePDFFromImages(imagePaths, pdfPath, sanitizedName);
 
-      // Verify the PDF was created and check its size
+      // Verify the PDF was created and validate it
       if (!fs.existsSync(pdfPath)) {
-        throw new Error(`PDF file was not created: ${pdfPath}`);
+        throw new Error(`PDF file was not created at expected location: ${pdfPath}`);
       }
       
       const pdfStats = fs.statSync(pdfPath);
+      if (pdfStats.size === 0) {
+        throw new Error(`Generated PDF file is empty: ${pdfPath}`);
+      }
+      
+      if (pdfStats.size < 1000) { // Less than 1KB is probably invalid
+        throw new Error(`Generated PDF file is too small (${pdfStats.size} bytes), likely corrupted`);
+      }
+      
       console.log(`✅ MULTI-PAGE PDF: Successfully created PDF with ${imagePaths.length} pages: ${pdfPath} (${pdfStats.size} bytes)`);
       
       return {
@@ -71,20 +108,28 @@ export class PDFConversionService {
       };
 
     } catch (error: any) {
-      console.error('Multi-page PDF conversion failed:', error);
+      console.error('❌ Multi-page PDF conversion failed:', error);
       
       // Clean up on error - delete any partially created files
-      await this.cleanup(pdfPath);
+      if (pdfPath) {
+        await this.cleanup([pdfPath]);
+      }
       
       return {
         pdfPath: '',
         originalImagePath: '',
         success: false,
-        error: error.message
+        error: error.message || 'Unknown error during PDF conversion'
       };
     } finally {
-      // Note: We don't auto-cleanup successful files here as they're needed
-      // But we ensure cleanup happens on errors or when explicitly called
+      // Clean up resource tracking
+      await Promise.allSettled(
+        resourceIds.map(id => resourceTracker.releaseResource(id).catch(err => 
+          console.warn(`Failed to release resource ${id}:`, err)
+        ))
+      );
+      
+      // Force garbage collection if available
       if (global.gc) {
         global.gc();
         console.log('🧹 Forced GC after PDF conversion');

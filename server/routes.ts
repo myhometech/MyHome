@@ -1913,8 +1913,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🔧 Admin stats endpoint called');
       const stats = await storage.getAdminStats();
-      console.log('🔧 Admin stats response:', stats);
-      res.json(stats);
+      
+      // Ensure consistent response format
+      const response = {
+        totalUsers: stats.totalUsers || '0',
+        activeUsers: stats.activeUsers || '0',
+        totalDocuments: stats.totalDocuments || '0',
+        documentsThisMonth: stats.documentsThisMonth || '0',
+        totalStorage: stats.totalStorage || '0',
+        avgProcessingTime: stats.avgProcessingTime || '0'
+      };
+      
+      console.log('🔧 Admin stats response:', response);
+      res.json(response);
     } catch (error) {
       console.error('❌ Admin stats error:', error);
       res.status(500).json({ 
@@ -2037,14 +2048,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get system activities for admin dashboard (admin only)
-  app.get('/api/admin/activities', requireAdmin, async (req: any, res) => {
+  app.get('/api/admin/activities', requireAuth, requireAdmin, async (req: any, res) => {
     try {
+      console.log('🔧 Admin activities endpoint called');
       const { severity } = req.query;
       const activities = await storage.getSystemActivities(severity as string);
-      res.json(activities);
+      
+      // Return empty array if no activities found
+      const response = Array.isArray(activities) ? activities : [];
+      console.log('🔧 Found activities:', response.length);
+      
+      res.json(response);
     } catch (error) {
-      console.error("Error fetching system activities:", error);
-      res.status(500).json({ message: "Failed to fetch system activities" });
+      console.error('❌ Admin activities error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch system activities',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

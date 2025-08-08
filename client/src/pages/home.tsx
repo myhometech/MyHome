@@ -508,7 +508,18 @@ export default function Home() {
 
   useEffect(() => {
     initCategoriesMutation.mutate();
+    // Force immediate document fetch
+    console.log('[HOME] Component mounted, forcing document fetch...');
+    queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
   }, []);
+
+  // Add another effect to ensure documents are fetched when user loads
+  useEffect(() => {
+    if (user && !documentsLoading) {
+      console.log('[HOME] User confirmed, ensuring documents are fetched...');
+      queryClient.refetchQueries({ queryKey: ["/api/documents"] });
+    }
+  }, [user, documentsLoading, queryClient]);
 
   // Bulk operation handlers
   const toggleBulkMode = () => {
@@ -536,18 +547,29 @@ export default function Home() {
   };
 
   // Fetch documents
-  const { data: documents = [], isLoading: documentsLoading } = useQuery({
+  const { data: documents = [], isLoading: documentsLoading, error: documentsError } = useQuery({
     queryKey: ["/api/documents", selectedCategory, searchQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (selectedCategory) params.append("categoryId", selectedCategory.toString());
       if (searchQuery) params.append("search", searchQuery);
 
+      console.log('[HOME] Fetching documents with params:', params.toString());
+      
       const response = await fetch(`/api/documents?${params}`, {
         credentials: "include",
       });
-      if (!response.ok) throw new Error("Failed to fetch documents");
-      return response.json();
+      
+      console.log('[HOME] Documents API response status:', response.status);
+      
+      if (!response.ok) {
+        console.error('[HOME] Documents API failed:', response.status, response.statusText);
+        throw new Error("Failed to fetch documents");
+      }
+      
+      const data = await response.json();
+      console.log('[HOME] Documents API returned:', data.length, 'documents');
+      return data;
     },
     retry: false,
     staleTime: 0, // Always fetch fresh data
@@ -565,9 +587,18 @@ export default function Home() {
     documents: documents,
     documentsLength: documents?.length,
     documentsLoading: documentsLoading,
+    documentsError: documentsError,
     selectedCategory: selectedCategory,
     searchQuery: searchQuery
   });
+
+  // Force refetch documents if they're empty but should exist
+  useEffect(() => {
+    if (!documentsLoading && (!documents || documents.length === 0) && !documentsError) {
+      console.log('[HOME] No documents found, attempting refetch...');
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+    }
+  }, [documentsLoading, documents, documentsError, queryClient]);
 
   // Mock components for demonstration purposes, replace with actual imports
   const CriticalInsightsDashboard = () => <div className="bg-gray-100 p-4 rounded-lg">Critical Insights Dashboard</div>;
@@ -856,7 +887,23 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            ) : !documents || documents.length === 0 ? (
+            ) : documentsError ? (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="h-8 w-8 text-red-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading documents</h3>
+                <p className="text-gray-500 mb-6">
+                  {documentsError instanceof Error ? documentsError.message : "Failed to load documents"}
+                </p>
+                <Button
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/documents"] })}
+                  className="bg-primary hover:bg-blue-700"
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : Array.isArray(documents) && documents.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                   <Search className="h-8 w-8 text-gray-400" />
@@ -876,7 +923,7 @@ export default function Home() {
                   </Button>
                 )}
               </div>
-            ) : (
+            ) : Array.isArray(documents) && documents.length > 0 ? (
               <div className={
                 viewMode === "grid"
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4"
@@ -898,6 +945,22 @@ export default function Home() {
                     }}
                   />
                 ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-24 h-24 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="h-8 w-8 text-orange-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Unexpected data format</h3>
+                <p className="text-gray-500 mb-6">
+                  Documents data: {JSON.stringify(documents)}
+                </p>
+                <Button
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/documents"] })}
+                  className="bg-primary hover:bg-blue-700"
+                >
+                  Refresh
+                </Button>
               </div>
             )}
           </div>

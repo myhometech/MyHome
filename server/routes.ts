@@ -213,6 +213,22 @@ function extractDueDate(insight: any): string | null {
   return null;
 }
 
+// Middleware to check admin role
+const requireAdmin = async (req: any, res: any, next: any) => {
+  try {
+    console.log('🔧 [ADMIN CHECK] User:', req.user?.email, 'Role:', req.user?.role, 'Path:', req.path);
+    if (!req.user || req.user.role !== 'admin') {
+      console.log('❌ [ADMIN CHECK] Admin access denied for user:', req.user?.email, 'role:', req.user?.role);
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    console.log('✅ [ADMIN CHECK] Admin access granted');
+    next();
+  } catch (error) {
+    console.error('❌ [ADMIN CHECK] Admin middleware error:', error);
+    res.status(500).json({ error: "Authorization error" });
+  }
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup error tracking middleware
   app.use(sentryRequestHandler());
@@ -1836,20 +1852,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     console.log('🔧 Admin middleware check - Session user:', req.session?.user?.email, 'Role:', req.session?.user?.role);
     console.log('🔧 Admin middleware check - Req user:', req.user?.email, 'Role:', req.user?.role);
-    
+
     // Check both session and req.user for compatibility
     const user = req.user || req.session?.user;
-    
+
     if (!user) {
       console.log('❌ Admin middleware: No user found in session or req.user');
       return res.status(401).json({ error: 'Authentication required' });
     }
-  
+
     if (user.role !== 'admin') {
       console.log('❌ Admin middleware: User role is not admin:', user.role);
       return res.status(403).json({ error: 'Admin access required' });
     }
-  
+
     // Ensure req.user is set for downstream handlers
     req.user = user;
     console.log('✅ Admin middleware: Access granted for', user.email);
@@ -1907,7 +1923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Admin users endpoint
   app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
     try {
@@ -1923,85 +1939,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Toggle user status
   app.patch('/api/admin/users/:userId/toggle', requireAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
       const { isActive } = req.body;
-  
+
       await db.update(users)
         .set({ isActive, updatedAt: new Date() })
         .where(eq(users.id, userId));
-  
+
       res.json({ success: true });
     } catch (error) {
       console.error('❌ Toggle user error:', error);
       res.status(500).json({ error: 'Failed to toggle user status' });
     }
   });
-  
+
   // Feature flags endpoints
-  app.get('/api/admin/feature-flags', requireAuth, requireAdmin, async (req, res) => {
+  // Admin - Feature flags
+  app.get("/api/admin/feature-flags", requireAuth, requireAdmin, async (req, res) => {
     try {
-      console.log('🔧 Admin feature flags endpoint called');
-  
-      const flags = await storage.getAllFeatureFlags();
-  
-      console.log('🔧 Found feature flags:', flags.length);
+      console.log('🔧 [FEATURE FLAGS] Request received from user:', req.user?.email);
+      console.log('🔧 [FEATURE FLAGS] User role:', req.user?.role);
+      console.log('🔧 [FEATURE FLAGS] Fetching all feature flags...');
+
+      const flags = await db.select().from(featureFlags);
+      console.log('🔧 [FEATURE FLAGS] Query result:', flags.length, 'flags found');
+      console.log('🔧 [FEATURE FLAGS] Sample flag data:', flags.slice(0, 2));
+
       res.json(flags);
     } catch (error) {
-      console.error('❌ Feature flags error:', error);
-      res.status(500).json({ error: 'Failed to fetch feature flags' });
+      console.error('❌ [FEATURE FLAGS] Fetch error:', error);
+      res.status(500).json({ error: "Failed to fetch feature flags" });
     }
   });
-  
+
   // Toggle feature flag
   app.patch('/api/admin/feature-flags/:flagId/toggle', requireAdmin, async (req, res) => {
     try {
       const { flagId } = req.params;
       const { enabled } = req.body;
-  
+
       await db.update(featureFlags)
         .set({ enabled, updatedAt: new Date() })
         .where(eq(featureFlags.id, flagId));
-  
+
       // Clear feature flag cache
       featureFlagService.clearCache();
-  
+
       res.json({ success: true });
     } catch (error) {
       console.error('❌ Toggle feature flag error:', error);
       res.status(500).json({ error: 'Failed to toggle feature flag' });
     }
   });
-  
+
   // Feature flag analytics
-  app.get('/api/admin/feature-flag-analytics', requireAdmin, async (req, res) => {
+  // Admin - Feature flag analytics  
+  app.get("/api/admin/feature-flag-analytics", requireAuth, requireAdmin, async (req, res) => {
     try {
-      console.log('🔧 Admin feature flag analytics endpoint called');
-  
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Request received from user:', req.user?.email);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] User role:', req.user?.role);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Fetching feature flag analytics...');
+
+      // Get basic stats
       const totalFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Total flags query result:', totalFlags);
+
       const activeFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.enabled, true));
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Active flags query result:', activeFlags);
+
       const premiumFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.tierRequired, 'premium'));
-  
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Premium flags query result:', premiumFlags);
+
       // Calculate average rollout percentage
       const avgRollout = await db.select({ 
         avg: sql<number>`avg(COALESCE(rollout_percentage, 100))` 
       }).from(featureFlags).where(eq(featureFlags.enabled, true));
-  
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Average rollout query result:', avgRollout);
+
       const analytics = {
         totalFlags: String(totalFlags[0]?.count || 0),
         activeFlags: String(activeFlags[0]?.count || 0),
         premiumFlags: String(premiumFlags[0]?.count || 0),
         averageRollout: String(Math.round(Number(avgRollout[0]?.avg || 0)))
       };
-  
-      console.log('🔧 Feature flag analytics:', analytics);
+
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Final analytics result:', analytics);
       res.json(analytics);
     } catch (error) {
-      console.error('❌ Feature flag analytics error:', error);
-      res.status(500).json({ error: 'Failed to fetch feature flag analytics' });
+      console.error('❌ [FEATURE FLAG ANALYTICS] Error:', error);
+      console.error('❌ [FEATURE FLAG ANALYTICS] Error stack:', error.stack);
+      res.status(500).json({ error: "Failed to fetch feature flag analytics" });
     }
   });
 
@@ -2018,10 +2049,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get search analytics (admin only)
-  app.get('/api/admin/search-analytics', requireAdmin, async (req, res) => {
+  app.get('/api/admin/search-analytics', requireAuth, requireAdmin, async (req, res) => {
     try {
       console.log('🔧 Admin search analytics endpoint called');
-  
+
       // Since we don't have search logging table, return mock data
       const analytics = {
         totalSearches: 0,
@@ -2030,7 +2061,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         searchSuccessRate: 100,
         timeRange: '30d'
       };
-  
+
       console.log('🔧 Search analytics:', analytics);
       res.json(analytics);
     } catch (error) {
@@ -2848,8 +2879,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== FEATURE FLAG ADMIN ROUTES =====
 
-  // Initialize feature flags on server start
-  featureFlagService.initializeFeatureFlags().catch(console.error);
+  // Initialize feature flags on startup
+  console.log('🏁 [STARTUP] Initializing feature flags...');
+  featureFlagService.initializeFeatureFlags()
+    .then(() => {
+      console.log('✅ [STARTUP] Feature flags initialization completed');
+    })
+    .catch((error) => {
+      console.error('❌ [STARTUP] Feature flags initialization failed:', error);
+    });
 
   // Get all feature flags (admin only)
   app.get("/api/admin/feature-flags", requireAuth, async (req: any, res) => {
@@ -3222,7 +3260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("[DEBUG USER-ASSETS] Raw request body:", JSON.stringify(req.body, null, 2));
 
-      // Validate the request with the discriminated union schema from the frontend
+      // Validate request body using the discriminated union schema from the frontend
       // This will check that house assets have address/postcode and car assets have make/model/year
       const houseSchema = z.object({
         type: z.literal("house"),

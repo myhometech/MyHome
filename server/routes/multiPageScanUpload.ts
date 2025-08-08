@@ -121,7 +121,7 @@ export function setupMultiPageScanUpload(app: Express) {
         }
 
         // CRITICAL: Register PDF with resource tracker to prevent premature deletion
-        pdfResourceId = resourceTracker.track(conversionResult.pdfPath);
+        pdfResourceId = resourceTracker.trackFile(conversionResult.pdfPath);
         console.log(`🔒 UPLOAD: Protected PDF file with resource ID: ${pdfResourceId}`);
 
         // Verify PDF exists immediately after conversion
@@ -216,7 +216,7 @@ export function setupMultiPageScanUpload(app: Express) {
 
         // Release PDF resource after successful processing
         if (pdfResourceId) {
-          resourceTracker.release(pdfResourceId);
+          await resourceTracker.releaseResource(pdfResourceId);
           console.log(`🧹 Released PDF resource: ${pdfResourceId}`);
         }
 
@@ -262,7 +262,7 @@ export function setupMultiPageScanUpload(app: Express) {
 
         // Release PDF resource on error as well
         if (pdfResourceId) {
-          resourceTracker.release(pdfResourceId);
+          await resourceTracker.releaseResource(pdfResourceId);
           console.log(`🧹 Released PDF resource on error: ${pdfResourceId}`);
         }
 

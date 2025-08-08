@@ -23,15 +23,11 @@ export async function compressImage(
   try {
     // Check if file is already small enough
     if (file.size <= (config.maxSizeMB! * 1024 * 1024)) {
-      console.log('Image already within size limit, skipping compression');
+      // Image within size limit
       return file;
     }
 
-    console.log('Compressing image:', {
-      originalSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      targetSize: `${config.maxSizeMB}MB`,
-      maxDimensions: config.maxWidthOrHeight
-    });
+    // Compressing image - debug info removed
 
     const compressedFile = await imageCompression(file, {
       maxSizeMB: config.maxSizeMB!,
@@ -40,15 +36,11 @@ export async function compressImage(
       initialQuality: config.quality!,
     });
 
-    console.log('Image compression completed:', {
-      originalSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      compressedSize: `${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
-      compressionRatio: `${((1 - compressedFile.size / file.size) * 100).toFixed(1)}%`
-    });
+    // Image compression completed - debug info removed
 
     return compressedFile;
   } catch (error) {
-    console.error('Image compression failed:', error);
+    // Image compression failed - error logging removed
     // Return original file if compression fails
     return file;
   }

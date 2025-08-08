@@ -16,7 +16,7 @@ export async function extractExpiryDatesFromText(
   }
 
   try {
-    console.log(`Extracting expiry dates from document: ${documentName}`);
+    // Extracting expiry dates - debug logging removed for production
     
     // Use regex patterns to find dates
     const datePatterns = [
@@ -95,7 +95,7 @@ export async function extractExpiryDatesFromText(
       );
 
   } catch (error) {
-    console.error("Date extraction failed:", error);
+    // Date extraction failed - error logging removed for production
     return [];
   }
 }

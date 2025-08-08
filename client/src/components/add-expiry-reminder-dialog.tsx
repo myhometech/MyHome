@@ -95,7 +95,7 @@ export function AddImportantDateReminderDialog({ trigger }: { trigger?: React.Re
         }, 500);
         return;
       }
-      console.error("Error creating reminder:", error);
+      // Error creating reminder - no logging in production
       toast({
         title: "Error",
         description: "Failed to create expiry reminder",

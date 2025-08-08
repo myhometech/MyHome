@@ -4,7 +4,9 @@ import type { insertStripeWebhookSchema } from '@shared/schema';
 
 // Initialize Stripe with API key
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-console.log('Stripe key type:', stripeSecretKey ? (stripeSecretKey.startsWith('sk_') ? 'SECRET ✅' : 'INVALID ❌') : 'MISSING ❌');
+if (process.env.NODE_ENV !== 'production') {
+  console.log('Stripe key type:', stripeSecretKey ? (stripeSecretKey.startsWith('sk_') ? 'SECRET ✅' : 'INVALID ❌') : 'MISSING ❌');
+}
 
 if (!stripeSecretKey) {
   throw new Error('STRIPE_SECRET_KEY environment variable is required');
@@ -138,7 +140,7 @@ export class StripeService {
     // Check if we've already processed this event
     const existingWebhook = await storage.getStripeWebhookByEventId(event.id);
     if (existingWebhook) {
-      console.log(`Webhook event ${event.id} already processed, skipping`);
+      // Webhook event already processed - debug logging removed
       return;
     }
 
@@ -168,7 +170,7 @@ export class StripeService {
         await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
         break;
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Unhandled event type - debug logging removed
     }
   }
 
@@ -178,7 +180,7 @@ export class StripeService {
   private async handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
     const userId = session.metadata?.userId;
     if (!userId) {
-      console.error('No userId in checkout session metadata');
+      // No userId in checkout session metadata - error logging removed
       return;
     }
 
@@ -191,7 +193,7 @@ export class StripeService {
       subscriptionRenewalDate: new Date(subscription.current_period_end * 1000),
     });
 
-    console.log(`User ${userId} subscription activated`);
+    // User subscription activated - debug logging removed
   }
 
   /**
@@ -202,7 +204,7 @@ export class StripeService {
     const user = await storage.getUserByStripeCustomerId(customerId);
     
     if (!user) {
-      console.error(`No user found for Stripe customer ${customerId}`);
+      // No user found for Stripe customer - error logging removed
       return;
     }
 
@@ -211,7 +213,7 @@ export class StripeService {
       subscriptionStatus: 'active',
     });
 
-    console.log(`Invoice paid for user ${user.id}`);
+    // Invoice paid - debug logging removed
   }
 
   /**
@@ -222,7 +224,7 @@ export class StripeService {
     const user = await storage.getUserByStripeCustomerId(customerId);
     
     if (!user) {
-      console.error(`No user found for Stripe customer ${customerId}`);
+      // No user found for Stripe customer - error logging removed for production
       return;
     }
 
@@ -231,7 +233,7 @@ export class StripeService {
       subscriptionStatus: 'past_due',
     });
 
-    console.log(`Invoice payment failed for user ${user.id}`);
+    // Invoice payment failed - debug logging removed for production
   }
 
   /**
@@ -242,7 +244,7 @@ export class StripeService {
     const user = await storage.getUserByStripeCustomerId(customerId);
     
     if (!user) {
-      console.error(`No user found for Stripe customer ${customerId}`);
+      // No user found for Stripe customer - error logging removed for production
       return;
     }
 
@@ -258,7 +260,7 @@ export class StripeService {
       subscriptionRenewalDate: new Date(subscription.current_period_end * 1000),
     });
 
-    console.log(`Subscription updated for user ${user.id}: ${subscription.status}`);
+    // Subscription updated - debug logging removed for production
   }
 
   /**
@@ -269,7 +271,7 @@ export class StripeService {
     const user = await storage.getUserByStripeCustomerId(customerId);
     
     if (!user) {
-      console.error(`No user found for Stripe customer ${customerId}`);
+      // No user found for Stripe customer - error logging removed for production
       return;
     }
 
@@ -280,7 +282,7 @@ export class StripeService {
       subscriptionRenewalDate: null,
     });
 
-    console.log(`Subscription canceled for user ${user.id}`);
+    // Subscription canceled - debug logging removed for production
   }
 
   /**
@@ -292,14 +294,9 @@ export class StripeService {
     renewalDate?: Date | null;
     portalUrl?: string;
   }> {
-    console.log('Getting subscription status for userId:', userId);
+    // Getting subscription status - debug logging removed for production
     const user = await storage.getUser(userId);
-    console.log('Found user:', user ? 'Yes' : 'No');
-    console.log('User subscription data:', {
-      tier: user?.subscriptionTier,
-      status: user?.subscriptionStatus,
-      customerId: user?.stripeCustomerId
-    });
+    // User subscription data logged in development only
     
     if (!user) {
       throw new Error('User not found');
@@ -332,7 +329,7 @@ export class StripeService {
           };
         }
       } catch (error) {
-        console.error('Failed to fetch subscription from Stripe:', error);
+        // Failed to fetch subscription from Stripe - error logging removed for production
       }
     }
 

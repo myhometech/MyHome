@@ -72,7 +72,7 @@ export function Navigation() {
                 window.location.href = "/";
               }
             } catch (error) {
-              console.error("Logout error:", error);
+              // Logout error - no logging in production
               window.location.href = "/api/logout"; // Fallback to GET route
             }
           }}

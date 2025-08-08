@@ -60,7 +60,7 @@ export function BulkOperationsEnhanced({
       });
       
       if (result.errors.length > 0) {
-        console.warn("Bulk update errors:", result.errors);
+        // Bulk update errors - no logging in production
       }
       
       onOperationComplete();
@@ -93,7 +93,7 @@ export function BulkOperationsEnhanced({
       });
       
       if (result.errors.length > 0) {
-        console.warn("Bulk delete errors:", result.errors);
+        // Bulk delete errors - no logging in production
       }
       
       onOperationComplete();

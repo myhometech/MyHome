@@ -7,7 +7,7 @@ export function useAuth() {
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: (failureCount, error) => {
       // Log auth failures for debugging
-      console.log('[AUTH DEBUG] Query failed:', { failureCount, error });
+      // Auth query failed - debug info removed for production
       return failureCount < 2; // Retry once
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -15,7 +15,7 @@ export function useAuth() {
   });
 
   // Debug logging
-  console.log('[AUTH DEBUG] useAuth state:', { user, isLoading, isAuthenticated: !!user, error });
+  // Auth state debug removed for production
 
   return {
     user,

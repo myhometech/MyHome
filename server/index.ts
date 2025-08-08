@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Enable manual garbage collection if available
-if (global.gc) {
+if (global.gc && process.env.NODE_ENV !== 'production') {
   console.log('✅ Manual GC enabled');
-} else {
+} else if (process.env.NODE_ENV !== 'production') {
   console.warn('⚠️ Manual GC not available - start with --expose-gc for better memory management');
 }
 
@@ -30,7 +30,9 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
-console.log('ℹ️  Simplified memory management enabled');
+if (process.env.NODE_ENV !== 'production') {
+  console.log('ℹ️  Simplified memory management enabled');
+}
 
 // Basic GC only when needed (less aggressive)
 if (!isDeployment && global.gc) {
@@ -41,13 +43,15 @@ if (!isDeployment && global.gc) {
     // More aggressive GC due to current 97% heap usage
     if (heapPercent > 80 && global.gc) {
       global.gc();
-      console.log(`🧹 GC: Memory was ${heapPercent}%, running cleanup`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`🧹 GC: Memory was ${heapPercent}%, running cleanup`);
+      }
     }
   }, 15000); // Every 15 seconds for current memory pressure
 }
 
 // SIMPLIFIED STARTUP: Minimal logging only
-if (!isDeployment) {
+if (!isDeployment && process.env.NODE_ENV !== 'production') {
   const initialMem = process.memoryUsage();
   console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap`);
 

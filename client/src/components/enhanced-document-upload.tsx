@@ -147,7 +147,7 @@ export function EnhancedDocumentUpload({
           ));
 
           // Compress image
-          console.log('Compressing image:', uploadFile.name);
+          // Compressing image - debug info removed
           const compressed = await compressImage(uploadFile);
           const thumbnail = await createThumbnail(uploadFile);
 
@@ -180,7 +180,7 @@ export function EnhancedDocumentUpload({
         ));
 
       } catch (error: any) {
-        console.error('Upload failed for file:', uploadFile.name, error);
+        // Upload failed - error logging removed
         
         setUploadFiles(prev => prev.map(f => 
           f.id === uploadFile.id 

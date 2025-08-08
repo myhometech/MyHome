@@ -6,12 +6,12 @@ export function useNetworkStatus() {
 
   useEffect(() => {
     const handleOnline = () => {
-      console.log('🌐 Network connection restored');
+      // Network restored - no logging in production
       setIsOnline(true);
     };
 
     const handleOffline = () => {
-      console.log('🚫 Network connection lost');
+      // Network lost - no logging in production
       setIsOnline(false);
       setLastOfflineTime(new Date());
     };
@@ -35,11 +35,11 @@ export function useNetworkStatus() {
         }
 
         if (!isOnline) {
-          console.log('🌐 API connectivity confirmed, updating network status');
+          // API connectivity confirmed
           setIsOnline(true);
         }
       } catch (error) {
-        console.log('🚫 API connectivity test failed:', error);
+        // API connectivity test failed
         if (isOnline) {
           setIsOnline(false);
           setLastOfflineTime(new Date());

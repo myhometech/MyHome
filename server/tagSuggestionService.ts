@@ -31,7 +31,7 @@ export class TagSuggestionService {
         categoryConfidence: suggestions.confidence
       };
     } catch (error) {
-      console.error("Error suggesting tags:", error);
+      // Error suggesting tags - error logging removed for production
       return {
         suggestedTags: [],
         category: null,

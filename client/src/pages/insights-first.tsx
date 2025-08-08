@@ -81,10 +81,20 @@ export default function InsightsFirstPage() {
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: async () => {
-      const result = await apiRequest("DELETE", "/api/documents/bulk-delete", {
-        documentIds: Array.from(selectedDocuments),
+      const response = await fetch('/api/documents/bulk-delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ documentIds: Array.from(selectedDocuments) }),
       });
-      return result;
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete documents: ${response.status}`);
+      }
+
+      return response.json();
     },
     onSuccess: (result: any) => {
       toast({

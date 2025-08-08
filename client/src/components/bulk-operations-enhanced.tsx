@@ -58,11 +58,11 @@ export function BulkOperationsEnhanced({
         description: `${result.success} documents updated successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`,
         variant: result.failed > 0 ? "destructive" : "default",
       });
-      
+
       if (result.errors.length > 0) {
         // Bulk update errors - no logging in production
       }
-      
+
       onOperationComplete();
       onSelectionChange(new Set());
     },
@@ -79,9 +79,19 @@ export function BulkOperationsEnhanced({
   // Enhanced bulk delete mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", "/api/documents/bulk-delete", {
-        documentIds: Array.from(selectedDocuments),
+      const response = await fetch('/api/documents/bulk-delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ documentIds: Array.from(selectedDocuments) }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete documents: ${response.status}`);
+      }
+
       return response.json() as Promise<BulkResult>;
     },
     onSuccess: (result) => {
@@ -91,11 +101,11 @@ export function BulkOperationsEnhanced({
         description: `${result.success} documents deleted successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`,
         variant: result.failed > 0 ? "destructive" : "default",
       });
-      
+
       if (result.errors.length > 0) {
         // Bulk delete errors - no logging in production
       }
-      
+
       onOperationComplete();
       onSelectionChange(new Set());
     },
@@ -117,7 +127,7 @@ export function BulkOperationsEnhanced({
 
   const handleBulkAddTags = () => {
     if (!bulkTagInput.trim()) return;
-    
+
     const newTags = bulkTagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
     if (newTags.length === 0) return;
 
@@ -178,7 +188,7 @@ export function BulkOperationsEnhanced({
               </Button>
             </div>
           </div>
-          
+
           <Button
             variant="ghost"
             size="sm"

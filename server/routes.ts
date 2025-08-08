@@ -1072,7 +1072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isCloudDocument) {
         try {
           let storageKey = '';
-          
+
           // Determine the cloud storage key
           if (document.gcsPath) {
             storageKey = document.gcsPath;
@@ -1121,7 +1121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
-          
+
           // Skip if already handled as cloud document above
           if (metadata.storageType === 'cloud') {
             return res.status(500).json({ message: "Cloud document should have been handled above" });
@@ -1176,7 +1176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Handle unencrypted documents (legacy support)
+      // Handle unencrypted documents (legacy)
       // For images, serve the file directly
       if (document.mimeType.startsWith('image/')) {
         res.setHeader('Content-Type', document.mimeType);
@@ -1892,7 +1892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isCloudDocument) {
         try {
           let storageKey = '';
-          
+
           // Determine the cloud storage key
           if (document.gcsPath) {
             storageKey = document.gcsPath;
@@ -2016,8 +2016,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-
-  // Remove duplicate requireAdmin - using the one defined above
 
   // Encryption management endpoints
   app.get('/api/admin/encryption/stats', requireAuth, requireAdmin, async (req: any, res) => {

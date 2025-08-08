@@ -151,12 +151,20 @@ export default function UnifiedDocuments() {
   // Bulk operations mutations
   const bulkDeleteMutation = useMutation({
     mutationFn: async (documentIds: number[]) => {
-      await Promise.all(
-        documentIds.map(id => fetch(`/api/documents/${id}`, {
-          method: "DELETE",
-          credentials: "include",
-        }))
-      );
+      const response = await fetch('/api/documents/bulk-delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ documentIds }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete documents: ${response.status}`);
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });

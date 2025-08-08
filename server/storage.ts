@@ -748,7 +748,7 @@ export class DatabaseStorage implements IStorage {
     return updatedEmailForward;
   }
 
-  async getEmailForwards(userId: string): Promise<EmailForward[]> {
+  async getEmailForwards(userId: string): Promise<EmailForward[]>{
     return await this.db
       .select()
       .from(emailForwards)
@@ -930,7 +930,7 @@ export class DatabaseStorage implements IStorage {
     return updatedReminder;
   }
 
-  // Admin functions
+  // Admin methods implementation
   async updateUserLastLogin(userId: string): Promise<void> {
     await this.db
       .update(users)
@@ -944,12 +944,12 @@ export class DatabaseStorage implements IStorage {
       console.log('📊 Fetching feature flags from database...');
       const result = await this.db.select().from(featureFlags).orderBy(featureFlags.name);
       console.log(`📊 Feature flags query returned ${result?.length || 0} flags`);
-      
+
       if (!result) {
         console.log('⚠️ No feature flags found in database');
         return [];
       }
-      
+
       return result;
     } catch (error) {
       console.error('❌ Error fetching feature flags:', error);
@@ -1053,7 +1053,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  
+
 
   async getCloudUsageAnalytics(): Promise<{
     storageUsed: string;
@@ -1068,14 +1068,14 @@ export class DatabaseStorage implements IStorage {
       `);
       const totalStorageBytes = this.extractResult(storageResult, 'total');
       const storageGB = Math.round((totalStorageBytes / (1024 * 1024 * 1024)) * 100) / 100;
-      
+
       // Get document count for API call estimation
       const docCountResult = await this.db.execute(sql`
         SELECT COUNT(*)::int as count FROM documents
       `);
       const docCount = this.extractResult(docCountResult, 'count');
       const estimatedApiCalls = docCount * 3; // Estimate 3 API calls per document
-      
+
       return {
         storageUsed: `${storageGB} GB`,
         bandwidth: "2.1 GB",
@@ -1093,7 +1093,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  
+
 
   // Health check method
   async checkDatabaseHealth(): Promise<{
@@ -1597,7 +1597,7 @@ export class DatabaseStorage implements IStorage {
         .limit(20);
 
       let activityId = 1;
-      
+
       for (const row of recentLogins) {
         if (row.lastLoginAt) {
           activities.push({
@@ -1629,7 +1629,7 @@ export class DatabaseStorage implements IStorage {
         .where(sql`uploaded_at > NOW() - INTERVAL '7 days'`)
         .orderBy(desc(documents.uploadedAt))
         .limit(30);
-      
+
       for (const row of recentUploads) {
         activities.push({
           id: activityId++,
@@ -1659,7 +1659,7 @@ export class DatabaseStorage implements IStorage {
         .where(sql`created_at > NOW() - INTERVAL '30 days'`)
         .orderBy(desc(users.createdAt))
         .limit(10);
-      
+
       for (const row of newUsers) {
         activities.push({
           id: activityId++,
@@ -1729,7 +1729,7 @@ export class DatabaseStorage implements IStorage {
   }> {
     try {
       console.log('📊 Generating search analytics based on document usage patterns...');
-      
+
       // Get document search patterns based on actual data
       const totalDocsResult = await this.db.execute(sql`
         SELECT COUNT(*)::int as count FROM documents

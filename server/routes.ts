@@ -1834,19 +1834,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin middleware
   function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    console.log('🔧 Admin middleware check - User:', req.user?.email, 'Role:', req.user?.role);
-  
-    if (!req.user) {
-      console.log('❌ Admin middleware: No user found');
+    console.log('🔧 Admin middleware check - Session user:', req.session?.user?.email, 'Role:', req.session?.user?.role);
+    console.log('🔧 Admin middleware check - Req user:', req.user?.email, 'Role:', req.user?.role);
+    
+    // Check both session and req.user for compatibility
+    const user = req.user || req.session?.user;
+    
+    if (!user) {
+      console.log('❌ Admin middleware: No user found in session or req.user');
       return res.status(401).json({ error: 'Authentication required' });
     }
   
-    if (req.user.role !== 'admin') {
-      console.log('❌ Admin middleware: User role is not admin:', req.user.role);
+    if (user.role !== 'admin') {
+      console.log('❌ Admin middleware: User role is not admin:', user.role);
       return res.status(403).json({ error: 'Admin access required' });
     }
   
-    console.log('✅ Admin middleware: Access granted');
+    // Ensure req.user is set for downstream handlers
+    req.user = user;
+    console.log('✅ Admin middleware: Access granted for', user.email);
     next();
   }
 
@@ -1887,42 +1893,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin routes
   // Admin routes (protected by admin middleware)
-  app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+  app.get('/api/admin/stats', requireAuth, requireAdmin, async (req, res) => {
     try {
       console.log('🔧 Admin stats endpoint called');
   
-      // Get basic stats with proper error handling
-      const totalUsersResult = await db.select({ count: sql<number>`count(*)` }).from(users);
-      const activeUsersResult = await db.select({ count: sql<number>`count(*)` }).from(users).where(eq(users.isActive, true));
-      const totalDocumentsResult = await db.select({ count: sql<number>`count(*)` }).from(documents);
-  
-      // Calculate storage usage - handle potential null values
-      const storageResult = await db.select({ 
-        total: sql<number>`coalesce(sum(CAST(file_size as bigint)), 0)` 
-      }).from(documents);
-  
-      // Get uploads this month
-      const currentMonth = new Date();
-      currentMonth.setDate(1);
-      currentMonth.setHours(0, 0, 0, 0);
-  
-      const uploadsThisMonthResult = await db.select({ count: sql<number>`count(*)` })
-        .from(documents)
-        .where(sql`uploaded_at >= ${currentMonth}`);
-  
-      // Get new users this month
-      const newUsersThisMonthResult = await db.select({ count: sql<number>`count(*)` })
-        .from(users)
-        .where(sql`created_at >= ${currentMonth}`);
-  
-      const stats = {
-        totalUsers: Number(totalUsersResult[0]?.count || 0),
-        activeUsers: Number(activeUsersResult[0]?.count || 0),
-        totalDocuments: Number(totalDocumentsResult[0]?.count || 0),
-        totalStorageBytes: Number(storageResult[0]?.total || 0),
-        uploadsThisMonth: Number(uploadsThisMonthResult[0]?.count || 0),
-        newUsersThisMonth: Number(newUsersThisMonthResult[0]?.count || 0),
-      };
+      // Get basic stats using storage service
+      const stats = await storage.getAdminStats();
   
       console.log('🔧 Admin stats response:', stats);
       res.json(stats);
@@ -1933,26 +1909,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Admin users endpoint
-  app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
     try {
       console.log('🔧 Admin users endpoint called');
   
-      const usersWithDetails = await db.select({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        role: users.role,
-        isActive: users.isActive,
-        createdAt: users.createdAt,
-        lastLoginAt: users.lastLoginAt,
-        documentCount: sql<number>`(
-          SELECT COUNT(*) FROM ${documents} WHERE ${documents.userId} = ${users.id}
-        )`,
-        storageUsed: sql<number>`(
-          SELECT COALESCE(SUM(CAST(file_size as bigint)), 0) FROM ${documents} WHERE ${documents.userId} = ${users.id}
-        )`
-      }).from(users);
+      const usersWithDetails = await storage.getAllUsersWithDetails();
   
       console.log('🔧 Found users:', usersWithDetails.length);
       res.json(usersWithDetails);
@@ -1980,11 +1941,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Feature flags endpoints
-  app.get('/api/admin/feature-flags', requireAdmin, async (req, res) => {
+  app.get('/api/admin/feature-flags', requireAuth, requireAdmin, async (req, res) => {
     try {
       console.log('🔧 Admin feature flags endpoint called');
   
-      const flags = await db.select().from(featureFlags).orderBy(featureFlags.createdAt);
+      const flags = await storage.getAllFeatureFlags();
   
       console.log('🔧 Found feature flags:', flags.length);
       res.json(flags);

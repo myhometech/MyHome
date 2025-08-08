@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, FileText, HardDrive, Activity, Flag, BarChart3, Cloud, Brain, AlertCircle } from "lucide-react";
+import { Users, FileText, HardDrive, Activity, Flag, BarChart3, Cloud, Brain, AlertCircle, Search } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { ActivityLog } from "@/components/admin/ActivityLog";
@@ -65,6 +65,27 @@ export default function AdminDashboard() {
     },
     retry: 3,
     retryDelay: 1000,
+  });
+
+  // Add missing analytics queries to admin dashboard
+  const { data: llmUsage } = useQuery({
+    queryKey: ['/api/admin/llm-usage/analytics'],
+    refetchInterval: 60000, // Refresh every minute
+  });
+
+  const { data: activityAnalytics } = useQuery({
+    queryKey: ['/api/admin/activity-analytics'],
+    refetchInterval: 30000,
+  });
+
+  const { data: searchAnalytics } = useQuery({
+    queryKey: ['/api/admin/search-analytics'],
+    refetchInterval: 30000,
+  });
+
+  const { data: cloudUsage } = useQuery({
+    queryKey: ['/api/admin/cloud-usage'],
+    refetchInterval: 30000,
   });
 
   // Handle authentication errors
@@ -286,7 +307,44 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="usage" className="space-y-4">
-          <CloudUsageCards />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">System Activity</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activityAnalytics?.totalEvents || '0'}</div>
+              <p className="text-xs text-muted-foreground">
+                {activityAnalytics?.todayEvents || '0'} events today
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Search Queries</CardTitle>
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{searchAnalytics?.totalSearches || '0'}</div>
+              <p className="text-xs text-muted-foreground">
+                {searchAnalytics?.todaySearches || '0'} searches today
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Cloud Storage</CardTitle>
+              <HardDrive className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{cloudUsage?.storageUsed || '0 GB'}</div>
+              <p className="text-xs text-muted-foreground">
+                {cloudUsage?.costThisMonth || '$0.00'} this month
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

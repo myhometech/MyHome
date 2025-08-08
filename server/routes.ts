@@ -2874,6 +2874,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get system activity analytics (admin only)
+  app.get("/api/admin/activity-analytics", requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const analytics = await storage.getSystemActivityAnalytics();
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Error fetching activity analytics:", error);
+      res.status(500).json({ message: "Failed to fetch activity analytics", error: error.message });
+    }
+  });
+
+  // Get search analytics (admin only) 
+  app.get("/api/admin/search-analytics", requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const analytics = await storage.getSearchAnalytics();
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Error fetching search analytics:", error);
+      res.status(500).json({ message: "Failed to fetch search analytics", error: error.message });
+    }
+  });
+
+  // Get cloud usage analytics (admin only)
+  app.get("/api/admin/cloud-usage", requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const analytics = await storage.getCloudUsageAnalytics();
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Error fetching cloud usage analytics:", error);
+      res.status(500).json({ message: "Failed to fetch cloud usage analytics", error: error.message });
+    }
+  });
+
   // Enhanced useFeatures hook endpoint - returns batch evaluation results
   app.get("/api/feature-flags/batch-evaluation", requireAuth, async (req, res) => {
     try {

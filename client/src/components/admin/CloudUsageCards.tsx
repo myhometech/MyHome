@@ -96,7 +96,7 @@ export function CloudUsageCards() {
           <Cloud className="h-5 w-5 text-blue-500" />
           <h3 className="text-lg font-semibold">Google Cloud Storage</h3>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -105,11 +105,11 @@ export function CloudUsageCards() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {gcsUsage ? 
-                  (gcsUsage.totalStorageTB > 1 ? 
-                    `${gcsUsage.totalStorageTB.toFixed(2)} TB` : 
+                {gcsUsage ?
+                  (gcsUsage.totalStorageTB > 1 ?
+                    `${gcsUsage.totalStorageTB.toFixed(2)} TB` :
                     `${gcsUsage.totalStorageGB.toFixed(1)} GB`
-                  ) : 
+                  ) :
                   "0 GB"
                 }
               </div>
@@ -176,7 +176,7 @@ export function CloudUsageCards() {
           <Brain className="h-5 w-5 text-green-500" />
           <h3 className="text-lg font-semibold">Mistral LLM Usage</h3>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -235,14 +235,14 @@ export function CloudUsageCards() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 ? 
-                  formatCurrency((Object.values(llmUsage.byProvider)[0] as any)?.cost) : 
+                {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 ?
+                  formatCurrency((Object.values(llmUsage.byProvider)[0] as any)?.cost) :
                   "$0.00"
                 }
               </div>
               <p className="text-xs text-muted-foreground">
-                {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 ? 
-                  `${formatNumber((Object.values(llmUsage.byProvider)[0] as any)?.requests)} requests` : 
+                {llmUsage?.byProvider && Object.keys(llmUsage.byProvider).length > 0 ?
+                  `${formatNumber((Object.values(llmUsage.byProvider)[0] as any)?.requests)} requests` :
                   "No requests"
                 }
               </p>

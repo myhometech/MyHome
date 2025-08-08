@@ -647,8 +647,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/documents', requireAuth, upload.single('file'), async (req: any, res) => {
+    console.log(`\n📱 CAMERA UPLOAD to /api/documents - ${new Date().toISOString()}`);
+    console.log(`🔐 User ID: ${req.user?.id || 'NOT_AUTHENTICATED'}`);
+    console.log(`📦 Content Type: ${req.headers['content-type']}`);
+    console.log(`📝 Body Keys: ${Object.keys(req.body).join(', ')}`);
+    console.log(`📎 File Received: ${req.file ? 'YES' : 'NO'}`);
+    if (req.file) {
+      console.log(`   File: ${req.file.originalname} (${req.file.size} bytes, ${req.file.mimetype})`);
+    }
+    
     try {
       if (!req.file) {
+        console.log(`❌ No file uploaded in request`);
         return res.status(400).json({ message: "No file uploaded" });
       }
 

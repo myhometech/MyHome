@@ -84,6 +84,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 ### Automated Systems
 - **Automated Backup**: PostgreSQL and file storage backups to GCS.
 - **CI/CD**: GitHub Actions for Docker builds and deployment.
+- **Build-time Security**: Guard script prevents dev references in production builds.
 
 ## External Dependencies
 
@@ -116,6 +117,41 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Rate Limiting**: `express-rate-limit`
 
 ## Recent Development Summary
+
+### August 8, 2025 - Build-time Security Guard Implementation Complete ✅
+- **Achievement**: Implemented comprehensive build-time guard to prevent development references in production builds
+- **Security Enhancement**:
+  1. **Forbidden Pattern Detection**: Scans for localhost:5173, vite, hmr, and WebSocket references
+  2. **Flexible Build Detection**: Automatically finds build output in client/dist or dist/public
+  3. **CI-Ready Integration**: Exit codes and clear error reporting for automated builds
+  4. **Text File Scanning**: Comprehensive check of HTML, JS, CSS, JSON, and other text files
+- **Technical Implementation**:
+  - Created `scripts/forbid-dev-refs.mjs` with intelligent path detection
+  - Implemented regex-based pattern matching for development references
+  - Added comprehensive error reporting with file paths and matched patterns
+  - Tested both success and failure scenarios with proper exit codes
+- **Components Created**:
+  - `scripts/forbid-dev-refs.mjs` - Main guard script with flexible build detection
+  - `BUILD_GUARD_IMPLEMENTATION.md` - Complete implementation documentation
+- **Status**: ✅ **PRODUCTION READY** - Guard script prevents dev references from reaching production
+
+### August 8, 2025 - Express Static Hosting + Runtime Config System Complete ✅
+- **Achievement**: Implemented complete Express static hosting with runtime configuration system  
+- **Configuration System**:
+  1. **Runtime Config Loading**: Frontend loads configuration from /config.json endpoint dynamically
+  2. **Environment Agnostic**: No hardcoded development URLs in production builds
+  3. **Production Static Serving**: Express serves client/dist with proper SPA fallback routing
+  4. **Health Monitoring**: /healthz endpoint provides status, version, and timestamp
+- **Technical Implementation**:
+  - Added /config.json endpoint serving configuration files from server/public or client/public
+  - Implemented /healthz health check endpoint with proper JSON responses  
+  - Enhanced production static serving with SPA fallback for non-API routes
+  - Created environment-specific config files (dev, staging, production)
+- **Components Enhanced**:
+  - `server/index.ts` - Added pre-middleware endpoints for config and health checks
+  - `server/public/config.json` - Environment-specific configuration files
+  - Production static serving logic with proper route precedence
+- **Status**: ✅ **PRODUCTION READY** - Complete runtime configuration system with static hosting
 
 ### August 7, 2025 - OCR-Before-Insights Feature Complete ✅
 - **Achievement**: Implemented automatic OCR triggering when users request insights for documents without extracted text

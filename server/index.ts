@@ -70,7 +70,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// CSP will be set by hard override at the end of middleware chain
+// HARD CSP OVERRIDE: Apply immediately after basic Express setup
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://myhome-docs.com; font-src 'self'; connect-src 'self' wss: ws:; object-src 'none'; frame-ancestors 'none';");
+  console.log('🛡️ CSP Override applied for:', req.path);
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -240,11 +245,7 @@ app.use((req, res, next) => {
     }
   }
 
-  // HARD CSP OVERRIDE: Apply after all other middleware to ensure it takes precedence
-  app.use((req, res, next) => {
-    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://myhome-docs.com; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none';");
-    next();
-  });
+  // CSP override is now applied early in middleware chain
 
   // Add error handling AFTER static file setup to avoid interfering with routes
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

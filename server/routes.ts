@@ -1078,6 +1078,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.send(fileBuffer);
         } catch (downloadError) {
           console.error('GCS download failed for preview:', downloadError);
+          
+          // Check if this is a "file not found" error
+          if (downloadError instanceof Error && downloadError.message.includes('No such object')) {
+            console.log(`📁 GCS file not found: ${storageKey}`);
+            
+            // Try to find the file in the bucket with a broader search
+            try {
+              const bucket = storageService.storage.bucket(storageService.bucketName);
+              const [files] = await bucket.getFiles({
+                prefix: `${userId}/`
+              });
+              
+              // Look for files that might match this document
+              const possibleMatches = files.filter(file => {
+                const fileName = file.name.toLowerCase();
+                const docName = document.fileName.toLowerCase();
+                return fileName.includes(docName.substring(0, 10)) || 
+                       fileName.includes(document.id.toString());
+              });
+              
+              if (possibleMatches.length > 0) {
+                console.log(`🔍 Found ${possibleMatches.length} possible matches for document ${document.id}`);
+                
+                // Use the first match and update the database
+                const correctFile = possibleMatches[0];
+                await storage.updateDocument(document.id, userId, {
+                  gcsPath: correctFile.name,
+                  filePath: correctFile.name
+                });
+                
+                console.log(`🔧 Updated document ${document.id} with correct path: ${correctFile.name}`);
+                
+                // Try downloading again with the correct path
+                const fileBuffer = await storageService.download(correctFile.name);
+                res.setHeader('Content-Type', document.mimeType);
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+                res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+                res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+                res.setHeader('Access-Control-Allow-Credentials', 'true');
+                res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+                res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+
+                if (document.mimeType === 'application/pdf') {
+                  res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
+                  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+                }
+                
+                return res.send(fileBuffer);
+              }
+            } catch (searchError) {
+              console.error('Failed to search for alternative file:', searchError);
+            }
+            
+            return res.status(404).json({ 
+              message: "File not found in cloud storage - document record has been cleaned up",
+              documentId: document.id,
+              expectedPath: storageKey,
+              suggestion: "The file may have been moved or deleted. Please re-upload the document."
+            });
+          }
+          
           return res.status(500).json({ 
             message: "Failed to load document preview from cloud storage",
             error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 

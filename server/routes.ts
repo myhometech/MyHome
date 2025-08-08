@@ -1020,24 +1020,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
 
+      console.log(`🔍 PREVIEW: Attempting to serve document ${documentId} for user ${userId}`);
+
       if (isNaN(documentId)) {
-        return res.status(400).json({ message: "Invalid document ID" });
+        console.log(`❌ PREVIEW: Invalid document ID format: ${req.params.id}`);
+        return res.status(400).json({ message: 'Invalid document ID format' });
       }
 
-      // Fast database lookup
       const document = await storage.getDocument(documentId, userId);
+
       if (!document) {
-        return res.status(404).json({ message: "Document not found" });
+        console.log(`❌ PREVIEW: Document ${documentId} not found for user ${userId}`);
+        return res.status(404).json({ message: 'Document not found' });
       }
 
-      // Check for legacy local files that don't exist
-      if (!document.encryptionMetadata && !fs.existsSync(document.filePath)) {
-        console.log(`Local file not found: ${document.filePath} for document ${documentId}`);
+      console.log(`📄 PREVIEW: Found document:`, {
+        id: document.id,
+        name: document.name,
+        filePath: document.filePath,
+        mimeType: document.mimeType,
+        fileSize: document.fileSize,
+        fileExists: fs.existsSync(document.filePath)
+      });
+
+      // Check if file exists on disk
+      if (!fs.existsSync(document.filePath)) {
+        console.log(`❌ PREVIEW: File not found at path: ${document.filePath}`);
+
+        // Try to clean up the orphaned record
+        try {
+          await storage.deleteDocument(documentId, userId);
+          console.log(`🗑️ PREVIEW: Cleaned up orphaned document record ${documentId}`);
+        } catch (cleanupError) {
+          console.warn(`Failed to cleanup orphaned document ${documentId}:`, cleanupError);
+        }
+
         return res.status(404).json({ 
-          message: "Document file not found.",
-          code: "FILE_NOT_FOUND",
+          message: 'File not found on disk - document record has been cleaned up',
           documentId: documentId,
-          fileName: document.fileName
+          expectedPath: document.filePath
         });
       }
 
@@ -2531,7 +2552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { processDocumentWithDateExtraction } = await import('./ocrService');
         await processDocumentWithDateExtraction(
           document.id,
-          document.fileName,
+          document.name,
           document.filePath,
           document.mimeType,
           userId,
@@ -3939,566 +3960,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug route for production testing
-  app.get("/debug", (_req, res) => {
-    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
-  });
-
-  // ANDROID-303: OCR Error Handling and Analytics Routes
-  setupOCRErrorRoutes(app);
-
-  // Add Canny JWT routes
-  const cannyRoutes = await import('./routes/cannyRoutes.js');
-  app.use('/api', cannyRoutes.default);
-
-  // ===== VEHICLE MANAGEMENT ROUTES (TICKET 1 & 2) =====
-
-  // Import DVLA service and vehicle schema
-  const { dvlaLookupService } = await import('./dvlaLookupService');
-  const { insertVehicleSchema } = await import('@shared/schema');
-
-  // TICKET 6: DVLA lookup endpoint for Add Vehicle Modal
-  app.post('/api/vehicles/lookup', requireAuth, async (req: any, res) => {
-    try {
-      const { vrn } = req.body;
-
-      if (!vrn) {
-        return res.status(400).json({ 
-          success: false,
-          error: "VRN is required" 
-        });
-      }
-
-      // Perform DVLA lookup
-      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
-
-      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
-        return res.json({
-          success: true,
-          vehicle: dvlaLookupResult.vehicle
-        });
-      } else {
-        return res.json({
-          success: false,
-          error: dvlaLookupResult.error?.message || 'DVLA lookup failed',
-          vehicle: null
-        });
-      }
-    } catch (error) {
-      console.error("Error in DVLA lookup:", error);
-      res.status(500).json({ 
-        success: false,
-        error: "Internal server error during DVLA lookup" 
-      });
-    }
-  });
-
-  // Get all vehicles for the authenticated user
-  app.get('/api/vehicles', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const vehicles = await storage.getVehicles(userId);
-      res.json(vehicles);
-    } catch (error) {
-      console.error("Error fetching vehicles:", error);
-      res.status(500).json({ message: "Failed to fetch vehicles" });
-    }
-  });
-
-  // Get a specific vehicle
-  app.get('/api/vehicles/:id', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const vehicleId = req.params.id;
-
-      const vehicle = await storage.getVehicle(vehicleId, userId);
-      if (!vehicle) {
-        return res.status(404).json({ message: "Vehicle not found" });
-      }
-
-      res.json(vehicle);
-    } catch (error) {
-      console.error("Error fetching vehicle:", error);
-      res.status(500).json({ message: "Failed to fetch vehicle" });
-    }
-  });
-
-  // TICKET 7: Update vehicle notes
-  app.put('/api/vehicles/:id', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const vehicleId = req.params.id;
-      const { notes } = req.body;
-
-      // Check if vehicle exists and belongs to user
-      const existingVehicle = await storage.getVehicle(vehicleId, userId);
-      if (!existingVehicle) {
-        return res.status(404).json({ message: "Vehicle not found" });
-      }
-
-      // Update only the notes field
-      const updatedVehicle = await storage.updateVehicle(vehicleId, userId, { notes });
-
-      res.json(updatedVehicle);
-    } catch (error) {
-      console.error("Error updating vehicle:", error);
-      res.status(500).json({ message: "Failed to update vehicle" });
-    }
-  });
-
-  // TICKET 8: Refresh DVLA data for existing vehicle
-  app.post('/api/vehicles/:id/refresh-dvla', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const vehicleId = req.params.id;
-
-      // Check if vehicle exists and belongs to user
-      const existingVehicle = await storage.getVehicle(vehicleId, userId);
-      if (!existingVehicle) {
-        return res.status(404).json({ message: "Vehicle not found" });
-      }
-
-      // Only refresh if vehicle was originally from DVLA
-      if (existingVehicle.source !== 'dvla') {
-        return res.status(400).json({ 
-          message: "Cannot refresh DVLA data for manually entered vehicles" 
-        });
-      }
-
-      // Perform DVLA lookup
-      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
-
-      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
-        // Update vehicle with fresh DVLA data, preserving user notes
-        const updatedVehicleData = {
-          ...dvlaLookupResult.vehicle,
-          notes: existingVehicle.notes, // Preserve existing notes
-          dvlaLastRefreshed: new Date(),
-        };
-
-        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, updatedVehicleData);
-
-        res.json({
-          success: true,
-          message: "DVLA data refreshed successfully",
-          vehicle: updatedVehicle
-        });
-      } else {
-        // Handle DVLA lookup failures
-        const errorMessage = dvlaLookupResult.error?.message || 'DVLA lookup failed';
-        const statusCode = dvlaLookupResult.error?.status || 500;
-
-        res.status(statusCode).json({
-          success: false,
-          message: errorMessage,
-          error: dvlaLookupResult.error
-        });
-      }
-    } catch (error) {
-      console.error("Error refreshing DVLA data:", error);
-      res.status(500).json({ 
-        success: false,
-        message: "Internal server error during DVLA refresh" 
-      });
-    }
-  });
-
-  // TICKET 3: Create a new vehicle with DVLA enrichment
-  app.post('/api/vehicles', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-
-      console.log("[DEBUG] Raw request body:", JSON.stringify(req.body, null, 2));
-
-      // Validate request body using TICKET 3 schema
-      const validatedData = createVehicleSchema.parse(req.body);
-      console.log("[DEBUG] Validated input data:", JSON.stringify(validatedData, null, 2));
-      const { vrn, notes, ...manualFields } = validatedData;
-
-      // Check if vehicle already exists for this user
-      const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
-      if (existingVehicle) {
-        return res.status(409).json({ 
-          message: "Vehicle with this VRN already exists",
-          vehicle: existingVehicle
-        });
-      }
-
-      // Attempt DVLA lookup first
-      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
-
-      let vehicleData;
-      let dvlaFields: string[] = [];
-      let userEditableFields = ['notes'];
-      let dvlaError = null;
-
-      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
-        // DVLA lookup successful - use DVLA data with proper date conversion
-        const dvlaVehicle = dvlaLookupResult.vehicle;
-        vehicleData = {
-          ...dvlaVehicle,
-          userId,
-          notes: notes || null,
-          source: 'dvla' as const,
-          dvlaLastRefreshed: new Date(),
-          // Convert string dates to Date objects
-          taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
-          motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
-        };
-
-        // Mark DVLA fields as read-only
-        dvlaFields = [
-          'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
-          'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
-          'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
-        ];
-      } else {
-        // DVLA lookup failed - use manual data with fallback
-        dvlaError = dvlaLookupResult.error;
-        vehicleData = {
-          userId,
-          vrn,
-          notes: notes || null,
-          source: 'manual',
-          // Use manual fields as fallback
-          ...manualFields,
-        };
-
-        // All fields are user-editable when DVLA fails
-        userEditableFields = [
-          'notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour'
-        ];
-      }
-
-      // Debug logging for validation issues
-      console.log("[DEBUG] Vehicle data before validation:", JSON.stringify(vehicleData, null, 2));
-
-      // Validate the vehicle data before creating
+  // Debug route to test webhook processing without full security (REMOVE IN PRODUCTION)
+  app.post('/api/email-ingest-debug', 
+    (req, res, next) => {
+      console.log('🧪 DEBUG: Email ingest debug route accessed');
+      console.log('🧪 DEBUG Content-Type:', req.get('Content-Type'));
+      console.log('🧪 DEBUG User-Agent:', req.get('User-Agent'));
+      console.log('🧪 DEBUG Body:', req.body);
+      next();
+    },
+    async (req: any, res) => {
       try {
-        const validatedVehicleData = insertVehicleSchema.parse(vehicleData);
-        console.log("[DEBUG] Validation successful, validated data:", JSON.stringify(validatedVehicleData, null, 2));
-      } catch (validationError) {
-        console.error("[DEBUG] Validation failed:", JSON.stringify(validationError, null, 2));
-        throw validationError;
-      }
-
-      // Convert Date objects to strings for database storage
-      const vehicleDataForStorage = {
-        ...vehicleData,
-        vrn: vehicleData.vrn || vrn, // Ensure VRN is always present
-        taxDueDate: (vehicleData as any).taxDueDate instanceof Date ? (vehicleData as any).taxDueDate.toISOString().split('T')[0] : (vehicleData as any).taxDueDate,
-        motExpiryDate: (vehicleData as any).motExpiryDate instanceof Date ? (vehicleData as any).motExpiryDate.toISOString().split('T')[0] : (vehicleData as any).motExpiryDate
-      };
-
-      const validatedVehicleData = insertVehicleSchema.parse(vehicleDataForStorage);
-
-      // Create the vehicle
-      const createdVehicle = await storage.createVehicle(vehicleDataForStorage);
-
-      // TICKET 4: Generate vehicle insights after creation
-      try {
-        if (createdVehicle.motExpiryDate || createdVehicle.taxDueDate) {
-          console.log(`[TICKET 4] Generating insights for vehicle ${createdVehicle.vrn}`);
-          const insightResult = await vehicleInsightService.generateVehicleInsights(createdVehicle);
-
-          if (insightResult.success && insightResult.insights.length > 0) {
-            await vehicleInsightService.saveVehicleInsights(createdVehicle, insightResult.insights);
-            console.log(`[TICKET 4] Generated ${insightResult.insights.length} vehicle insights for ${createdVehicle.vrn}`);
-          }
-        }
+        res.status(200).json({
+          message: 'Debug endpoint working',
+          contentType: req.get('Content-Type'),
+          userAgent: req.get('User-Agent'),
+          hasBody: !!req.body,
+          bodyKeys: req.body ? Object.keys(req.body) : [],
+          timestamp: new Date().toISOString()
+        });
       } catch (error) {
-        console.error('[TICKET 4] Error generating vehicle insights:', error);
-        // Don't fail vehicle creation if insight generation fails
+        console.error('❌ DEBUG ENDPOINT ERROR:', error);
+        res.status(500).json({ error: 'Debug endpoint error', details: error instanceof Error ? error.message : String(error) });
       }
-
-      // TICKET 3 response format
-      const response = {
-        vehicle: createdVehicle,
-        dvlaEnriched: dvlaLookupResult.success,
-        dvlaFields,
-        userEditableFields,
-        ...(dvlaError && { 
-          dvlaError: {
-            code: dvlaError.code,
-            message: dvlaError.message,
-            status: dvlaError.status
-          }
-        })
-      };
-
-      res.status(201).json(response);
-    } catch (error: any) {
-      console.error("Error creating vehicle:", error);
-      if (error.name === 'ZodError') {
-        console.error("[DEBUG] Zod validation error details:", JSON.stringify(error.errors, null, 2));
-        return res.status(400).json({ 
-          message: "Validation error", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ message: "Failed to create vehicle" });
     }
-  });
+  );
 
-  // TICKET 3: Update a vehicle (only user-editable fields)
-  app.put('/api/vehicles/:id', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const vehicleId = req.params.id;
-
-      // Get existing vehicle to check source
-      const existingVehicle = await storage.getVehicle(vehicleId, userId);
-      if (!existingVehicle) {
-        return res.status(404).json({ message: "Vehicle not found" });
-      }
-
-      // TICKET 3 requirement: Only non-DVLA fields are user-editable
-      if (existingVehicle.source === 'dvla') {
-        // For DVLA-enriched vehicles, only allow user field updates
-        const validatedData = updateVehicleUserFieldsSchema.parse(req.body);
-
-        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
-          ...validatedData,
-          updatedAt: new Date(),
-        });
-
-        const response = {
-          vehicle: updatedVehicle,
-          dvlaEnriched: true,
-          dvlaFields: [
-            'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
-            'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
-            'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
-          ],
-          userEditableFields: ['notes'],
-          message: "Only user-editable fields updated. DVLA fields are read-only."
-        };
-
-        res.json(response);
-      } else {
-        // For manual vehicles, allow full updates
-        const requestData = req.body;
-        // Convert Date objects to strings for database storage
-        const dataForStorage = {
-          ...requestData,
-          taxDueDate: requestData.taxDueDate instanceof Date ? requestData.taxDueDate.toISOString().split('T')[0] : requestData.taxDueDate,
-          motExpiryDate: requestData.motExpiryDate instanceof Date ? requestData.motExpiryDate.toISOString().split('T')[0] : requestData.motExpiryDate,
-          updatedAt: new Date()
-        };
-
-        const validatedData = insertVehicleSchema.partial().parse(dataForStorage);
-
-        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, validatedData);
-
-        const response = {
-          vehicle: updatedVehicle,
-          dvlaEnriched: false,
-          dvlaFields: [],
-          userEditableFields: [
-            'notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
-            'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
-            'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
-          ]
-        };
-
-        res.json(response);
-      }
-    } catch (error: any) {
-      console.error("Error updating vehicle:", error);
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ 
-          message: "Validation error", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ message: "Failed to update vehicle" });
-    }
-  });
-
-  // Delete a vehicle
-  app.delete('/api/vehicles/:id', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const vehicleId = req.params.id;
-
-      await storage.deleteVehicle(vehicleId, userId);
-      res.json({ message: "Vehicle deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting vehicle:", error);
-      res.status(500).json({ message: "Failed to delete vehicle" });
-    }
-  });
-
-  // ===== DVLA LOOKUP ROUTES (TICKET 2) =====
-
-  // Lookup vehicle data from DVLA by VRN
-  app.post('/api/vehicles/dvla-lookup', requireAuth, async (req: any, res) => {
-    try {
-      const { vrn } = req.body;
-
-      if (!vrn || typeof vrn !== 'string') {
-        return res.status(400).json({ message: "VRN is required" });
-      }
-
-      const result = await dvlaLookupService.lookupVehicleByVRN(vrn);
-
-      if (!result.success) {
-        return res.status(result.error?.status || 500).json({
-          message: result.error?.message || "DVLA lookup failed",
-          code: result.error?.code
-        });
-      }
-
-      res.json({
-        success: true,
-        vehicle: result.vehicle
-      });
-    } catch (error) {
-      console.error("Error in DVLA lookup:", error);
-      res.status(500).json({ message: "Internal server error during DVLA lookup" });
-    }
-  });
-
-  // Create vehicle from DVLA lookup data
-  app.post('/api/vehicles/from-dvla', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { vrn } = req.body;
-
-      if (!vrn || typeof vrn !== 'string') {
-        return res.status(400).json({ message: "VRN is required" });
-      }
-
-      // Check if vehicle already exists for this user
-      const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
-      if (existingVehicle) {
-        return res.status(409).json({ 
-          message: "Vehicle with this VRN already exists",
-          vehicle: existingVehicle
-        });
-      }
-
-      // Perform DVLA lookup
-      const lookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
-
-      if (!lookupResult.success) {
-        return res.status(lookupResult.error?.status || 500).json({
-          message: lookupResult.error?.message || "DVLA lookup failed",
-          code: lookupResult.error?.code
-        });
-      }
-
-      // Create vehicle with DVLA data and proper date conversion
-      const dvlaVehicle = lookupResult.vehicle!;
-      const vehicle = await storage.createVehicle({
-        ...dvlaVehicle,
-        userId,
-        vrn: dvlaVehicle.vrn || vrn,
-        source: 'dvla' as const,
-        dvlaLastRefreshed: new Date(),
-        // Convert Date objects to strings for database storage
-        taxDueDate: dvlaVehicle.taxDueDate ? (typeof dvlaVehicle.taxDueDate === 'string' ? dvlaVehicle.taxDueDate : (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0]) : null,
-        motExpiryDate: dvlaVehicle.motExpiryDate ? (typeof dvlaVehicle.motExpiryDate === 'string' ? dvlaVehicle.motExpiryDate : (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0]) : null,
-      });
-
-      res.status(201).json({
-        success: true,
-        vehicle,
-        message: "Vehicle created successfully from DVLA data"
-      });
-    } catch (error: any) {
-      console.error("Error creating vehicle from DVLA:", error);
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ 
-          message: "Validation error", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ message: "Failed to create vehicle from DVLA data" });
-    }
-  });
-
-  // Refresh existing vehicle with latest DVLA data
-  app.post('/api/vehicles/:id/refresh-dvla', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const vehicleId = req.params.id;
-
-      // Get existing vehicle
-      const existingVehicle = await storage.getVehicle(vehicleId, userId);
-      if (!existingVehicle) {
-        return res.status(404).json({ message: "Vehicle not found" });
-      }
-
-      // Perform DVLA lookup
-      const lookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
-
-      if (!lookupResult.success) {
-        return res.status(lookupResult.error?.status || 500).json({
-          message: lookupResult.error?.message || "DVLA lookup failed",
-          code: lookupResult.error?.code
-        });
-      }
-
-      // Update vehicle with fresh DVLA data and proper date conversion
-      const dvlaVehicle = lookupResult.vehicle!;
-      const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
-        ...dvlaVehicle,
-        source: 'dvla' as const,
-        dvlaLastRefreshed: new Date(),
-        // Convert Date objects to strings for database storage
-        taxDueDate: dvlaVehicle.taxDueDate ? (typeof dvlaVehicle.taxDueDate === 'string' ? dvlaVehicle.taxDueDate : (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0]) : null,
-        motExpiryDate: dvlaVehicle.motExpiryDate ? (typeof dvlaVehicle.motExpiryDate === 'string' ? dvlaVehicle.motExpiryDate : (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0]) : null,
-      });
-
-      // TICKET 4: Generate insights after DVLA refresh
-      let vehicleInsights = null;
-      try {
-        if (updatedVehicle && (updatedVehicle.motExpiryDate || updatedVehicle.taxDueDate)) {
-          console.log(`[TICKET 4] Generating insights after DVLA refresh for ${updatedVehicle.vrn}`);
-          const insightResult = await vehicleInsightService.generateVehicleInsights(updatedVehicle);
-
-          if (insightResult.success && insightResult.insights.length > 0) {
-            await vehicleInsightService.saveVehicleInsights(updatedVehicle, insightResult.insights);
-            vehicleInsights = insightResult.insights;
-          }
-
-          const insightCount = vehicleInsights?.length || 0;
-          if (insightCount > 0) {
-            console.log(`[TICKET 4] Generated ${insightCount} insights after refresh for ${updatedVehicle.vrn}`);
-          }
-        }
-      } catch (error) {
-        console.error(`[TICKET 4] Failed to generate insights after refresh:`, error);
-      }
-
-      res.json({
-        success: true,
-        vehicle: updatedVehicle,
-        message: "Vehicle updated with latest DVLA data",
-        ...(vehicleInsights && { vehicleInsights })
-      });
-    } catch (error) {
-      console.error("Error refreshing vehicle from DVLA:", error);
-      res.status(500).json({ message: "Failed to refresh vehicle data" });
-    }
-  });
-
-  // Check DVLA API availability
-  app.get('/api/vehicles/dvla-status', requireAuth, async (req: any, res) => {
-    try {
-      const isAvailable = await dvlaLookupService.checkDVLAAvailability();
-      res.json({ 
-        available: isAvailable,
-        message: isAvailable ? "DVLA API is available" : "DVLA API is not available"
-      });
-    } catch (error) {
-      console.error("Error checking DVLA status:", error);
-      res.status(500).json({ message: "Failed to check DVLA status" });
-    }
-  });
-
-    // ✅ Debug route to confirm deployment
+  // ✅ Debug route to confirm deployment
     app.get("/debug", (_req, res) => {
       res.send(`✅ App is live - ${new Date().toISOString()}`);
     });

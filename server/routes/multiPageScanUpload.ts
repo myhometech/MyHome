@@ -120,16 +120,21 @@ export function setupMultiPageScanUpload(app: Express) {
           throw new Error('PDF conversion did not return a file path');
         }
 
-        // CRITICAL: Register PDF with resource tracker to prevent premature deletion
-        pdfResourceId = resourceTracker.trackFile(conversionResult.pdfPath);
-        console.log(`🔒 UPLOAD: Protected PDF file with resource ID: ${pdfResourceId}`);
-
         // Verify PDF exists immediately after conversion
         if (!fs.existsSync(conversionResult.pdfPath)) {
           throw new Error(`PDF file was not created at expected location: ${conversionResult.pdfPath}`);
         }
 
         console.log(`✅ UPLOAD: PDF created successfully: ${conversionResult.pdfPath}`);
+
+        // CRITICAL: Register PDF with resource tracker to prevent premature deletion
+        pdfResourceId = resourceTracker.trackFile(conversionResult.pdfPath);
+        console.log(`🔒 UPLOAD: Protected PDF file with resource ID: ${pdfResourceId}`);
+
+        // Double-check PDF still exists after resource tracking
+        if (!fs.existsSync(conversionResult.pdfPath)) {
+          throw new Error(`PDF file was deleted immediately after creation - resource tracker issue`);
+        }
 
         // CRITICAL: Read the PDF file IMMEDIATELY before any cleanup can occur
         const pdfStats = fs.statSync(conversionResult.pdfPath);
@@ -147,17 +152,29 @@ export function setupMultiPageScanUpload(app: Express) {
 
         console.log(`📄 UPLOAD: PDF buffer loaded: ${pdfBuffer.length} bytes`);
 
-        // Generate unique file name for storage
+        // Generate unique file name for permanent storage
         const fileId = nanoid();
         const cleanDocName = sanitizedDocName.replace(/\s+/g, '-');
         const fileName = `${cleanDocName}-${fileId}.pdf`;
-        const filePath = `documents/${userId}/${fileName}`;
+        
+        // Save to permanent location in uploads directory
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        
+        const permanentFilePath = path.join(uploadsDir, fileName);
+        await fs.promises.writeFile(permanentFilePath, pdfBuffer);
+        
+        console.log(`💾 UPLOAD: PDF saved to permanent location: ${permanentFilePath}`);
 
-        console.log(`💾 UPLOAD: Saving PDF to storage: ${filePath}`);
+        // Verify permanent file was written correctly
+        const permanentStats = fs.statSync(permanentFilePath);
+        if (permanentStats.size !== pdfBuffer.length) {
+          throw new Error(`PDF save verification failed: expected ${pdfBuffer.length} bytes, got ${permanentStats.size} bytes`);
+        }
 
-        // Save PDF to cloud storage - for now just store locally until GCS is needed
-        console.log(`📁 UPLOAD: PDF will be stored locally for development`);
-        console.log(`✅ UPLOAD: PDF saved to storage successfully`);
+        console.log(`✅ UPLOAD: PDF verified at permanent location: ${permanentStats.size} bytes`);
 
         // Try to extract text using OCR on the first few pages
         let extractedText = '';
@@ -186,38 +203,54 @@ export function setupMultiPageScanUpload(app: Express) {
           extractedText = `Scanned document with ${files.length} pages. Text extraction will be processed in background.`;
         }
 
-        // Create document record
+        // Create document record with permanent file path
         document = await storage.createDocument({
           userId,
           name: documentName,
           fileName,
-          filePath,
+          filePath: permanentFilePath, // Use permanent local path
           mimeType: 'application/pdf',
-          fileSize: pdfStats.size,
+          fileSize: permanentStats.size,
           extractedText,
           uploadSource,
-          gcsPath: filePath, // Store GCS path
           status: 'active',
           summary: `Scanned document with ${files.length} pages. OCR confidence: ${Math.round(confidence * 100)}%`
         });
 
         console.log(`✅ UPLOAD: Document created successfully with ID: ${document.id}`);
 
-        // Clean up temporary files and release PDF resource
-        console.log(`🧹 UPLOAD: Cleaning up ${tempImagePaths.length} temp files after successful upload`);
+        // Clean up temporary files (but NOT the permanent PDF)
+        console.log(`🧹 UPLOAD: Cleaning up ${tempImagePaths.length} temp image files after successful upload`);
         await Promise.all(tempImagePaths.map(async (path) => {
           try {
-            await fs.promises.unlink(path);
-            console.log(`🗑️ Deleted temp file: ${path}`);
+            if (fs.existsSync(path)) {
+              await fs.promises.unlink(path);
+              console.log(`🗑️ Deleted temp image file: ${path}`);
+            }
           } catch (unlinkError) {
             console.warn(`Failed to delete temp file ${path}:`, unlinkError);
           }
         }));
 
+        // Clean up the temporary PDF (original conversion output) - we've saved it to permanent location
+        try {
+          if (fs.existsSync(conversionResult.pdfPath)) {
+            await fs.promises.unlink(conversionResult.pdfPath);
+            console.log(`🗑️ Deleted temporary PDF: ${conversionResult.pdfPath}`);
+          }
+        } catch (unlinkError) {
+          console.warn(`Failed to delete temp PDF ${conversionResult.pdfPath}:`, unlinkError);
+        }
+
         // Release PDF resource after successful processing
         if (pdfResourceId) {
           await resourceTracker.releaseResource(pdfResourceId);
           console.log(`🧹 Released PDF resource: ${pdfResourceId}`);
+        }
+
+        // Final verification that permanent file still exists
+        if (!fs.existsSync(permanentFilePath)) {
+          throw new Error(`Permanent PDF file was unexpectedly deleted: ${permanentFilePath}`);
         }
 
         // Force garbage collection if available
@@ -234,6 +267,7 @@ export function setupMultiPageScanUpload(app: Express) {
             name: document.name,
             fileName: document.fileName,
             fileSize: document.fileSize,
+            filePath: document.filePath,
             pageCount: files.length,
             confidence: Math.round(confidence * 100),
             extractedText: extractedText.substring(0, 500) + (extractedText.length > 500 ? '...' : ''),
@@ -242,8 +276,9 @@ export function setupMultiPageScanUpload(app: Express) {
           processingStats: {
             originalFileCount: files.length,
             totalOriginalSize: files.reduce((sum, f) => sum + f.size, 0),
-            finalPdfSize: pdfStats.size,
-            textExtracted: extractedText.length > 0
+            finalPdfSize: permanentStats.size,
+            textExtracted: extractedText.length > 0,
+            permanentPath: permanentFilePath
           }
         });
 

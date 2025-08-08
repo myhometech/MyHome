@@ -209,7 +209,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: data.lastName
       });
 
-      // Initialize default categories for new user
+      // Initialize feature flags on first admin request if not already done
+  app.get('/api/admin/feature-flags', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      console.log('📊 Feature flags requested by:', req.user?.email || req.session?.user?.email);
+      
+      // Initialize feature flags if needed
+      try {
+        await featureFlagService.initializeFeatureFlags();
+      } catch (initError) {
+        console.warn('Feature flags already initialized or initialization failed:', initError);
+      }
+      
+      const flags = await storage.getAllFeatureFlags();
+      console.log(`📊 Returning ${flags.length} feature flags`);
+      res.json(flags);
+    } catch (error) {
+      console.error("❌ Error fetching feature flags:", error);
+      res.status(500).json({ message: "Failed to fetch feature flags" });
+    }
+  });
+
+  // Initialize default categories for new user
       const defaultCategories = [
         { name: 'Car', icon: 'fas fa-car', color: 'blue', userId: user.id },
         { name: 'Mortgage', icon: 'fas fa-home', color: 'green', userId: user.id },
@@ -1900,16 +1921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all feature flags (admin only)
-  app.get('/api/admin/feature-flags', requireAuth, requireAdmin, async (req: any, res) => {
-    try {
-      const flags = await storage.getAllFeatureFlags();
-      res.json(flags);
-    } catch (error) {
-      console.error("Error fetching feature flags:", error);
-      res.status(500).json({ message: "Failed to fetch feature flags" });
-    }
-  });
+  
 
   // Get system activities for admin dashboard (admin only)
   app.get('/api/admin/activities', requireAuth, requireAdmin, async (req: any, res) => {

@@ -15,13 +15,12 @@ initializeSentry();
 // DEPLOYMENT FIX: Check deployment environment once
 const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
 
-// TEMPORARILY DISABLE SYSTEM MONITORING TO RESOLVE STARTUP ISSUES
-// if (!isDeployment) {
-//   // Start system health monitoring
-//   monitorSystemHealth();
-// } else {
-//   console.log('ℹ️  Deployment mode: Skipping system health monitoring');
-// }
+// DEVELOPMENT PERFORMANCE FIX: Disable all monitoring in development
+if (process.env.NODE_ENV === 'development') {
+  console.log('ℹ️  Development mode: All monitoring disabled for performance');
+} else {
+  console.log('ℹ️  Production mode: System monitoring available if needed');
+}
 
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
@@ -34,20 +33,17 @@ if (process.env.NODE_ENV !== 'production') {
   console.log('ℹ️  Simplified memory management enabled');
 }
 
-// Basic GC only when needed (less aggressive)
+// DEVELOPMENT FIX: Reduce GC frequency to prevent interference
 if (!isDeployment && global.gc) {
   setInterval(() => {
     const memUsage = process.memoryUsage();
     const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
 
-    // More aggressive GC due to current 97% heap usage
-    if (heapPercent > 80 && global.gc) {
+    // Less aggressive GC in development
+    if (heapPercent > 90 && global.gc) {
       global.gc();
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`🧹 GC: Memory was ${heapPercent}%, running cleanup`);
-      }
     }
-  }, 15000); // Every 15 seconds for current memory pressure
+  }, 60000); // Every 60 seconds to reduce interference
 }
 
 // SIMPLIFIED STARTUP: Minimal logging only
@@ -82,7 +78,7 @@ app.use((req, res, next) => {
     "object-src 'none'",
     "frame-ancestors 'none'"
   ].join('; ') + ';');
-  console.log('🛡️ CSP Override applied for:', req.path);
+  // Remove CSP logging to reduce console noise
   next();
 });
 
@@ -125,21 +121,8 @@ app.use((req, res, next) => {
   console.log('🚀 Process arguments:', process.argv);
   console.log('🚀 Working directory:', process.cwd());
 
-  // PRODUCTION WHITE SCREEN FIX: Completely disable backup service in production
-  if (process.env.NODE_ENV !== 'production') {
-    try {
-      // Dynamic import prevents loading GCS modules in production  
-      const { backupService: bs } = await import('./backupService.js');
-      backupService = bs;
-      backupService.initialize()
-        .then(() => console.log('✅ Backup service initialized successfully'))
-        .catch((error: any) => console.warn('⚠️ Backup service initialization failed (non-critical):', error.message));
-    } catch (importError: any) {
-      console.warn('⚠️ Could not import backup service (non-critical):', importError.message);
-    }
-  } else {
-    console.log('ℹ️ Backup service disabled in production');
-  }
+  // DEVELOPMENT PERFORMANCE FIX: Disable backup service in development too
+  console.log('ℹ️ Backup service disabled for better development performance');
 
   // Register main routes to handle all routing - no duplicates needed
   const deploymentMarker = Date.now();

@@ -66,19 +66,34 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// HARD CSP OVERRIDE: Apply immediately after basic Express setup
+// PRODUCTION CSP FIX: Apply proper CSP configuration for production
 app.use((req, res, next) => {
-  res.setHeader("Content-Security-Policy", [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org",
-    "style-src 'self' 'unsafe-inline'", 
-    "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
-    "font-src 'self' data:",
-    "connect-src 'self' wss: ws:",
-    "object-src 'none'",
-    "frame-ancestors 'none'"
-  ].join('; ') + ';');
-  // Remove CSP logging to reduce console noise
+  if (isDeployment) {
+    // Production CSP - more restrictive but allows necessary resources
+    res.setHeader("Content-Security-Policy", [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://js.stripe.com https://cdn.jsdelivr.net",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https://myhome-docs.com https://storage.googleapis.com https://*.googleusercontent.com https://images.unsplash.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "connect-src 'self' https://api.stripe.com https://api.openai.com https://storage.googleapis.com",
+      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+      "object-src 'none'",
+      "frame-ancestors 'none'"
+    ].join('; ') + ';');
+  } else {
+    // Development CSP - more permissive
+    res.setHeader("Content-Security-Policy", [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://*.replit.app https://*.replit.dev blob:",
+      "style-src 'self' 'unsafe-inline'", 
+      "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
+      "font-src 'self' data:",
+      "connect-src 'self' wss: ws: https://*.replit.app https://*.replit.dev",
+      "object-src 'none'",
+      "frame-ancestors 'none'"
+    ].join('; ') + ';');
+  }
   next();
 });
 

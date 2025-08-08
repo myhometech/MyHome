@@ -3,6 +3,8 @@
  * Provides frontend interface for advanced document scanning features
  */
 
+import { getConfig } from '../config';
+
 interface ProcessPagesRequest {
   pages: {
     fileName: string;
@@ -80,7 +82,9 @@ interface ScanningHealthResponse {
 }
 
 class AdvancedScanningAPI {
-  private baseUrl = '/api/scanning';
+  private get baseUrl(): string {
+    return `${getConfig().API_BASE_URL}/scanning`;
+  }
 
   /**
    * Process multiple scanned pages and generate searchable PDF

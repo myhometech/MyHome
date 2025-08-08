@@ -27,7 +27,7 @@ interface JobQueueStatus {
 
 export function InsightJobStatus() {
   const { data: status, isLoading } = useQuery<JobQueueStatus>({
-    queryKey: ['/api/admin/job-queues'],
+    queryKey: ['admin/job-queues'],
     refetchInterval: 10000, // Refresh every 10 seconds
     retry: false
   });

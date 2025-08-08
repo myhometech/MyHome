@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getConfig } from "../config";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -15,11 +16,23 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+function buildApiUrl(endpoint: string): string {
+  const config = getConfig();
+  // Remove leading slash from endpoint if present to avoid double slashes
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  // Ensure API_BASE_URL doesn't end with slash to avoid double slashes
+  const baseUrl = config.API_BASE_URL.endsWith('/') 
+    ? config.API_BASE_URL.slice(0, -1) 
+    : config.API_BASE_URL;
+  return `${baseUrl}/${cleanEndpoint}`;
+}
+
 export async function apiRequest(
   method: string,
-  url: string,
+  endpoint: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const url = buildApiUrl(endpoint);
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -37,7 +50,11 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // Build URL using config instead of direct concatenation
+    const endpoint = queryKey.join("/");
+    const url = buildApiUrl(endpoint);
+    
+    const res = await fetch(url, {
       credentials: "include",
     });
 

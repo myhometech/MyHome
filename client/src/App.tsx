@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { initializeFrontendSentry } from "@/lib/monitoring";
 import NetworkStatusBanner from "@/components/network-status-banner";
+import { ConfigProvider } from "@/components/ConfigProvider";
 
 // Initialize frontend error tracking
 try {
@@ -118,13 +119,15 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <NetworkStatusBanner />
-          <Router />
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <ConfigProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <NetworkStatusBanner />
+            <Router />
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ConfigProvider>
     </ErrorBoundary>
   );
 }

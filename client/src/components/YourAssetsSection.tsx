@@ -136,12 +136,19 @@ export function YourAssetsSection() {
     mutationFn: async (ids: string[]) => {
       // For user assets, we need to call individual delete endpoints
       // since there's no bulk delete for assets yet
-      await Promise.all(
-        ids.map(id => fetch(`/api/user-assets/${id}`, { 
-          method: "DELETE",
-          credentials: 'include'
-        }))
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          const response = await fetch(`/api/user-assets/${id}`, { 
+            method: "DELETE",
+            credentials: 'include'
+          });
+          if (!response.ok) {
+            throw new Error(`Failed to delete asset ${id}: ${response.status}`);
+          }
+          return response;
+        })
       );
+      return results;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user-assets"] });
@@ -149,8 +156,9 @@ export function YourAssetsSection() {
       setBulkMode(false);
       toast({ title: "Assets deleted", description: `Successfully deleted ${selectedAssets.size} assets.` });
     },
-    onError: () => {
-      toast({ title: "Failed to delete assets", description: "Please try again.", variant: "destructive" });
+    onError: (error) => {
+      console.error('Bulk delete assets error:', error);
+      toast({ title: "Failed to delete assets", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     },
   });
 

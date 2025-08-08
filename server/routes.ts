@@ -1018,7 +1018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Document preview endpoint - optimized for fast PDF loading
   app.get('/api/documents/:id/preview', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub || 'demo-user-1';
+      const userId = req.user?.id || req.session?.user?.id || 'demo-user-1';
       const documentId = parseInt(req.params.id);
 
       console.log(`🔍 Preview request for document ${documentId} by user ${userId}`);

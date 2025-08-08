@@ -498,7 +498,23 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
 
   // Convert captured pages to files and finish - creates PDF upload
   const handleProcessCapturedPages = useCallback(async () => {
-    if (capturedPages.length === 0) return;
+    if (capturedPages.length === 0) {
+      console.log('❌ No captured pages to process');
+      toast({
+        title: "No Pages Captured",
+        description: "Please capture at least one page before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log(`🚀 STARTING PDF CREATION: ${capturedPages.length} pages`);
+    console.log('🔍 Captured pages data:', capturedPages.map(p => ({ 
+      id: p.id, 
+      hasImage: !!p.imageData, 
+      imageLength: p.imageData?.length || 0,
+      isProcessing: p.isProcessing 
+    })));
 
     setIsProcessing(true);
 
@@ -689,11 +705,20 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         variant: "destructive",
       });
 
-      // Track the error for debugging
+      // Track the error for debugging with additional context
       trackScanEvent('browser_scan_failed', {
         error: err.message || 'Unknown error',
         pageCount: capturedPages.length,
         timestamp: new Date().toISOString()
+      });
+
+      // Additional error logging for debugging
+      console.error('❌ Complete scan error context:', {
+        originalError: err,
+        errorMessage,
+        pageCount: capturedPages.length,
+        timestamp: new Date().toISOString(),
+        errorStack: err.stack
       });
 
     } finally {

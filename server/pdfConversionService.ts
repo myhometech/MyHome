@@ -77,9 +77,9 @@ export class PDFConversionService {
       pdfPath = path.join(outputDir, pdfFilename);
       console.log(`🔄 MULTI-PAGE PDF: Output path: ${pdfPath}`);
 
-      // Track the output PDF file
-      const pdfResourceId = resourceTracker.trackFile(pdfPath);
-      resourceIds.push(pdfResourceId);
+      // Don't track the output PDF file for automatic cleanup since it needs to be uploaded
+      // const pdfResourceId = resourceTracker.trackFile(pdfPath);
+      // resourceIds.push(pdfResourceId);
 
       // Create multi-page PDF
       console.log(`🔄 MULTI-PAGE PDF: Starting PDF generation...`);
@@ -122,7 +122,7 @@ export class PDFConversionService {
         error: error.message || 'Unknown error during PDF conversion'
       };
     } finally {
-      // Clean up resource tracking
+      // Clean up resource tracking for input images only
       await Promise.allSettled(
         resourceIds.map(id => resourceTracker.releaseResource(id).catch(err => 
           console.warn(`Failed to release resource ${id}:`, err)

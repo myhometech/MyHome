@@ -36,7 +36,8 @@ const contentSecurityPolicy = {
       "blob:",
       "https://storage.googleapis.com",
       "https://*.googleusercontent.com",
-      "https://images.unsplash.com"
+      "https://images.unsplash.com",
+      "https://myhome-docs.com"
     ],
     connectSrc: [
       "'self'",

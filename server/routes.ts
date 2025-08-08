@@ -1018,7 +1018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Document preview endpoint - optimized for fast PDF loading
   app.get('/api/documents/:id/preview', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user?.id || req.session?.user?.id || 'demo-user-1';
+      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
 
       console.log(`🔍 Preview request for document ${documentId} by user ${userId}`);
@@ -1036,18 +1036,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`✅ Found document: ${document.fileName}, type: ${document.mimeType}`);
 
-      // Check if file exists on disk
+      // Check if this is a cloud storage document first
+      const isCloudDocument = document.gcsPath || 
+                             (document.encryptionMetadata && document.encryptionMetadata.includes('cloud')) || 
+                             (document.filePath && document.filePath.startsWith('user'));
+
+      if (isCloudDocument) {
+        try {
+          let storageKey = '';
+
+          // Determine the cloud storage key
+          if (document.gcsPath) {
+            storageKey = document.gcsPath;
+          } else if (document.encryptionMetadata) {
+            const metadata = JSON.parse(document.encryptionMetadata);
+            storageKey = metadata.storageKey || document.filePath;
+          } else {
+            storageKey = document.filePath;
+          }
+
+          console.log(`📁 GCS PREVIEW: Loading document ${storageKey} from cloud storage`);
+
+          const storageService = storageProvider();
+          const fileBuffer = await storageService.download(storageKey);
+
+          // Set appropriate headers for preview
+          res.setHeader('Content-Type', document.mimeType);
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+          res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+          res.setHeader('Access-Control-Allow-Credentials', 'true');
+          res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+          res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+
+          // For PDFs, add headers to ensure proper display in iframe
+          if (document.mimeType === 'application/pdf') {
+            res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
+            res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+          }
+
+          return res.send(fileBuffer);
+        } catch (downloadError) {
+          console.error('GCS download failed for preview:', downloadError);
+          return res.status(500).json({ 
+            message: "Failed to load document preview from cloud storage",
+            error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
+          });
+        }
+      }
+
+      // For local files, check if file exists
       if (!fs.existsSync(document.filePath)) {
         console.log(`❌ PREVIEW: File not found at path: ${document.filePath}`);
-
-        // Try to clean up the orphaned record
-        try {
-          await storage.deleteDocument(documentId, userId);
-          console.log(`🗑️ PREVIEW: Cleaned up orphaned document record ${documentId}`);
-        } catch (cleanupError) {
-          console.warn(`Failed to cleanup orphaned document ${documentId}:`, cleanupError);
-        }
-
         return res.status(404).json({ 
           message: 'File not found on disk - document record has been cleaned up',
           documentId: documentId,
@@ -1877,8 +1917,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Handle cloud storage documents (both encrypted and unencrypted)
-      const isCloudDocument = (document.encryptionMetadata && document.encryptionMetadata.includes('cloud')) || 
-                             document.gcsPath || 
+      const isCloudDocument = document.gcsPath || 
+                             (document.encryptionMetadata && document.encryptionMetadata.includes('cloud')) || 
                              (document.filePath && document.filePath.startsWith('user'));
 
       if (isCloudDocument) {
@@ -1897,27 +1937,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log(`📁 GCS DOWNLOAD: Downloading document ${storageKey} from cloud storage`);
 
-          try {
-            const storage = storageProvider();
-            const fileBuffer = await storage.download(storageKey);
+          const storageService = storageProvider();
+          const fileBuffer = await storageService.download(storageKey);
 
-            // Set appropriate headers for download
-            res.setHeader('Content-Type', document.mimeType);
-            res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
-            res.setHeader('Cache-Control', 'private, max-age=3600');
+          // Set appropriate headers for download
+          res.setHeader('Content-Type', document.mimeType);
+          res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
+          res.setHeader('Cache-Control', 'private, max-age=3600');
 
-            res.send(fileBuffer);
-            return;
-          } catch (gcsError: any) {
-            console.error('GCS download failed:', gcsError);
-            return res.status(500).json({ 
-              message: "Failed to download document from cloud storage",
-              error: gcsError?.message || 'Unknown error' 
-            });
-          }
-        } catch (metadataError) {
-          console.error('Failed to parse metadata for cloud document:', metadataError);
-          return res.status(500).json({ message: "Failed to parse document metadata" });
+          res.send(fileBuffer);
+          return;
+        } catch (downloadError: any) {
+          console.error('GCS download failed:', downloadError);
+          return res.status(500).json({ 
+            message: "Failed to download document from cloud storage",
+            error: downloadError?.message || 'Unknown error' 
+          });
         }
       }
 

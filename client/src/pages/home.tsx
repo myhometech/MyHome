@@ -513,13 +513,13 @@ export default function Home() {
     queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
   }, []);
 
-  // Add another effect to ensure documents are fetched when user loads
+  // Ensure documents are refetched when user is confirmed
   useEffect(() => {
-    if (user && !documentsLoading) {
-      console.log('[HOME] User confirmed, ensuring documents are fetched...');
-      queryClient.refetchQueries({ queryKey: ["/api/documents"] });
+    if (user) {
+      console.log('[HOME] User authenticated, ensuring documents are fetched...');
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
     }
-  }, [user, documentsLoading, queryClient]);
+  }, [user, queryClient]);
 
   // Bulk operation handlers
   const toggleBulkMode = () => {
@@ -563,6 +563,11 @@ export default function Home() {
       console.log('[HOME] Documents API response status:', response.status);
       
       if (!response.ok) {
+        if (response.status === 401) {
+          console.error('[HOME] Unauthorized access, redirecting to login');
+          window.location.href = '/login';
+          return [];
+        }
         console.error('[HOME] Documents API failed:', response.status, response.statusText);
         throw new Error("Failed to fetch documents");
       }
@@ -571,7 +576,13 @@ export default function Home() {
       console.log('[HOME] Documents API returned:', data.length, 'documents');
       return data;
     },
-    retry: false,
+    enabled: !!user && !userLoading, // Only fetch when user is authenticated
+    retry: (failureCount, error: any) => {
+      if (error?.message?.includes('401') || error?.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    },
     staleTime: 0, // Always fetch fresh data
     refetchOnWindowFocus: true,
   });
@@ -592,13 +603,16 @@ export default function Home() {
     searchQuery: searchQuery
   });
 
-  // Force refetch documents if they're empty but should exist
+  // Force refetch documents if they're empty but should exist (with debounce)
   useEffect(() => {
-    if (!documentsLoading && (!documents || documents.length === 0) && !documentsError) {
-      console.log('[HOME] No documents found, attempting refetch...');
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+    if (!documentsLoading && (!documents || documents.length === 0) && !documentsError && user) {
+      console.log('[HOME] No documents found for authenticated user, attempting single refetch...');
+      const timeoutId = setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ["/api/documents"] });
+      }, 1000);
+      return () => clearTimeout(timeoutId);
     }
-  }, [documentsLoading, documents, documentsError, queryClient]);
+  }, [documentsLoading, documents?.length, documentsError, queryClient, user]);
 
   // Mock components for demonstration purposes, replace with actual imports
   const CriticalInsightsDashboard = () => <div className="bg-gray-100 p-4 rounded-lg">Critical Insights Dashboard</div>;
@@ -615,12 +629,26 @@ export default function Home() {
     queryKey: ['/api/auth/user'],
     queryFn: async () => {
       const response = await fetch('/api/auth/user', { credentials: 'include' });
-      if (!response.ok) throw new Error('Not authenticated');
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Redirect to login if not authenticated
+          window.location.href = '/login';
+          return null;
+        }
+        throw new Error('Not authenticated');
+      }
       return response.json();
     },
+    retry: false,
   });
 
   console.log('Home component rendering with user:', user, 'loading:', userLoading);
+
+  // Redirect to login if not authenticated
+  if (!userLoading && !user) {
+    window.location.href = '/login';
+    return null;
+  }
 
   if (userLoading) {
     return (

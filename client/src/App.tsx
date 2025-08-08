@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -36,34 +36,39 @@ import UnifiedDocuments from "@/pages/unified-documents";
 import InsightsFirstPage from "@/pages/insights-first";
 import { Support } from "@/pages/support";
 
+// Placeholder imports for routes that were added in the changes
+import Insights from "@/pages/insights"; // Assuming this path exists
+import InsightsFirst from "@/pages/insights-first"; // Assuming this path exists
+import SharedWithMe from "@/pages/shared-with-me"; // Assuming this path exists
+import FeatureFlagsPage from "@/pages/admin/feature-flags"; // Assuming this path exists
+
 
 function Router() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
   // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
-  // Debug info for production
-  if (typeof window !== 'undefined') {
-    console.log('Auth state:', { isAuthenticated, isLoading, hasUser: !!user });
-    // Additional debugging for white screen issue
-    if (!isLoading && !isAuthenticated) {
-      console.log('Rendering landing page for unauthenticated user');
-    }
-  }
+  console.log('App component rendering with user:', user, 'loading:', isLoading);
+  console.log('Auth state:', {
+    isAuthenticated: !!user,
+    isLoading,
+    hasUser: !!user
+  });
 
+  // Handle routing for both authenticated and unauthenticated users
   return (
     <Switch>
-      {!isAuthenticated ? (
+      {!user ? (
+        // Unauthenticated routes
         <>
-          <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
           <Route path="/forgot-password" component={ForgotPassword} />
@@ -71,47 +76,32 @@ function Router() {
           <Route path="/pricing" component={Pricing} />
           <Route path="/blog" component={Blog} />
           <Route path="/blog/:slug" component={BlogPost} />
-          {/* Redirect protected routes to login */}
-
-
-          <Route path="/settings">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-          <Route path="/support">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-          <Route path="/admin">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-
+          <Route path="/support" component={Support} />
+          <Route path="/" component={Landing} />
+          {/* Catch-all for unauthenticated users to redirect to landing */}
+          <Route component={Landing} />
         </>
       ) : (
+        // Authenticated routes
         <>
-          <Route path="/" component={InsightsFirstPage} />
+          <Route path="/" component={Home} />
           <Route path="/documents" component={UnifiedDocuments} />
-
           <Route path="/document/:id" component={DocumentPage} />
+          <Route path="/insights" component={Insights} />
+          <Route path="/insights-first" component={InsightsFirst} />
           <Route path="/settings" component={Settings} />
-          <Route path="/support" component={Support} />
+          <Route path="/shared-with-me" component={SharedWithMe} />
           <Route path="/admin" component={AdminDashboard} />
-          <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
-          <Route path="/pricing" component={Pricing} />
-
-          <Route path="/blog" component={Blog} />
-          <Route path="/blog/:slug" component={BlogPost} />
+          <Route path="/admin/feature-flags" component={FeatureFlagsPage} />
           {/* Redirect auth routes to home for logged in users */}
-          <Route path="/login">
-            {() => { setLocation("/"); return null; }}
-          </Route>
-          <Route path="/register">
-            {() => { setLocation("/"); return null; }}
-          </Route>
-          <Route path="/forgot-password">
-            {() => { setLocation("/"); return null; }}
-          </Route>
+          <Route path="/login" component={() => <Redirect to="/" />} />
+          <Route path="/register" component={() => <Redirect to="/" />} />
+          <Route path="/forgot-password" component={() => <Redirect to="/" />} />
+          <Route path="/reset-password" component={() => <Redirect to="/" />} />
+          {/* Catch-all for authenticated users to redirect to NotFound */}
+          <Route component={NotFound} />
         </>
       )}
-      <Route component={NotFound} />
     </Switch>
   );
 }

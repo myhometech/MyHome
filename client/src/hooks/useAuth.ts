@@ -3,24 +3,39 @@ import { getQueryFn } from "@/lib/queryClient";
 
 export function useAuth() {
   const { data: user, isLoading, error } = useQuery({
-    queryKey: ["auth/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: (failureCount, error) => {
-      // Log auth failures for debugging
-      // Auth query failed - debug info removed for production
-      return failureCount < 2; // Retry once
+    queryKey: ['/api/auth/user'],
+    queryFn: async () => {
+      const response = await fetch('/api/auth/user', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          return null; // User is not authenticated
+        }
+        throw new Error(`Authentication failed: ${response.status}`);
+      }
+
+      return response.json();
+    },
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 errors
+      if (error?.message?.includes('401')) {
+        return false;
+      }
+      return failureCount < 2;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus to avoid loops
   });
-
-  // Debug logging
-  // Auth state debug removed for production
 
   return {
     user,
     isLoading,
-    isAuthenticated: !!user,
-    error
+    error,
+    isAuthenticated: !!user && !isLoading
   };
 }

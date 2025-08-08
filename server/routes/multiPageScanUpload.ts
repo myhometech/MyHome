@@ -203,19 +203,50 @@ export function setupMultiPageScanUpload(app: Express) {
           extractedText = `Scanned document with ${files.length} pages. Text extraction will be processed in background.`;
         }
 
-        // Create document record with permanent file path
+        // Upload to cloud storage for consistency
+        const storageKey = StorageService.generateFileKey(userId, `scan-${nanoid()}`, fileName);
+        const storageService = storageProvider();
+        const cloudStorageKey = await storageService.upload(pdfBuffer, storageKey, 'application/pdf');
+        
+        console.log(`☁️ UPLOAD: PDF uploaded to cloud storage: ${cloudStorageKey}`);
+
+        // Generate encryption metadata for cloud storage
+        const documentKey = EncryptionService.generateDocumentKey();
+        const encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
+        const encryptionMetadata = JSON.stringify({
+          storageType: 'cloud',
+          storageKey: cloudStorageKey,
+          encrypted: true,
+          algorithm: 'AES-256-GCM',
+          source: 'scan',
+          processedAt: new Date().toISOString()
+        });
+
+        // Create document record with cloud storage path
         document = await storage.createDocument({
           userId,
           name: documentName,
           fileName,
-          filePath: permanentFilePath, // Use permanent local path
+          filePath: cloudStorageKey, // Use cloud storage key
+          gcsPath: cloudStorageKey, // Also store in gcsPath for consistency
           mimeType: 'application/pdf',
           fileSize: permanentStats.size,
           extractedText,
           uploadSource,
           status: 'active',
-          summary: `Scanned document with ${files.length} pages. OCR confidence: ${Math.round(confidence * 100)}%`
+          summary: `Scanned document with ${files.length} pages. OCR confidence: ${Math.round(confidence * 100)}%`,
+          encryptedDocumentKey,
+          encryptionMetadata,
+          isEncrypted: true
         });
+
+        // Clean up local permanent file since we're using cloud storage
+        try {
+          await fs.promises.unlink(permanentFilePath);
+          console.log(`🗑️ Cleaned up local PDF file: ${permanentFilePath}`);
+        } catch (unlinkError) {
+          console.warn(`Failed to cleanup local PDF: ${unlinkError}`);
+        }
 
         console.log(`✅ UPLOAD: Document created successfully with ID: ${document.id}`);
 

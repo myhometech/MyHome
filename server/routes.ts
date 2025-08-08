@@ -831,6 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cloudDocumentData = {
         ...finalDocumentData,
         filePath: cloudStorageKey, // Store cloud storage key instead of local path
+        gcsPath: cloudStorageKey, // Also store in gcsPath for consistency
         encryptedDocumentKey,
         encryptionMetadata,
         isEncrypted: true
@@ -1063,41 +1064,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
-      // Handle cloud storage documents (new system)
-      if (document.isEncrypted && document.encryptionMetadata) {
+      // Handle cloud storage documents (new system) - check both encrypted and unencrypted
+      const isCloudDocument = (document.encryptionMetadata && document.encryptionMetadata.includes('cloud')) || 
+                             document.gcsPath || 
+                             (document.filePath && document.filePath.startsWith('user'));
+
+      if (isCloudDocument) {
+        try {
+          let storageKey = '';
+          
+          // Determine the cloud storage key
+          if (document.gcsPath) {
+            storageKey = document.gcsPath;
+          } else if (document.encryptionMetadata) {
+            const metadata = JSON.parse(document.encryptionMetadata);
+            storageKey = metadata.storageKey || document.filePath;
+          } else {
+            storageKey = document.filePath;
+          }
+
+          console.log(`📁 GCS PREVIEW: Loading document ${storageKey} from cloud storage`);
+
+          const storage = storageProvider();
+          try {
+            // Always proxy the file through our server to prevent modal breaking redirects
+            console.log('📁 GCS PREVIEW: Proxying document content to maintain modal functionality');
+            const fileBuffer = await storage.download(storageKey);
+            res.setHeader('Content-Type', document.mimeType);
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+            res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+            res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+            res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+
+            // For PDFs, add headers to ensure proper display in iframe
+            if (document.mimeType === 'application/pdf') {
+              res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
+              res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+            }
+            return res.send(fileBuffer);
+          } catch (downloadError) {
+            console.error('GCS download failed for preview:', downloadError);
+            return res.status(500).json({ 
+              message: "Failed to load document preview",
+              error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
+            });
+          }
+        } catch (metadataError) {
+          console.error('Failed to parse metadata for cloud document:', metadataError);
+          return res.status(500).json({ message: "Failed to parse document metadata" });
+        }
+      }
+
+      // Handle encrypted local documents (legacy)
+      if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
-
-          // Check if this is a cloud storage document
-          if (metadata.storageType === 'cloud' && metadata.storageKey) {
-            console.log(`📁 GCS PREVIEW: Loading document ${metadata.storageKey} from cloud storage`);
-
-            const storage = storageProvider();
-            try {
-              // Always proxy the file through our server to prevent modal breaking redirects
-              console.log('📁 GCS PREVIEW: Proxying document content to maintain modal functionality');
-              const fileBuffer = await storage.download(metadata.storageKey);
-              res.setHeader('Content-Type', document.mimeType);
-              res.setHeader('Cache-Control', 'public, max-age=3600');
-              res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-              res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
-              res.setHeader('Access-Control-Allow-Credentials', 'true');
-              res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
-              res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-
-              // For PDFs, add headers to ensure proper display in iframe
-              if (document.mimeType === 'application/pdf') {
-                res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
-                res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-              }
-              return res.send(fileBuffer);
-            } catch (downloadError) {
-              console.error('GCS download failed for preview:', downloadError);
-              return res.status(500).json({ 
-                message: "Failed to load document preview",
-                error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
-              });
-            }
+          
+          // Skip if already handled as cloud document above
+          if (metadata.storageType === 'cloud') {
+            return res.status(500).json({ message: "Cloud document should have been handled above" });
           }
 
           // Handle legacy encrypted local files
@@ -1857,33 +1884,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // Handle encrypted documents
+      // Handle cloud storage documents (both encrypted and unencrypted)
+      const isCloudDocument = (document.encryptionMetadata && document.encryptionMetadata.includes('cloud')) || 
+                             document.gcsPath || 
+                             (document.filePath && document.filePath.startsWith('user'));
+
+      if (isCloudDocument) {
+        try {
+          let storageKey = '';
+          
+          // Determine the cloud storage key
+          if (document.gcsPath) {
+            storageKey = document.gcsPath;
+          } else if (document.encryptionMetadata) {
+            const metadata = JSON.parse(document.encryptionMetadata);
+            storageKey = metadata.storageKey || document.filePath;
+          } else {
+            storageKey = document.filePath;
+          }
+
+          console.log(`📁 GCS DOWNLOAD: Downloading document ${storageKey} from cloud storage`);
+
+          try {
+            const storage = storageProvider();
+            const fileBuffer = await storage.download(storageKey);
+
+            // Set appropriate headers for download
+            res.setHeader('Content-Type', document.mimeType);
+            res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
+            res.setHeader('Cache-Control', 'private, max-age=3600');
+
+            res.send(fileBuffer);
+            return;
+          } catch (gcsError: any) {
+            console.error('GCS download failed:', gcsError);
+            return res.status(500).json({ 
+              message: "Failed to download document from cloud storage",
+              error: gcsError?.message || 'Unknown error' 
+            });
+          }
+        } catch (metadataError) {
+          console.error('Failed to parse metadata for cloud document:', metadataError);
+          return res.status(500).json({ message: "Failed to parse document metadata" });
+        }
+      }
+
+      // Handle encrypted local documents (legacy)
       if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
 
-          // Handle cloud storage documents with GCS download
-          if (metadata.storageType === 'cloud' && metadata.storageKey) {
-            console.log(`📁 GCS DOWNLOAD: Downloading document ${metadata.storageKey} from cloud storage`);
-
-            try {
-              const storage = storageProvider();
-              const fileBuffer = await storage.download(metadata.storageKey);
-
-              // Set appropriate headers for download
-              res.setHeader('Content-Type', document.mimeType);
-              res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
-              res.setHeader('Cache-Control', 'private, max-age=3600');
-
-              res.send(fileBuffer);
-              return;
-            } catch (gcsError: any) {
-              console.error('GCS download failed:', gcsError);
-              return res.status(500).json({ 
-                message: "Failed to download document from cloud storage",
-                error: gcsError?.message || 'Unknown error' 
-              });
-            }
+          // Skip if already handled as cloud document above
+          if (metadata.storageType === 'cloud') {
+            return res.status(500).json({ message: "Cloud document should have been handled above" });
           }
 
           // Handle local encrypted documents (legacy)

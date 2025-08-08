@@ -244,6 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "frame-ancestors 'none'"
         ].join('; ') + ';';
         
+    console.log('🔒 Setting CSP policy (isDeployment=' + isDeployment + '):', cspPolicy.substring(0, 100) + '...');
     res.setHeader("Content-Security-Policy", cspPolicy);
     
     // Monitor for upstream interference

@@ -985,11 +985,28 @@ export class DatabaseStorage implements IStorage {
     topEventType: string;
   }> {
     try {
-      // Mock data for now - you can replace with actual activity tracking later
+      // Get actual activity data from documents and users
+      const totalDocsResult = await this.db.execute(sql`
+        SELECT COUNT(*)::int as count FROM documents
+      `);
+      const totalDocs = this.extractResult(totalDocsResult, 'count');
+
+      const todayDocsResult = await this.db.execute(sql`
+        SELECT COUNT(*)::int as count FROM documents 
+        WHERE uploaded_at >= CURRENT_DATE
+      `);
+      const todayDocs = this.extractResult(todayDocsResult, 'count');
+
+      const weeklyDocsResult = await this.db.execute(sql`
+        SELECT COUNT(*)::int as count FROM documents 
+        WHERE uploaded_at >= CURRENT_DATE - INTERVAL '7 days'
+      `);
+      const weeklyDocs = this.extractResult(weeklyDocsResult, 'count');
+
       return {
-        totalEvents: "1,234",
-        todayEvents: "45",
-        weeklyEvents: "312",
+        totalEvents: totalDocs.toString(),
+        todayEvents: todayDocs.toString(),
+        weeklyEvents: weeklyDocs.toString(),
         topEventType: "Document Upload"
       };
     } catch (error) {
@@ -1003,30 +1020,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getSearchAnalytics(): Promise<{
-    totalSearches: string;
-    todaySearches: string;
-    weeklySearches: string;
-    topQuery: string;
-  }> {
-    try {
-      // Mock data for now - you can replace with actual search tracking later
-      return {
-        totalSearches: "567",
-        todaySearches: "23",
-        weeklySearches: "156",
-        topQuery: "insurance"
-      };
-    } catch (error) {
-      console.error('Error fetching search analytics:', error);
-      return {
-        totalSearches: "0",
-        todaySearches: "0",
-        weeklySearches: "0", 
-        topQuery: "None"
-      };
-    }
-  }
+  
 
   async getCloudUsageAnalytics(): Promise<{
     storageUsed: string;
@@ -1042,11 +1036,18 @@ export class DatabaseStorage implements IStorage {
       const totalStorageBytes = this.extractResult(storageResult, 'total');
       const storageGB = Math.round((totalStorageBytes / (1024 * 1024 * 1024)) * 100) / 100;
       
+      // Get document count for API call estimation
+      const docCountResult = await this.db.execute(sql`
+        SELECT COUNT(*)::int as count FROM documents
+      `);
+      const docCount = this.extractResult(docCountResult, 'count');
+      const estimatedApiCalls = docCount * 3; // Estimate 3 API calls per document
+      
       return {
         storageUsed: `${storageGB} GB`,
         bandwidth: "2.1 GB",
-        apiCalls: "15,432",
-        costThisMonth: "$12.34"
+        apiCalls: estimatedApiCalls.toString(),
+        costThisMonth: `$${(storageGB * 0.02).toFixed(2)}`
       };
     } catch (error) {
       console.error('Error fetching cloud usage analytics:', error);
@@ -1059,15 +1060,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getAllFeatureFlags(): Promise<any[]> {
-    try {
-      const flags = await this.db.select().from(featureFlags).orderBy(featureFlags.createdAt);
-      return flags;
-    } catch (error) {
-      console.error('Error fetching feature flags:', error);
-      return [];
-    }
-  }
+  
 
   // Health check method
   async checkDatabaseHealth(): Promise<{

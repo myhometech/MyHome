@@ -210,6 +210,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(cors(corsOptions));
   app.use(securityLogger);
 
+  // ANTI-UPSTREAM CSP OVERRIDE: Run after security headers to ensure final CSP
+  // Check deployment environment
+  const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
+  
+  app.use((req, res, next) => {
+    // Remove any existing CSP headers that might be set by upstream proxies or other middleware
+    res.removeHeader("Content-Security-Policy");
+    res.removeHeader("content-security-policy");
+    res.removeHeader("Content-security-policy");
+    
+    // Set our comprehensive CSP policy
+    const cspPolicy = isDeployment 
+      ? [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://js.stripe.com https://cdn.jsdelivr.net",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "img-src 'self' data: blob: https://myhome-docs.com https://storage.googleapis.com https://*.googleusercontent.com https://images.unsplash.com",
+          "font-src 'self' data: https://fonts.gstatic.com",
+          "connect-src 'self' https://api.stripe.com https://api.openai.com https://storage.googleapis.com",
+          "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+          "object-src 'none'",
+          "frame-ancestors 'none'"
+        ].join('; ') + ';'
+      : [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://*.replit.app https://*.replit.dev blob:",
+          "style-src 'self' 'unsafe-inline'", 
+          "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
+          "font-src 'self' data:",
+          "connect-src 'self' wss: ws: https://*.replit.app https://*.replit.dev",
+          "object-src 'none'",
+          "frame-ancestors 'none'"
+        ].join('; ') + ';';
+        
+    res.setHeader("Content-Security-Policy", cspPolicy);
+    
+    // Monitor for upstream interference
+    res.on('finish', () => {
+      const finalHeaders = res.getHeaders();
+      const finalCSP = finalHeaders['content-security-policy'];
+      
+      if (finalCSP !== cspPolicy) {
+        console.error('🚨 UPSTREAM CSP INTERFERENCE DETECTED!');
+        console.error('🚨 Expected CSP:', cspPolicy);
+        console.error('🚨 Actual CSP:', finalCSP);
+        console.error('🚨 All Response Headers:', Object.keys(finalHeaders));
+      }
+    });
+    
+    next();
+  });
+
   // Setup simple authentication
   setupSimpleAuth(app);
 

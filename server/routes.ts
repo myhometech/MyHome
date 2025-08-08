@@ -508,6 +508,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // Get current user endpoint (for auth check)
+  app.get("/api/auth/user", (req, res) => {
+    try {
+      // Check if user is authenticated
+      const user = (req.session as any)?.user;
+      const userId = (req.session as any)?.userId;
+
+      console.log('Auth check - Session user:', user ? user.id : 'none');
+      console.log('Auth check - Session userId:', userId);
+
+      if (!user && !userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Return the user from session
+      res.json(user);
+    } catch (error) {
+      console.error('Error in /api/auth/user:', error);
+      res.status(500).json({ error: "Authentication check failed" });
+    }
+  });
+
   app.get('/api/auth/me', async (req: any, res) => {
     try {
       // Check if user is in session
@@ -1078,18 +1099,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.send(fileBuffer);
         } catch (downloadError) {
           console.error('GCS download failed for preview:', downloadError);
-          
+
           // Check if this is a "file not found" error
           if (downloadError instanceof Error && downloadError.message.includes('No such object')) {
             console.log(`📁 GCS file not found: ${storageKey}`);
-            
+
             // Try to find the file in the bucket with a broader search
             try {
               const bucket = storageService.storage.bucket(storageService.bucketName);
               const [files] = await bucket.getFiles({
                 prefix: `${userId}/`
               });
-              
+
               // Look for files that might match this document
               const possibleMatches = files.filter(file => {
                 const fileName = file.name.toLowerCase();
@@ -1097,19 +1118,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return fileName.includes(docName.substring(0, 10)) || 
                        fileName.includes(document.id.toString());
               });
-              
+
               if (possibleMatches.length > 0) {
                 console.log(`🔍 Found ${possibleMatches.length} possible matches for document ${document.id}`);
-                
+
                 // Use the first match and update the database
                 const correctFile = possibleMatches[0];
                 await storage.updateDocument(document.id, userId, {
                   gcsPath: correctFile.name,
                   filePath: correctFile.name
                 });
-                
+
                 console.log(`🔧 Updated document ${document.id} with correct path: ${correctFile.name}`);
-                
+
                 // Try downloading again with the correct path
                 const fileBuffer = await storageService.download(correctFile.name);
                 res.setHeader('Content-Type', document.mimeType);
@@ -1124,13 +1145,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
                   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
                 }
-                
+
                 return res.send(fileBuffer);
               }
             } catch (searchError) {
               console.error('Failed to search for alternative file:', searchError);
             }
-            
+
             return res.status(404).json({ 
               message: "File not found in cloud storage - document record has been cleaned up",
               documentId: document.id,
@@ -1138,7 +1159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               suggestion: "The file may have been moved or deleted. Please re-upload the document."
             });
           }
-          
+
           return res.status(500).json({ 
             message: "Failed to load document preview from cloud storage",
             error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
@@ -1157,7 +1178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
-      
+
 
       // Handle encrypted local documents (legacy)
       if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {

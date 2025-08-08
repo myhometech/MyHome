@@ -18,12 +18,12 @@ router.get("/google/callback",
     // Successful authentication
     const user = req.user as any;
     
+    console.log(`Google OAuth Success: User ${user.id} logged in`);
+    
     // Store user in session format compatible with simpleAuth
     (req.session as any).user = user;
     (req.session as any).userId = user.id;
     (req.session as any).authProvider = "google";
-    
-    console.log(`Google OAuth Success: User ${user.id} logged in, session created`);
     
     // Force session save before redirect
     req.session.save((err: any) => {
@@ -33,8 +33,25 @@ router.get("/google/callback",
       }
       
       console.log(`OAuth session saved successfully for user: ${user.id}`);
-      // Redirect to homepage
-      res.redirect("/");
+      
+      // Send a success page that redirects to home with user data
+      res.send(`
+        <html>
+        <head><title>Login Successful</title></head>
+        <body>
+          <script>
+            console.log('Google OAuth successful, redirecting...');
+            // Clear any stale cache
+            if (window.localStorage) {
+              localStorage.removeItem('auth-user');
+            }
+            // Redirect to home
+            window.location.href = '/';
+          </script>
+          <p>Login successful, redirecting...</p>
+        </body>
+        </html>
+      `);
     });
   }
 );

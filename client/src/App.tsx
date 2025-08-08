@@ -44,8 +44,21 @@ import FeatureFlagsPage from "@/pages/admin/feature-flags"; // Assuming this pat
 
 
 function Router() {
-  const { user = null, isLoading } = useAuth();
+  const { user = null, isLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
+
+  // Re-check auth on page focus to handle OAuth redirects
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('[APP] Window focused, re-checking auth...');
+      refetch();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refetch]);
+
+  console.log('[APP] Router rendering - User:', user?.id || 'none', 'Loading:', isLoading);
 
   // Show loading state while checking authentication
   if (isLoading) {

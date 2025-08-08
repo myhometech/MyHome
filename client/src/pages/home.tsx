@@ -406,13 +406,19 @@ export default function Home() {
     mutationFn: async (documentIds: number[]) => {
       console.log('Home bulk delete request:', { documentIds, count: documentIds.length });
       
+      // Validate document IDs are numbers
+      const validIds = documentIds.filter(id => Number.isInteger(id) && id > 0);
+      if (validIds.length === 0) {
+        throw new Error('No valid document IDs provided');
+      }
+      
       const response = await fetch('/api/documents/bulk-delete', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ documentIds }),
+        body: JSON.stringify({ documentIds: validIds }),
       });
       
       if (!response.ok) {
@@ -423,13 +429,19 @@ export default function Home() {
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       setSelectedDocuments(new Set());
       setBulkMode(false);
+      
+      const successMessage = result.success 
+        ? `Successfully deleted ${result.success} documents${result.failed > 0 ? `, ${result.failed} failed` : ''}`
+        : `Successfully deleted ${selectedDocuments.size} documents.`;
+      
       toast({
-        title: "Documents deleted",
-        description: `Successfully deleted ${selectedDocuments.size} documents.`,
+        title: "Bulk Delete Complete",
+        description: successMessage,
+        variant: result.failed > 0 ? "destructive" : "default",
       });
     },
     onError: (error) => {

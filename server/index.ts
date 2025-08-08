@@ -66,34 +66,52 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// PRODUCTION CSP FIX: Apply proper CSP configuration for production
+// ANTI-UPSTREAM CSP OVERRIDE: Prevent any upstream proxy interference
 app.use((req, res, next) => {
-  if (isDeployment) {
-    // Production CSP - more restrictive but allows necessary resources
-    res.setHeader("Content-Security-Policy", [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://js.stripe.com https://cdn.jsdelivr.net",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' data: blob: https://myhome-docs.com https://storage.googleapis.com https://*.googleusercontent.com https://images.unsplash.com",
-      "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://api.stripe.com https://api.openai.com https://storage.googleapis.com",
-      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
-      "object-src 'none'",
-      "frame-ancestors 'none'"
-    ].join('; ') + ';');
-  } else {
-    // Development CSP - more permissive
-    res.setHeader("Content-Security-Policy", [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://*.replit.app https://*.replit.dev blob:",
-      "style-src 'self' 'unsafe-inline'", 
-      "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
-      "font-src 'self' data:",
-      "connect-src 'self' wss: ws: https://*.replit.app https://*.replit.dev",
-      "object-src 'none'",
-      "frame-ancestors 'none'"
-    ].join('; ') + ';');
-  }
+  // Remove any existing CSP headers that might be set by upstream proxies or other middleware
+  res.removeHeader("Content-Security-Policy");
+  res.removeHeader("content-security-policy");
+  res.removeHeader("Content-security-policy");
+  
+  // Set our comprehensive CSP policy
+  const cspPolicy = isDeployment 
+    ? [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://js.stripe.com https://cdn.jsdelivr.net",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "img-src 'self' data: blob: https://myhome-docs.com https://storage.googleapis.com https://*.googleusercontent.com https://images.unsplash.com",
+        "font-src 'self' data: https://fonts.gstatic.com",
+        "connect-src 'self' https://api.stripe.com https://api.openai.com https://storage.googleapis.com",
+        "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+        "object-src 'none'",
+        "frame-ancestors 'none'"
+      ].join('; ') + ';'
+    : [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://*.replit.app https://*.replit.dev blob:",
+        "style-src 'self' 'unsafe-inline'", 
+        "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
+        "font-src 'self' data:",
+        "connect-src 'self' wss: ws: https://*.replit.app https://*.replit.dev",
+        "object-src 'none'",
+        "frame-ancestors 'none'"
+      ].join('; ') + ';';
+      
+  res.setHeader("Content-Security-Policy", cspPolicy);
+  
+  // Monitor for upstream interference
+  res.on('finish', () => {
+    const finalHeaders = res.getHeaders();
+    const finalCSP = finalHeaders['content-security-policy'];
+    
+    if (finalCSP !== cspPolicy) {
+      console.error('🚨 UPSTREAM CSP INTERFERENCE DETECTED!');
+      console.error('🚨 Expected CSP:', cspPolicy);
+      console.error('🚨 Actual CSP:', finalCSP);
+      console.error('🚨 All Response Headers:', Object.keys(finalHeaders));
+    }
+  });
+  
   next();
 });
 

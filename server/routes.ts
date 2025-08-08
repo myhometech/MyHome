@@ -273,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.setHeader = function(name, value) {
       // Block any attempt to set CSP headers other than our own
       if (name.toLowerCase().includes('content-security-policy') && value !== cspPolicy) {
-        console.warn('🚨 Blocked attempt to override CSP:', name, value.substring(0, 50) + '...');
+        console.warn('🚨 Blocked attempt to override CSP:', name, String(value).substring(0, 50) + '...');
         return res;
       }
       if (name.toLowerCase() === 'x-frame-options') {
@@ -1312,6 +1312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Reprocess with enhanced OCR and date extraction
+      const { processDocumentWithDateExtraction } = await import('./ocrService');
       await processDocumentWithDateExtraction(
         documentId,
         document.name,
@@ -2025,7 +2026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toggle user status
-  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
     try {
       const { userId } = req.params;
       const { isActive } = req.body;
@@ -2039,7 +2040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(users.id, userId));
 
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Toggle user error:', error);
       res.status(500).json({ error: 'Failed to toggle user status' });
     }
@@ -2047,9 +2048,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Feature flags endpoints
   // Admin - Feature flags
-  app.get("/api/admin/feature-flags", requireAuth, requireAdmin, async (req, res) => {
+  app.get("/api/admin/feature-flags", requireAuth, requireAdmin, async (req: any, res) => {
     try {
-      const user = req.user || req.session?.user;
+      const user = req.user || (req.session as any)?.user;
       console.log('🔧 [FEATURE FLAGS] Request received from user:', user?.email);
       console.log('🔧 [FEATURE FLAGS] User role:', user?.role);
       console.log('🔧 [FEATURE FLAGS] Fetching all feature flags...');
@@ -2066,7 +2067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toggle feature flag
-  app.patch('/api/admin/feature-flags/:flagId/toggle', requireAdmin, async (req, res) => {
+  app.patch('/api/admin/feature-flags/:flagId/toggle', requireAdmin, async (req: any, res) => {
     try {
       const { flagId } = req.params;
       const { enabled } = req.body;
@@ -2089,7 +2090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin - Feature flag analytics  
   app.get("/api/admin/feature-flag-analytics", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const user = req.user || req.session?.user;
+      const user = req.user || (req.session as any)?.user;
       console.log('🔧 [FEATURE FLAG ANALYTICS] Request received from user:', user?.email);
       console.log('🔧 [FEATURE FLAG ANALYTICS] User role:', user?.role);
       console.log('🔧 [FEATURE FLAG ANALYTICS] Fetching feature flag analytics...');
@@ -2121,7 +2122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(analytics);
     } catch (error) {
       console.error('❌ [FEATURE FLAG ANALYTICS] Error:', error);
-      console.error('❌ [FEATURE FLAG ANALYTICS] Error stack:', error.stack);
+      console.error('❌ [FEATURE FLAG ANALYTICS] Error stack:', (error as any).stack);
       res.status(500).json({ error: "Failed to fetch feature flag analytics" });
     }
   });
@@ -2402,7 +2403,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { suggestDocumentCategory } = await import('./routes/categorySuggestion');
   app.post('/api/documents/suggest-category', requireAuth, suggestDocumentCategory);
 
-  // Blog API endpoints (public access for reading)
+  // Blog API endpoints - temporarily commented out until storage methods are implemented
+  /*
   app.get('/api/blog/posts', async (req: any, res) => {
     try {
       const posts = await storage.getPublishedBlogPosts();
@@ -2413,6 +2415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /*
   app.get('/api/blog/posts/:slug', async (req: any, res) => {
     try {
       const post = await storage.getBlogPostBySlug(req.params.slug);
@@ -2469,6 +2472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete blog post" });
     }
   });
+  */
 
 
 
@@ -2524,6 +2528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Reprocess the document with date extraction
       if (supportsOCR(document.mimeType)) {
+        const { processDocumentWithDateExtraction } = await import('./ocrService');
         await processDocumentWithDateExtraction(
           document.id,
           document.fileName,
@@ -3842,7 +3847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalAttachments: attachmentValidation.validAttachments.length,
         processedDocuments: processedDocuments.length,
         failedDocuments: documentErrors.length,
-        processingTime: `${Date.now() - startTime}ms`
+        processingTime: `${totalProcessingTime}ms`
       });
 
       // Log processing summary
@@ -3854,7 +3859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalAttachments: attachmentValidation.validAttachments.length,
         successfulDocuments: processedDocuments.length,
         failedDocuments: documentErrors.length,
-        totalProcessingTimeMs: Date.now() - startTime,
+        totalProcessingTimeMs: totalProcessingTime,
         requestId
       });
 
@@ -4278,7 +4283,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const dataForStorage = {
           ...requestData,
           taxDueDate: requestData.taxDueDate instanceof Date ? requestData.taxDueDate.toISOString().split('T')[0] : requestData.taxDueDate,
-          motExpiryDate: requestData.motExpiryDate instanceof Date ? requestData.motExpiryDate.toISOString().split('T')[0] : requestData.motExpiryDate
+          motExpiryDate: requestData.motExpiryDate instanceof Date ? requestData.motExpiryDate.toISOString().split('T')[0] : requestData.motExpiryDate,
+          updatedAt: new Date()
         };
 
         const validatedData = insertVehicleSchema.partial().parse(dataForStorage);
@@ -4392,8 +4398,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         source: 'dvla' as const,
         dvlaLastRefreshed: new Date(),
         // Convert Date objects to strings for database storage
-        taxDueDate: dvlaVehicle.taxDueDate ? ((dvlaVehicle.taxDueDate as any) instanceof Date ? (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0] : dvlaVehicle.taxDueDate as string) : null,
-        motExpiryDate: dvlaVehicle.motExpiryDate ? ((dvlaVehicle.motExpiryDate as any) instanceof Date ? (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0] : dvlaVehicle.motExpiryDate as string) : null,
+        taxDueDate: dvlaVehicle.taxDueDate ? (typeof dvlaVehicle.taxDueDate === 'string' ? dvlaVehicle.taxDueDate : (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0]) : null,
+        motExpiryDate: dvlaVehicle.motExpiryDate ? (typeof dvlaVehicle.motExpiryDate === 'string' ? dvlaVehicle.motExpiryDate : (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0]) : null,
       });
 
       res.status(201).json({
@@ -4442,8 +4448,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         source: 'dvla' as const,
         dvlaLastRefreshed: new Date(),
         // Convert Date objects to strings for database storage
-        taxDueDate: (dvlaVehicle.taxDueDate as any) instanceof Date ? (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0] : dvlaVehicle.taxDueDate as string,
-        motExpiryDate: (dvlaVehicle.motExpiryDate as any) instanceof Date ? (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0] : dvlaVehicle.motExpiryDate as string,
+        taxDueDate: dvlaVehicle.taxDueDate ? (typeof dvlaVehicle.taxDueDate === 'string' ? dvlaVehicle.taxDueDate : (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0]) : null,
+        motExpiryDate: dvlaVehicle.motExpiryDate ? (typeof dvlaVehicle.motExpiryDate === 'string' ? dvlaVehicle.motExpiryDate : (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0]) : null,
       });
 
       // TICKET 4: Generate insights after DVLA refresh

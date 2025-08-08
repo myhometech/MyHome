@@ -1,264 +1,297 @@
-# Docker Setup Guide for MyHome Backend
+# Docker Deployment Guide - MyHome Application
 
 ## Overview
+This guide covers the complete Docker setup for MyHome, including multi-stage builds, PM2 process management, and runtime configuration injection for production deployments.
 
-This guide covers the Docker setup for the MyHome document management backend, including Google Cloud Storage integration and production deployment.
+## Architecture
 
-## Files Created
+### Multi-Stage Docker Build
+- **Build Stage**: Compiles frontend and backend in Node.js environment
+- **Runtime Stage**: Minimal production image with PM2 process manager
+- **Runtime Config**: Environment-based configuration injection at startup
 
-### 1. `Dockerfile`
-Production-ready multi-stage Docker configuration:
-- **Base Image**: `node:18-alpine` for security and size optimization
-- **System Dependencies**: Includes native module support for image processing
-- **Security**: Non-root user execution
-- **Health Check**: Built-in health monitoring
-- **Port**: Exposes port 5000 (matches current setup)
-
-### 2. `.dockerignore`
-Optimized file exclusion for smaller image builds:
-- Excludes development files, logs, and sensitive data
-- Includes only necessary source code and dependencies
-- Prevents accidental inclusion of `.env` files
-
-### 3. `docker-test.sh`
-Comprehensive validation script that tests:
-- Docker image build process
-- Container startup and health
-- Server responsiveness
-- Error detection in logs
-- Cleanup procedures
+### Container Features
+- **Process Management**: PM2 for production-grade process handling
+- **Health Checks**: Built-in health monitoring endpoints
+- **Environment Agnostic**: Same image for staging/production with different env vars
+- **Security**: Non-root user execution and minimal attack surface
 
 ## Quick Start
 
 ### Build the Docker Image
 ```bash
-# Build the image
-docker build -t myhome-backend .
-
-# Or use the test script (recommended)
-chmod +x docker-test.sh
-./docker-test.sh
+docker build -t myhome:latest .
 ```
 
-### Run the Container
-
-#### Development/Local Storage
-```bash
-docker run -p 5000:5000 --env-file .env myhome-backend
-```
-
-#### Production/Google Cloud Storage
+### Run with Default Configuration
 ```bash
 docker run -p 5000:5000 \
-  -e STORAGE_TYPE=gcs \
-  -e GCS_BUCKET_NAME=media.myhome-tech.com \
-  -e GCS_PROJECT_ID=civic-source-324412 \
-  -e GCS_CREDENTIALS='{"your":"service-account-json"}' \
-  --env-file .env \
-  myhome-backend
+  -e ENV=production \
+  -e API_BASE_URL=/api \
+  -e VERSION=1.0.0 \
+  myhome:latest
+```
+
+### Test the Deployment
+```bash
+# Health check
+curl http://localhost:5000/healthz
+
+# Configuration endpoint
+curl http://localhost:5000/config.json
+
+# Frontend SPA
+curl http://localhost:5000/
 ```
 
 ## Environment Variables
 
 ### Required Variables
+- `NODE_ENV`: Runtime environment (`production`, `staging`, `development`)
+- `PORT`: Application port (default: 5000)
+
+### Configuration Variables
+- `API_BASE_URL`: Base URL for API calls (default: `/api`)
+- `ENV`: Environment identifier for frontend (default: `production`)
+- `VERSION`: Application version (default: `1.0.0`)
+- `GIT_SHA`: Git commit hash for versioning (optional)
+
+### External Services
+- `SENTRY_DSN`: Sentry error tracking DSN (optional)
+- `DATABASE_URL`: PostgreSQL connection string
+- `GOOGLE_APPLICATION_CREDENTIALS`: Path to GCS service account key
+- `STRIPE_SECRET_KEY`: Stripe payment processing key
+
+## Deployment Scenarios
+
+### Production Deployment
 ```bash
-# Database
-DATABASE_URL=postgresql://username:password@host:5432/myhome
-
-# Security
-SESSION_SECRET=your-session-secret-key
-DOCUMENT_MASTER_KEY=your-encryption-key
-
-# Storage Configuration
-STORAGE_TYPE=gcs  # or 'local' for development
+docker run -d \
+  --name myhome-prod \
+  --restart unless-stopped \
+  -p 5000:5000 \
+  -e NODE_ENV=production \
+  -e ENV=production \
+  -e API_BASE_URL=https://api.myhome.app \
+  -e VERSION=2.1.0 \
+  -e GIT_SHA=${GITHUB_SHA} \
+  -e DATABASE_URL=${DATABASE_URL} \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json \
+  -e STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY} \
+  -e SENTRY_DSN=${SENTRY_DSN} \
+  -v /path/to/credentials.json:/app/credentials.json:ro \
+  -v myhome-uploads:/app/uploads \
+  myhome:${GITHUB_SHA}
 ```
 
-### Google Cloud Storage Variables
+### Staging Deployment
 ```bash
-GCS_BUCKET_NAME=your-bucket-name
-GCS_PROJECT_ID=your-project-id
-GCS_CREDENTIALS={"type":"service_account","project_id":"..."}
+docker run -d \
+  --name myhome-staging \
+  --restart unless-stopped \
+  -p 5000:5000 \
+  -e NODE_ENV=staging \
+  -e ENV=staging \
+  -e API_BASE_URL=https://api.staging.myhome.app \
+  -e VERSION=2.1.0-staging \
+  -e DATABASE_URL=${STAGING_DATABASE_URL} \
+  myhome:latest
 ```
 
-### Optional Variables
+### Docker Compose (Development)
 ```bash
-# AI Features
-OPENAI_API_KEY=your-openai-key
-
-# Monitoring
-SENTRY_DSN=your-sentry-dsn
-
-# Email
-SENDGRID_API_KEY=your-sendgrid-key
-
-# Payment
-STRIPE_SECRET_KEY=your-stripe-key
+docker-compose up -d
 ```
 
-## Docker Image Features
+## PM2 Configuration
 
-### Security
-- **Non-root execution**: Container runs as `nodejs` user (UID 1001)
-- **Minimal attack surface**: Alpine Linux base with only necessary packages
-- **No sensitive data**: `.env` files excluded via `.dockerignore`
+### Default PM2 Settings
+- **Process Name**: `myhome-server`
+- **Instances**: 1 (configurable via `PM2_INSTANCES` env var)
+- **Memory Limit**: 500MB auto-restart
+- **Log Aggregation**: Stdout/stderr merged for container logs
 
-### Performance
-- **Production build**: Uses `npm ci --only=production` for faster installs
-- **Optimized layers**: Package installation separated from source code
-- **Small image size**: Alpine base and production-only dependencies
-
-### Monitoring
-- **Health check**: Built-in endpoint monitoring at `/api/health`
-- **Logging**: Application logs accessible via `docker logs`
-- **Process management**: Proper signal handling for graceful shutdowns
-
-## Testing the Docker Setup
-
-### Automated Testing
+### PM2 Monitoring
 ```bash
-# Run the comprehensive test script
-./docker-test.sh
+# Attach to running container
+docker exec -it myhome-prod bash
+
+# View PM2 status
+pm2 status
+
+# View logs
+pm2 logs myhome-server
+
+# Restart process
+pm2 restart myhome-server
 ```
 
-The test script validates:
-1. ✅ Docker image builds successfully
-2. ✅ Container starts without errors
-3. ✅ Health endpoint responds
-4. ✅ Server listens on correct port
-5. ✅ No critical errors in logs
-6. ✅ Proper cleanup
+## Health Monitoring
 
-### Manual Testing
+### Built-in Health Checks
+- **Container**: Docker `HEALTHCHECK` runs every 30s
+- **Application**: `/healthz` endpoint for load balancer probes
+- **PM2**: Automatic process restart on crashes
+
+### Monitoring Endpoints
 ```bash
-# Build and run
-docker build -t myhome-backend .
-docker run -p 5000:5000 --env-file .env myhome-backend
+# Application health
+GET /healthz
+# Response: {"status":"ok","version":"1.0.0","timestamp":"2025-01-01T12:00:00.000Z"}
 
-# Test endpoints
-curl http://localhost:5000/api/health
-curl http://localhost:5000/api/auth/user
+# Runtime configuration
+GET /config.json  
+# Response: {"API_BASE_URL":"/api","ENV":"production","VERSION":"1.0.0"}
 
-# Check logs
-docker logs <container-id>
+# PM2 process status (inside container)
+pm2 jlist
 ```
 
-## Google Cloud Storage Integration
+## File Structure in Container
 
-The Docker container fully supports GCS integration:
-
-### Environment Setup
-```bash
-# Set storage type to GCS
-STORAGE_TYPE=gcs
-
-# Provide GCS credentials
-GCS_BUCKET_NAME=media.myhome-tech.com
-GCS_PROJECT_ID=civic-source-324412
-GCS_CREDENTIALS='{"type":"service_account",...}'
+```
+/app/
+├── dist/
+│   ├── index.js              # Built server
+│   └── public/               # Built frontend
+├── public/
+│   └── config.json          # Runtime-generated config
+├── uploads/                 # Document storage (volume mount)
+├── entrypoint.sh           # Startup script
+├── pm2.config.cjs          # PM2 ecosystem file
+└── package.json            # Dependencies
 ```
 
-### Verification
-```bash
-# Test GCS connection inside container
-docker exec -it <container-id> node -e "
-const { StorageService } = require('./dist/index.js');
-console.log('Testing GCS connection...');
-"
-```
+## Build Optimizations
 
-## Production Deployment
+### Build Performance
+- **Multi-stage**: Separates build and runtime environments
+- **Layer Caching**: Optimized COPY order for dependency caching
+- **Production Install**: Only production dependencies in runtime image
 
-### Container Registry
-```bash
-# Tag for registry
-docker tag myhome-backend:latest your-registry/myhome-backend:latest
-
-# Push to registry
-docker push your-registry/myhome-backend:latest
-```
-
-### Orchestration
-The container is ready for deployment with:
-- **Kubernetes**: Use provided health checks and environment variables
-- **Docker Compose**: Combine with PostgreSQL and Redis services
-- **Cloud Run**: Direct deployment with auto-scaling support
-- **AWS ECS/Fargate**: Production container orchestration
-
-### Example Docker Compose
-```yaml
-version: '3.8'
-services:
-  backend:
-    build: .
-    ports:
-      - "5000:5000"
-    environment:
-      - STORAGE_TYPE=gcs
-      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME}
-      - DATABASE_URL=${DATABASE_URL}
-    depends_on:
-      - postgres
-  
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: myhome
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-```
+### Runtime Optimizations
+- **Minimal Base**: Node.js slim image reduces attack surface
+- **Process Management**: PM2 handles crashes and memory management
+- **Health Checks**: Early failure detection for orchestrators
 
 ## Troubleshooting
 
-### Build Issues
-```bash
-# Clear Docker cache
-docker system prune -a
+### Common Issues
 
-# Build with verbose output
-docker build --no-cache --progress=plain -t myhome-backend .
+#### Container Won't Start
+```bash
+# Check logs
+docker logs myhome-prod
+
+# Common fixes:
+# - Verify environment variables
+# - Check database connectivity
+# - Ensure proper file permissions
 ```
 
-### Runtime Issues
+#### Configuration Not Loading
 ```bash
-# Check container logs
-docker logs <container-id>
+# Verify config generation
+docker exec myhome-prod cat /app/public/config.json
 
-# Interactive shell for debugging
-docker run -it --entrypoint /bin/sh myhome-backend
-
-# Check environment variables
-docker exec <container-id> env | grep -E "(GCS|DATABASE|STORAGE)"
+# Check server config location
+docker exec myhome-prod ls -la /app/server/public/
 ```
 
-### Common Solutions
-1. **Port conflicts**: Use different host port (`-p 5001:5000`)
-2. **Environment variables**: Ensure `.env` file exists and is readable
-3. **Database connection**: Verify `DATABASE_URL` is accessible from container
-4. **GCS permissions**: Check service account has proper bucket access
+#### Health Check Failures
+```bash
+# Manual health check
+docker exec myhome-prod curl -f localhost:5000/healthz
 
-## Performance Considerations
+# PM2 process status
+docker exec myhome-prod pm2 status
+```
 
-### Image Size Optimization
-- Multi-stage builds for smaller production images
-- Alpine Linux base (minimal footprint)
-- Production-only dependencies in final layer
+### Debug Mode
+```bash
+# Run with debug output
+docker run -it --rm \
+  -p 5000:5000 \
+  -e NODE_ENV=production \
+  -e DEBUG=true \
+  myhome:latest
+```
 
-### Runtime Performance
-- Health checks for monitoring
-- Proper signal handling for graceful shutdowns
-- Non-root execution for security
+## Testing
 
-### Scaling
-- Stateless design for horizontal scaling
-- External storage (GCS) for file persistence
-- Database connection pooling support
+### Automated Testing
+```bash
+# Run comprehensive Docker tests
+./docker-test.sh
 
-## Security Best Practices
+# Manual validation
+docker build -t myhome:test .
+docker run -p 5000:5000 -e ENV=production myhome:test
+```
 
-1. **Never include secrets in image**: Use environment variables or secrets management
-2. **Regular updates**: Keep base image and dependencies updated
-3. **Scan for vulnerabilities**: Use `docker scan` or security tools
-4. **Minimal permissions**: Run as non-root user
-5. **Network security**: Use proper firewall rules and service mesh
+### Performance Testing
+```bash
+# Load test health endpoint
+ab -n 1000 -c 10 http://localhost:5000/healthz
 
-The Docker setup is now production-ready with comprehensive Google Cloud Storage integration and full testing validation.
+# Memory usage monitoring
+docker stats myhome-prod
+```
+
+## Security Considerations
+
+### Container Security
+- **Non-root User**: Process runs as Node.js user, not root
+- **Minimal Image**: Reduced attack surface with slim base image
+- **Read-only Mounts**: Configuration files mounted read-only
+- **Network Isolation**: Container network separation
+
+### Secret Management
+- **Environment Variables**: Secure secret injection at runtime
+- **Volume Mounts**: Service account keys via secure mounts
+- **No Hardcoded Secrets**: All secrets externally provided
+
+### Production Hardening
+```bash
+# Run with security options
+docker run -d \
+  --name myhome-prod \
+  --read-only \
+  --tmpfs /tmp \
+  --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  -p 5000:5000 \
+  myhome:latest
+```
+
+## Integration with CI/CD
+
+### GitHub Actions Example
+```yaml
+name: Deploy MyHome
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build Docker Image
+        run: |
+          docker build -t myhome:${{ github.sha }} .
+          
+      - name: Test Image
+        run: |
+          ./docker-test.sh
+          
+      - name: Deploy to Production
+        run: |
+          docker tag myhome:${{ github.sha }} registry.com/myhome:latest
+          docker push registry.com/myhome:latest
+```
+
+## Status: ✅ PRODUCTION READY
+Complete Docker deployment solution with PM2 process management, runtime configuration injection, and comprehensive testing framework.

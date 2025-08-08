@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  myhome:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - API_BASE_URL=/api
+      - ENV=production
+      - VERSION=1.0.0
+      - PORT=5000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    volumes:
+      - uploads:/app/uploads
+    networks:
+      - myhome-network
+
+  # Optional: PostgreSQL for local development
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: myhome
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - myhome-network
+    profiles:
+      - database
+
+volumes:
+  postgres_data:
+  uploads:
+
+networks:
+  myhome-network:
+    driver: bridge

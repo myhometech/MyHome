@@ -10,6 +10,7 @@ import { StorageService, storageProvider } from '../storage/StorageService';
 import { EncryptionService } from '../encryptionService';
 import { ocrQueue } from '../ocrQueue';
 import { nanoid } from 'nanoid';
+import { ResourceTracker } from '../resourceTracker';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +28,7 @@ if (!fs.existsSync(uploadsDir)) {
 
 const upload = multer({ dest: uploadsDir });
 const pdfConversionService = new PDFConversionService();
+const resourceTracker = new ResourceTracker(); // Initialize resource tracker
 
 export function setupMultiPageScanUpload(app: Express) {
   // Multi-page scan upload endpoint
@@ -44,6 +46,9 @@ export function setupMultiPageScanUpload(app: Express) {
       });
     }
 
+    let pdfResourceId: string | undefined;
+    let document: any; // Declare document variable in outer scope
+
     try {
       const files = req.files as Express.Multer.File[];
       const userId = getUserId(req);
@@ -51,7 +56,7 @@ export function setupMultiPageScanUpload(app: Express) {
       const documentName = req.body.documentName || 'Scanned Document';
       const pageCount = parseInt(req.body.pageCount) || files.length;
 
-      console.log(`🔄 UPLOAD: Processing multi-page scan upload: ${files ? files.length : 0} pages from user ${userId}`);
+      console.log(`🔄 UPLOAD: Processing multi-page scan upload: ${pageCount} pages from user ${userId}`);
       console.log(`🔄 UPLOAD: Document name: "${documentName}"`);
       console.log(`🔄 UPLOAD: Page count: ${pageCount}`);
 
@@ -81,16 +86,16 @@ export function setupMultiPageScanUpload(app: Express) {
         // Use the files that multer already saved to disk
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          
+
           // Multer already saved the file to disk using 'dest' option
           if (!file.path || !fs.existsSync(file.path)) {
             throw new Error(`Uploaded file ${i + 1} not found at: ${file.path}`);
           }
-          
+
           // Copy to our temp directory with proper naming
           const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '');
           const tempImagePath = path.join(tempDir, `temp-page-${i + 1}-${Date.now()}-${sanitizedName}`);
-          
+
           // Copy the file to our temp location
           await fs.promises.copyFile(file.path, tempImagePath);
           tempImagePaths.push(tempImagePath);
@@ -102,8 +107,8 @@ export function setupMultiPageScanUpload(app: Express) {
         // Convert images to multi-page PDF
         const sanitizedDocName = documentName.replace(/[^a-zA-Z0-9-_\s]/g, '').trim() || 'scanned-document';
         const conversionResult = await pdfConversionService.convertMultipleImagesToPDF(
-          tempImagePaths, 
-          tempDir, 
+          tempImagePaths,
+          tempDir,
           sanitizedDocName
         );
 
@@ -115,6 +120,10 @@ export function setupMultiPageScanUpload(app: Express) {
           throw new Error('PDF conversion did not return a file path');
         }
 
+        // CRITICAL: Register PDF with resource tracker to prevent premature deletion
+        pdfResourceId = resourceTracker.track(conversionResult.pdfPath);
+        console.log(`🔒 UPLOAD: Protected PDF file with resource ID: ${pdfResourceId}`);
+
         // Verify PDF exists immediately after conversion
         if (!fs.existsSync(conversionResult.pdfPath)) {
           throw new Error(`PDF file was not created at expected location: ${conversionResult.pdfPath}`);
@@ -125,13 +134,13 @@ export function setupMultiPageScanUpload(app: Express) {
         // CRITICAL: Read the PDF file IMMEDIATELY before any cleanup can occur
         const pdfStats = fs.statSync(conversionResult.pdfPath);
         console.log(`📄 UPLOAD: PDF file size: ${pdfStats.size} bytes`);
-        
+
         if (pdfStats.size === 0) {
           throw new Error('Generated PDF file is empty');
         }
 
         const pdfBuffer = await fs.promises.readFile(conversionResult.pdfPath);
-        
+
         if (pdfBuffer.length === 0) {
           throw new Error('Generated PDF file is empty after reading');
         }
@@ -178,7 +187,7 @@ export function setupMultiPageScanUpload(app: Express) {
         }
 
         // Create document record
-        const document = await storage.createDocument({
+        document = await storage.createDocument({
           userId,
           name: documentName,
           fileName,
@@ -194,16 +203,22 @@ export function setupMultiPageScanUpload(app: Express) {
 
         console.log(`✅ UPLOAD: Document created successfully with ID: ${document.id}`);
 
-        // Clean up temporary files
-        console.log(`🧹 UPLOAD: Cleaning up ${tempImagePaths.length + 1} temporary files`);
-        await Promise.all([
-          ...tempImagePaths.map(path => fs.promises.unlink(path).catch(err => 
-            console.warn(`Failed to cleanup temp image: ${path}`, err)
-          )),
-          fs.promises.unlink(conversionResult.pdfPath).catch(err => 
-            console.warn(`Failed to cleanup temp PDF: ${conversionResult.pdfPath}`, err)
-          )
-        ]);
+        // Clean up temporary files and release PDF resource
+        console.log(`🧹 UPLOAD: Cleaning up ${tempImagePaths.length} temp files after successful upload`);
+        await Promise.all(tempImagePaths.map(async (path) => {
+          try {
+            await fs.promises.unlink(path);
+            console.log(`🗑️ Deleted temp file: ${path}`);
+          } catch (unlinkError) {
+            console.warn(`Failed to delete temp file ${path}:`, unlinkError);
+          }
+        }));
+
+        // Release PDF resource after successful processing
+        if (pdfResourceId) {
+          resourceTracker.release(pdfResourceId);
+          console.log(`🧹 Released PDF resource: ${pdfResourceId}`);
+        }
 
         // Force garbage collection if available
         if (global.gc) {
@@ -238,12 +253,18 @@ export function setupMultiPageScanUpload(app: Express) {
         // Clean up any temporary files on error
         console.log(`🧹 UPLOAD: Cleaning up ${tempImagePaths.length} temp files after error`);
         await Promise.all(
-          tempImagePaths.map(path => 
-            fs.promises.unlink(path).catch(err => 
+          tempImagePaths.map(path =>
+            fs.promises.unlink(path).catch(err =>
               console.warn(`Failed to cleanup temp file on error: ${path}`, err)
             )
           )
         );
+
+        // Release PDF resource on error as well
+        if (pdfResourceId) {
+          resourceTracker.release(pdfResourceId);
+          console.log(`🧹 Released PDF resource on error: ${pdfResourceId}`);
+        }
 
         // Provide more specific error message
         let errorMessage = 'Failed to create PDF document';
@@ -278,6 +299,17 @@ export function setupMultiPageScanUpload(app: Express) {
           }
         });
       }
+
+      // Clean up the document record if it was created but processing failed before saving
+      if (document?.id) {
+        try {
+          await storage.deleteDocument(document.id, getUserId(req));
+          console.log(`🗑️ Cleaned up orphaned document record: ${document.id}`);
+        } catch (docCleanupError) {
+          console.warn(`Failed to cleanup document record ${document.id}:`, docCleanupError);
+        }
+      }
+
 
       // Provide detailed error information for debugging
       const errorResponse = {

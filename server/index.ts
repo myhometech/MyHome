@@ -170,24 +170,61 @@ app.use((req, res, next) => {
   if (nodeEnv === "development" && !isDeployment) {
     console.log('🔧 Setting up Vite development server');
     await setupVite(app, server);
+    
+    // Development mode: Add explicit favicon route since static serving is handled by Vite
+    app.get('/favicon.ico', (req, res) => {
+      const faviconPaths = [
+        path.resolve(process.cwd(), "dist", "public", "favicon.ico"),
+        path.resolve(process.cwd(), "client", "public", "favicon.ico")
+      ];
+      
+      for (const faviconPath of faviconPaths) {
+        if (fs.existsSync(faviconPath)) {
+          console.log('✅ Serving favicon from:', faviconPath);
+          return res.sendFile(faviconPath);
+        }
+      }
+      
+      console.log('❌ Favicon not found at any location');
+      res.status(404).json({ error: 'Favicon not found' });
+    });
   } else {
     console.log('🔧 PRODUCTION MODE: Setting up static file serving for deployment');
     console.log('🔧 Static files will be served from client/dist directory');
     console.log('⚠️ IMPORTANT: Static file serving configured AFTER API routes to prevent route interception');
     try {
       // ===== Static Frontend Assets =====
-      const distPath = path.resolve(process.cwd(), "client", "dist");
+      // Check both possible build locations
+      const clientDistPath = path.resolve(process.cwd(), "client", "dist");
+      const distPublicPath = path.resolve(process.cwd(), "dist", "public");
+      
+      let distPath: string;
+      if (fs.existsSync(distPublicPath)) {
+        distPath = distPublicPath;
+        console.log('🔍 Using dist/public for static files');
+      } else if (fs.existsSync(clientDistPath)) {
+        distPath = clientDistPath;
+        console.log('🔍 Using client/dist for static files');
+      } else {
+        throw new Error(`Could not find the build directory. Checked: ${clientDistPath} and ${distPublicPath}`);
+      }
       
       console.log('🔍 Static directory path:', distPath);
       console.log('🔍 Static directory exists:', fs.existsSync(distPath));
       
-      if (!fs.existsSync(distPath)) {
-        throw new Error(`Could not find the build directory: ${distPath}, make sure to build the client first`);
-      }
-      
-      // Serve static assets from client/dist
+      // Serve static assets
       app.use(express.static(distPath));
       console.log('✅ Static assets configured from:', distPath);
+      
+      // Explicit favicon route (in case it's not served by static middleware)
+      app.get('/favicon.ico', (req, res) => {
+        const faviconPath = path.join(distPath, 'favicon.ico');
+        if (fs.existsSync(faviconPath)) {
+          res.sendFile(faviconPath);
+        } else {
+          res.status(404).json({ error: 'Favicon not found' });
+        }
+      });
       
       // ===== SPA Fallback - Only for non-API routes =====
       app.get('*', (req, res, next) => {

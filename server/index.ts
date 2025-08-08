@@ -72,7 +72,16 @@ app.use(express.urlencoded({ extended: false }));
 
 // HARD CSP OVERRIDE: Apply immediately after basic Express setup
 app.use((req, res, next) => {
-  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev; font-src 'self' data:; connect-src 'self' wss: ws:; object-src 'none'; frame-ancestors 'none';");
+  res.setHeader("Content-Security-Policy", [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'", 
+    "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
+    "font-src 'self' data:",
+    "connect-src 'self' wss: ws:",
+    "object-src 'none'",
+    "frame-ancestors 'none'"
+  ].join('; ') + ';');
   console.log('🛡️ CSP Override applied for:', req.path);
   next();
 });

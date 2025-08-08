@@ -47,7 +47,7 @@ export async function loadConfig(): Promise<Config> {
       const loadedConfig = await response.json();
       config = loadedConfig;
       console.log('✅ Config loaded successfully:', config);
-      return config;
+      return config as Config;
     } catch (error) {
       console.warn('⚠️ Config loading failed, using immediate fallback:', error);
 

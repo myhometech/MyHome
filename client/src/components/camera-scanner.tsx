@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Camera, X, Capture, FlipHorizontal } from "lucide-react";
+import { Camera, X, Circle, FlipHorizontal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CameraScannerProps {
@@ -129,7 +129,7 @@ export function CameraScanner({ isOpen, onClose, onCapture }: CameraScannerProps
                     size="lg"
                     className="rounded-full w-16 h-16"
                   >
-                    <Capture className="w-6 h-6" />
+                    <Circle className="w-6 h-6" />
                   </Button>
                 </div>
               </div>

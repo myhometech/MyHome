@@ -67,6 +67,10 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
+args = "pkill -f \"node.*dist/index.js\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
 args = "npm run build"
 
 [[workflows.workflow.tasks]]

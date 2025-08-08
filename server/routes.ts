@@ -439,6 +439,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ success: false, message: "Failed to reset password" });
     }
   });
+  // Get current user endpoint (for auth check)
+  app.get('/api/auth/me', async (req: any, res) => {
+    try {
+      // Check if user is in session
+      if (req.session?.user) {
+        const { passwordHash, ...safeUser } = req.session.user;
+        res.json(safeUser);
+      } else {
+        res.status(401).json({ error: 'Not authenticated' });
+      }
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);

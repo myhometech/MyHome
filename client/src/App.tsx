@@ -45,7 +45,8 @@ import FeatureFlagsPage from "@/pages/admin/feature-flags"; // Assuming this pat
 
 
 function Router() {
-  const { user = null, isLoading, refetch } = useAuth();
+  const authResult = useAuth();
+  const { user = null, isLoading, refetch } = authResult;
   const [, setLocation] = useLocation();
 
   // Re-check auth on page focus to handle OAuth redirects

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 
 export function useAuth() {
-  const { data: user = null, isLoading, error, refetch } = useQuery({
+  const queryResult = useQuery({
     queryKey: ['/api/auth/user'],
     queryFn: async () => {
       console.log('[AUTH] Checking authentication status...');
@@ -39,6 +39,8 @@ export function useAuth() {
     refetchOnMount: true, // Always check on mount
     initialData: null, // Ensure user starts as null
   });
+
+  const { data: user = null, isLoading, error, refetch } = queryResult;
 
   return {
     user,

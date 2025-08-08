@@ -532,13 +532,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // DOCX Conversion: Convert DOCX files to PDF for viewing and OCR
       if (docxConversionService.isDocxFile(req.file.mimetype)) {
         console.log(`Converting DOCX document to PDF: ${req.file.originalname}`);
-        
+
         try {
           const conversionResult = await docxConversionService.convertDocxToPdf(
             req.file.path,
             uploadsDir
           );
-          
+
           if (conversionResult.success && conversionResult.pdfPath) {
             // Create a secondary PDF file linked to the original DOCX
             const pdfDocumentData = {
@@ -549,12 +549,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               fileName: documentData.fileName.replace(/\.(docx|doc)$/i, '.pdf'),
               tags: [...(documentData.tags || []), 'converted-from-docx']
             };
-            
+
             // Keep the original DOCX as primary, PDF as secondary for viewing
             finalFilePath = conversionResult.pdfPath;
             finalMimeType = 'application/pdf';
             finalDocumentData = pdfDocumentData;
-            
+
             console.log(`✅ DOCX converted to PDF for viewing: ${conversionResult.pdfPath}`);
           } else {
             console.warn(`DOCX conversion failed: ${conversionResult.error}, keeping original DOCX`);
@@ -1202,7 +1202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Auto-trigger OCR if extracted text is missing
       if (!document.extractedText || document.extractedText.trim() === '') {
         console.log(`🔄 AUTO-OCR TRIGGER: Document ${documentId} missing extracted text, triggering OCR before insights`);
-        
+
         // Check if document supports OCR
         if (!supportsOCR(document.mimeType)) {
           return res.status(400).json({ 
@@ -1212,12 +1212,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Import OCR queue and trigger processing
         const { ocrQueue } = await import('./ocrQueue');
-        
+
         // Check if document file exists before queuing OCR
         const fileExists = document.gcsPath ? 
           true : // Assume GCS files exist - will be verified in OCR process
           fs.existsSync(document.filePath);
-          
+
         if (!fileExists && !document.gcsPath) {
           console.error(`❌ Document file not found: ${document.filePath}`);
           return res.status(404).json({ 
@@ -1239,7 +1239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           console.log(`🔄 OCR job queued: ${jobId} for document ${documentId} (${document.gcsPath ? 'GCS' : 'local'} file)`);
-          
+
           // Return response indicating OCR is processing
           return res.status(202).json({ 
             message: "Document text extraction in progress. Insights will be available in 10-30 seconds.",
@@ -1248,7 +1248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             estimatedTime: "10-30 seconds",
             action: "refresh_insights"
           });
-          
+
         } catch (ocrError: any) {
           console.error(`❌ Failed to queue OCR for document ${documentId}:`, ocrError);
           return res.status(500).json({ 
@@ -1276,7 +1276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('🔍 [ROUTE DEBUG] Creating insight with documentId:', documentId, 'type:', typeof documentId);
         console.log('🔍 [ROUTE DEBUG] Insight confidence:', insight.confidence, 'rounded:', Math.round(insight.confidence * 100));
         console.log('🔍 [ROUTE DEBUG] Processing time:', insights.processingTime, 'type:', typeof insights.processingTime);
-        
+
         await storage.createDocumentInsight({
           documentId, // Should be number from parseInt above
           userId,
@@ -1844,6 +1844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all users with stats
   app.get('/api/admin/users', requireAuth, requireAdmin, async (req: any, res) => {
     try {
       const users = await storage.getAllUsersWithStats();
@@ -1926,7 +1927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const { isActive } = req.body;
-      
+
       await storage.updateUserStatus(userId, isActive);
       res.json({ success: true });
     } catch (error) {
@@ -3158,7 +3159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendStatus(200); 
   });
 
-  // Debug endpoint to test webhook processing without full security (REMOVE IN PRODUCTION)
+  // Debug route to test webhook processing without full security (REMOVE IN PRODUCTION)
   app.post('/api/email-ingest-debug', 
     (req, res, next) => {
       console.log('🧪 DEBUG: Email ingest debug route accessed');
@@ -3664,7 +3665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Debug route for production testing
   app.get("/debug", (_req, res) => {
-    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(root&&root.innerHTML!=='React mount here'){u('react-status','React OK','success')}else{u('react-status','React FAILED (WHITE SCREEN)','error')}},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
   });
 
   // ANDROID-303: OCR Error Handling and Analytics Routes

@@ -21,6 +21,11 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 6. Mobile Camera: Allow offline scanning with local storage, sync/process when online
 7. Document Deletion: Premium trash bin (30-day) + confirmation dialogs for all users
 
+## Recent Changes
+- **2025-08-08**: Fixed all 37 backend routing TypeScript errors in server/routes.ts - removed mock database conflicts, added proper Drizzle imports, fixed type safety issues. Backend now compiles cleanly and all API endpoints functional.
+- **2025-08-08**: Added proper HTML meta tags for SEO/social sharing, removed development script from production build.
+- **2025-08-08**: Resolved critical `/api/auth/me` endpoint causing frontend hanging on "loading configuration".
+
 ## System Architecture
 
 ### Web Frontend

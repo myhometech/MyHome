@@ -41,42 +41,13 @@ import {
   mailgunSignatureVerification
 } from './middleware/mailgunSecurity';
 
-// Mock database and schema objects for local execution if not provided elsewhere
-// In a real scenario, these would be imported from your database setup file.
-const db = {
-  select: (query: any) => ({
-    from: (table: any) => ({
-      where: (condition: any) => ({
-        orderBy: (order: any) => ({}),
-      }),
-      select: (subQuery: any) => ({
-        from: (subTable: any) => ({
-          where: (subCondition: any) => ({
-            select: (subSubQuery: any) => ({}),
-          }),
-        }),
-      }),
-    }),
-    update: (table: any) => ({
-      set: (values: any) => ({
-        where: (condition: any) => ({}),
-      }),
-    }),
-    insert: (table: any) => ({
-      values: (data: any) => ({}),
-    }),
-    delete: (table: any) => ({
-      where: (condition: any) => ({}),
-    }),
-  }),
-};
+// Import real database and schema
+import { db } from "./db";
+import { users, documents, featureFlags, vehicles } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
 
-const sql = (strings: TemplateStringsArray, ...values: any[]) => strings.join('');
 
-// Mock schema objects
-const users = { id: '', email: '', role: '', isActive: true, createdAt: new Date(), updatedAt: new Date(), lastLoginAt: new Date(), firstName: '', lastName: '', passwordHash: '' };
-const documents = { userId: '', id: 0, name: '', fileName: '', filePath: '', fileSize: 0, mimeType: '', tags: [], expiryDate: null, uploadedAt: new Date(), uploadSource: '', status: '', gcsPath: '', encryptedDocumentKey: '', encryptionMetadata: '', isEncrypted: false };
-const featureFlags = { id: '', name: '', enabled: true, rollout_percentage: 100, tierRequired: 'free', createdAt: new Date(), updatedAt: new Date() };
+
 
 // Placeholder for AuthenticatedRequest, Response, NextFunction types
 type AuthenticatedRequest = any;
@@ -1932,12 +1903,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Ensure consistent response format
       const response = {
-        totalUsers: stats.totalUsers || '0',
-        activeUsers: stats.activeUsers || '0',
-        totalDocuments: stats.totalDocuments || '0',
-        documentsThisMonth: stats.documentsThisMonth || '0',
-        totalStorage: stats.totalStorage || '0',
-        avgProcessingTime: stats.avgProcessingTime || '0'
+        totalUsers: stats.totalUsers || 0,
+        activeUsers: stats.activeUsers || 0,
+        totalDocuments: stats.totalDocuments || 0,
+        documentsThisMonth: stats.totalStorageBytes || 0, // Map to available property
+        totalStorage: stats.totalStorageBytes || 0,
+        avgProcessingTime: stats.uploadsThisMonth || 0 // Map to available property
       };
       
       console.log('🔧 Admin stats response:', response);

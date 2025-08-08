@@ -83,3 +83,6 @@ export function getConfig(): Config {
 export function isConfigReady(): boolean {
   return config !== null;
 }
+
+// Ensure default export is available
+export default getConfig;

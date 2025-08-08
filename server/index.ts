@@ -74,7 +74,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use((req, res, next) => {
   res.setHeader("Content-Security-Policy", [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org",
     "style-src 'self' 'unsafe-inline'", 
     "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
     "font-src 'self' data:",

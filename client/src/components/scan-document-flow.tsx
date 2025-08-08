@@ -572,7 +572,8 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
           }
         } catch (pageError) {
           console.error(`❌ Failed to process page ${i + 1}:`, pageError);
-          throw new Error(`Failed to process page ${i + 1}: ${pageError.message}`);
+          const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
+          throw new Error(`Failed to process page ${i + 1}: ${errorMessage}`);
         }
       }
 
@@ -647,10 +648,11 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
 
       } catch (fetchError) {
         clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
+        const error = fetchError as Error;
+        if (error.name === 'AbortError') {
           throw new Error('Upload timed out. Please try again with fewer pages or check your connection.');
         }
-        throw fetchError;
+        throw error;
       }
 
     } catch (err: any) {

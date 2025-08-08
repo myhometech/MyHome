@@ -1353,12 +1353,12 @@ export class DatabaseStorage implements IStorage {
       const newUsersThisMonth = newUsersThisMonthResult[0]?.count || 0;
 
       const stats = {
-        totalUsers,
-        activeUsers,
-        totalDocuments,
-        totalStorageBytes,
-        uploadsThisMonth,
-        newUsersThisMonth
+        totalUsers: parseInt(totalUsers.toString(), 10),
+        activeUsers: parseInt(activeUsers.toString(), 10), 
+        totalDocuments: parseInt(totalDocuments.toString(), 10),
+        totalStorageBytes: parseInt(totalStorageBytes.toString(), 10),
+        uploadsThisMonth: parseInt(uploadsThisMonth.toString(), 10),
+        newUsersThisMonth: parseInt(newUsersThisMonth.toString(), 10)
       };
 
       console.log('📊 Admin stats retrieved:', stats);
@@ -1424,8 +1424,8 @@ export class DatabaseStorage implements IStorage {
         lastName: row.lastName,
         role: row.role,
         isActive: row.isActive,
-        documentCount: Number(row.documentCount || 0),
-        storageUsed: Number(row.storageUsed || 0),
+        documentCount: parseInt(row.documentCount || '0', 10),
+        storageUsed: parseInt(row.storageUsed || '0', 10),
         lastLoginAt: row.lastLoginAt,
         createdAt: row.createdAt
       }));

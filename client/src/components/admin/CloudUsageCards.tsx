@@ -30,30 +30,42 @@ interface OpenAIUsage {
 }
 
 export function CloudUsageCards() {
-  const { data: gcsUsage, isLoading: gcsLoading } = useQuery<GCSUsage>({
+  const { data: gcsUsage, isLoading: gcsLoading, error: gcsError } = useQuery<GCSUsage>({
     queryKey: ['/api/admin/cloud-usage'],
     queryFn: async () => {
+      console.log('🔄 Fetching GCS usage data...');
       const response = await fetch('/api/admin/cloud-usage', {
         credentials: 'include',
       });
       if (!response.ok) {
+        console.error('❌ GCS usage fetch failed:', response.status, response.statusText);
         throw new Error(`Failed to fetch GCS usage: ${response.status}`);
       }
-      return response.json();
+      const data = await response.json();
+      console.log('✅ GCS usage data received:', data);
+      return data;
     },
+    retry: 3,
+    retryDelay: 1000,
   });
 
-  const { data: openaiUsage, isLoading: openaiLoading } = useQuery<OpenAIUsage>({
+  const { data: openaiUsage, isLoading: openaiLoading, error: openaiError } = useQuery<OpenAIUsage>({
     queryKey: ['/api/admin/llm-usage/analytics'],
     queryFn: async () => {
+      console.log('🔄 Fetching OpenAI usage data...');
       const response = await fetch('/api/admin/llm-usage/analytics', {
         credentials: 'include',
       });
       if (!response.ok) {
+        console.error('❌ OpenAI usage fetch failed:', response.status, response.statusText);
         throw new Error(`Failed to fetch OpenAI usage: ${response.status}`);
       }
-      return response.json();
+      const data = await response.json();
+      console.log('✅ OpenAI usage data received:', data);
+      return data;
     },
+    retry: 3,
+    retryDelay: 1000,
   });
 
   const getTrendIcon = (trend: string, percentage: number) => {
@@ -80,7 +92,36 @@ export function CloudUsageCards() {
   };
 
   if (gcsLoading || openaiLoading) {
-    return <div className="text-center py-4">Loading cloud usage data...</div>;
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="animate-pulse">
+            <CardHeader className="space-y-0 pb-2">
+              <div className="h-4 bg-gray-200 rounded w-24"></div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-gray-200 rounded w-16 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-20"></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (gcsError || openaiError) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 text-red-700">
+            <span>Failed to load cloud usage data</span>
+            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

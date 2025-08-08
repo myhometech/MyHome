@@ -1896,15 +1896,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/stats', requireAuth, requireAdmin, async (req, res) => {
     try {
       console.log('🔧 Admin stats endpoint called');
-  
-      // Get basic stats using storage service
       const stats = await storage.getAdminStats();
-  
       console.log('🔧 Admin stats response:', stats);
       res.json(stats);
     } catch (error) {
       console.error('❌ Admin stats error:', error);
-      res.status(500).json({ error: 'Failed to fetch admin stats' });
+      res.status(500).json({ 
+        error: 'Failed to fetch admin stats',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
   
@@ -1912,14 +1912,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
     try {
       console.log('🔧 Admin users endpoint called');
-  
-      const usersWithDetails = await storage.getAllUsersWithDetails();
-  
+      const usersWithDetails = await storage.getAllUsersWithStats();
       console.log('🔧 Found users:', usersWithDetails.length);
       res.json(usersWithDetails);
     } catch (error) {
       console.error('❌ Admin users error:', error);
-      res.status(500).json({ error: 'Failed to fetch users' });
+      res.status(500).json({ 
+        error: 'Failed to fetch users',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
   
@@ -2039,48 +2040,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get cloud usage (admin only)  
-  app.get('/api/admin/usage/gcs', requireAdmin, async (req, res) => {
+  app.get('/api/admin/cloud-usage', requireAuth, requireAdmin, async (req, res) => {
     try {
-      console.log('🔧 Admin GCS usage endpoint called');
-  
-      // Calculate storage from documents table
-      const storageResult = await db.select({ 
-        totalBytes: sql<number>`coalesce(sum(CAST(file_size as bigint)), 0)`,
-        totalDocuments: sql<number>`count(*)`
-      }).from(documents);
-  
-      const totalStorageBytes = Number(storageResult[0]?.totalBytes || 0);
-      const totalStorageGB = totalStorageBytes / (1024 * 1024 * 1024);
-      const totalStorageTB = totalStorageGB / 1024;
-  
-      // Get current month uploads for request count estimate
-      const currentMonth = new Date();
-      currentMonth.setDate(1);
-      currentMonth.setHours(0, 0, 0, 0);
-  
-      const monthlyUploads = await db.select({ count: sql<number>`count(*)` })
-        .from(documents)
-        .where(sql`uploaded_at >= ${currentMonth}`);
-  
-      // Estimate costs (very rough approximation)
-      const estimatedCost = totalStorageGB * 0.02; // ~$0.02 per GB per month for standard storage
-      const requestsThisMonth = Number(monthlyUploads[0]?.count || 0) * 3; // Estimate 3 requests per upload
-  
-      const gcsUsage = {
-        totalStorageGB: Number(totalStorageGB.toFixed(2)),
-        totalStorageTB: Number(totalStorageTB.toFixed(3)),
-        costThisMonth: Number(estimatedCost.toFixed(2)),
-        requestsThisMonth,
-        bandwidthGB: Number((totalStorageBytes * 0.1 / (1024 * 1024 * 1024)).toFixed(2)), // Estimate 10% bandwidth usage
-        trend: 'up' as const,
-        trendPercentage: 15
-      };
-  
-      console.log('🔧 GCS usage:', gcsUsage);
-      res.json(gcsUsage);
+      console.log('🔧 Admin cloud usage endpoint called');
+      const usage = await storage.getGCSUsage();
+      console.log('🔧 Cloud usage response:', usage);
+      res.json(usage);
     } catch (error) {
-      console.error('❌ GCS usage error:', error);
-      res.status(500).json({ error: 'Failed to fetch GCS usage' });
+      console.error('❌ Cloud usage error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch cloud usage',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

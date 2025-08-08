@@ -122,19 +122,19 @@ export function setupMultiPageScanUpload(app: Express) {
 
         // Verify PDF exists immediately after conversion
         if (!fs.existsSync(conversionResult.pdfPath)) {
-          throw new Error(`PDF file was not created at expected location: ${conversionResult.pdfPath}`);
+          throw new Error(`PDF not found at expected path: ${conversionResult.pdfPath}`);
         }
-
-        console.log(`✅ UPLOAD: PDF created successfully: ${conversionResult.pdfPath}`);
 
         // CRITICAL: Register PDF with resource tracker to prevent premature deletion
         pdfResourceId = resourceTracker.trackFile(conversionResult.pdfPath);
         console.log(`🔒 UPLOAD: Protected PDF file with resource ID: ${pdfResourceId}`);
 
-        // Double-check PDF still exists after resource tracking
+        // Double-check file is still there after tracking
         if (!fs.existsSync(conversionResult.pdfPath)) {
-          throw new Error(`PDF file was deleted immediately after creation - resource tracker issue`);
+          throw new Error(`PDF disappeared after resource tracking: ${conversionResult.pdfPath}`);
         }
+
+        console.log(`✅ UPLOAD: PDF created successfully: ${conversionResult.pdfPath}`);
 
         // CRITICAL: Read the PDF file IMMEDIATELY before any cleanup can occur
         const pdfStats = fs.statSync(conversionResult.pdfPath);
@@ -156,16 +156,11 @@ export function setupMultiPageScanUpload(app: Express) {
         const fileId = nanoid();
         const cleanDocName = sanitizedDocName.replace(/\s+/g, '-');
         const fileName = `${cleanDocName}-${fileId}.pdf`;
-        
+
         // Save to permanent location in uploads directory
-        const uploadsDir = path.join(process.cwd(), 'uploads');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-        
         const permanentFilePath = path.join(uploadsDir, fileName);
         await fs.promises.writeFile(permanentFilePath, pdfBuffer);
-        
+
         console.log(`💾 UPLOAD: PDF saved to permanent location: ${permanentFilePath}`);
 
         // Verify permanent file was written correctly
@@ -205,12 +200,12 @@ export function setupMultiPageScanUpload(app: Express) {
 
         // Upload to cloud storage using the existing pattern
         const storageKey = StorageService.generateFileKey(userId, fileId, fileName);
-        
+
         try {
           const storageService = storageProvider();
           const cloudStorageKey = await storageService.upload(pdfBuffer, storageKey, 'application/pdf');
           console.log(`☁️ UPLOAD: PDF uploaded to cloud storage: ${cloudStorageKey}`);
-          
+
           // Generate encryption metadata
           const documentKey = EncryptionService.generateDocumentKey();
           const encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
@@ -237,12 +232,12 @@ export function setupMultiPageScanUpload(app: Express) {
             encryptionMetadata,
             isEncrypted: true
           });
-          
+
           console.log(`✅ UPLOAD: Document created with cloud storage: ${document.id}`);
-          
+
         } catch (storageError) {
           console.error('☁️ UPLOAD: Cloud storage failed, falling back to local:', storageError);
-          
+
           // Fallback to local storage
           document = await storage.createDocument({
             userId,
@@ -279,7 +274,7 @@ export function setupMultiPageScanUpload(app: Express) {
             await fs.promises.unlink(conversionResult.pdfPath);
             console.log(`🗑️ Deleted temporary PDF: ${conversionResult.pdfPath}`);
           }
-          
+
           // If document is stored in cloud, clean up local permanent file too
           if (document.encryptionMetadata && document.filePath !== permanentFilePath) {
             if (fs.existsSync(permanentFilePath)) {
@@ -291,47 +286,30 @@ export function setupMultiPageScanUpload(app: Express) {
           console.warn(`Failed to delete temp files:`, unlinkError);
         }
 
-        // Release PDF resource after successful processing
-        if (pdfResourceId) {
-          await resourceTracker.releaseResource(pdfResourceId);
-          console.log(`🧹 Released PDF resource: ${pdfResourceId}`);
-        }
-
-        // Final verification that permanent file still exists
-        if (!fs.existsSync(permanentFilePath)) {
-          throw new Error(`Permanent PDF file was unexpectedly deleted: ${permanentFilePath}`);
-        }
-
         // Force garbage collection if available
         if (global.gc) {
           global.gc();
           console.log('🧹 UPLOAD: Forced garbage collection after processing');
         }
 
+        const documentId = document.id; // Capture document ID before response
+
+        console.log(`✅ UPLOAD: Successfully processed scanned document - ID: ${documentId}`);
+
         res.json({
           success: true,
-          message: `Multi-page PDF created successfully with ${files.length} pages`,
-          document: {
-            id: document.id,
-            name: document.name,
-            fileName: document.fileName,
-            fileSize: document.fileSize,
-            filePath: document.filePath,
-            pageCount: files.length,
-            confidence: Math.round(confidence * 100),
-            extractedText: extractedText.substring(0, 500) + (extractedText.length > 500 ? '...' : ''),
-            storageType: document.encryptionMetadata ? 'cloud' : 'local'
-          },
-          documentId: document.id,
-          processingStats: {
-            originalFileCount: files.length,
-            totalOriginalSize: files.reduce((sum, f) => sum + f.size, 0),
-            finalPdfSize: permanentStats.size,
-            textExtracted: extractedText.length > 0,
-            storageLocation: document.encryptionMetadata ? 'cloud-storage' : 'local-file',
-            cloudStorageKey: document.encryptionMetadata ? document.filePath : null
-          }
+          documentId,
+          message: 'Scanned document uploaded successfully'
         });
+
+        // Release PDF resource AFTER response is sent to ensure file persists during request
+        if (pdfResourceId) {
+          // Small delay to ensure response is fully sent
+          setTimeout(async () => {
+            await resourceTracker.releaseResource(pdfResourceId);
+            console.log(`🧹 Released PDF resource: ${pdfResourceId}`);
+          }, 1000);
+        }
 
       } catch (processingError: any) {
         console.error('🔥 UPLOAD: Error during PDF creation processing:', processingError);

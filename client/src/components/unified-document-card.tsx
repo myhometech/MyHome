@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   FileText, 
   Image, 
@@ -114,17 +114,17 @@ const priorityConfig = {
 
 function formatDueDate(dateString?: string) {
   if (!dateString) return null;
-  
+
   try {
     const date = new Date(dateString);
     const now = new Date();
     const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Tomorrow";
     if (diffDays > 0 && diffDays <= 7) return `${diffDays} days`;
     if (diffDays < 0) return "Overdue";
-    
+
     return format(date, "MMM dd");
   } catch {
     return null;
@@ -134,10 +134,10 @@ function formatDueDate(dateString?: string) {
 function getPriorityIcon(priority: string, className = "w-4 h-4") {
   const config = priorityConfig[priority as keyof typeof priorityConfig];
   const IconComponent = config?.icon || Info;
-  
+
   const colorClass = priority === 'high' ? 'text-red-500' : 
                     priority === 'medium' ? 'text-yellow-500' : 'text-blue-500';
-  
+
   return <IconComponent className={`${className} ${colorClass}`} />;
 }
 
@@ -173,9 +173,9 @@ export default function UnifiedDocumentCard({
         },
         credentials: 'include'
       });
-      
+
       const responseData = await response.json();
-      
+
       // Handle OCR processing response (202 status)
       if (response.status === 202) {
         return {
@@ -185,11 +185,11 @@ export default function UnifiedDocumentCard({
           estimatedTime: responseData.estimatedTime
         };
       }
-      
+
       if (!response.ok) {
         throw new Error(responseData.message || 'Failed to generate insights');
       }
-      
+
       return responseData;
     },
     onSuccess: (data) => {
@@ -200,7 +200,7 @@ export default function UnifiedDocumentCard({
           description: data.message || "Text extraction in progress. Insights will be available shortly.",
           duration: 5000
         });
-        
+
         // Set up polling to check when OCR is complete
         const pollForCompletion = () => {
           const interval = setInterval(async () => {
@@ -209,12 +209,12 @@ export default function UnifiedDocumentCard({
               const docResponse = await fetch(`/api/documents/${document.id}`, {
                 credentials: 'include'
               });
-              
+
               if (docResponse.ok) {
                 const docData = await docResponse.json();
                 if (docData.extractedText && docData.extractedText.trim()) {
                   clearInterval(interval);
-                  
+
                   // Retry insights generation now that OCR is complete
                   setTimeout(() => {
                     generateInsightsMutation.mutate();
@@ -225,11 +225,11 @@ export default function UnifiedDocumentCard({
               console.error('Error polling for OCR completion:', error);
             }
           }, 3000); // Poll every 3 seconds
-          
+
           // Stop polling after 2 minutes
           setTimeout(() => clearInterval(interval), 120000);
         };
-        
+
         pollForCompletion();
       } else {
         // Handle successful insights generation
@@ -237,7 +237,7 @@ export default function UnifiedDocumentCard({
           title: "Insights Generated",
           description: `Generated ${data.insights?.length || 0} insights in ${data.processingTime || 0}ms`
         });
-        
+
         // Invalidate insights queries to refresh the data
         queryClient.invalidateQueries({
           queryKey: [`/api/documents/${document.id}/insights`]
@@ -270,7 +270,7 @@ export default function UnifiedDocumentCard({
 
   // Extract insights array from the response object
   const insights: DocumentInsight[] = insightsData?.insights || [];
-  
+
   // Remove debug logging since we found the issue
 
   // Calculate insight summary - filter out unwanted types
@@ -414,7 +414,7 @@ export default function UnifiedDocumentCard({
   const handleSaveEdit = () => {
     const hasNameChange = editName.trim() !== document.name;
     const hasExpiryChange = editImportantDate !== (document.expiryDate || "");
-    
+
     if (hasNameChange || hasExpiryChange) {
       updateDocumentMutation.mutate({ 
         id: document.id, 
@@ -637,7 +637,7 @@ export default function UnifiedDocumentCard({
                   <span className="text-gray-500">{formatDate(document.uploadedAt)}</span>
                 </div>
               </div>
-              
+
               <div className="flex flex-wrap items-center gap-1 ml-auto">
                 {category && (
                   <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300">
@@ -660,7 +660,7 @@ export default function UnifiedDocumentCard({
                     )}
                   </>
                 )}
-                
+
                 {/* TICKET 6: OCR failure badge for browser scans */}
                 {document.status === 'ocr_failed' && document.uploadSource === 'browser_scan' && (
                   <TooltipProvider>
@@ -737,7 +737,7 @@ export default function UnifiedDocumentCard({
                       const config = insightTypeConfig[insight.type] || insightTypeConfig.summary;
                       const priorityStyle = priorityConfig[insight.priority];
                       const IconComponent = config.icon;
-                      
+
                       return (
                         <div 
                           key={insight.id} 

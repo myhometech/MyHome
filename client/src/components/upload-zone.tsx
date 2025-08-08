@@ -197,6 +197,7 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   });
 
   const handleFileSelect = async (files: File[]) => {
+    console.log('📱 handleFileSelect called with', files.length, 'files');
     // Note: Document limit checking for free users will be handled server-side during upload
     // This removes the need for client-side document statistics API calls
 
@@ -639,7 +640,18 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📱 File input change event triggered');
     const files = e.target.files ? Array.from(e.target.files) : [];
+    console.log('📱 Files selected:', files.length);
+    
+    toast({
+      title: `Files Selected: ${files.length}`,
+      description: files.length > 0 ? `Processing ${files[0].name}...` : "No files selected",
+    });
+    
+    if (files.length > 0) {
+      console.log('📱 File details:', files.map(f => ({ name: f.name, size: f.size, type: f.type })));
+    }
     handleFileSelect(files);
   };
 
@@ -672,11 +684,28 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
   };
 
   const handleCameraUpload = () => {
+    console.log('📱 Camera upload button clicked');
+    toast({
+      title: "Camera Opening",
+      description: "Starting camera capture...",
+    });
+    
+    console.log('📱 File input ref:', fileInputRef.current ? 'EXISTS' : 'MISSING');
+    
     if (fileInputRef.current) {
       // For mobile devices, use camera capture via file input as fallback
       fileInputRef.current.setAttribute('capture', 'environment');
       fileInputRef.current.setAttribute('accept', 'image/*');
+      console.log('📱 File input attributes set, clicking...');
       fileInputRef.current.click();
+      console.log('📱 File input clicked');
+    } else {
+      console.error('📱 File input ref is null!');
+      toast({
+        title: "Error",
+        description: "Camera system not initialized properly",
+        variant: "destructive",
+      });
     }
   };
 

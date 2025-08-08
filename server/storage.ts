@@ -1319,10 +1319,7 @@ export class DatabaseStorage implements IStorage {
       const activeUsersResult = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(users)
-        .where(and(
-          isNotNull(users.updatedAt),
-          gte(users.updatedAt, thirtyDaysAgo)
-        ));
+        .where(sql`${users.updatedAt} IS NOT NULL AND ${users.updatedAt} >= ${thirtyDaysAgo.toISOString()}`);
       const activeUsers = activeUsersResult[0]?.count || 0;
 
       // Get total documents
@@ -1343,14 +1340,14 @@ export class DatabaseStorage implements IStorage {
       const uploadsThisMonthResult = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(documents)
-        .where(gte(documents.createdAt, startOfMonth));
+        .where(sql`${documents.createdAt} >= ${startOfMonth.toISOString()}`);
       const uploadsThisMonth = uploadsThisMonthResult[0]?.count || 0;
 
       // Get new users this month
       const newUsersThisMonthResult = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(users)
-        .where(gte(users.createdAt, startOfMonth));
+        .where(sql`${users.createdAt} >= ${startOfMonth.toISOString()}`);
       const newUsersThisMonth = newUsersThisMonthResult[0]?.count || 0;
 
       const stats = {

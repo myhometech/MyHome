@@ -1834,9 +1834,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Admin routes
+  // Get admin dashboard stats
   app.get('/api/admin/stats', requireAuth, requireAdmin, async (req: any, res) => {
     try {
+      console.log('📊 Admin stats requested by:', req.user?.email);
       const stats = await storage.getAdminStats();
+      console.log('📊 Admin stats retrieved:', stats);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching admin stats:", error);
@@ -3067,7 +3070,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("[DEBUG USER-ASSETS] Raw request body:", JSON.stringify(req.body, null, 2));
 
-      // Validate the request with the discriminated union schema from the frontend
+      // Validate request body using the discriminated union schema from the frontend
       // This will check that house assets have address/postcode and car assets have make/model/year
       const houseSchema = z.object({
         type: z.literal("house"),
@@ -4055,9 +4058,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== DVLA LOOKUP ROUTES (TICKET 2) =====
 
   // Lookup vehicle data from DVLA by VRN
-  app.post('/api/vehicles/dvla-lookup', requireAuth, async (req: any, res) => {
+  app.get('/api/vehicles/dvla-lookup', requireAuth, async (req: any, res) => {
     try {
-      const { vrn } = req.body;
+      const vrn = req.query.vrn as string;
 
       if (!vrn || typeof vrn !== 'string') {
         return res.status(400).json({ message: "VRN is required" });

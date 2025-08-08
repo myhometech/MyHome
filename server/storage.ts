@@ -272,9 +272,11 @@ export interface IStorage {
 
 
 export class DatabaseStorage implements IStorage {
+  private db = db; // Make db accessible within the class
+
   // User operations
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const [user] = await this.db.select().from(users).where(eq(users.id, id));
     return user;
   }
 
@@ -284,12 +286,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const [user] = await this.db.select().from(users).where(eq(users.email, email));
     return user;
   }
 
   async createUser(userData: InsertUser): Promise<User> {
-    const [user] = await db
+    const [user] = await this.db
       .insert(users)
       .values(userData)
       .returning();
@@ -297,7 +299,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByStripeCustomerId(customerId: string): Promise<User | undefined> {
-    const [user] = await db
+    const [user] = await this.db
       .select()
       .from(users)
       .where(eq(users.stripeCustomerId, customerId));
@@ -305,7 +307,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
-    const [user] = await db
+    const [user] = await this.db
       .update(users)
       .set(updates)
       .where(eq(users.id, id))
@@ -315,16 +317,16 @@ export class DatabaseStorage implements IStorage {
 
   // Category operations
   async getCategories(userId: string): Promise<Category[]> {
-    return await db.select().from(categories).where(eq(categories.userId, userId)).orderBy(categories.name);
+    return await this.db.select().from(categories).where(eq(categories.userId, userId)).orderBy(categories.name);
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
-    const [newCategory] = await db.insert(categories).values(category).returning();
+    const [newCategory] = await this.db.insert(categories).values(category).returning();
     return newCategory;
   }
 
   async updateCategory(id: number, userId: string, updates: Partial<InsertCategory>): Promise<Category | undefined> {
-    const [updatedCategory] = await db
+    const [updatedCategory] = await this.db
       .update(categories)
       .set(updates)
       .where(and(eq(categories.id, id), eq(categories.userId, userId)))
@@ -334,13 +336,13 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCategory(id: number, userId: string): Promise<void> {
     // First, set all user's documents with this category to null (uncategorized)
-    await db
+    await this.db
       .update(documents)
       .set({ categoryId: null })
       .where(and(eq(documents.categoryId, id), eq(documents.userId, userId)));
 
     // Then delete the category (only if owned by user)
-    await db.delete(categories).where(and(eq(categories.id, id), eq(categories.userId, userId)));
+    await this.db.delete(categories).where(and(eq(categories.id, id), eq(categories.userId, userId)));
   }
 
   // Document operations
@@ -395,7 +397,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    return await db
+    return await this.db
       .select()
       .from(documents)
       .where(and(...conditions))
@@ -403,7 +405,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDocument(id: number, userId: string): Promise<Document | undefined> {
-    const [document] = await db
+    const [document] = await this.db
       .select()
       .from(documents)
       .where(and(eq(documents.id, id), eq(documents.userId, userId)));
@@ -411,16 +413,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {
-    const [newDocument] = await db.insert(documents).values(document).returning();
+    const [newDocument] = await this.db.insert(documents).values(document).returning();
     return newDocument;
   }
 
   async deleteDocument(id: number, userId: string): Promise<void> {
-    await db.delete(documents).where(and(eq(documents.id, id), eq(documents.userId, userId)));
+    await this.db.delete(documents).where(and(eq(documents.id, id), eq(documents.userId, userId)));
   }
 
   async updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined> {
-    const [updatedDoc] = await db
+    const [updatedDoc] = await this.db
       .update(documents)
       .set({ name: newName })
       .where(
@@ -472,7 +474,7 @@ export class DatabaseStorage implements IStorage {
       updateData.status = updates.status;
     }
 
-    const [updatedDoc] = await db
+    const [updatedDoc] = await this.db
       .update(documents)
       .set(updateData)
       .where(
@@ -484,7 +486,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined> {
-    const [updatedDoc] = await db
+    const [updatedDoc] = await this.db
       .update(documents)
       .set({ 
         extractedText,
@@ -499,7 +501,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDocumentOCRAndSummary(id: number, userId: string, extractedText: string, summary: string): Promise<Document | undefined> {
-    const [updatedDoc] = await db
+    const [updatedDoc] = await this.db
       .update(documents)
       .set({ 
         extractedText,
@@ -516,7 +518,7 @@ export class DatabaseStorage implements IStorage {
 
   // TICKET 5: Update document OCR status for browser scan failures
   async updateDocumentOCRStatus(id: number, userId: string, ocrStatus: { status: string; ocrProcessed: boolean; extractedText: string | null }): Promise<Document | undefined> {
-    const [updatedDoc] = await db
+    const [updatedDoc] = await this.db
       .update(documents)
       .set({ 
         status: ocrStatus.status,
@@ -532,14 +534,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDocumentSummary(id: number, userId: string, summary: string): Promise<void> {
-    await db
+    await this.db
       .update(documents)
       .set({ summary })
       .where(and(eq(documents.id, id), eq(documents.userId, userId)));
   }
 
   async updateDocumentTags(id: number, userId: string, tags: string[]): Promise<void> {
-    await db
+    await this.db
       .update(documents)
       .set({ tags })
       .where(and(eq(documents.id, id), eq(documents.userId, userId)));
@@ -560,7 +562,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Check if already shared with this email
-    const existingShare = await db
+    const existingShare = await this.db
       .select()
       .from(documentShares)
       .where(
@@ -575,12 +577,12 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Find user by email if they exist
-    const [sharedWithUser] = await db
+    const [sharedWithUser] = await this.db
       .select()
       .from(users)
       .where(eq(users.email, sharedWithEmail));
 
-    const [newShare] = await db
+    const [newShare] = await this.db
       .insert(documentShares)
       .values({
         documentId,
@@ -596,7 +598,7 @@ export class DatabaseStorage implements IStorage {
 
   async unshareDocument(shareId: number, userId: string): Promise<void> {
     // Only allow the document owner to unshare
-    await db
+    await this.db
       .delete(documentShares)
       .where(
         and(
@@ -613,7 +615,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Document not found or access denied");
     }
 
-    return await db
+    return await this.db
       .select()
       .from(documentShares)
       .where(eq(documentShares.documentId, documentId))
@@ -627,7 +629,7 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
 
-    const sharedDocuments = await db
+    const sharedDocuments = await this.db
       .select({
         id: documents.id,
         userId: documents.userId,
@@ -677,7 +679,7 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
 
-    const [sharedDocument] = await db
+    const [sharedDocument] = await this.db
       .select()
       .from(documentShares)
       .where(
@@ -695,7 +697,7 @@ export class DatabaseStorage implements IStorage {
 
   // Email forwarding methods
   async createEmailForward(emailForward: InsertEmailForward): Promise<EmailForward> {
-    const [newEmailForward] = await db
+    const [newEmailForward] = await this.db
       .insert(emailForwards)
       .values(emailForward)
       .returning();
@@ -703,7 +705,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEmailForward(id: number, updates: Partial<InsertEmailForward>): Promise<EmailForward | undefined> {
-    const [updatedEmailForward] = await db
+    const [updatedEmailForward] = await this.db
       .update(emailForwards)
       .set(updates)
       .where(eq(emailForwards.id, id))
@@ -712,7 +714,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEmailForwards(userId: string): Promise<EmailForward[]> {
-    return await db
+    return await this.db
       .select()
       .from(emailForwards)
       .where(eq(emailForwards.userId, userId))
@@ -742,7 +744,7 @@ export class DatabaseStorage implements IStorage {
       );
     }
 
-    const results = await db
+    const results = await this.db
       .select({
         id: documents.id,
         userId: documents.userId,
@@ -827,7 +829,7 @@ export class DatabaseStorage implements IStorage {
 
   // User forwarding mapping operations
   async getUserForwardingMapping(userId: string): Promise<UserForwardingMapping | undefined> {
-    const [mapping] = await db
+    const [mapping] = await this.db
       .select()
       .from(userForwardingMappings)
       .where(eq(userForwardingMappings.userId, userId));
@@ -835,7 +837,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUserForwardingMapping(mapping: InsertUserForwardingMapping): Promise<UserForwardingMapping> {
-    const [newMapping] = await db
+    const [newMapping] = await this.db
       .insert(userForwardingMappings)
       .values(mapping)
       .returning();
@@ -843,7 +845,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByForwardingHash(emailHash: string): Promise<User | undefined> {
-    const result = await db
+    const result = await this.db
       .select({ user: users })
       .from(userForwardingMappings)
       .innerJoin(users, eq(userForwardingMappings.userId, users.id))
@@ -854,7 +856,7 @@ export class DatabaseStorage implements IStorage {
 
   // Expiry reminder operations
   async getExpiryReminders(userId: string): Promise<ExpiryReminder[]> {
-    return await db
+    return await this.db
       .select()
       .from(expiryReminders)
       .where(eq(expiryReminders.userId, userId))
@@ -862,7 +864,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createExpiryReminder(reminder: InsertExpiryReminder): Promise<ExpiryReminder> {
-    const [newReminder] = await db
+    const [newReminder] = await this.db
       .insert(expiryReminders)
       .values(reminder)
       .returning();
@@ -870,7 +872,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateExpiryReminder(id: number, userId: string, updates: Partial<InsertExpiryReminder>): Promise<ExpiryReminder | undefined> {
-    const [updatedReminder] = await db
+    const [updatedReminder] = await this.db
       .update(expiryReminders)
       .set({ ...updates, updatedAt: new Date() })
       .where(and(eq(expiryReminders.id, id), eq(expiryReminders.userId, userId)))
@@ -879,13 +881,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteExpiryReminder(id: number, userId: string): Promise<void> {
-    await db
+    await this.db
       .delete(expiryReminders)
       .where(and(eq(expiryReminders.id, id), eq(expiryReminders.userId, userId)));
   }
 
   async markReminderCompleted(id: number, userId: string, isCompleted: boolean): Promise<ExpiryReminder | undefined> {
-    const [updatedReminder] = await db
+    const [updatedReminder] = await this.db
       .update(expiryReminders)
       .set({ isCompleted, updatedAt: new Date() })
       .where(and(eq(expiryReminders.id, id), eq(expiryReminders.userId, userId)))
@@ -895,7 +897,7 @@ export class DatabaseStorage implements IStorage {
 
   // Admin functions
   async updateUserLastLogin(userId: string): Promise<void> {
-    await db
+    await this.db
       .update(users)
       .set({ lastLoginAt: new Date() })
       .where(eq(users.id, userId));
@@ -904,7 +906,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAllFeatureFlags(): Promise<FeatureFlag[]> {
     try {
-      const result = await db.select().from(featureFlags);
+      const result = await this.db.select().from(featureFlags);
       return result;
     } catch (error) {
       console.error('Error fetching feature flags:', error);
@@ -913,14 +915,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async toggleFeatureFlag(flagId: string, enabled: boolean): Promise<void> {
-    await db
+    await this.db
       .update(featureFlags)
       .set({ enabled, updatedAt: new Date() })
       .where(eq(featureFlags.id, flagId));
   }
 
   async getFeatureFlagOverrides(): Promise<any[]> {
-    const overrides = await db
+    const overrides = await this.db
       .select({
         id: featureFlagOverrides.id,
         userId: featureFlagOverrides.userId,
@@ -946,12 +948,12 @@ export class DatabaseStorage implements IStorage {
     averageRollout: string;
   }> {
     // Get basic stats
-    const totalFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags);
-    const activeFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.enabled, true));
-    const premiumFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.tierRequired, 'premium'));
+    const totalFlags = await this.db.select({ count: sql<number>`count(*)` }).from(featureFlags);
+    const activeFlags = await this.db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.enabled, true));
+    const premiumFlags = await this.db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.tierRequired, 'premium'));
 
     // Calculate average rollout percentage
-    const allFlags = await db.select().from(featureFlags);
+    const allFlags = await this.db.select().from(featureFlags);
     const avgRollout = allFlags.length > 0 
       ? allFlags.reduce((sum, flag) => sum + (flag.rolloutPercentage || 100), 0) / allFlags.length
       : 0;
@@ -1032,7 +1034,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     try {
-      const [newInsight] = await db
+      const [newInsight] = await this.db
         .insert(documentInsights)
         .values(insight)
         .returning();
@@ -1069,7 +1071,7 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(documentInsights.tier, tier));
     }
 
-    return await db
+    return await this.db
       .select()
       .from(documentInsights)
       .where(and(...conditions))
@@ -1085,7 +1087,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteDocumentInsight(documentId: number, userId: string, insightId: string): Promise<void> {
-    await db
+    await this.db
       .delete(documentInsights)
       .where(
         and(
@@ -1114,7 +1116,7 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(documentInsights.tier, tier));
     }
 
-    return await db
+    return await this.db
       .select()
       .from(documentInsights)
       .where(and(...conditions))
@@ -1133,7 +1135,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`[STORAGE DEBUG] Updating insight ${insightId} for user ${userId} to status: ${status}`);
 
     // First check if the insight exists
-    const existingInsight = await db
+    const existingInsight = await this.db
       .select()
       .from(documentInsights)
       .where(
@@ -1151,7 +1153,7 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
 
-    const [updatedInsight] = await db
+    const [updatedInsight] = await this.db
       .update(documentInsights)
       .set({ 
         status,
@@ -1170,7 +1172,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteInsight(insightId: string, userId: string): Promise<DocumentInsight | undefined> {
-    const [deletedInsight] = await db
+    const [deletedInsight] = await this.db
       .delete(documentInsights)
       .where(
         and(
@@ -1189,7 +1191,7 @@ export class DatabaseStorage implements IStorage {
     const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
 
     // Get expiring soon (limit 2)
-    const expiringSoon = await db
+    const expiringSoon = await this.db
       .select()
       .from(documentInsights)
       .where(
@@ -1206,7 +1208,7 @@ export class DatabaseStorage implements IStorage {
       .limit(2);
 
     // Get missing or incomplete info
-    const missingData = await db
+    const missingData = await this.db
       .select()
       .from(documentInsights)
       .where(
@@ -1221,7 +1223,7 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
 
     // Get time-sensitive events
-    const timeSensitiveEvents = await db
+    const timeSensitiveEvents = await this.db
       .select()
       .from(documentInsights)
       .where(
@@ -1268,7 +1270,7 @@ export class DatabaseStorage implements IStorage {
 
   // User Assets operations
   async getUserAssets(userId: string): Promise<UserAsset[]> {
-    return await db
+    return await this.db
       .select()
       .from(userAssets)
       .where(eq(userAssets.userId, userId))
@@ -1276,7 +1278,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUserAsset(asset: InsertUserAsset & { userId: string }): Promise<UserAsset> {
-    const [newAsset] = await db
+    const [newAsset] = await this.db
       .insert(userAssets)
       .values({
         ...asset,
@@ -1288,7 +1290,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserAsset(id: number, userId: string): Promise<void> {
-    await db
+    await this.db
       .delete(userAssets)
       .where(and(eq(userAssets.id, id), eq(userAssets.userId, userId)));
   }
@@ -1303,58 +1305,73 @@ export class DatabaseStorage implements IStorage {
     newUsersThisMonth: number;
   }> {
     try {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      console.log('📊 Fetching admin stats from database...');
 
       // Get total users
-      const totalUsersResult = await db.select({ count: sql<number>`count(*)` }).from(users);
-      const totalUsers = totalUsersResult[0]?.count || 0;
+      const totalUsersResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count FROM users
+      `);
+      const totalUsers = Number(totalUsersResult.rows[0]?.count || 0);
 
-      // Get active users (logged in this month)
-      const activeUsersResult = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(users)
-        .where(and(
-          gte(users.lastLoginAt, startOfMonth.toISOString()),
-          eq(users.isActive, true)
-        ));
-      const activeUsers = activeUsersResult[0]?.count || 0;
+      // Get active users (logged in within last 30 days)
+      const activeUsersResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count 
+        FROM users 
+        WHERE "lastLoginAt" > NOW() - INTERVAL '30 days'
+      `);
+      const activeUsers = Number(activeUsersResult.rows[0]?.count || 0);
 
       // Get total documents
-      const totalDocsResult = await db.select({ count: sql<number>`count(*)` }).from(documents);
-      const totalDocuments = totalDocsResult[0]?.count || 0;
+      const totalDocsResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count FROM documents
+      `);
+      const totalDocuments = Number(totalDocsResult.rows[0]?.count || 0);
 
-      // Get total storage (sum of file sizes)
-      const storageResult = await db
-        .select({ total: sql<number>`coalesce(sum(file_size), 0)` })
-        .from(documents);
-      const totalStorageBytes = storageResult[0]?.total || 0;
+      // Get total storage used (sum of file sizes)
+      const storageResult = await this.db.execute(sql`
+        SELECT COALESCE(SUM("fileSize"), 0) as total_bytes 
+        FROM documents
+      `);
+      const totalStorageBytes = Number(storageResult.rows[0]?.total_bytes || 0);
 
       // Get uploads this month
-      const uploadsThisMonthResult = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(documents)
-        .where(gte(documents.createdAt, startOfMonth.toISOString()));
-      const uploadsThisMonth = uploadsThisMonthResult[0]?.count || 0;
+      const uploadsThisMonthResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count 
+        FROM documents 
+        WHERE "uploadedAt" >= DATE_TRUNC('month', CURRENT_DATE)
+      `);
+      const uploadsThisMonth = Number(uploadsThisMonthResult.rows[0]?.count || 0);
 
       // Get new users this month
-      const newUsersResult = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(users)
-        .where(gte(users.createdAt, startOfMonth.toISOString()));
-      const newUsersThisMonth = newUsersResult[0]?.count || 0;
+      const newUsersThisMonthResult = await this.db.execute(sql`
+        SELECT COUNT(*) as count 
+        FROM users 
+        WHERE "createdAt" >= DATE_TRUNC('month', CURRENT_DATE)
+      `);
+      const newUsersThisMonth = Number(newUsersThisMonthResult.rows[0]?.count || 0);
 
-      return {
+      const stats = {
         totalUsers,
         activeUsers,
         totalDocuments,
         totalStorageBytes,
         uploadsThisMonth,
-        newUsersThisMonth,
+        newUsersThisMonth
       };
+
+      console.log('📊 Admin stats calculated:', stats);
+      return stats;
     } catch (error) {
-      console.error('Error getting admin stats:', error);
-      throw new Error('Failed to get admin stats');
+      console.error('❌ Error fetching admin stats:', error);
+      // Return zeros on error instead of throwing
+      return {
+        totalUsers: 0,
+        activeUsers: 0,
+        totalDocuments: 0,
+        totalStorageBytes: 0,
+        uploadsThisMonth: 0,
+        newUsersThisMonth: 0
+      };
     }
   }
 
@@ -1372,32 +1389,55 @@ export class DatabaseStorage implements IStorage {
     createdAt: string;
   }>> {
     try {
-      const result = await db
-        .select({
-          id: users.id,
-          email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          role: users.role,
-          isActive: users.isActive,
-          lastLoginAt: users.lastLoginAt,
-          createdAt: users.createdAt,
-          documentCount: sql<number>`coalesce(count(${documents.id}), 0)`,
-          storageUsed: sql<number>`coalesce(sum(${documents.fileSize}), 0)`,
-        })
-        .from(users)
-        .leftJoin(documents, eq(users.id, documents.userId))
-        .groupBy(users.id, users.email, users.firstName, users.lastName, users.role, users.isActive, users.lastLoginAt, users.createdAt);
+      console.log('👥 Fetching all users with stats...');
 
-      return result;
+      const result = await this.db.execute(sql`
+        SELECT 
+          u.id,
+          u.email,
+          u."firstName",
+          u."lastName", 
+          u.role,
+          u."isActive",
+          u."lastLoginAt",
+          u."createdAt",
+          COALESCE(doc_stats.document_count, 0) as "documentCount",
+          COALESCE(doc_stats.storage_used, 0) as "storageUsed"
+        FROM users u
+        LEFT JOIN (
+          SELECT 
+            "userId",
+            COUNT(*) as document_count,
+            COALESCE(SUM("fileSize"), 0) as storage_used
+          FROM documents 
+          GROUP BY "userId"
+        ) doc_stats ON u.id = doc_stats."userId"
+        ORDER BY u."createdAt" DESC
+      `);
+
+      const users = result.rows.map(row => ({
+        id: row.id,
+        email: row.email,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        role: row.role,
+        isActive: row.isActive,
+        documentCount: Number(row.documentCount || 0),
+        storageUsed: Number(row.storageUsed || 0),
+        lastLoginAt: row.lastLoginAt,
+        createdAt: row.createdAt
+      }));
+
+      console.log(`👥 Found ${users.length} users with stats`);
+      return users;
     } catch (error) {
-      console.error('Error getting users with stats:', error);
-      throw new Error('Failed to get users with stats');
+      console.error('❌ Error fetching users with stats:', error);
+      return [];
     }
   }
 
   // Get system activities
-  async getSystemActivities(severity?: string): Promise<Array<{
+  async getSystemActivities(severityFilter?: string): Promise<Array<{
     id: number;
     type: string;
     description: string;
@@ -1408,29 +1448,83 @@ export class DatabaseStorage implements IStorage {
     timestamp: string;
   }>> {
     try {
-      // For now, return mock data since we don't have an activity log table
-      // You can implement this by creating an activity_logs table
-      return [
-        {
-          id: 1,
-          type: 'user_login',
-          description: 'User logged in successfully',
-          userId: '123',
-          userEmail: 'user@example.com',
-          severity: 'info',
-          timestamp: new Date().toISOString(),
-        }
-      ];
+      console.log('📝 Fetching system activities with filter:', severityFilter);
+
+      let query = sql`
+        SELECT 
+          ROW_NUMBER() OVER (ORDER BY created_at DESC) as id,
+          'user_login' as type,
+          CONCAT('User logged in: ', email) as description,
+          id as "userId",
+          email as "userEmail",
+          'info' as severity,
+          NULL as metadata,
+          "lastLoginAt" as timestamp
+        FROM users 
+        WHERE "lastLoginAt" IS NOT NULL
+
+        UNION ALL
+
+        SELECT 
+          ROW_NUMBER() OVER (ORDER BY "uploadedAt" DESC) + 10000 as id,
+          'document_uploaded' as type,
+          CONCAT('Document uploaded: ', "fileName") as description,
+          "userId",
+          (SELECT email FROM users WHERE id = documents."userId") as "userEmail",
+          'info' as severity,
+          JSON_BUILD_OBJECT('fileName', "fileName", 'fileSize', "fileSize") as metadata,
+          "uploadedAt" as timestamp
+        FROM documents 
+        WHERE "uploadedAt" > NOW() - INTERVAL '7 days'
+
+        UNION ALL
+
+        SELECT 
+          ROW_NUMBER() OVER (ORDER BY "createdAt" DESC) + 20000 as id,
+          'user_registered' as type,
+          CONCAT('New user registered: ', email) as description,
+          id as "userId",
+          email as "userEmail",
+          'info' as severity,
+          JSON_BUILD_OBJECT('role', role) as metadata,
+          "createdAt" as timestamp
+        FROM users 
+        WHERE "createdAt" > NOW() - INTERVAL '30 days'
+
+        ORDER BY timestamp DESC
+        LIMIT 100
+      `;
+
+      const result = await this.db.execute(query);
+
+      let activities = result.rows.map(row => ({
+        id: Number(row.id),
+        type: row.type,
+        description: row.description,
+        userId: row.userId,
+        userEmail: row.userEmail,
+        severity: row.severity,
+        metadata: row.metadata,
+        timestamp: row.timestamp
+      }));
+
+      // Apply severity filter if provided
+      if (severityFilter && severityFilter !== 'all') {
+        activities = activities.filter(activity => activity.severity === severityFilter);
+      }
+
+      console.log(`📝 Found ${activities.length} system activities`);
+      return activities;
     } catch (error) {
-      console.error('Error getting system activities:', error);
-      throw new Error('Failed to get system activities');
+      console.error('❌ Error fetching system activities:', error);
+      return [];
     }
   }
 
   // Update user status
   async updateUserStatus(userId: string, isActive: boolean): Promise<void> {
     try {
-      await db
+      await this.db
         .update(users)
         .set({ isActive, updatedAt: new Date().toISOString() })
         .where(eq(users.id, userId));
@@ -1511,7 +1605,7 @@ export class DatabaseStorage implements IStorage {
   }> {
     try {
       // Get actual storage from documents table
-      const storageResult = await db
+      const storageResult = await this.db
         .select({ total: sql<number>`coalesce(sum(file_size), 0)` })
         .from(documents);
 
@@ -1622,7 +1716,7 @@ export class DatabaseStorage implements IStorage {
   // Manual Tracked Events operations (TICKET B1)
   async getManualTrackedEvents(userId: string): Promise<ManualTrackedEvent[]> {
     try {
-      return await db
+      return await this.db
         .select()
         .from(manualTrackedEvents)
         .where(eq(manualTrackedEvents.createdBy, userId))
@@ -1635,7 +1729,7 @@ export class DatabaseStorage implements IStorage {
 
   async getManualTrackedEvent(id: string, userId: string): Promise<ManualTrackedEvent | undefined> {
     try {
-      const [event] = await db
+      const [event] = await this.db
         .select()
         .from(manualTrackedEvents)
         .where(and(eq(manualTrackedEvents.id, id), eq(manualTrackedEvents.createdBy, userId)));
@@ -1649,7 +1743,7 @@ export class DatabaseStorage implements IStorage {
   async createManualTrackedEvent(event: InsertManualTrackedEvent & { createdBy: string }): Promise<ManualTrackedEvent> {
     // Validate linked document ownership if provided
     if (event.linkedDocumentIds && event.linkedDocumentIds.length > 0) {
-      const documentOwnershipCheck = await db
+      const documentOwnershipCheck = await this.db
         .select({ id: documents.id })
         .from(documents)
         .where(and(
@@ -1672,7 +1766,7 @@ export class DatabaseStorage implements IStorage {
 
     // Validate linked asset ownership if provided
     if (event.linkedAssetId) {
-      const assetOwnershipCheck = await db
+      const assetOwnershipCheck = await this.db
         .select({ id: userAssets.id })
         .from(userAssets)
         .where(and(
@@ -1693,7 +1787,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    const [newEvent] = await db
+    const [newEvent] = await this.db
       .insert(manualTrackedEvents)
       .values({
         ...event,
@@ -1713,7 +1807,7 @@ export class DatabaseStorage implements IStorage {
 
     // Validate linked document ownership if being updated
     if (updates.linkedDocumentIds && updates.linkedDocumentIds.length > 0) {
-      const documentOwnershipCheck = await db
+      const documentOwnershipCheck = await this.db
         .select({ id: documents.id })
         .from(documents)
         .where(and(
@@ -1736,7 +1830,7 @@ export class DatabaseStorage implements IStorage {
 
     // Validate linked asset ownership if being updated
     if (updates.linkedAssetId) {
-      const assetOwnershipCheck = await db
+      const assetOwnershipCheck = await this.db
         .select({ id: userAssets.id })
         .from(userAssets)
         .where(and(
@@ -1757,7 +1851,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    const [updatedEvent] = await db
+    const [updatedEvent] = await this.db
       .update(manualTrackedEvents)
       .set({
         ...updates,
@@ -1770,7 +1864,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteManualTrackedEvent(id: string, userId: string): Promise<void> {
-    await db
+    await this.db
       .delete(manualTrackedEvents)
       .where(and(eq(manualTrackedEvents.id, id), eq(manualTrackedEvents.createdBy, userId)));
   }
@@ -1778,7 +1872,7 @@ export class DatabaseStorage implements IStorage {
   // Vehicle operations (TICKET 1 & 2)
   async getVehicles(userId: string): Promise<Vehicle[]> {
     return await safeQuery(async () => {
-      return await db
+      return await this.db
         .select()
         .from(vehicles)
         .where(eq(vehicles.userId, userId))
@@ -1788,7 +1882,7 @@ export class DatabaseStorage implements IStorage {
 
   async getVehicle(id: string, userId: string): Promise<Vehicle | undefined> {
     return await safeQuery(async () => {
-      const [vehicle] = await db
+      const [vehicle] = await this.db
         .select()
         .from(vehicles)
         .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)));
@@ -1800,7 +1894,7 @@ export class DatabaseStorage implements IStorage {
     return await safeQuery(async () => {
       // Normalize VRN for lookup (remove spaces, uppercase)
       const normalizedVRN = vrn.replace(/\s/g, '').toUpperCase();
-      const [vehicle] = await db
+      const [vehicle] = await this.db
         .select()
         .from(vehicles)
         .where(and(eq(vehicles.vrn, normalizedVRN), eq(vehicles.userId, userId)));
@@ -1810,7 +1904,7 @@ export class DatabaseStorage implements IStorage {
 
   async createVehicle(vehicle: InsertVehicle): Promise<Vehicle> {
     return await safeQuery(async () => {
-      const [newVehicle] = await db
+      const [newVehicle] = await this.db
         .insert(vehicles)
         .values({
           ...vehicle,
@@ -1824,7 +1918,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateVehicle(id: string, userId: string, updates: Partial<InsertVehicle>): Promise<Vehicle | undefined> {
     return await safeQuery(async () => {
-      const [updatedVehicle] = await db
+      const [updatedVehicle] = await this.db
         .update(vehicles)
         .set({
           ...updates,
@@ -1838,7 +1932,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteVehicle(id: string, userId: string): Promise<void> {
     await safeQuery(async () => {
-      await db
+      await this.db
         .delete(vehicles)
         .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)));
     });

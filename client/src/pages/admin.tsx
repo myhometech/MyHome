@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, FileText, HardDrive, Activity, Flag, BarChart3, Cloud, Brain } from "lucide-react";
+import { Users, FileText, HardDrive, Activity, Flag, BarChart3, Cloud, Brain, AlertCircle } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { ActivityLog } from "@/components/admin/ActivityLog";
@@ -52,6 +52,19 @@ export default function AdminDashboard() {
   const { data: adminStats, isLoading: statsLoading, error: statsError } = useQuery<AdminStats>({
     queryKey: ['/api/admin/stats'],
     enabled: isAuthenticated && userWithRole?.role === 'admin',
+    queryFn: async () => {
+      console.log('🔄 Fetching admin stats...');
+      const response = await fetch('/api/admin/stats', { credentials: 'include' });
+      if (!response.ok) {
+        console.error('❌ Admin stats fetch failed:', response.status, response.statusText);
+        throw new Error(`Failed to fetch admin stats: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('✅ Admin stats received:', data);
+      return data;
+    },
+    retry: 3,
+    retryDelay: 1000,
   });
 
   // Handle authentication errors
@@ -71,6 +84,19 @@ export default function AdminDashboard() {
         <div className="text-lg">Loading...</div>
       </div>
     );
+  }
+
+  // Debug info for troubleshooting
+  if (statsError) {
+    console.error('❌ Admin stats error:', statsError);
+  }
+
+  if (statsLoading) {
+    console.log('🔄 Admin stats loading...');
+  }
+
+  if (adminStats) {
+    console.log('📊 Admin stats loaded:', adminStats);
   }
 
   if (!isAuthenticated || userWithRole?.role !== 'admin') {
@@ -98,6 +124,23 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Error State */}
+      {statsError && (
+        <Card className="border-red-200 bg-red-50 mb-6">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <p className="font-medium">Failed to load admin statistics</p>
+                <p className="text-sm opacity-75">
+                  {statsError instanceof Error ? statsError.message : 'Unknown error occurred'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -107,10 +150,10 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {statsLoading ? "..." : adminStats?.totalUsers || 0}
+              {statsLoading ? "..." : statsError ? "Error" : adminStats?.totalUsers || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {statsLoading ? "..." : `${adminStats?.activeUsers || 0} active`}
+              {statsLoading ? "..." : statsError ? "Failed to load" : `${adminStats?.activeUsers || 0} active`}
             </p>
           </CardContent>
         </Card>
@@ -122,10 +165,10 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {statsLoading ? "..." : adminStats?.totalDocuments || 0}
+              {statsLoading ? "..." : statsError ? "Error" : adminStats?.totalDocuments || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {statsLoading ? "..." : `${adminStats?.uploadsThisMonth || 0} this month`}
+              {statsLoading ? "..." : statsError ? "Failed to load" : `${adminStats?.uploadsThisMonth || 0} this month`}
             </p>
           </CardContent>
         </Card>
@@ -137,10 +180,10 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {statsLoading ? "..." : formatBytes(adminStats?.totalStorageBytes || 0)}
+              {statsLoading ? "..." : statsError ? "Error" : formatBytes(adminStats?.totalStorageBytes || 0)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Cloud storage
+              {statsError ? "Failed to load" : "Cloud storage"}
             </p>
           </CardContent>
         </Card>
@@ -152,10 +195,10 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {statsLoading ? "..." : adminStats?.newUsersThisMonth || 0}
+              {statsLoading ? "..." : statsError ? "Error" : adminStats?.newUsersThisMonth || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              This month
+              {statsError ? "Failed to load" : "This month"}
             </p>
           </CardContent>
         </Card>

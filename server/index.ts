@@ -296,11 +296,12 @@ app.use((req, res, next) => {
 
   server.listen({
     port,
-    host,
+    host: "0.0.0.0", // Force bind to 0.0.0.0 for Replit
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
-    console.log(`🌐 Server ready at http://${host}:${port}`);
+    console.log(`🌐 Server ready at http://0.0.0.0:${port}`);
+    console.log(`🔧 Accessible via: ${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'local development'}`);
 
     if (isDeployment) {
       console.log('✅ DEPLOYMENT: Server successfully started and listening');

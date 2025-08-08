@@ -845,10 +845,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            ) : (() => {
-              console.log('[DEBUG] Documents check - length:', documents.length, 'array:', documents);
-              return documents.length === 0;
-            })() ? (
+            ) : !documents || documents.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                   <Search className="h-8 w-8 text-gray-400" />
@@ -874,13 +871,7 @@ export default function Home() {
                   ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4"
                   : "space-y-3 md:space-y-4"
               }>
-                {(() => {
-                  console.log('[DEBUG] About to render documents:', documents);
-                  console.log('[DEBUG] Documents length:', documents.length);
-                  console.log('[DEBUG] Documents loading:', documentsLoading);
-                  return documents.map((document: any) => {
-                    console.log('[DEBUG] Rendering document:', document.id, document.name);
-                    return (
+                {documents.map((document: any) => (
                   <DocumentCard
                     key={document.id}
                     document={document}
@@ -895,9 +886,7 @@ export default function Home() {
                       queryClient.invalidateQueries({ queryKey: ["/api/documents/expiry-alerts"] });
                     }}
                   />
-                    );
-                  });
-                })()}
+                ))}
               </div>
             )}
           </div>

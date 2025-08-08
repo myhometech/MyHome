@@ -1311,7 +1311,7 @@ export class DatabaseStorage implements IStorage {
       // Get active users count  
       console.log('📊 Fetching active users...');
       const activeUsersResult = await this.db.execute(sql`
-        SELECT COUNT(*)::int as count FROM users WHERE "isActive" = true
+        SELECT COUNT(*)::int as count FROM users WHERE is_active = true
       `);
       const activeUsers = activeUsersResult[0]?.count || 0;
       console.log('📊 Active users:', activeUsers);
@@ -1388,18 +1388,18 @@ export class DatabaseStorage implements IStorage {
         SELECT 
           u.id,
           u.email,
-          u."firstName",
-          u."lastName",
+          u.first_name,
+          u.last_name,
           u.role,
-          u."isActive",
-          u."lastLoginAt",
-          u."createdAt",
+          u.is_active,
+          u.last_login_at,
+          u.created_at,
           COUNT(DISTINCT d.id)::int as documentCount,
-          COALESCE(SUM(d."fileSize"), 0)::bigint as storageUsed
+          COALESCE(SUM(d.file_size), 0)::bigint as storageUsed
         FROM users u
-        LEFT JOIN documents d ON u.id = d."userId"
-        GROUP BY u.id, u.email, u."firstName", u."lastName", u.role, u."isActive", u."lastLoginAt", u."createdAt"
-        ORDER BY u."createdAt" DESC
+        LEFT JOIN documents d ON u.id = d.user_id
+        GROUP BY u.id, u.email, u.first_name, u.last_name, u.role, u.is_active, u.last_login_at, u.created_at
+        ORDER BY u.created_at DESC
       `);
 
       console.log(`🔍 Raw query result: ${result?.length || 0} rows`);
@@ -1412,14 +1412,14 @@ export class DatabaseStorage implements IStorage {
       const users = result.map((row: any) => ({
         id: row.id,
         email: row.email,
-        firstName: row.firstName,
-        lastName: row.lastName,
+        firstName: row.first_name,
+        lastName: row.last_name,
         role: row.role,
-        isActive: row.isActive,
+        isActive: row.is_active,
         documentCount: parseInt(row.documentcount || '0', 10),
         storageUsed: parseInt(row.storageused || '0', 10),
-        lastLoginAt: row.lastLoginAt,
-        createdAt: row.createdAt
+        lastLoginAt: row.last_login_at,
+        createdAt: row.created_at
       }));
 
       console.log(`🔍 Processed ${users.length} users:`, users.map(u => ({ id: u.id, email: u.email, role: u.role })));

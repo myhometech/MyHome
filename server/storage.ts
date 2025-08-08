@@ -941,12 +941,21 @@ export class DatabaseStorage implements IStorage {
 
   async getAllFeatureFlags(): Promise<FeatureFlag[]> {
     try {
+      console.log('📊 Fetching feature flags from database...');
       const result = await this.db.select().from(featureFlags).orderBy(featureFlags.name);
-      console.log(`📊 Feature flags query returned ${result.length} flags`);
+      console.log(`📊 Feature flags query returned ${result?.length || 0} flags`);
+      
+      if (!result) {
+        console.log('⚠️ No feature flags found in database');
+        return [];
+      }
+      
       return result;
     } catch (error) {
-      console.error('Error fetching feature flags:', error);
-      throw new Error('Failed to fetch feature flags');
+      console.error('❌ Error fetching feature flags:', error);
+      console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
+      // Return empty array instead of throwing to prevent dashboard crashes
+      return [];
     }
   }
 
@@ -1420,23 +1429,6 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('📊 Starting getAdminStats execution...');
 
-      // Helper function to extract result consistently
-      const extractResult = (result: any, field: string = 'count') => {
-        console.log('🔧 Raw result structure:', { 
-          isArray: Array.isArray(result), 
-          hasRows: !!result?.rows, 
-          length: result?.length || result?.rows?.length 
-        });
-        
-        if (Array.isArray(result) && result.length > 0) {
-          return result[0][field];
-        }
-        if (result?.rows && Array.isArray(result.rows) && result.rows.length > 0) {
-          return result.rows[0][field];
-        }
-        return 0;
-      };
-
       // Use Drizzle ORM methods for more reliable queries
       console.log('📊 Fetching total users...');
       const totalUsersResult = await this.db.select({ count: sql<number>`count(*)::int` }).from(users);
@@ -1458,10 +1450,10 @@ export class DatabaseStorage implements IStorage {
       const totalDocuments = totalDocumentsResult[0]?.count || 0;
       console.log('📊 Total documents:', totalDocuments);
 
-      // Get total storage used
+      // Get total storage used - FIXED: use correct column name file_size
       console.log('📊 Fetching storage usage...');
       const totalStorageBytesResult = await this.db
-        .select({ total: sql<number>`coalesce(sum(${documents.fileSize}), 0)::bigint` })
+        .select({ total: sql<number>`coalesce(sum(file_size), 0)::bigint` })
         .from(documents);
       const totalStorageBytes = totalStorageBytesResult[0]?.total || 0;
       console.log('📊 Total storage bytes:', totalStorageBytes);
@@ -1471,7 +1463,7 @@ export class DatabaseStorage implements IStorage {
       const uploadsThisMonthResult = await this.db
         .select({ count: sql<number>`count(*)::int` })
         .from(documents)
-        .where(sql`${documents.uploadedAt} >= date_trunc('month', CURRENT_DATE)`);
+        .where(sql`uploaded_at >= date_trunc('month', CURRENT_DATE)`);
       const uploadsThisMonth = uploadsThisMonthResult[0]?.count || 0;
       console.log('📊 Uploads this month:', uploadsThisMonth);
 
@@ -1480,7 +1472,7 @@ export class DatabaseStorage implements IStorage {
       const newUsersThisMonthResult = await this.db
         .select({ count: sql<number>`count(*)::int` })
         .from(users)
-        .where(sql`${users.createdAt} >= date_trunc('month', CURRENT_DATE)`);
+        .where(sql`created_at >= date_trunc('month', CURRENT_DATE)`);
       const newUsersThisMonth = newUsersThisMonthResult[0]?.count || 0;
       console.log('📊 New users this month:', newUsersThisMonth);
 
@@ -1543,7 +1535,7 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
-      const users = result.map((row: any) => ({
+      const processedUsers = result.map((row: any) => ({
         id: row.id,
         email: row.email,
         firstName: row.firstName,
@@ -1556,8 +1548,8 @@ export class DatabaseStorage implements IStorage {
         createdAt: row.createdAt
       }));
 
-      console.log(`🔍 Processed ${users.length} users:`, users.map(u => ({ id: u.id, email: u.email, role: u.role })));
-      return users;
+      console.log(`🔍 Processed ${processedUsers.length} users:`, processedUsers.map(u => ({ id: u.id, email: u.email, role: u.role })));
+      return processedUsers;
     } catch (error) {
       console.error('❌ Error getting all users with stats:', error);
       console.error('❌ Error details:', error instanceof Error ? error.stack : 'Unknown error');
@@ -1579,7 +1571,6 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('📝 Fetching system activities with filter:', severityFilter);
 
-      // Use a simpler approach that works with our database structure
       const activities: Array<{
         id: number;
         type: string;
@@ -1591,24 +1582,24 @@ export class DatabaseStorage implements IStorage {
         timestamp: string;
       }> = [];
 
-      // Get recent logins
-      const recentLogins = await this.db.execute(sql`
-        SELECT 
-          id,
-          email,
-          last_login_at,
-          created_at
-        FROM users 
-        WHERE last_login_at IS NOT NULL
-        ORDER BY last_login_at DESC
-        LIMIT 20
-      `);
+      // Get recent logins - using Drizzle ORM for consistency
+      console.log('📝 Fetching recent logins...');
+      const recentLogins = await this.db
+        .select({
+          id: users.id,
+          email: users.email,
+          lastLoginAt: users.lastLoginAt,
+          createdAt: users.createdAt
+        })
+        .from(users)
+        .where(sql`last_login_at IS NOT NULL`)
+        .orderBy(desc(users.lastLoginAt))
+        .limit(20);
 
       let activityId = 1;
-      const loginRows = Array.isArray(recentLogins) ? recentLogins : (recentLogins.rows || []);
       
-      for (const row of loginRows) {
-        if (row.last_login_at) {
+      for (const row of recentLogins) {
+        if (row.lastLoginAt) {
           activities.push({
             id: activityId++,
             type: 'user_login',
@@ -1616,73 +1607,71 @@ export class DatabaseStorage implements IStorage {
             userId: row.id,
             userEmail: row.email,
             severity: 'info',
-            metadata: null,
-            timestamp: row.last_login_at
+            metadata: {},
+            timestamp: row.lastLoginAt.toISOString()
           });
         }
       }
 
-      // Get recent document uploads
-      const recentUploads = await this.db.execute(sql`
-        SELECT 
-          d.id,
-          d.user_id,
-          d.file_name,
-          d.file_size,
-          d.uploaded_at,
-          u.email
-        FROM documents d
-        JOIN users u ON d.user_id = u.id
-        WHERE d.uploaded_at > NOW() - INTERVAL '7 days'
-        ORDER BY d.uploaded_at DESC
-        LIMIT 30
-      `);
-
-      const uploadRows = Array.isArray(recentUploads) ? recentUploads : (recentUploads.rows || []);
+      // Get recent document uploads - using Drizzle ORM
+      console.log('📝 Fetching recent uploads...');
+      const recentUploads = await this.db
+        .select({
+          id: documents.id,
+          userId: documents.userId,
+          fileName: documents.fileName,
+          fileSize: documents.fileSize,
+          uploadedAt: documents.uploadedAt,
+          userEmail: users.email
+        })
+        .from(documents)
+        .innerJoin(users, eq(documents.userId, users.id))
+        .where(sql`uploaded_at > NOW() - INTERVAL '7 days'`)
+        .orderBy(desc(documents.uploadedAt))
+        .limit(30);
       
-      for (const row of uploadRows) {
+      for (const row of recentUploads) {
         activities.push({
           id: activityId++,
           type: 'document_uploaded',
-          description: `Document uploaded: ${row.file_name}`,
-          userId: row.user_id,
-          userEmail: row.email,
+          description: `Document uploaded: ${row.fileName}`,
+          userId: row.userId,
+          userEmail: row.userEmail || 'unknown',
           severity: 'info',
           metadata: {
-            fileName: row.file_name,
-            fileSize: row.file_size
+            fileName: row.fileName,
+            fileSize: row.fileSize
           },
-          timestamp: row.uploaded_at
+          timestamp: row.uploadedAt?.toISOString() || new Date().toISOString()
         });
       }
 
-      // Get new registrations
-      const newUsers = await this.db.execute(sql`
-        SELECT 
-          id,
-          email,
-          role,
-          created_at
-        FROM users 
-        WHERE created_at > NOW() - INTERVAL '30 days'
-        ORDER BY created_at DESC
-        LIMIT 10
-      `);
-
-      const userRows = Array.isArray(newUsers) ? newUsers : (newUsers.rows || []);
+      // Get new registrations - using Drizzle ORM
+      console.log('📝 Fetching new registrations...');
+      const newUsers = await this.db
+        .select({
+          id: users.id,
+          email: users.email,
+          role: users.role,
+          createdAt: users.createdAt
+        })
+        .from(users)
+        .where(sql`created_at > NOW() - INTERVAL '30 days'`)
+        .orderBy(desc(users.createdAt))
+        .limit(10);
       
-      for (const row of userRows) {
+      for (const row of newUsers) {
         activities.push({
           id: activityId++,
           type: 'user_registered',
           description: `New user registered: ${row.email}`,
           userId: row.id,
-          userEmail: row.email,
+          userEmail: row.email || 'unknown',
           severity: 'info',
           metadata: {
             role: row.role
           },
-          timestamp: row.created_at
+          timestamp: row.createdAt?.toISOString() || new Date().toISOString()
         });
       }
 
@@ -1699,6 +1688,7 @@ export class DatabaseStorage implements IStorage {
       return filteredActivities.slice(0, 100); // Limit to 100 most recent
     } catch (error) {
       console.error('❌ Error fetching system activities:', error);
+      console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
       return [];
     }
   }

@@ -244,7 +244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://js.stripe.com https://cdn.jsdelivr.net",
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
           "img-src 'self' data: blob: https://myhome-docs.com https://storage.googleapis.com https://*.googleusercontent.com https://images.unsplash.com",
-          "font-src 'self' data: https://fonts.gstatic.com",
+          "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
           "connect-src 'self' data: https://api.stripe.com https://api.openai.com https://storage.googleapis.com",
           "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
           "object-src 'none'",
@@ -655,7 +655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (req.file) {
       console.log(`   File: ${req.file.originalname} (${req.file.size} bytes, ${req.file.mimetype})`);
     }
-    
+
     try {
       if (!req.file) {
         console.log(`❌ No file uploaded in request`);
@@ -2671,7 +2671,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents/analyze-tags', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-
       // Get all user documents with tags
       const userDocuments = await storage.getDocuments(userId);
       const documentsWithTags = userDocuments

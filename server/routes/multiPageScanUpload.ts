@@ -27,10 +27,18 @@ const pdfConversionService = new PDFConversionService();
 export function setupMultiPageScanUpload(app: Express) {
   // Multi-page scan upload endpoint
   app.post('/api/documents/multi-page-scan-upload', requireAuth, upload.array('pages', 20), async (req: any, res) => {
-    console.log(`🚀 UPLOAD: Multi-page scan upload request received`);
-    console.log(`🚀 UPLOAD: Request headers:`, req.headers['content-type']);
-    console.log(`🚀 UPLOAD: Request body keys:`, Object.keys(req.body));
-    console.log(`🚀 UPLOAD: Request files:`, req.files ? req.files.length : 'none');
+    console.log(`\n🚀 CAMERA SCAN UPLOAD ATTEMPT - ${new Date().toISOString()}`);
+    console.log(`📱 User Agent: ${req.headers['user-agent']}`);
+    console.log(`🔐 User ID: ${req.user?.id || 'NOT_AUTHENTICATED'}`);
+    console.log(`📦 Content Type: ${req.headers['content-type']}`);
+    console.log(`📝 Body Keys: ${Object.keys(req.body).join(', ')}`);
+    console.log(`📎 Files Received: ${req.files ? req.files.length : 0}`);
+    if (req.files && req.files.length > 0) {
+      const files = req.files as Express.Multer.File[];
+      files.forEach((file, i) => {
+        console.log(`   File ${i+1}: ${file.originalname} (${file.size} bytes, ${file.mimetype})`);
+      });
+    }
 
     try {
       const files = req.files as Express.Multer.File[];

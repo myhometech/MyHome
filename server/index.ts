@@ -27,6 +27,7 @@ import path from "path";
 import fs from "fs";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import authRoutes from "./authRoutes";
 
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
 if (process.env.NODE_ENV !== 'production') {
@@ -286,19 +287,22 @@ app.use((req, res, next) => {
   console.log('   POST /api/email-ingest');
   // Mount routes with logging
   console.log('🔗 Mounting API routes...');
-  // Previous static route definitions are not here
-  // Mount routes
-  app.use('/api/oauth', authRoutes); // Assuming authRoutes is defined elsewhere or imported
-  app.use('/api/documents', requireAuth, documentRoutes); // Assuming requireAuth and documentRoutes are defined elsewhere or imported
-  app.use('/api/backup', backupRoutes); // Assuming backupRoutes is defined elsewhere or imported
-  app.use('/api/categories', require('./routes/categorySuggestion').default);
-  app.use('/api/llm-usage', llmUsageRoutes); // Assuming llmUsageRoutes is defined elsewhere or imported
-  app.use('/api/admin', adminTestRoutes); // Assuming adminTestRoutes is defined elsewhere or imported
-  app.use('/api/multi-page-scan', multiPageScanRoutes); // Assuming multiPageScanRoutes is defined elsewhere or imported
-  app.use('/api/advanced-scanning', advancedScanningRoutes); // Assuming advancedScanningRoutes is defined elsewhere or imported
-  app.use('/api/ocr-error', ocrErrorRoutes); // Assuming ocrErrorRoutes is defined elsewhere or imported
-  app.use('/api/insight-recovery', insightRecoveryRoutes); // Assuming insightRecoveryRoutes is defined elsewhere or imported
-  app.use('/api/canny', cannyRoutes); // Assuming cannyRoutes is defined elsewhere or imported
+  
+  // Mount only the routes that are properly imported and defined
+  app.use('/api/oauth', authRoutes);
+  
+  // Other routes are handled by registerRoutes() function
+  // Comment out the undefined route variables to prevent ReferenceError
+  // app.use('/api/documents', requireAuth, documentRoutes); 
+  // app.use('/api/backup', backupRoutes);
+  // app.use('/api/categories', require('./routes/categorySuggestion').default);
+  // app.use('/api/llm-usage', llmUsageRoutes);
+  // app.use('/api/admin', adminTestRoutes);
+  // app.use('/api/multi-page-scan', multiPageScanRoutes);
+  // app.use('/api/advanced-scanning', advancedScanningRoutes);
+  // app.use('/api/ocr-error', ocrErrorRoutes);
+  // app.use('/api/insight-recovery', insightRecoveryRoutes);
+  // app.use('/api/canny', cannyRoutes);
   console.log('✅ All API routes mounted successfully');
   console.log(`🚀 Starting server on port ${port} with NODE_ENV=${process.env.NODE_ENV}`);
 

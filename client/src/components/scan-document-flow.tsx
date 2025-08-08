@@ -530,13 +530,23 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         console.log(`🔄 Processing page ${i + 1}/${capturedPages.length}`);
 
         try {
+          console.log(`🔄 Processing page ${i + 1} with image data type:`, typeof page.imageData);
+          console.log(`🔄 Page ${i + 1} image data length:`, page.imageData ? page.imageData.length : 0);
+          
+          if (!page.imageData || !page.imageData.startsWith('data:')) {
+            throw new Error(`Invalid image data format for page ${i + 1}`);
+          }
+
           // Convert data URL to blob with proper JPEG format
           const response = await fetch(page.imageData);
           if (!response.ok) {
-            throw new Error(`Failed to fetch image data for page ${i + 1}`);
+            throw new Error(`Failed to fetch image data for page ${i + 1}: ${response.status}`);
           }
 
           const blob = await response.blob();
+          if (!blob || blob.size === 0) {
+            throw new Error(`Empty or invalid blob created for page ${i + 1}`);
+          }
           console.log(`📄 Page ${i + 1} blob size: ${blob.size} bytes, type: ${blob.type}`);
 
           // Ensure we have a valid JPEG by re-creating it if needed
@@ -588,8 +598,21 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
           }
         } catch (pageError) {
           console.error(`❌ Failed to process page ${i + 1}:`, pageError);
+          console.error(`❌ Page ${i + 1} details:`, {
+            hasImageData: !!page.imageData,
+            imageDataType: typeof page.imageData,
+            imageDataPrefix: page.imageData ? page.imageData.substring(0, 50) : 'NO_DATA'
+          });
+          
+          // Show error with toast for mobile debugging
+          toast({
+            title: "Processing Error",
+            description: `Failed to process page ${i + 1}`,
+            variant: "destructive",
+          });
+          
           const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
-          throw new Error(`Failed to process page ${i + 1}: ${errorMessage}`);
+          throw new Error(`Processing error: Failed to process page ${i + 1}: ${errorMessage}`);
         }
       }
 

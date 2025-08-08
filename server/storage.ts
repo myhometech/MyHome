@@ -1304,51 +1304,54 @@ export class DatabaseStorage implements IStorage {
     uploadsThisMonth: number;
     newUsersThisMonth: number;
   }> {
+    console.log('📊 Fetching admin stats from database...');
+
     try {
-      console.log('📊 Fetching admin stats from database...');
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       // Get total users
-      const totalUsersResult = await this.db.execute(sql`
-        SELECT COUNT(*) as count FROM users
-      `);
-      const totalUsers = Number(totalUsersResult.rows[0]?.count || 0);
+      const totalUsersResult = await this.db.select({ count: sql<number>`count(*)` }).from(users);
+      const totalUsers = totalUsersResult[0]?.count || 0;
 
-      // Get active users (logged in within last 30 days)
-      const activeUsersResult = await this.db.execute(sql`
-        SELECT COUNT(*) as count 
-        FROM users 
-        WHERE "lastLoginAt" > NOW() - INTERVAL '30 days'
-      `);
-      const activeUsers = Number(activeUsersResult.rows[0]?.count || 0);
+      // Get active users - skip lastLoginAt check since column doesn't exist
+      // Use updatedAt as a proxy for activity
+      const activeUsersResult = await this.db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(and(
+          isNotNull(users.updatedAt),
+          gte(users.updatedAt, thirtyDaysAgo)
+        ));
+      const activeUsers = activeUsersResult[0]?.count || 0;
 
       // Get total documents
-      const totalDocsResult = await this.db.execute(sql`
-        SELECT COUNT(*) as count FROM documents
-      `);
-      const totalDocuments = Number(totalDocsResult.rows[0]?.count || 0);
+      const totalDocsResult = await this.db.select({ count: sql<number>`count(*)` }).from(documents);
+      const totalDocuments = totalDocsResult[0]?.count || 0;
 
-      // Get total storage used (sum of file sizes)
-      const storageResult = await this.db.execute(sql`
-        SELECT COALESCE(SUM("fileSize"), 0) as total_bytes 
-        FROM documents
-      `);
-      const totalStorageBytes = Number(storageResult.rows[0]?.total_bytes || 0);
+      // Get total storage used
+      const storageResult = await this.db
+        .select({ total: sql<number>`sum(${documents.fileSize})` })
+        .from(documents);
+      const totalStorageBytes = storageResult[0]?.total || 0;
 
       // Get uploads this month
-      const uploadsThisMonthResult = await this.db.execute(sql`
-        SELECT COUNT(*) as count 
-        FROM documents 
-        WHERE "uploadedAt" >= DATE_TRUNC('month', CURRENT_DATE)
-      `);
-      const uploadsThisMonth = Number(uploadsThisMonthResult.rows[0]?.count || 0);
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const uploadsThisMonthResult = await this.db
+        .select({ count: sql<number>`count(*)` })
+        .from(documents)
+        .where(gte(documents.createdAt, startOfMonth));
+      const uploadsThisMonth = uploadsThisMonthResult[0]?.count || 0;
 
       // Get new users this month
-      const newUsersThisMonthResult = await this.db.execute(sql`
-        SELECT COUNT(*) as count 
-        FROM users 
-        WHERE "createdAt" >= DATE_TRUNC('month', CURRENT_DATE)
-      `);
-      const newUsersThisMonth = Number(newUsersThisMonthResult.rows[0]?.count || 0);
+      const newUsersThisMonthResult = await this.db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(gte(users.createdAt, startOfMonth));
+      const newUsersThisMonth = newUsersThisMonthResult[0]?.count || 0;
 
       const stats = {
         totalUsers,
@@ -1359,11 +1362,11 @@ export class DatabaseStorage implements IStorage {
         newUsersThisMonth
       };
 
-      console.log('📊 Admin stats calculated:', stats);
+      console.log('📊 Admin stats retrieved:', stats);
       return stats;
     } catch (error) {
       console.error('❌ Error fetching admin stats:', error);
-      // Return zeros on error instead of throwing
+      // Return safe defaults on error
       return {
         totalUsers: 0,
         activeUsers: 0,

@@ -44,7 +44,7 @@ import FeatureFlagsPage from "@/pages/admin/feature-flags"; // Assuming this pat
 
 
 function Router() {
-  const { user, isLoading } = useAuth();
+  const { user = null, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
   // Show loading state while checking authentication

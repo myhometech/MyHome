@@ -1327,7 +1327,7 @@ export class DatabaseStorage implements IStorage {
       // Get total storage used
       console.log('📊 Fetching storage usage...');
       const totalStorageBytesResult = await this.db.execute(sql`
-        SELECT COALESCE(SUM(fileSize), 0)::bigint as total FROM documents
+        SELECT COALESCE(SUM(file_size), 0)::bigint as total FROM documents
       `);
       const totalStorageBytes = totalStorageBytesResult[0]?.total || 0;
       console.log('📊 Total storage bytes:', totalStorageBytes);
@@ -1409,7 +1409,10 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
 
-      const users = result.map((row: any) => ({
+      // Handle both array and non-array results from db.execute
+      const resultRows = Array.isArray(result) ? result : (result.rows || []);
+      
+      const users = resultRows.map((row: any) => ({
         id: row.id,
         email: row.email,
         firstName: row.first_name,

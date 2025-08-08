@@ -79,6 +79,8 @@ const developmentCSP = {
       "https://unpkg.com",
       "https://docs.opencv.org",
       "https://replit.com",
+      "https://*.replit.app",
+      "https://*.replit.dev",
       "blob:"
     ],
     styleSrc: [
@@ -100,6 +102,8 @@ const developmentCSP = {
       "https://*.googleusercontent.com",
       "https://images.unsplash.com",
       "https://myhome-docs.com",
+      "https://*.replit.app",
+      "https://*.replit.dev",
       "*" // More permissive for development
     ],
     connectSrc: [
@@ -108,6 +112,8 @@ const developmentCSP = {
       "https://api.openai.com",
       "https://api.perplexity.ai",
       "https://storage.googleapis.com",
+      "https://*.replit.app",
+      "https://*.replit.dev",
       "wss://localhost:*",
       "ws://localhost:*",
       "wss://*",
@@ -120,6 +126,7 @@ const developmentCSP = {
       "https://storage.googleapis.com",
       "https://*.googleapis.com"
     ],
+    frameAncestors: ["'none'"],
     objectSrc: ["'none'"],
     mediaSrc: ["'self'", "blob:", "data:"],
     workerSrc: ["'self'", "blob:"],
@@ -139,10 +146,8 @@ export const securityHeaders = helmet({
     preload: true
   },
   
-  // Prevent clickjacking
-  frameguard: {
-    action: 'deny'
-  },
+  // Prevent clickjacking - disabled since we handle this via CSP frameAncestors
+  frameguard: false,
   
   // Prevent MIME type sniffing
   noSniff: true,

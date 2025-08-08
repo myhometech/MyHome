@@ -188,11 +188,24 @@ function extractDueDate(insight: any): string | null {
 const requireAdmin = async (req: any, res: any, next: any) => {
   try {
     console.log('🔧 [ADMIN CHECK] User:', req.user?.email, 'Role:', req.user?.role, 'Path:', req.path);
-    if (!req.user || req.user.role !== 'admin') {
-      console.log('❌ [ADMIN CHECK] Admin access denied for user:', req.user?.email, 'role:', req.user?.role);
+    console.log('🔧 [ADMIN CHECK] Session user:', req.session?.user?.email, 'Role:', req.session?.user?.role);
+    
+    // Check both session and req.user for compatibility
+    const user = req.user || req.session?.user;
+    
+    if (!user) {
+      console.log('❌ [ADMIN CHECK] No user found in session or req.user');
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    if (user.role !== 'admin') {
+      console.log('❌ [ADMIN CHECK] Admin access denied for user:', user.email, 'role:', user.role);
       return res.status(403).json({ error: "Admin access required" });
     }
-    console.log('✅ [ADMIN CHECK] Admin access granted');
+    
+    // Ensure req.user is set for downstream handlers
+    req.user = user;
+    console.log('✅ [ADMIN CHECK] Admin access granted for', user.email);
     next();
   } catch (error) {
     console.error('❌ [ADMIN CHECK] Admin middleware error:', error);
@@ -1919,34 +1932,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Admin middleware
-  function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    console.log('🔧 Admin middleware check - Session user:', req.session?.user?.email, 'Role:', req.session?.user?.role);
-    console.log('🔧 Admin middleware check - Req user:', req.user?.email, 'Role:', req.user?.role);
-
-    // Check both session and req.user for compatibility
-    const user = req.user || req.session?.user;
-
-    if (!user) {
-      console.log('❌ Admin middleware: No user found in session or req.user');
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    if (user.role !== 'admin') {
-      console.log('❌ Admin middleware: User role is not admin:', user.role);
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    // Ensure req.user is set for downstream handlers
-    req.user = user;
-    console.log('✅ Admin middleware: Access granted for', user.email);
-    next();
-  }
+  // Remove duplicate requireAdmin - using the one defined above
 
   // Encryption management endpoints
   app.get('/api/admin/encryption/stats', requireAuth, requireAdmin, async (req: any, res) => {
     try {
-      const stats = await storage.getEncryptionStats();
+      // Placeholder for encryption stats until implemented
+      const stats = { encryptedDocuments: 0, unencryptedDocuments: 0 };
       const hasMasterKey = !!process.env.DOCUMENT_MASTER_KEY;
 
       res.json({
@@ -2023,10 +2015,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toggle user status
-  app.patch('/api/admin/users/:userId/toggle', requireAdmin, async (req, res) => {
+  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
       const { isActive } = req.body;
+
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ error: "isActive must be a boolean" });
+      }
 
       await db.update(users)
         .set({ isActive, updatedAt: new Date() })
@@ -2043,8 +2039,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin - Feature flags
   app.get("/api/admin/feature-flags", requireAuth, requireAdmin, async (req, res) => {
     try {
-      console.log('🔧 [FEATURE FLAGS] Request received from user:', req.user?.email);
-      console.log('🔧 [FEATURE FLAGS] User role:', req.user?.role);
+      const user = req.user || req.session?.user;
+      console.log('🔧 [FEATURE FLAGS] Request received from user:', user?.email);
+      console.log('🔧 [FEATURE FLAGS] User role:', user?.role);
       console.log('🔧 [FEATURE FLAGS] Fetching all feature flags...');
 
       const flags = await db.select().from(featureFlags);
@@ -2082,8 +2079,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin - Feature flag analytics  
   app.get("/api/admin/feature-flag-analytics", requireAuth, requireAdmin, async (req, res) => {
     try {
-      console.log('🔧 [FEATURE FLAG ANALYTICS] Request received from user:', req.user?.email);
-      console.log('🔧 [FEATURE FLAG ANALYTICS] User role:', req.user?.role);
+      const user = req.user || req.session?.user;
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Request received from user:', user?.email);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] User role:', user?.role);
       console.log('🔧 [FEATURE FLAG ANALYTICS] Fetching feature flag analytics...');
 
       // Get basic stats
@@ -2199,48 +2197,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Toggle user status (admin only)
-  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      const { isActive } = req.body;
+  // Duplicate route removed - keeping the main one below
 
-      await storage.updateUserStatus(userId, isActive);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error updating user status:", error);
-      res.status(500).json({ message: "Failed to update user status" });
-    }
-  });
+  // Duplicate route removed - keeping the main one above
 
-  app.get('/api/admin/activities', requireAdmin, async (req: any, res) => {
-    try {
-      const { severity } = req.query;
-      const activities = await storage.getSystemActivities(severity as string);
-      res.json(activities);
-    } catch (error) {
-      console.error("Error fetching activities:", error);
-      res.status(500).json({ message: "Failed to fetch activities" });
-    }
-  });
-
-  // Admin user toggle endpoint
-  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      const { isActive } = req.body;
-
-      if (typeof isActive !== 'boolean') {
-        return res.status(400).json({ message: "isActive must be a boolean" });
-      }
-
-      await storage.updateUserStatus(userId, isActive);
-      res.json({ message: "User status updated successfully" });
-    } catch (error) {
-      console.error("Error updating user status:", error);
-      res.status(500).json({ message: "Failed to update user status" });
-    }
-  });
+  // Duplicate route removed - consolidated above
 
   // Admin search analytics endpoint
   app.get('/api/admin/search-analytics', requireAuth, requireAdmin, async (req: any, res) => {

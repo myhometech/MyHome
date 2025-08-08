@@ -24,8 +24,22 @@ export function UsersTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: users, isLoading } = useQuery<UserDetails[]>({
+  const { data: users, isLoading, error } = useQuery<UserDetails[]>({
     queryKey: ['/api/admin/users'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/users', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch users: ${response.status}`);
+      }
+      return response.json();
+    },
+    retry: 3,
+    retryDelay: 1000
   });
 
   const toggleUserMutation = useMutation({
@@ -66,6 +80,15 @@ export function UsersTable() {
 
   if (isLoading) {
     return <div className="text-center py-4">Loading users...</div>;
+  }
+
+  if (error) {
+    console.error('UsersTable error:', error);
+    return (
+      <div className="text-center py-4 text-red-600">
+        Error loading users: {error.message}
+      </div>
+    );
   }
 
   if (!users || users.length === 0) {

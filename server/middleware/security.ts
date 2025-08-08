@@ -138,31 +138,31 @@ const developmentCSP = {
 // Helmet security configuration
 export const securityHeaders = helmet({
   contentSecurityPolicy: false, // Disabled - using explicit CSP middleware in index.ts
-  
+
   // HTTP Strict Transport Security
   hsts: {
     maxAge: 63072000, // 2 years
     includeSubDomains: true,
     preload: true
   },
-  
+
   // Prevent clickjacking - disabled since we handle this via CSP frameAncestors
   frameguard: false,
-  
+
   // Prevent MIME type sniffing
   noSniff: true,
-  
+
   // XSS Protection
   xssFilter: true,
-  
+
   // Hide X-Powered-By header
   hidePoweredBy: true,
-  
+
   // Referrer Policy
   referrerPolicy: {
     policy: "strict-origin-when-cross-origin"
   },
-  
+
   // Note: Permissions Policy configuration would go here when supported by helmet
 });
 
@@ -176,7 +176,7 @@ export const rateLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  
+
   // Skip rate limiting for health checks and static assets
   skip: (req: Request) => {
     const path = req.path;
@@ -199,7 +199,7 @@ export const rateLimiter = rateLimit({
       path.endsWith('.ttf')
     );
   },
-  
+
   // Custom handler for rate limit exceeded
   handler: (req: Request, res: Response) => {
     res.status(429).json({
@@ -230,10 +230,10 @@ export const corsOptions = {
       /https:\/\/.*\.replit\.app$/,
       process.env.REPLIT_DOMAINS?.split(',') || []
     ].flat().filter(Boolean);
-    
+
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     // Check if origin matches any allowed origin (string or regex)
     const isAllowed = allowedOrigins.some(allowedOrigin => {
       if (typeof allowedOrigin === 'string') {
@@ -243,7 +243,7 @@ export const corsOptions = {
       }
       return false;
     });
-    
+
     if (isAllowed) {
       callback(null, true);
     } else {
@@ -275,16 +275,16 @@ export const securityLogger = (req: Request, res: Response, next: NextFunction) 
     /javascript:/i,  // JavaScript protocol
     /data:.*base64/i  // Data URI with base64 (potential malicious content)
   ];
-  
+
   const userAgent = req.get('User-Agent') || '';
   const referer = req.get('Referer') || '';
   const url = req.url;
-  
+
   // Check for suspicious patterns in URL, User-Agent, and Referer
   const suspicious = suspiciousPatterns.some(pattern => 
     pattern.test(url) || pattern.test(userAgent) || pattern.test(referer)
   );
-  
+
   if (suspicious) {
     console.warn(`🚨 Suspicious request detected:`, {
       ip: req.ip,
@@ -295,6 +295,6 @@ export const securityLogger = (req: Request, res: Response, next: NextFunction) 
       timestamp: new Date().toISOString()
     });
   }
-  
+
   next();
 };

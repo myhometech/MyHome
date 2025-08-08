@@ -79,3 +79,7 @@ export function getConfig(): Config {
   }
   return config;
 }
+
+export function isConfigReady(): boolean {
+  return config !== null;
+}

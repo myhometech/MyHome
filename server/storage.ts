@@ -162,7 +162,7 @@ export interface IStorage {
     newFilePath: string
   ): Promise<Document | undefined>;
 
-  // DOC-501: Document insights operations  
+  // DOC-501: Document insights operations
   createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight>;
   getDocumentInsights(documentId: number, userId: string, tier?: string): Promise<DocumentInsight[]>;
   deleteDocumentInsight(documentId: number, userId: string, insightId: string): Promise<void>;
@@ -1296,61 +1296,59 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin methods implementation
-  async getAdminStats(): Promise<{
-    totalUsers: number;
-    activeUsers: number;
-    totalDocuments: number;
-    totalStorageBytes: number;
-    uploadsThisMonth: number;
-    newUsersThisMonth: number;
-  }> {
-    console.log('📊 Fetching admin stats from database...');
-
+  async getAdminStats() {
     try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      console.log('📊 Starting getAdminStats execution...');
 
-      // Get total users
-      const totalUsersResult = await this.db.select({ count: sql<number>`count(*)` }).from(users);
+      // Get total users count
+      console.log('📊 Fetching total users...');
+      const totalUsersResult = await this.db.execute(sql`
+        SELECT COUNT(*)::int as count FROM users
+      `);
       const totalUsers = totalUsersResult[0]?.count || 0;
+      console.log('📊 Total users:', totalUsers);
 
-      // Get active users - Use updatedAt as a proxy for activity
-      const activeUsersResult = await this.db
-        .select({ count: sql<number>`count(*)` })
-        .from(users)
-        .where(and(
-          isNotNull(users.updatedAt),
-          gte(users.updatedAt, thirtyDaysAgo)
-        ));
+      // Get active users count  
+      console.log('📊 Fetching active users...');
+      const activeUsersResult = await this.db.execute(sql`
+        SELECT COUNT(*)::int as count FROM users WHERE isActive = true
+      `);
       const activeUsers = activeUsersResult[0]?.count || 0;
+      console.log('📊 Active users:', activeUsers);
 
-      // Get total documents
-      const totalDocsResult = await this.db.select({ count: sql<number>`count(*)` }).from(documents);
-      const totalDocuments = totalDocsResult[0]?.count || 0;
+      // Get total documents count
+      console.log('📊 Fetching total documents...');
+      const totalDocumentsResult = await this.db.execute(sql`
+        SELECT COUNT(*)::int as count FROM documents
+      `);
+      const totalDocuments = totalDocumentsResult[0]?.count || 0;
+      console.log('📊 Total documents:', totalDocuments);
 
       // Get total storage used
-      const storageResult = await this.db
-        .select({ total: sql<number>`coalesce(sum(${documents.fileSize}), 0)` })
-        .from(documents);
-      const totalStorageBytes = storageResult[0]?.total || 0;
+      console.log('📊 Fetching storage usage...');
+      const totalStorageBytesResult = await this.db.execute(sql`
+        SELECT COALESCE(SUM(fileSize), 0)::bigint as total FROM documents
+      `);
+      const totalStorageBytes = totalStorageBytesResult[0]?.total || 0;
+      console.log('📊 Total storage bytes:', totalStorageBytes);
 
       // Get uploads this month
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-
-      const uploadsThisMonthResult = await this.db
-        .select({ count: sql<number>`count(*)` })
-        .from(documents)
-        .where(gte(documents.uploadedAt, startOfMonth));
+      console.log('📊 Fetching uploads this month...');
+      const uploadsThisMonthResult = await this.db.execute(sql`
+        SELECT COUNT(*)::int as count FROM documents 
+        WHERE uploadedAt >= date_trunc('month', CURRENT_DATE)
+      `);
       const uploadsThisMonth = uploadsThisMonthResult[0]?.count || 0;
+      console.log('📊 Uploads this month:', uploadsThisMonth);
 
       // Get new users this month
-      const newUsersThisMonthResult = await this.db
-        .select({ count: sql<number>`count(*)` })
-        .from(users)
-        .where(gte(users.createdAt, startOfMonth));
+      console.log('📊 Fetching new users this month...');
+      const newUsersThisMonthResult = await this.db.execute(sql`
+        SELECT COUNT(*)::int as count FROM users 
+        WHERE createdAt >= date_trunc('month', CURRENT_DATE)
+      `);
       const newUsersThisMonth = newUsersThisMonthResult[0]?.count || 0;
+      console.log('📊 New users this month:', newUsersThisMonth);
 
       const stats = {
         totalUsers: parseInt(totalUsers.toString(), 10),
@@ -1361,19 +1359,12 @@ export class DatabaseStorage implements IStorage {
         newUsersThisMonth: parseInt(newUsersThisMonth.toString(), 10)
       };
 
-      console.log('📊 Admin stats retrieved:', stats);
+      console.log('📊 Final admin stats:', stats);
       return stats;
     } catch (error) {
-      console.error('❌ Error fetching admin stats:', error);
-      // Return safe defaults on error
-      return {
-        totalUsers: 0,
-        activeUsers: 0,
-        totalDocuments: 0,
-        totalStorageBytes: 0,
-        uploadsThisMonth: 0,
-        newUsersThisMonth: 0
-      };
+      console.error('❌ Error in getAdminStats:', error);
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'Unknown error');
+      throw error;
     }
   }
 
@@ -1391,33 +1382,34 @@ export class DatabaseStorage implements IStorage {
     createdAt: string;
   }>> {
     try {
-      console.log('👥 Fetching all users with stats...');
+      console.log('🔍 Executing getAllUsersWithStats query...');
 
       const result = await this.db.execute(sql`
         SELECT 
           u.id,
           u.email,
-          u."firstName",
-          u."lastName", 
+          u.firstName,
+          u.lastName,
           u.role,
-          u."isActive",
-          u."lastLoginAt",
-          u."createdAt",
-          COALESCE(doc_stats.document_count, 0) as "documentCount",
-          COALESCE(doc_stats.storage_used, 0) as "storageUsed"
+          u.isActive,
+          u.lastLoginAt,
+          u.createdAt,
+          COUNT(DISTINCT d.id)::int as documentCount,
+          COALESCE(SUM(d.fileSize), 0)::bigint as storageUsed
         FROM users u
-        LEFT JOIN (
-          SELECT 
-            "userId",
-            COUNT(*) as document_count,
-            COALESCE(SUM("fileSize"), 0) as storage_used
-          FROM documents 
-          GROUP BY "userId"
-        ) doc_stats ON u.id = doc_stats."userId"
-        ORDER BY u."createdAt" DESC
+        LEFT JOIN documents d ON u.id = d.userId
+        GROUP BY u.id, u.email, u.firstName, u.lastName, u.role, u.isActive, u.lastLoginAt, u.createdAt
+        ORDER BY u.createdAt DESC
       `);
 
-      const users = result.rows.map(row => ({
+      console.log(`🔍 Raw query result: ${result?.length || 0} rows`);
+
+      if (!result || result.length === 0) {
+        console.log('⚠️ No users found in database');
+        return [];
+      }
+
+      const users = result.map((row: any) => ({
         id: row.id,
         email: row.email,
         firstName: row.firstName,
@@ -1430,11 +1422,12 @@ export class DatabaseStorage implements IStorage {
         createdAt: row.createdAt
       }));
 
-      console.log(`👥 Found ${users.length} users with stats`);
+      console.log(`🔍 Processed ${users.length} users:`, users.map(u => ({ id: u.id, email: u.email, role: u.role })));
       return users;
     } catch (error) {
-      console.error('❌ Error fetching users with stats:', error);
-      return [];
+      console.error('❌ Error getting all users with stats:', error);
+      console.error('❌ Error details:', error instanceof Error ? error.stack : 'Unknown error');
+      throw error;
     }
   }
 

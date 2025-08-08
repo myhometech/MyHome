@@ -1791,11 +1791,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Admin middleware
-  const requireAdmin = (req: any, res: any, next: any) => {
-    if (!req.user || req.user.role !== 'admin') {
-      return res.status(403).json({ message: "Admin access required" });
+  const requireAdmin = async (req: any, res: any, next: any) => {
+    try {
+      // First check if user is authenticated
+      if (!req.user && !req.session?.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get user from session if not in req.user
+      let user = req.user;
+      if (!user && req.session?.user) {
+        user = req.session.user;
+      }
+
+      // If still no user, try to get from database
+      if (!user) {
+        const userId = req.session?.user?.id;
+        if (userId) {
+          user = await storage.getUser(userId);
+        }
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Check admin role
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Ensure user is available in req.user for subsequent middleware
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error("Admin middleware error:", error);
+      return res.status(500).json({ message: "Authentication error" });
     }
-    next();
   };
 
   // Encryption management endpoints
@@ -1837,11 +1869,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin stats endpoint (admin only)
   app.get('/api/admin/stats', requireAuth, requireAdmin, async (req: any, res) => {
     try {
-      console.log('📊 Admin stats requested by:', req.user?.email);
+      console.log('📊 Admin stats requested by:', req.user?.email || req.session?.user?.email);
+      console.log('📊 User object:', { id: req.user?.id, role: req.user?.role });
+      
       const stats = await storage.getAdminStats();
+      console.log('📊 Stats retrieved successfully:', Object.keys(stats));
+      
       res.json(stats);
     } catch (error) {
       console.error("❌ Error fetching admin stats:", error);
+      console.error("❌ Error stack:", error instanceof Error ? error.stack : 'No stack trace');
       res.status(500).json({ message: "Failed to fetch admin stats" });
     }
   });
@@ -1849,11 +1886,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin users endpoint (admin only)
   app.get('/api/admin/users', requireAuth, requireAdmin, async (req: any, res) => {
     try {
-      console.log('👥 Admin users list requested by:', req.user?.email);
+      console.log('👥 Admin users list requested by:', req.user?.email || req.session?.user?.email);
+      console.log('👥 Fetching users with stats...');
+      
       const users = await storage.getAllUsersWithStats();
+      console.log(`👥 Retrieved ${users?.length || 0} users`);
+      
       res.json(users);
     } catch (error) {
       console.error("❌ Error fetching users with stats:", error);
+      console.error("❌ Error details:", error instanceof Error ? error.message : 'Unknown error');
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });

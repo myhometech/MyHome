@@ -12,7 +12,7 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
-  
+
   return session({
     secret: process.env.SESSION_SECRET || "simple-auth-secret-key-for-development",
     store: sessionStore,
@@ -31,29 +31,23 @@ export function getSession() {
 export function setupSimpleAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
-  
+
   // Remove debug middleware
 }
 
-export const requireAuth: RequestHandler = (req: any, res, next) => {
-  // Check both session-based auth (simpleAuth) and passport auth
-  const sessionUser = req.session?.user;
-  const passportUser = req.user;
-  
-  // Use either auth method
-  const user = sessionUser || passportUser;
-  
+export const requireAuth: RequestHandler = (req: any, res: any, next: any) => {
+  // Check both session and req.user (for different auth methods)
+  const user = req.user || req.session?.user;
+
   if (!user) {
+    console.log('❌ Authentication failed - no user in session or req.user');
+    console.log('❌ Session user:', req.session?.user ? 'exists' : 'missing');
+    console.log('❌ Req user:', req.user ? 'exists' : 'missing');
     return res.status(401).json({ message: "Authentication required" });
   }
-  
-  // Ensure req.user is set for both auth methods
+
+  // Ensure req.user is set for downstream middleware
   req.user = user;
-  
-  // Also ensure session compatibility
-  if (!req.session?.user && user) {
-    req.session.user = user;
-  }
-  
+  console.log('✅ Authentication successful for user:', user.email);
   next();
 };

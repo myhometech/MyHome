@@ -1336,7 +1336,7 @@ export class DatabaseStorage implements IStorage {
       console.log('📊 Fetching uploads this month...');
       const uploadsThisMonthResult = await this.db.execute(sql`
         SELECT COUNT(*)::int as count FROM documents 
-        WHERE uploadedAt >= date_trunc('month', CURRENT_DATE)
+        WHERE uploaded_at >= date_trunc('month', CURRENT_DATE)
       `);
       const uploadsThisMonth = uploadsThisMonthResult[0]?.count || 0;
       console.log('📊 Uploads this month:', uploadsThisMonth);
@@ -1345,7 +1345,7 @@ export class DatabaseStorage implements IStorage {
       console.log('📊 Fetching new users this month...');
       const newUsersThisMonthResult = await this.db.execute(sql`
         SELECT COUNT(*)::int as count FROM users 
-        WHERE createdAt >= date_trunc('month', CURRENT_DATE)
+        WHERE created_at >= date_trunc('month', CURRENT_DATE)
       `);
       const newUsersThisMonth = newUsersThisMonthResult[0]?.count || 0;
       console.log('📊 New users this month:', newUsersThisMonth);
@@ -1457,37 +1457,37 @@ export class DatabaseStorage implements IStorage {
           email as "userEmail",
           'info' as severity,
           NULL as metadata,
-          "lastLoginAt" as timestamp
+          last_login_at as timestamp
         FROM users 
-        WHERE "lastLoginAt" IS NOT NULL
+        WHERE last_login_at IS NOT NULL
 
         UNION ALL
 
         SELECT 
-          ROW_NUMBER() OVER (ORDER BY "uploadedAt" DESC) + 10000 as id,
+          ROW_NUMBER() OVER (ORDER BY uploaded_at DESC) + 10000 as id,
           'document_uploaded' as type,
-          CONCAT('Document uploaded: ', "fileName") as description,
-          "userId",
-          (SELECT email FROM users WHERE id = documents."userId") as "userEmail",
+          CONCAT('Document uploaded: ', file_name) as description,
+          user_id as "userId",
+          (SELECT email FROM users WHERE id = documents.user_id) as "userEmail",
           'info' as severity,
-          JSON_BUILD_OBJECT('fileName', "fileName", 'fileSize', "fileSize") as metadata,
-          "uploadedAt" as timestamp
+          JSON_BUILD_OBJECT('fileName', file_name, 'fileSize', file_size) as metadata,
+          uploaded_at as timestamp
         FROM documents 
-        WHERE "uploadedAt" > NOW() - INTERVAL '7 days'
+        WHERE uploaded_at > NOW() - INTERVAL '7 days'
 
         UNION ALL
 
         SELECT 
-          ROW_NUMBER() OVER (ORDER BY "createdAt" DESC) + 20000 as id,
+          ROW_NUMBER() OVER (ORDER BY created_at DESC) + 20000 as id,
           'user_registered' as type,
           CONCAT('New user registered: ', email) as description,
           id as "userId",
           email as "userEmail",
           'info' as severity,
           JSON_BUILD_OBJECT('role', role) as metadata,
-          "createdAt" as timestamp
+          created_at as timestamp
         FROM users 
-        WHERE "createdAt" > NOW() - INTERVAL '30 days'
+        WHERE created_at > NOW() - INTERVAL '30 days'
 
         ORDER BY timestamp DESC
         LIMIT 100

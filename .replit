@@ -18,7 +18,7 @@ externalPort = 80
 PORT = "5000"
 
 [workflows]
-runButton = "Development Server (Fixed)"
+runButton = "Simple Development Server"
 
 [[workflows.workflow]]
 name = "Project"
@@ -223,6 +223,44 @@ args = "npm run dev"
 name = "Simple Dev Start"
 author = 45314489
 mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow]]
+name = "Simple Development Server"
+author = 45314489
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow]]
+name = "Debug Development Server"
+author = 45314489
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"Starting development server...\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"Node version: $(node --version)\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"NPM version: $(npm --version)\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"Current directory: $(pwd)\""
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "ls -la server/"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"

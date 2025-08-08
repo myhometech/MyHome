@@ -899,7 +899,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     <Button onClick={stopCamera} variant="outline" size="sm" className="bg-white/90">
                       <Check className="h-4 w-4" />
                     </Button>
-                    <Button onClick={handleProcessCapturedPages} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button onClick={captureFrame} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
                       <Camera className="h-4 w-4 mr-2" />
                       Capture Page
                     </Button>
@@ -912,7 +912,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     <Check className="h-4 w-4 mr-2" />
                     Stop Camera
                   </Button>
-                  <Button onClick={handleProcessCapturedPages} size="lg">
+                  <Button onClick={captureFrame} size="lg">
                     <Camera className="h-4 w-4 mr-2" />
                     Capture Page
                   </Button>

@@ -229,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ? [
           "default-src 'self'",
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://js.stripe.com https://cdn.jsdelivr.net",
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
           "img-src 'self' data: blob: https://myhome-docs.com https://storage.googleapis.com https://*.googleusercontent.com https://images.unsplash.com",
           "font-src 'self' data: https://fonts.gstatic.com",
           "connect-src 'self' https://api.stripe.com https://api.openai.com https://storage.googleapis.com",
@@ -240,7 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       : [
           "default-src 'self'",
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://*.replit.app https://*.replit.dev blob:",
-          "style-src 'self' 'unsafe-inline'", 
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com", 
           "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
           "font-src 'self' data:",
           "connect-src 'self' wss: ws: https://*.replit.app https://*.replit.dev",

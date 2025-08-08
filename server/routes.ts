@@ -245,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
           "img-src 'self' data: blob: https://myhome-docs.com https://storage.googleapis.com https://*.googleusercontent.com https://images.unsplash.com",
           "font-src 'self' data: https://fonts.gstatic.com",
-          "connect-src 'self' https://api.stripe.com https://api.openai.com https://storage.googleapis.com",
+          "connect-src 'self' data: https://api.stripe.com https://api.openai.com https://storage.googleapis.com",
           "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
           "object-src 'none'",
           "frame-ancestors 'none'"
@@ -256,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com", 
           "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
           "font-src 'self' data:",
-          "connect-src 'self' wss: ws: https://*.replit.app https://*.replit.dev",
+          "connect-src 'self' data: wss: ws: https://*.replit.app https://*.replit.dev",
           "object-src 'none'",
           "frame-ancestors 'none'"
         ].join('; ') + ';';

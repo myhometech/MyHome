@@ -43,6 +43,7 @@ const productionCSP = {
     ],
     connectSrc: [
       "'self'",
+      "data:",
       "https://api.stripe.com",
       "https://api.openai.com",
       "https://api.perplexity.ai",
@@ -108,6 +109,7 @@ const developmentCSP = {
     ],
     connectSrc: [
       "'self'",
+      "data:",
       "https://api.stripe.com",
       "https://api.openai.com",
       "https://api.perplexity.ai",

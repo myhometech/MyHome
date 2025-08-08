@@ -22,6 +22,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 7. Document Deletion: Premium trash bin (30-day) + confirmation dialogs for all users
 
 ## Recent Changes
+- **2025-08-08**: Standardized all admin API calls to use centralized client (client/src/api/client.ts) - removed direct fetch calls, hardcoded URLs, and ensured proper runtime configuration support for all environments.
 - **2025-08-08**: Fixed all 37 backend routing TypeScript errors in server/routes.ts - removed mock database conflicts, added proper Drizzle imports, fixed type safety issues. Backend now compiles cleanly and all API endpoints functional.
 - **2025-08-08**: Added proper HTML meta tags for SEO/social sharing, removed development script from production build.
 - **2025-08-08**: Resolved critical `/api/auth/me` endpoint causing frontend hanging on "loading configuration".
@@ -84,6 +85,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 ### Runtime Configuration
 - **Frontend Config**: Runtime configuration loading via `/config.json` endpoint for dynamic API base URL configuration.
 - **Environment Agnostic**: No hardcoded dev URLs in frontend build; all API calls use runtime-configured base URL.
+- **Centralized API Client**: All admin dashboard components use shared API client (`client/src/api/client.ts`) with proper credential handling and runtime URL configuration.
 - **Production Static Serving**: Express serves client/dist static assets with SPA fallback for non-API routes.
 
 ### Automated Systems

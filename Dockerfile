@@ -13,7 +13,9 @@ RUN npm ci
 COPY . .
 
 # Build both client and server
-RUN npm run build
+RUN npm run build && \
+    mkdir -p dist/scripts && \
+    npx esbuild server/scripts/seedAdmin.ts --platform=node --packages=external --bundle --format=esm --outdir=dist/scripts
 
 # ---------- Runtime stage ----------
 FROM node:20-slim AS runtime

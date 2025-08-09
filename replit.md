@@ -135,3 +135,11 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Achievement**: Implemented absolute, environment-driven Google OAuth callback URLs to eliminate redirect URI mismatches
 - **Configuration**: Dynamic callback URL construction, boot-time validation, intelligent development defaults
 - **Status**: ✅ **PRODUCTION READY** - OAuth callbacks now dynamically configured per environment
+
+### August 9, 2025 - APP_ORIGIN Deployment Fix ✅
+- **Issue**: Production deployments failed with "APP_ORIGIN environment variable is required" error
+- **Root Cause**: Missing APP_ORIGIN environment variable caused validateAppOrigin function to throw startup error
+- **Resolution**: Added APP_ORIGIN secret with production domain `https://myhome-docs.com`
+- **Validation**: OAuth configuration validation now passes, server starts successfully
+- **Documentation**: Updated DEPLOYMENT.md and .env.example with APP_ORIGIN requirements
+- **Status**: ✅ **DEPLOYMENT READY** - All environment variables configured, production deployment unblocked

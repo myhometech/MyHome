@@ -14,11 +14,14 @@ Your HomeDocs application is production-ready and can be deployed using Replit D
 
 ### ✅ Environment Variables
 The following environment variables are already configured:
+- `APP_ORIGIN` - **REQUIRED**: Application base URL (e.g., https://myhome-docs.com)
 - `DATABASE_URL` - PostgreSQL connection string
 - `SESSION_SECRET` - Session encryption key  
 - `GOOGLE_CLIENT_ID` - Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
 - `OPENAI_API_KEY` - OpenAI API for OCR and AI features
+
+**⚠️ Critical**: The `APP_ORIGIN` environment variable is mandatory for production deployments. Without it, the application will crash on startup due to OAuth callback URL validation.
 
 ### ✅ Database Schema
 Database tables are created and ready:

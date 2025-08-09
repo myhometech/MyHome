@@ -44,7 +44,7 @@ import SharedWithMe from "@/pages/shared-with-me";
 
 function Router() {
   const authResult = useAuth();
-  const { user, isLoading, refetch } = authResult;
+  const { user = null, isLoading = false, refetch } = authResult;
   const [, setLocation] = useLocation();
 
   // Re-check auth on page focus to handle OAuth redirects

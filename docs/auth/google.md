@@ -14,33 +14,45 @@ The following environment variables are required for Google OAuth to function co
 
 - `CALLBACK_PATH`: The callback path for OAuth (default: `/auth/google/callback`)
 
-## Environment Matrix
+## Environment Matrix (AUTH-323)
 
-| Environment | APP_ORIGIN Example | Full Callback URL |
-|-------------|-------------------|-------------------|
-| **Local Development** | `http://localhost:5000` | `http://localhost:5000/auth/google/callback` |
-| **Staging** | `https://staging.myhome.app` | `https://staging.myhome.app/auth/google/callback` |
-| **Production** | `https://myhome.app` | `https://myhome.app/auth/google/callback` |
+**Single Source of Truth** for OAuth URIs per environment. Google Cloud Console settings must match exactly:
 
-## Google Cloud Console Setup
+| Environment | APP_ORIGIN | Authorized JavaScript Origins | Authorized Redirect URIs |
+|-------------|------------|------------------------------|--------------------------|
+| Local       | `http://localhost:5000` | `http://localhost:5000` | `http://localhost:5000/auth/google/callback` |
+| Staging     | `https://staging.myhome-docs.com` | `https://staging.myhome-docs.com` | `https://staging.myhome-docs.com/auth/google/callback` |
+| Production  | `https://myhome-docs.com` | `https://myhome-docs.com` | `https://myhome-docs.com/auth/google/callback` |
 
-In your Google Cloud Console OAuth client configuration, add these **Authorized redirect URIs**:
+## Google Cloud Console Setup Process (AUTH-323)
 
-### For All Environments:
-```
-http://localhost:5000/auth/google/callback
-https://[your-repl-name].[username].replit.app/auth/google/callback
-https://staging.myhome.app/auth/google/callback
-https://myhome.app/auth/google/callback
-```
+**Step-by-step configuration procedure:**
 
-### Authorized JavaScript Origins:
-```
-http://localhost:5000
-https://[your-repl-name].[username].replit.app
-https://staging.myhome.app
-https://myhome.app
-```
+1. **Navigate to Google Cloud Console**
+   - Go to **APIs & Services → Credentials → [OAuth 2.0 Client IDs] → Web client**
+
+2. **Update Authorized JavaScript Origins**
+   - Set **exactly** the origins from the matrix above (one per line)
+   - Remove any extra or legacy entries
+   
+3. **Update Authorized Redirect URIs**
+   - Set **exactly** the callback URIs from the matrix above (one per line)
+   - Remove any stale/duplicate entries
+
+4. **Clean Up Legacy Entries**
+   - Remove old subdomains, ports, or HTTP where HTTPS is required
+   - Ensure **no trailing slashes** on any entries
+
+5. **Save and Publish**
+   - Save changes in Google Cloud Console
+   - Re-publish OAuth consent screen if prompted
+
+### Configuration Notes
+
+- **No trailing slashes** on any URLs
+- **Exact scheme/host/port** must match between environment and Google Console  
+- Callback path comes from `CALLBACK_PATH` (default `/auth/google/callback`)
+- Remove **all** entries not listed in the matrix to prevent ambiguous matches
 
 ## OAuth Security Features
 
@@ -71,6 +83,8 @@ The application validates configuration on startup:
 ### Common Issues:
 
 1. **redirect_uri_mismatch**: The callback URL in Google Console doesn't match your `APP_ORIGIN + CALLBACK_PATH`
+   - **Solution**: Verify Google Console entries match the Environment Matrix exactly
+   - **Check**: Remove any stale entries not in the matrix
 2. **invalid_request**: Missing or invalid `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
 3. **Configuration error on startup**: Invalid or missing `APP_ORIGIN`
 4. **state_mismatch**: CSRF protection triggered - usually indicates:
@@ -78,6 +92,16 @@ The application validates configuration on startup:
    - Cookie configuration problems (domain/path/sameSite)
    - User manually modified the callback URL
    - Potential CSRF attack attempt
+
+### Validation Checklist (AUTH-323)
+
+For each environment, verify:
+
+- [ ] `APP_ORIGIN` environment variable matches the matrix
+- [ ] Google Console **Authorized JavaScript Origins** contains only the matrix entry for that environment
+- [ ] Google Console **Authorized Redirect URIs** contains only the matrix callback URL for that environment
+- [ ] No trailing slashes on any entries
+- [ ] All legacy/extra entries removed from Google Console
 
 ### Debug Information:
 

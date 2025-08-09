@@ -72,7 +72,8 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Memory Optimization**: Manual garbage collection, resource tracking, OCR resource cleanup.
 
 ### Security & Monitoring
-- **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS, Mailgun webhook security (IP whitelisting, HMAC verification). OAuth callback URLs are environment-driven.
+- **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS, Mailgun webhook security (IP whitelisting, HMAC verification).
+- **OAuth Security**: Environment-driven callback URLs (AUTH-321), CSRF protection with state parameter (AUTH-322), Google Console alignment (AUTH-323).
 - **Monitoring**: Sentry integration for error tracking and performance.
 - **Health Checks**: Multi-subsystem health checks.
 
@@ -109,3 +110,21 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Error Tracking**: `@sentry/node`, `@sentry/react`
 - **Security Headers**: `helmet`
 - **Rate Limiting**: `express-rate-limit`
+
+## Recent Development Summary
+
+### August 9, 2025 - Google Console Environment Alignment (AUTH-323) ✅
+- **Achievement**: Established single source of truth for OAuth URIs with comprehensive Google Cloud Console alignment documentation
+- **Configuration Matrix**: Defined exact APP_ORIGIN and callback URLs for Local (`localhost:5000`), Staging (`staging.myhome-docs.com`), Production (`myhome-docs.com`)
+- **Documentation**: Created step-by-step Google Cloud Console configuration procedure, validation checklist, enhanced troubleshooting
+- **Status**: ✅ **DOCUMENTATION COMPLETE** - Ready for Google Console alignment using documented procedures
+
+### August 9, 2025 - OAuth State CSRF Protection (AUTH-322) ✅  
+- **Achievement**: Implemented OAuth `state` parameter for CSRF protection in Google OAuth flow
+- **Security**: Cryptographically secure state generation, session-based storage, strict verification, replay prevention
+- **Status**: ✅ **PRODUCTION READY** - OAuth flow now includes comprehensive CSRF protection
+
+### August 9, 2025 - OAuth Callback Environment Configuration (AUTH-321) ✅
+- **Achievement**: Implemented absolute, environment-driven Google OAuth callback URLs to eliminate redirect URI mismatches
+- **Configuration**: Dynamic callback URL construction, boot-time validation, intelligent development defaults
+- **Status**: ✅ **PRODUCTION READY** - OAuth callbacks now dynamically configured per environment

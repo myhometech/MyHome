@@ -22,6 +22,8 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 7. Document Deletion: Premium trash bin (30-day) + confirmation dialogs for all users
 
 ## Recent Changes
+- **2025-08-09**: Successfully updated Google OAuth credentials and resolved critical "Cannot access uninitialized variable" error in Home component. Fixed variable declaration order, added proper toast hook, and removed duplicate user queries. Authentication system now fully functional with users successfully logging into document library.
+- **2025-08-09**: Implemented comprehensive smoke test script (smoke-test.sh) for environment validation covering auth, uploads, OCR, insights, and RBAC. All core systems verified as operational.
 - **2025-08-08**: Resolved upstream CSP header interference - implemented comprehensive anti-upstream CSP override middleware with header removal, duplicate detection, and interference monitoring. Successfully allows favicon loading from https://myhome-docs.com without CSP blocking.
 - **2025-08-08**: Standardized all admin API calls to use centralized client (client/src/api/client.ts) - removed direct fetch calls, hardcoded URLs, and ensured proper runtime configuration support for all environments.
 - **2025-08-08**: Fixed all 37 backend routing TypeScript errors in server/routes.ts - removed mock database conflicts, added proper Drizzle imports, fixed type safety issues. Backend now compiles cleanly and all API endpoints functional.

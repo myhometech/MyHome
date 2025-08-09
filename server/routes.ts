@@ -11,7 +11,7 @@ import { EmailUploadLogger } from './emailUploadLogger';
 import { dvlaLookupService } from './dvlaLookupService';
 import { vehicleInsightService } from './vehicleInsightService';
 import { z } from 'zod';
-import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, isPDFFile } from "./ocrService";
+import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 
 import { tagSuggestionService } from "./tagSuggestionService";
 import { aiInsightService } from "./aiInsightService";
@@ -41,13 +41,42 @@ import {
   mailgunSignatureVerification
 } from './middleware/mailgunSecurity';
 
-// Import real database and schema
-import { db } from "./db";
-import { users, documents, featureFlags, vehicles } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+// Mock database and schema objects for local execution if not provided elsewhere
+// In a real scenario, these would be imported from your database setup file.
+const db = {
+  select: (query: any) => ({
+    from: (table: any) => ({
+      where: (condition: any) => ({
+        orderBy: (order: any) => ({}),
+      }),
+      select: (subQuery: any) => ({
+        from: (subTable: any) => ({
+          where: (subCondition: any) => ({
+            select: (subSubQuery: any) => ({}),
+          }),
+        }),
+      }),
+    }),
+    update: (table: any) => ({
+      set: (values: any) => ({
+        where: (condition: any) => ({}),
+      }),
+    }),
+    insert: (table: any) => ({
+      values: (data: any) => ({}),
+    }),
+    delete: (table: any) => ({
+      where: (condition: any) => ({}),
+    }),
+  }),
+};
 
+const sql = (strings: TemplateStringsArray, ...values: any[]) => strings.join('');
 
-
+// Mock schema objects
+const users = { id: '', email: '', role: '', isActive: true, createdAt: new Date(), updatedAt: new Date(), lastLoginAt: new Date(), firstName: '', lastName: '', passwordHash: '' };
+const documents = { userId: '', id: 0, name: '', fileName: '', filePath: '', fileSize: 0, mimeType: '', tags: [], expiryDate: null, uploadedAt: new Date(), uploadSource: '', status: '', gcsPath: '', encryptedDocumentKey: '', encryptionMetadata: '', isEncrypted: false };
+const featureFlags = { id: '', name: '', enabled: true, rollout_percentage: 100, tierRequired: 'free', createdAt: new Date(), updatedAt: new Date() };
 
 // Placeholder for AuthenticatedRequest, Response, NextFunction types
 type AuthenticatedRequest = any;
@@ -188,24 +217,11 @@ function extractDueDate(insight: any): string | null {
 const requireAdmin = async (req: any, res: any, next: any) => {
   try {
     console.log('🔧 [ADMIN CHECK] User:', req.user?.email, 'Role:', req.user?.role, 'Path:', req.path);
-    console.log('🔧 [ADMIN CHECK] Session user:', req.session?.user?.email, 'Role:', req.session?.user?.role);
-
-    // Check both session and req.user for compatibility
-    const user = req.user || req.session?.user;
-
-    if (!user) {
-      console.log('❌ [ADMIN CHECK] No user found in session or req.user');
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    if (user.role !== 'admin') {
-      console.log('❌ [ADMIN CHECK] Admin access denied for user:', user.email, 'role:', user.role);
+    if (!req.user || req.user.role !== 'admin') {
+      console.log('❌ [ADMIN CHECK] Admin access denied for user:', req.user?.email, 'role:', req.user?.role);
       return res.status(403).json({ error: "Admin access required" });
     }
-
-    // Ensure req.user is set for downstream handlers
-    req.user = user;
-    console.log('✅ [ADMIN CHECK] Admin access granted for', user.email);
+    console.log('✅ [ADMIN CHECK] Admin access granted');
     next();
   } catch (error) {
     console.error('❌ [ADMIN CHECK] Admin middleware error:', error);
@@ -222,90 +238,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(rateLimiter);
   app.use(cors(corsOptions));
   app.use(securityLogger);
-
-  // ANTI-UPSTREAM CSP OVERRIDE: Run after security headers to ensure final CSP
-  // Check deployment environment
-  const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
-
-  app.use((req, res, next) => {
-    // Aggressive header removal to prevent any CSP interference
-    res.removeHeader("Content-Security-Policy");
-    res.removeHeader("content-security-policy");
-    res.removeHeader("Content-security-policy");
-    res.removeHeader("X-Frame-Options");
-    res.removeHeader("x-frame-options");
-    res.removeHeader("X-Content-Security-Policy"); // Legacy webkit
-    res.removeHeader("X-WebKit-CSP"); // Legacy webkit
-
-    // Set our comprehensive CSP policy
-    const cspPolicy = isDeployment 
-      ? [
-          "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://js.stripe.com https://cdn.jsdelivr.net",
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
-          "img-src 'self' data: blob: https://myhome-docs.com https://storage.googleapis.com https://*.googleusercontent.com https://images.unsplash.com",
-          "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
-          "connect-src 'self' data: https://api.stripe.com https://api.openai.com https://storage.googleapis.com https://*.sentry.io",
-          "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
-          "object-src 'none'",
-          "frame-ancestors 'self' https://myhome-docs.com"
-        ].join('; ') + '; '
-      : [
-          "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://docs.opencv.org https://*.replit.app https://*.replit.dev blob:",
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com", 
-          "img-src 'self' data: blob: https://myhome-docs.com https://*.replit.app https://*.replit.dev *",
-          "font-src 'self' data:",
-          "connect-src 'self' data: wss: ws: https://*.replit.app https://*.replit.dev https://*.sentry.io",
-          "object-src 'none'",
-          "frame-ancestors 'self' https://myhome-docs.com"
-        ].join('; ') + '; ';
-
-    console.log('🔒 Setting CSP policy (isDeployment=' + isDeployment + '):', cspPolicy.substring(0, 100) + '...');
-
-    // Set multiple CSP headers for maximum compatibility
-    res.setHeader("Content-Security-Policy", cspPolicy);
-    res.setHeader("X-Content-Security-Policy", cspPolicy); // Legacy IE
-    res.setHeader("X-WebKit-CSP", cspPolicy); // Legacy WebKit
-
-    // Force override any middleware that might set headers later
-    const originalSetHeader = res.setHeader.bind(res);
-    res.setHeader = function(name, value) {
-      // Block any attempt to set CSP headers other than our own
-      if (name.toLowerCase().includes('content-security-policy') && value !== cspPolicy) {
-        console.warn('🚨 Blocked attempt to override CSP:', name, String(value).substring(0, 50) + '...');
-        return res;
-      }
-      if (name.toLowerCase() === 'x-frame-options') {
-        console.warn('🚨 Blocked X-Frame-Options header that could interfere with CSP');
-        return res;
-      }
-      return originalSetHeader(name, value);
-    };
-
-    // Monitor for upstream interference
-    res.on('finish', () => {
-      const finalHeaders = res.getHeaders();
-      const finalCSP = finalHeaders['content-security-policy'];
-
-      // Always log what we're sending vs what's final
-      if (req.path.includes('.html') || req.path === '/') {
-        console.log('🔍 CSP Debug - Path:', req.path);
-        console.log('🔍 Expected CSP:', cspPolicy.substring(0, 100) + '...');
-        console.log('🔍 Final CSP:', finalCSP ? finalCSP.substring(0, 100) + '...' : 'NONE');
-      }
-
-      if (finalCSP !== cspPolicy) {
-        console.error('🚨 UPSTREAM CSP INTERFERENCE DETECTED!');
-        console.error('🚨 Path:', req.path);
-        console.error('🚨 Expected CSP:', cspPolicy);
-        console.error('🚨 Actual CSP:', finalCSP);
-        console.error('🚨 All Response Headers:', Object.keys(finalHeaders));
-      }
-    });
-
-    next();
-  });
 
   // Setup simple authentication
   setupSimpleAuth(app);
@@ -507,43 +439,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ success: false, message: "Failed to reset password" });
     }
   });
-  // Get current user endpoint (for auth check)
-  app.get("/api/auth/user", (req, res) => {
-    try {
-      // Check if user is authenticated
-      const user = (req.session as any)?.user;
-      const userId = (req.session as any)?.userId;
-
-      console.log('Auth check - Session user:', user ? user.id : 'none');
-      console.log('Auth check - Session userId:', userId);
-
-      if (!user && !userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      // Return the user from session
-      res.json(user);
-    } catch (error) {
-      console.error('Error in /api/auth/user:', error);
-      res.status(500).json({ error: "Authentication check failed" });
-    }
-  });
-
-  app.get('/api/auth/me', async (req: any, res) => {
-    try {
-      // Check if user is in session
-      if (req.session?.user) {
-        const { passwordHash, ...safeUser } = req.session.user;
-        res.json(safeUser);
-      } else {
-        res.status(401).json({ error: 'Not authenticated' });
-      }
-    } catch (error) {
-      console.error("Error fetching current user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
@@ -668,18 +563,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/documents', requireAuth, upload.single('file'), async (req: any, res) => {
-    console.log(`\n📱 CAMERA UPLOAD to /api/documents - ${new Date().toISOString()}`);
-    console.log(`🔐 User ID: ${req.user?.id || 'NOT_AUTHENTICATED'}`);
-    console.log(`📦 Content Type: ${req.headers['content-type']}`);
-    console.log(`📝 Body Keys: ${Object.keys(req.body).join(', ')}`);
-    console.log(`📎 File Received: ${req.file ? 'YES' : 'NO'}`);
-    if (req.file) {
-      console.log(`   File: ${req.file.originalname} (${req.file.size} bytes, ${req.file.mimetype})`);
-    }
-
     try {
       if (!req.file) {
-        console.log(`❌ No file uploaded in request`);
         return res.status(400).json({ message: "No file uploaded" });
       }
 
@@ -852,7 +737,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cloudDocumentData = {
         ...finalDocumentData,
         filePath: cloudStorageKey, // Store cloud storage key instead of local path
-        gcsPath: cloudStorageKey, // Also store in gcsPath for consistency
         encryptedDocumentKey,
         encryptionMetadata,
         isEncrypted: true
@@ -1042,152 +926,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
 
-      console.log(`🔍 Preview request for document ${documentId} by user ${userId}`);
-
       if (isNaN(documentId)) {
-        console.log(`❌ Invalid document ID: ${req.params.id}`);
         return res.status(400).json({ message: "Invalid document ID" });
       }
 
+      // Fast database lookup
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
-        console.log(`❌ Document ${documentId} not found for user ${userId}`);
         return res.status(404).json({ message: "Document not found" });
       }
 
-      console.log(`✅ Found document: ${document.fileName}, type: ${document.mimeType}`);
-
-      // Check if this is a cloud storage document first
-      const isCloudDocument = document.gcsPath || 
-                             (document.encryptionMetadata && document.encryptionMetadata.includes('cloud')) || 
-                             (document.filePath && document.filePath.startsWith('user'));
-
-      if (isCloudDocument) {
-        try {
-          let storageKey = '';
-
-          // Determine the cloud storage key
-          if (document.gcsPath) {
-            storageKey = document.gcsPath;
-          } else if (document.encryptionMetadata) {
-            const metadata = JSON.parse(document.encryptionMetadata);
-            storageKey = metadata.storageKey || document.filePath;
-          } else {
-            storageKey = document.filePath;
-          }
-
-          console.log(`📁 GCS PREVIEW: Loading document ${storageKey} from cloud storage`);
-
-          const storageService = storageProvider();
-          const fileBuffer = await storageService.download(storageKey);
-
-          // Set appropriate headers for preview
-          res.setHeader('Content-Type', document.mimeType);
-          res.setHeader('Cache-Control', 'public, max-age=3600');
-          res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-          res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
-          res.setHeader('Access-Control-Allow-Credentials', 'true');
-          res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
-          res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-
-          // For PDFs, add headers to ensure proper display in iframe
-          if (document.mimeType === 'application/pdf') {
-            res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
-            res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-          }
-
-          return res.send(fileBuffer);
-        } catch (downloadError) {
-          console.error('GCS download failed for preview:', downloadError);
-
-          // Check if this is a "file not found" error
-          if (downloadError instanceof Error && downloadError.message.includes('No such object')) {
-            console.log(`📁 GCS file not found: ${storageKey}`);
-
-            // Try to find the file in the bucket with a broader search
-            try {
-              const bucket = storageService.storage.bucket(storageService.bucketName);
-              const [files] = await bucket.getFiles({
-                prefix: `${userId}/`
-              });
-
-              // Look for files that might match this document
-              const possibleMatches = files.filter(file => {
-                const fileName = file.name.toLowerCase();
-                const docName = document.fileName.toLowerCase();
-                return fileName.includes(docName.substring(0, 10)) || 
-                       fileName.includes(document.id.toString());
-              });
-
-              if (possibleMatches.length > 0) {
-                console.log(`🔍 Found ${possibleMatches.length} possible matches for document ${document.id}`);
-
-                // Use the first match and update the database
-                const correctFile = possibleMatches[0];
-                await storage.updateDocument(document.id, userId, {
-                  gcsPath: correctFile.name,
-                  filePath: correctFile.name
-                });
-
-                console.log(`🔧 Updated document ${document.id} with correct path: ${correctFile.name}`);
-
-                // Try downloading again with the correct path
-                const fileBuffer = await storageService.download(correctFile.name);
-                res.setHeader('Content-Type', document.mimeType);
-                res.setHeader('Cache-Control', 'public, max-age=3600');
-                res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-                res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
-                res.setHeader('Access-Control-Allow-Credentials', 'true');
-                res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
-                res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-
-                if (document.mimeType === 'application/pdf') {
-                  res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
-                  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-                }
-
-                return res.send(fileBuffer);
-              }
-            } catch (searchError) {
-              console.error('Failed to search for alternative file:', searchError);
-            }
-
-            return res.status(404).json({ 
-              message: "File not found in cloud storage - document record has been cleaned up",
-              documentId: document.id,
-              expectedPath: storageKey,
-              suggestion: "The file may have been moved or deleted. Please re-upload the document."
-            });
-          }
-
-          return res.status(500).json({ 
-            message: "Failed to load document preview from cloud storage",
-            error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
-          });
-        }
-      }
-
-      // For local files, check if file exists
-      if (!fs.existsSync(document.filePath)) {
-        console.log(`❌ PREVIEW: File not found at path: ${document.filePath}`);
+      // Check for legacy local files that don't exist
+      if (!document.encryptionMetadata && !fs.existsSync(document.filePath)) {
+        console.log(`Local file not found: ${document.filePath} for document ${documentId}`);
         return res.status(404).json({ 
-          message: 'File not found on disk - document record has been cleaned up',
+          message: "Document file not found.",
+          code: "FILE_NOT_FOUND",
           documentId: documentId,
-          expectedPath: document.filePath
+          fileName: document.fileName
         });
       }
 
 
-
-
-      // Handle encrypted local documents (legacy)
-      if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
+      // Handle cloud storage documents (new system)
+      if (document.isEncrypted && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
 
-          // Skip if already handled as cloud document above
-          if (metadata.storageType === 'cloud') {
-            return res.status(500).json({ message: "Cloud document should have been handled above" });
+          // Check if this is a cloud storage document
+          if (metadata.storageType === 'cloud' && metadata.storageKey) {
+            console.log(`📁 GCS PREVIEW: Loading document ${metadata.storageKey} from cloud storage`);
+
+            const storage = storageProvider();
+            try {
+              // Always proxy the file through our server to prevent modal breaking redirects
+              console.log('📁 GCS PREVIEW: Proxying document content to maintain modal functionality');
+              const fileBuffer = await storage.download(metadata.storageKey);
+              res.setHeader('Content-Type', document.mimeType);
+              res.setHeader('Cache-Control', 'public, max-age=3600');
+              res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+              res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+              res.setHeader('Access-Control-Allow-Credentials', 'true');
+              res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+              res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+
+              // For PDFs, add headers to ensure proper display in iframe
+              if (document.mimeType === 'application/pdf') {
+                res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
+                res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+              }
+              return res.send(fileBuffer);
+            } catch (downloadError) {
+              console.error('GCS download failed for preview:', downloadError);
+              return res.status(500).json({ 
+                message: "Failed to load document preview",
+                error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
+              });
+            }
           }
 
           // Handle legacy encrypted local files
@@ -1239,7 +1034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Handle unencrypted documents (legacy)
+      // Handle unencrypted documents (legacy support)
       // For images, serve the file directly
       if (document.mimeType.startsWith('image/')) {
         res.setHeader('Content-Type', document.mimeType);
@@ -1423,7 +1218,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Reprocess with enhanced OCR and date extraction
-      const { processDocumentWithDateExtraction } = await import('./ocrService');
       await processDocumentWithDateExtraction(
         documentId,
         document.name,
@@ -1947,54 +1741,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // Handle cloud storage documents (both encrypted and unencrypted)
-      const isCloudDocument = document.gcsPath || 
-                             (document.encryptionMetadata && document.encryptionMetadata.includes('cloud')) || 
-                             (document.filePath && document.filePath.startsWith('user'));
-
-      if (isCloudDocument) {
-        try {
-          let storageKey = '';
-
-          // Determine the cloud storage key
-          if (document.gcsPath) {
-            storageKey = document.gcsPath;
-          } else if (document.encryptionMetadata) {
-            const metadata = JSON.parse(document.encryptionMetadata);
-            storageKey = metadata.storageKey || document.filePath;
-          } else {
-            storageKey = document.filePath;
-          }
-
-          console.log(`📁 GCS DOWNLOAD: Downloading document ${storageKey} from cloud storage`);
-
-          const storageService = storageProvider();
-          const fileBuffer = await storageService.download(storageKey);
-
-          // Set appropriate headers for download
-          res.setHeader('Content-Type', document.mimeType);
-          res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
-          res.setHeader('Cache-Control', 'private, max-age=3600');
-
-          res.send(fileBuffer);
-          return;
-        } catch (downloadError: any) {
-          console.error('GCS download failed:', downloadError);
-          return res.status(500).json({ 
-            message: "Failed to download document from cloud storage",
-            error: downloadError?.message || 'Unknown error' 
-          });
-        }
-      }
-
-      // Handle encrypted local documents (legacy)
+      // Handle encrypted documents
       if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
 
-          // Skip if already handled as cloud document above
-          if (metadata.storageType === 'cloud') {
-            return res.status(500).json({ message: "Cloud document should have been handled above" });
+          // Handle cloud storage documents with GCS download
+          if (metadata.storageType === 'cloud' && metadata.storageKey) {
+            console.log(`📁 GCS DOWNLOAD: Downloading document ${metadata.storageKey} from cloud storage`);
+
+            try {
+              const storage = storageProvider();
+              const fileBuffer = await storage.download(metadata.storageKey);
+
+              // Set appropriate headers for download
+              res.setHeader('Content-Type', document.mimeType);
+              res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
+              res.setHeader('Cache-Control', 'private, max-age=3600');
+
+              res.send(fileBuffer);
+              return;
+            } catch (gcsError: any) {
+              console.error('GCS download failed:', gcsError);
+              return res.status(500).json({ 
+                message: "Failed to download document from cloud storage",
+                error: gcsError?.message || 'Unknown error' 
+              });
+            }
           }
 
           // Handle local encrypted documents (legacy)
@@ -2075,11 +1848,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
+  // Admin middleware
+  function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    console.log('🔧 Admin middleware check - Session user:', req.session?.user?.email, 'Role:', req.session?.user?.role);
+    console.log('🔧 Admin middleware check - Req user:', req.user?.email, 'Role:', req.user?.role);
+
+    // Check both session and req.user for compatibility
+    const user = req.user || req.session?.user;
+
+    if (!user) {
+      console.log('❌ Admin middleware: No user found in session or req.user');
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (user.role !== 'admin') {
+      console.log('❌ Admin middleware: User role is not admin:', user.role);
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Ensure req.user is set for downstream handlers
+    req.user = user;
+    console.log('✅ Admin middleware: Access granted for', user.email);
+    next();
+  }
+
   // Encryption management endpoints
   app.get('/api/admin/encryption/stats', requireAuth, requireAdmin, async (req: any, res) => {
     try {
-      // Placeholder for encryption stats until implemented
-      const stats = { encryptedDocuments: 0, unencryptedDocuments: 0 };
+      const stats = await storage.getEncryptionStats();
       const hasMasterKey = !!process.env.DOCUMENT_MASTER_KEY;
 
       res.json({
@@ -2117,19 +1913,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🔧 Admin stats endpoint called');
       const stats = await storage.getAdminStats();
-
-      // Ensure consistent response format
-      const response = {
-        totalUsers: stats.totalUsers || 0,
-        activeUsers: stats.activeUsers || 0,
-        totalDocuments: stats.totalDocuments || 0,
-        documentsThisMonth: stats.totalStorageBytes || 0, // Map to available property
-        totalStorage: stats.totalStorageBytes || 0,
-        avgProcessingTime: stats.uploadsThisMonth || 0 // Map to available property
-      };
-
-      console.log('🔧 Admin stats response:', response);
-      res.json(response);
+      console.log('🔧 Admin stats response:', stats);
+      res.json(stats);
     } catch (error) {
       console.error('❌ Admin stats error:', error);
       res.status(500).json({ 
@@ -2156,21 +1941,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toggle user status
-  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
+  app.patch('/api/admin/users/:userId/toggle', requireAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
       const { isActive } = req.body;
-
-      if (typeof isActive !== 'boolean') {
-        return res.status(400).json({ error: "isActive must be a boolean" });
-      }
 
       await db.update(users)
         .set({ isActive, updatedAt: new Date() })
         .where(eq(users.id, userId));
 
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Toggle user error:', error);
       res.status(500).json({ error: 'Failed to toggle user status' });
     }
@@ -2178,11 +1959,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Feature flags endpoints
   // Admin - Feature flags
-  app.get("/api/admin/feature-flags", requireAuth, requireAdmin, async (req: any, res) => {
+  app.get("/api/admin/feature-flags", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const user = req.user || (req.session as any)?.user;
-      console.log('🔧 [FEATURE FLAGS] Request received from user:', user?.email);
-      console.log('🔧 [FEATURE FLAGS] User role:', user?.role);
+      console.log('🔧 [FEATURE FLAGS] Request received from user:', req.user?.email);
+      console.log('🔧 [FEATURE FLAGS] User role:', req.user?.role);
       console.log('🔧 [FEATURE FLAGS] Fetching all feature flags...');
 
       const flags = await db.select().from(featureFlags);
@@ -2197,7 +1977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Toggle feature flag
-  app.patch('/api/admin/feature-flags/:flagId/toggle', requireAdmin, async (req: any, res) => {
+  app.patch('/api/admin/feature-flags/:flagId/toggle', requireAdmin, async (req, res) => {
     try {
       const { flagId } = req.params;
       const { enabled } = req.body;
@@ -2220,9 +2000,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin - Feature flag analytics  
   app.get("/api/admin/feature-flag-analytics", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const user = req.user || (req.session as any)?.user;
-      console.log('🔧 [FEATURE FLAG ANALYTICS] Request received from user:', user?.email);
-      console.log('🔧 [FEATURE FLAG ANALYTICS] User role:', user?.role);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Request received from user:', req.user?.email);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] User role:', req.user?.role);
       console.log('🔧 [FEATURE FLAG ANALYTICS] Fetching feature flag analytics...');
 
       // Get basic stats
@@ -2252,29 +2031,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(analytics);
     } catch (error) {
       console.error('❌ [FEATURE FLAG ANALYTICS] Error:', error);
-      console.error('❌ [FEATURE FLAG ANALYTICS] Error stack:', (error as any).stack);
+      console.error('❌ [FEATURE FLAG ANALYTICS] Error stack:', error.stack);
       res.status(500).json({ error: "Failed to fetch feature flag analytics" });
     }
   });
 
   // Get system activities for admin dashboard (admin only)
-  app.get('/api/admin/activities', requireAuth, requireAdmin, async (req: any, res) => {
+  app.get('/api/admin/activities', requireAdmin, async (req: any, res) => {
     try {
-      console.log('🔧 Admin activities endpoint called');
       const { severity } = req.query;
       const activities = await storage.getSystemActivities(severity as string);
-
-      // Return empty array if no activities found
-      const response = Array.isArray(activities) ? activities : [];
-      console.log('🔧 Found activities:', response.length);
-
-      res.json(response);
+      res.json(activities);
     } catch (error) {
-      console.error('❌ Admin activities error:', error);
-      res.status(500).json({ 
-        error: 'Failed to fetch system activities',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
+      console.error("Error fetching system activities:", error);
+      res.status(500).json({ message: "Failed to fetch system activities" });
     }
   });
 
@@ -2338,11 +2108,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Duplicate route removed - keeping the main one below
+  // Toggle user status (admin only)
+  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { isActive } = req.body;
 
-  // Duplicate route removed - keeping the main one above
+      await storage.updateUserStatus(userId, isActive);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
 
-  // Duplicate route removed - consolidated above
+  app.get('/api/admin/activities', requireAdmin, async (req: any, res) => {
+    try {
+      const { severity } = req.query;
+      const activities = await storage.getSystemActivities(severity as string);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+      res.status(500).json({ message: "Failed to fetch activities" });
+    }
+  });
+
+  // Admin user toggle endpoint
+  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { isActive } = req.body;
+
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ message: "isActive must be a boolean" });
+      }
+
+      await storage.updateUserStatus(userId, isActive);
+      res.json({ message: "User status updated successfully" });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
 
   // Admin search analytics endpoint
   app.get('/api/admin/search-analytics', requireAuth, requireAdmin, async (req: any, res) => {
@@ -2533,8 +2340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { suggestDocumentCategory } = await import('./routes/categorySuggestion');
   app.post('/api/documents/suggest-category', requireAuth, suggestDocumentCategory);
 
-  // Blog API endpoints - temporarily commented out until storage methods are implemented
-  /*
+  // Blog API endpoints (public access for reading)
   app.get('/api/blog/posts', async (req: any, res) => {
     try {
       const posts = await storage.getPublishedBlogPosts();
@@ -2545,7 +2351,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /*
   app.get('/api/blog/posts/:slug', async (req: any, res) => {
     try {
       const post = await storage.getBlogPostBySlug(req.params.slug);
@@ -2602,7 +2407,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete blog post" });
     }
   });
-  */
 
 
 
@@ -2658,10 +2462,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Reprocess the document with date extraction
       if (supportsOCR(document.mimeType)) {
-        const { processDocumentWithDateExtraction } = await import('./ocrService');
         await processDocumentWithDateExtraction(
           document.id,
-          document.name,
+          document.fileName,
           document.filePath,
           document.mimeType,
           userId,
@@ -2801,6 +2604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents/analyze-tags', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
+
       // Get all user documents with tags
       const userDocuments = await storage.getDocuments(userId);
       const documentsWithTags = userDocuments
@@ -3308,57 +3112,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const { documentIds } = req.body;
 
-      console.log('Bulk delete request:', { 
-        userId, 
-        documentIds, 
-        documentIdsType: typeof documentIds,
-        bodyKeys: Object.keys(req.body || {}),
-        fullBody: req.body 
-      });
-
-      if (!documentIds) {
-        console.log('❌ BULK DELETE: No documentIds provided');
-        return res.status(400).json({ 
-          message: "Document IDs are required",
-          received: req.body,
-          expected: "{ documentIds: [1, 2, 3] }"
-        });
-      }
-
-      if (!Array.isArray(documentIds)) {
-        console.log('❌ BULK DELETE: documentIds is not an array:', typeof documentIds, documentIds);
-        return res.status(400).json({ 
-          message: "Document IDs must be an array",
-          received: typeof documentIds,
-          value: documentIds
-        });
-      }
-
-      if (documentIds.length === 0) {
-        console.log('❌ BULK DELETE: Empty documentIds array');
-        return res.status(400).json({ 
-          message: "Document IDs array cannot be empty",
-          received: documentIds
-        });
+      if (!Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.status(400).json({ message: "Document IDs array is required" });
       }
 
       if (documentIds.length > 50) {
-        console.log('❌ BULK DELETE: Too many documents:', documentIds.length);
         return res.status(400).json({ message: "Maximum 50 documents can be deleted at once" });
       }
-
-      // Validate that all IDs are numbers
-      const invalidIds = documentIds.filter(id => !Number.isInteger(id) || id <= 0);
-      if (invalidIds.length > 0) {
-        console.log('❌ BULK DELETE: Invalid document IDs found:', invalidIds);
-        return res.status(400).json({ 
-          message: "All document IDs must be positive integers",
-          invalidIds,
-          allIds: documentIds
-        });
-      }
-
-      console.log('✅ BULK DELETE: Validation passed, processing', documentIds.length, 'documents');
 
       const { searchOptimizationService } = await import('./searchOptimizationService');
       const result = await searchOptimizationService.bulkDeleteDocuments(userId, documentIds);
@@ -3369,10 +3129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error in bulk delete:", error);
-      res.status(500).json({ 
-        message: "Failed to perform bulk delete",
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      res.status(500).json({ message: "Failed to perform bulk delete" });
     }
   });
 
@@ -3537,53 +3294,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ message: "Failed to create user asset" });
       }
-    }
-  });
-
-  // Bulk delete user assets
-  app.delete('/api/user-assets/bulk-delete', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const { assetIds } = req.body;
-
-      if (!Array.isArray(assetIds) || assetIds.length === 0) {
-        return res.status(400).json({ message: "Invalid asset IDs" });
-      }
-
-      console.log(`Bulk deleting ${assetIds.length} assets for user ${userId}`);
-
-      let successCount = 0;
-      let failureCount = 0;
-      const errors: string[] = [];
-
-      for (const assetId of assetIds) {
-        try {
-          const id = parseInt(assetId);
-          if (isNaN(id)) {
-            errors.push(`Invalid asset ID: ${assetId}`);
-            failureCount++;
-            continue;
-          }
-
-          await storage.deleteUserAsset(id, userId);
-          successCount++;
-        } catch (error) {
-          console.error(`Failed to delete asset ${assetId}:`, error);
-          errors.push(`Failed to delete asset ${assetId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          failureCount++;
-        }
-      }
-
-      res.json({
-        success: successCount,
-        failed: failureCount,
-        errors: errors,
-        message: `Deleted ${successCount} assets${failureCount > 0 ? `, ${failureCount} failed` : ''}`
-      });
-
-    } catch (error) {
-      console.error("Bulk delete assets error:", error);
-      res.status(500).json({ message: "Failed to bulk delete assets" });
     }
   });
 
@@ -3954,7 +3664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Update document with cloud storage and encryption details
           const updateData = {
-            filePath: cloudStorageKey, // Store cloud storage key instead of local path
+            filePath: cloudStorageKey, // Store cloud storage key as file path
             gcsPath: cloudStorageKey,
             encryptedDocumentKey,
             encryptionMetadata,
@@ -4066,14 +3776,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // TICKET 6: Log processing summary
       const totalProcessingTime = Date.now() - processingStartTime;
-      console.log(`[${requestId}] Email processing summary:`, {
-        totalAttachments: attachmentValidation.validAttachments.length,
-        processedDocuments: processedDocuments.length,
-        failedDocuments: documentErrors.length,
-        processingTime: `${totalProcessingTime}ms`
-      });
-
-      // Log processing summary
       EmailUploadLogger.logProcessingSummary({
         userId,
         sender: message.sender,
@@ -4085,15 +3787,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalProcessingTimeMs: totalProcessingTime,
         requestId
       });
-
-      // Log OCR queue status for debugging
-      console.log(`[${requestId}] 🔍 OCR processing will be triggered automatically for supported document types`);
-      console.log(`[${requestId}] 📧 Email documents created - OCR and insights will process in background`);
-
-      if (processedDocuments.length > 0) {
-        console.log(`[${requestId}] ✅ ${processedDocuments.length} documents successfully created and queued for processing`);
-      }
-
 
       // Record email processing in the database
       try {
@@ -4163,33 +3856,565 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug route to test webhook processing without full security (REMOVE IN PRODUCTION)
-  app.post('/api/email-ingest-debug', 
-    (req, res, next) => {
-      console.log('🧪 DEBUG: Email ingest debug route accessed');
-      console.log('🧪 DEBUG Content-Type:', req.get('Content-Type'));
-      console.log('🧪 DEBUG User-Agent:', req.get('User-Agent'));
-      console.log('🧪 DEBUG Body:', req.body);
-      next();
-    },
-    async (req: any, res) => {
-      try {
-        res.status(200).json({
-          message: 'Debug endpoint working',
-          contentType: req.get('Content-Type'),
-          userAgent: req.get('User-Agent'),
-          hasBody: !!req.body,
-          bodyKeys: req.body ? Object.keys(req.body) : [],
-          timestamp: new Date().toISOString()
-        });
-      } catch (error) {
-        console.error('❌ DEBUG ENDPOINT ERROR:', error);
-        res.status(500).json({ error: 'Debug endpoint error', details: error instanceof Error ? error.message : String(error) });
-      }
-    }
-  );
+  // Debug route for production testing
+  app.get("/debug", (_req, res) => {
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
+  });
 
-  // ✅ Debug route to confirm deployment
+  // ANDROID-303: OCR Error Handling and Analytics Routes
+  setupOCRErrorRoutes(app);
+
+  // Add Canny JWT routes
+  const cannyRoutes = await import('./routes/cannyRoutes.js');
+  app.use('/api', cannyRoutes.default);
+
+  // ===== VEHICLE MANAGEMENT ROUTES (TICKET 1 & 2) =====
+
+  // Import DVLA service and vehicle schema
+  const { dvlaLookupService } = await import('./dvlaLookupService');
+  const { insertVehicleSchema } = await import('@shared/schema');
+
+  // TICKET 6: DVLA lookup endpoint for Add Vehicle Modal
+  app.post('/api/vehicles/lookup', requireAuth, async (req: any, res) => {
+    try {
+      const { vrn } = req.body;
+
+      if (!vrn) {
+        return res.status(400).json({ 
+          success: false,
+          error: "VRN is required" 
+        });
+      }
+
+      // Perform DVLA lookup
+      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
+
+      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+        return res.json({
+          success: true,
+          vehicle: dvlaLookupResult.vehicle
+        });
+      } else {
+        return res.json({
+          success: false,
+          error: dvlaLookupResult.error?.message || 'DVLA lookup failed',
+          vehicle: null
+        });
+      }
+    } catch (error) {
+      console.error("Error in DVLA lookup:", error);
+      res.status(500).json({ 
+        success: false,
+        error: "Internal server error during DVLA lookup" 
+      });
+    }
+  });
+
+  // Get all vehicles for the authenticated user
+  app.get('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicles = await storage.getVehicles(userId);
+      res.json(vehicles);
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+      res.status(500).json({ message: "Failed to fetch vehicles" });
+    }
+  });
+
+  // Get a specific vehicle
+  app.get('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      const vehicle = await storage.getVehicle(vehicleId, userId);
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error fetching vehicle:", error);
+      res.status(500).json({ message: "Failed to fetch vehicle" });
+    }
+  });
+
+  // TICKET 7: Update vehicle notes
+  app.put('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+      const { notes } = req.body;
+
+      // Check if vehicle exists and belongs to user
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Update only the notes field
+      const updatedVehicle = await storage.updateVehicle(vehicleId, userId, { notes });
+
+      res.json(updatedVehicle);
+    } catch (error) {
+      console.error("Error updating vehicle:", error);
+      res.status(500).json({ message: "Failed to update vehicle" });
+    }
+  });
+
+  // TICKET 8: Refresh DVLA data for existing vehicle
+  app.post('/api/vehicles/:id/refresh-dvla', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      // Check if vehicle exists and belongs to user
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Only refresh if vehicle was originally from DVLA
+      if (existingVehicle.source !== 'dvla') {
+        return res.status(400).json({ 
+          message: "Cannot refresh DVLA data for manually entered vehicles" 
+        });
+      }
+
+      // Perform DVLA lookup
+      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
+
+      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+        // Update vehicle with fresh DVLA data, preserving user notes
+        const updatedVehicleData = {
+          ...dvlaLookupResult.vehicle,
+          notes: existingVehicle.notes, // Preserve existing notes
+          dvlaLastRefreshed: new Date(),
+        };
+
+        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, updatedVehicleData);
+
+        res.json({
+          success: true,
+          message: "DVLA data refreshed successfully",
+          vehicle: updatedVehicle
+        });
+      } else {
+        // Handle DVLA lookup failures
+        const errorMessage = dvlaLookupResult.error?.message || 'DVLA lookup failed';
+        const statusCode = dvlaLookupResult.error?.status || 500;
+
+        res.status(statusCode).json({
+          success: false,
+          message: errorMessage,
+          error: dvlaLookupResult.error
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing DVLA data:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Internal server error during DVLA refresh" 
+      });
+    }
+  });
+
+  // TICKET 3: Create a new vehicle with DVLA enrichment
+  app.post('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+
+      console.log("[DEBUG] Raw request body:", JSON.stringify(req.body, null, 2));
+
+      // Validate request body using TICKET 3 schema
+      const validatedData = createVehicleSchema.parse(req.body);
+      console.log("[DEBUG] Validated input data:", JSON.stringify(validatedData, null, 2));
+      const { vrn, notes, ...manualFields } = validatedData;
+
+      // Check if vehicle already exists for this user
+      const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
+      if (existingVehicle) {
+        return res.status(409).json({ 
+          message: "Vehicle with this VRN already exists",
+          vehicle: existingVehicle
+        });
+      }
+
+      // Attempt DVLA lookup first
+      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
+
+      let vehicleData;
+      let dvlaFields: string[] = [];
+      let userEditableFields = ['notes'];
+      let dvlaError = null;
+
+      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+        // DVLA lookup successful - use DVLA data with proper date conversion
+        const dvlaVehicle = dvlaLookupResult.vehicle;
+        vehicleData = {
+          ...dvlaVehicle,
+          userId,
+          notes: notes || null,
+          source: 'dvla' as const,
+          dvlaLastRefreshed: new Date(),
+          // Convert string dates to Date objects
+          taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
+          motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
+        };
+
+        // Mark DVLA fields as read-only
+        dvlaFields = [
+          'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+          'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+          'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+        ];
+      } else {
+        // DVLA lookup failed - use manual data with fallback
+        dvlaError = dvlaLookupResult.error;
+        vehicleData = {
+          userId,
+          vrn,
+          notes: notes || null,
+          source: 'manual',
+          // Use manual fields as fallback
+          ...manualFields,
+        };
+
+        // All fields are user-editable when DVLA fails
+        userEditableFields = [
+          'notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour'
+        ];
+      }
+
+      // Debug logging for validation issues
+      console.log("[DEBUG] Vehicle data before validation:", JSON.stringify(vehicleData, null, 2));
+
+      // Validate the vehicle data before creating
+      try {
+        const validatedVehicleData = insertVehicleSchema.parse(vehicleData);
+        console.log("[DEBUG] Validation successful, validated data:", JSON.stringify(validatedVehicleData, null, 2));
+      } catch (validationError) {
+        console.error("[DEBUG] Validation failed:", JSON.stringify(validationError, null, 2));
+        throw validationError;
+      }
+
+      // Convert Date objects to strings for database storage
+      const vehicleDataForStorage = {
+        ...vehicleData,
+        vrn: vehicleData.vrn || vrn, // Ensure VRN is always present
+        taxDueDate: (vehicleData as any).taxDueDate instanceof Date ? (vehicleData as any).taxDueDate.toISOString().split('T')[0] : (vehicleData as any).taxDueDate,
+        motExpiryDate: (vehicleData as any).motExpiryDate instanceof Date ? (vehicleData as any).motExpiryDate.toISOString().split('T')[0] : (vehicleData as any).motExpiryDate
+      };
+
+      const validatedVehicleData = insertVehicleSchema.parse(vehicleDataForStorage);
+
+      // Create the vehicle
+      const createdVehicle = await storage.createVehicle(vehicleDataForStorage);
+
+      // TICKET 4: Generate vehicle insights after creation
+      try {
+        if (createdVehicle.motExpiryDate || createdVehicle.taxDueDate) {
+          console.log(`[TICKET 4] Generating insights for vehicle ${createdVehicle.vrn}`);
+          const insightResult = await vehicleInsightService.generateVehicleInsights(createdVehicle);
+
+          if (insightResult.success && insightResult.insights.length > 0) {
+            await vehicleInsightService.saveVehicleInsights(createdVehicle, insightResult.insights);
+            console.log(`[TICKET 4] Generated ${insightResult.insights.length} vehicle insights for ${createdVehicle.vrn}`);
+          }
+        }
+      } catch (error) {
+        console.error('[TICKET 4] Error generating vehicle insights:', error);
+        // Don't fail vehicle creation if insight generation fails
+      }
+
+      // TICKET 3 response format
+      const response = {
+        vehicle: createdVehicle,
+        dvlaEnriched: dvlaLookupResult.success,
+        dvlaFields,
+        userEditableFields,
+        ...(dvlaError && { 
+          dvlaError: {
+            code: dvlaError.code,
+            message: dvlaError.message,
+            status: dvlaError.status
+          }
+        })
+      };
+
+      res.status(201).json(response);
+    } catch (error: any) {
+      console.error("Error creating vehicle:", error);
+      if (error.name === 'ZodError') {
+        console.error("[DEBUG] Zod validation error details:", JSON.stringify(error.errors, null, 2));
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create vehicle" });
+    }
+  });
+
+  // TICKET 3: Update a vehicle (only user-editable fields)
+  app.put('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      // Get existing vehicle to check source
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // TICKET 3 requirement: Only non-DVLA fields are user-editable
+      if (existingVehicle.source === 'dvla') {
+        // For DVLA-enriched vehicles, only allow user field updates
+        const validatedData = updateVehicleUserFieldsSchema.parse(req.body);
+
+        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
+          ...validatedData,
+          updatedAt: new Date(),
+        });
+
+        const response = {
+          vehicle: updatedVehicle,
+          dvlaEnriched: true,
+          dvlaFields: [
+            'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+            'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+            'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+          ],
+          userEditableFields: ['notes'],
+          message: "Only user-editable fields updated. DVLA fields are read-only."
+        };
+
+        res.json(response);
+      } else {
+        // For manual vehicles, allow full updates
+        const requestData = req.body;
+        // Convert Date objects to strings for database storage
+        const dataForStorage = {
+          ...requestData,
+          taxDueDate: requestData.taxDueDate instanceof Date ? requestData.taxDueDate.toISOString().split('T')[0] : requestData.taxDueDate,
+          motExpiryDate: requestData.motExpiryDate instanceof Date ? requestData.motExpiryDate.toISOString().split('T')[0] : requestData.motExpiryDate
+        };
+
+        const validatedData = insertVehicleSchema.partial().parse(dataForStorage);
+
+        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, validatedData);
+
+        const response = {
+          vehicle: updatedVehicle,
+          dvlaEnriched: false,
+          dvlaFields: [],
+          userEditableFields: [
+            'notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+            'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+            'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+          ]
+        };
+
+        res.json(response);
+      }
+    } catch (error: any) {
+      console.error("Error updating vehicle:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update vehicle" });
+    }
+  });
+
+  // Delete a vehicle
+  app.delete('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      await storage.deleteVehicle(vehicleId, userId);
+      res.json({ message: "Vehicle deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+      res.status(500).json({ message: "Failed to delete vehicle" });
+    }
+  });
+
+  // ===== DVLA LOOKUP ROUTES (TICKET 2) =====
+
+  // Lookup vehicle data from DVLA by VRN
+  app.post('/api/vehicles/dvla-lookup', requireAuth, async (req: any, res) => {
+    try {
+      const { vrn } = req.body;
+
+      if (!vrn || typeof vrn !== 'string') {
+        return res.status(400).json({ message: "VRN is required" });
+      }
+
+      const result = await dvlaLookupService.lookupVehicleByVRN(vrn);
+
+      if (!result.success) {
+        return res.status(result.error?.status || 500).json({
+          message: result.error?.message || "DVLA lookup failed",
+          code: result.error?.code
+        });
+      }
+
+      res.json({
+        success: true,
+        vehicle: result.vehicle
+      });
+    } catch (error) {
+      console.error("Error in DVLA lookup:", error);
+      res.status(500).json({ message: "Internal server error during DVLA lookup" });
+    }
+  });
+
+  // Create vehicle from DVLA lookup data
+  app.post('/api/vehicles/from-dvla', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { vrn } = req.body;
+
+      if (!vrn || typeof vrn !== 'string') {
+        return res.status(400).json({ message: "VRN is required" });
+      }
+
+      // Check if vehicle already exists for this user
+      const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
+      if (existingVehicle) {
+        return res.status(409).json({ 
+          message: "Vehicle with this VRN already exists",
+          vehicle: existingVehicle
+        });
+      }
+
+      // Perform DVLA lookup
+      const lookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
+
+      if (!lookupResult.success) {
+        return res.status(lookupResult.error?.status || 500).json({
+          message: lookupResult.error?.message || "DVLA lookup failed",
+          code: lookupResult.error?.code
+        });
+      }
+
+      // Create vehicle with DVLA data and proper date conversion
+      const dvlaVehicle = lookupResult.vehicle!;
+      const vehicle = await storage.createVehicle({
+        ...dvlaVehicle,
+        userId,
+        vrn: dvlaVehicle.vrn || vrn,
+        source: 'dvla' as const,
+        dvlaLastRefreshed: new Date(),
+        // Convert Date objects to strings for database storage
+        taxDueDate: dvlaVehicle.taxDueDate ? ((dvlaVehicle.taxDueDate as any) instanceof Date ? (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0] : dvlaVehicle.taxDueDate as string) : null,
+        motExpiryDate: dvlaVehicle.motExpiryDate ? ((dvlaVehicle.motExpiryDate as any) instanceof Date ? (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0] : dvlaVehicle.motExpiryDate as string) : null,
+      });
+
+      res.status(201).json({
+        success: true,
+        vehicle,
+        message: "Vehicle created successfully from DVLA data"
+      });
+    } catch (error: any) {
+      console.error("Error creating vehicle from DVLA:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create vehicle from DVLA data" });
+    }
+  });
+
+  // Refresh existing vehicle with latest DVLA data
+  app.post('/api/vehicles/:id/refresh-dvla', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      // Get existing vehicle
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Perform DVLA lookup
+      const lookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
+
+      if (!lookupResult.success) {
+        return res.status(lookupResult.error?.status || 500).json({
+          message: lookupResult.error?.message || "DVLA lookup failed",
+          code: lookupResult.error?.code
+        });
+      }
+
+      // Update vehicle with fresh DVLA data and proper date conversion
+      const dvlaVehicle = lookupResult.vehicle!;
+      const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
+        ...dvlaVehicle,
+        source: 'dvla' as const,
+        dvlaLastRefreshed: new Date(),
+        // Convert Date objects to strings for database storage
+        taxDueDate: (dvlaVehicle.taxDueDate as any) instanceof Date ? (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0] : dvlaVehicle.taxDueDate as string,
+        motExpiryDate: (dvlaVehicle.motExpiryDate as any) instanceof Date ? (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0] : dvlaVehicle.motExpiryDate as string,
+      });
+
+      // TICKET 4: Generate insights after DVLA refresh
+      let vehicleInsights = null;
+      try {
+        if (updatedVehicle && (updatedVehicle.motExpiryDate || updatedVehicle.taxDueDate)) {
+          console.log(`[TICKET 4] Generating insights after DVLA refresh for ${updatedVehicle.vrn}`);
+          const insightResult = await vehicleInsightService.generateVehicleInsights(updatedVehicle);
+
+          if (insightResult.success && insightResult.insights.length > 0) {
+            await vehicleInsightService.saveVehicleInsights(updatedVehicle, insightResult.insights);
+            vehicleInsights = insightResult.insights;
+          }
+
+          const insightCount = vehicleInsights?.length || 0;
+          if (insightCount > 0) {
+            console.log(`[TICKET 4] Generated ${insightCount} insights after refresh for ${updatedVehicle.vrn}`);
+          }
+        }
+      } catch (error) {
+        console.error(`[TICKET 4] Failed to generate insights after refresh:`, error);
+      }
+
+      res.json({
+        success: true,
+        vehicle: updatedVehicle,
+        message: "Vehicle updated with latest DVLA data",
+        ...(vehicleInsights && { vehicleInsights })
+      });
+    } catch (error) {
+      console.error("Error refreshing vehicle from DVLA:", error);
+      res.status(500).json({ message: "Failed to refresh vehicle data" });
+    }
+  });
+
+  // Check DVLA API availability
+  app.get('/api/vehicles/dvla-status', requireAuth, async (req: any, res) => {
+    try {
+      const isAvailable = await dvlaLookupService.checkDVLAAvailability();
+      res.json({ 
+        available: isAvailable,
+        message: isAvailable ? "DVLA API is available" : "DVLA API is not available"
+      });
+    } catch (error) {
+      console.error("Error checking DVLA status:", error);
+      res.status(500).json({ message: "Failed to check DVLA status" });
+    }
+  });
+
+    // ✅ Debug route to confirm deployment
     app.get("/debug", (_req, res) => {
       res.send(`✅ App is live - ${new Date().toISOString()}`);
     });
@@ -4205,12 +4430,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Keep API route protection for unhandled routes
     app.use('/api/*', (req, res, next) => {
-      console.log(`🔍 Unmatched API route: ${req.method} ${req.originalUrl}`);
-      res.status(404).json({ 
-        message: 'API route not found',
-        path: req.originalUrl,
-        method: req.method 
-      });
+      console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
+      res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
     });
 
     app.use(sentryErrorHandler());

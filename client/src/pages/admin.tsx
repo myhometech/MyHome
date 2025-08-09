@@ -54,8 +54,12 @@ export default function AdminDashboard() {
     enabled: isAuthenticated && userWithRole?.role === 'admin',
     queryFn: async () => {
       console.log('🔄 Fetching admin stats...');
-      const { api } = await import('@/api/client');
-      const data = await api.get<AdminStats>('/api/admin/stats');
+      const response = await fetch('/api/admin/stats', { credentials: 'include' });
+      if (!response.ok) {
+        console.error('❌ Admin stats fetch failed:', response.status, response.statusText);
+        throw new Error(`Failed to fetch admin stats: ${response.status}`);
+      }
+      const data = await response.json();
       console.log('✅ Admin stats received:', data);
       return data;
     },
@@ -67,8 +71,9 @@ export default function AdminDashboard() {
   const { data: llmUsage, error: llmError } = useQuery({
     queryKey: ['/api/admin/llm-usage/analytics'],
     queryFn: async () => {
-      const { api } = await import('@/api/client');
-      return await api.get('/api/admin/llm-usage/analytics');
+      const response = await fetch('/api/admin/llm-usage/analytics', { credentials: 'include' });
+      if (!response.ok) throw new Error(`Failed to fetch LLM usage: ${response.status}`);
+      return response.json();
     },
     enabled: isAuthenticated && userWithRole?.role === 'admin',
     refetchInterval: 60000,
@@ -77,8 +82,9 @@ export default function AdminDashboard() {
   const { data: activityAnalytics, error: activityError } = useQuery({
     queryKey: ['/api/admin/activity-analytics'],
     queryFn: async () => {
-      const { api } = await import('@/api/client');
-      return await api.get('/api/admin/activity-analytics');
+      const response = await fetch('/api/admin/activity-analytics', { credentials: 'include' });
+      if (!response.ok) throw new Error(`Failed to fetch activity analytics: ${response.status}`);
+      return response.json();
     },
     enabled: isAuthenticated && userWithRole?.role === 'admin',
     refetchInterval: 30000,
@@ -87,8 +93,9 @@ export default function AdminDashboard() {
   const { data: searchAnalytics, error: searchError } = useQuery({
     queryKey: ['/api/admin/search-analytics'],
     queryFn: async () => {
-      const { api } = await import('@/api/client');
-      return await api.get('/api/admin/search-analytics');
+      const response = await fetch('/api/admin/search-analytics', { credentials: 'include' });
+      if (!response.ok) throw new Error(`Failed to fetch search analytics: ${response.status}`);
+      return response.json();
     },
     enabled: isAuthenticated && userWithRole?.role === 'admin',
     refetchInterval: 30000,
@@ -97,8 +104,9 @@ export default function AdminDashboard() {
   const { data: cloudUsage, error: cloudError } = useQuery({
     queryKey: ['/api/admin/cloud-usage'],
     queryFn: async () => {
-      const { api } = await import('@/api/client');
-      return await api.get('/api/admin/cloud-usage');
+      const response = await fetch('/api/admin/cloud-usage', { credentials: 'include' });
+      if (!response.ok) throw new Error(`Failed to fetch cloud usage: ${response.status}`);
+      return response.json();
     },
     enabled: isAuthenticated && userWithRole?.role === 'admin',
     refetchInterval: 30000,

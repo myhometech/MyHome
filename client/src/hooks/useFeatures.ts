@@ -1,6 +1,5 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getConfig } from "../config";
 
 // Define feature names directly in the hook file for now
 export type FeatureName = 
@@ -40,9 +39,9 @@ interface UseFeaturesResult {
  */
 export function useFeature(featureName: FeatureName): UseFeatureResult {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['feature-flags', featureName, 'check'],
+    queryKey: ['/api/feature-flags', featureName, 'check'],
     queryFn: async () => {
-      const response = await fetch(`${getConfig().API_BASE_URL}/feature-flags/${featureName}/check`);
+      const response = await fetch(`/api/feature-flags/${featureName}/check`);
       if (!response.ok) {
         throw new Error('Failed to check feature flag');
       }
@@ -65,9 +64,9 @@ export function useFeature(featureName: FeatureName): UseFeatureResult {
  */
 export function useFeatures(): UseFeaturesResult {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['feature-flags/batch-evaluation'],
+    queryKey: ['/api/feature-flags/batch-evaluation'],
     queryFn: async () => {
-      const response = await fetch(`${getConfig().API_BASE_URL}/feature-flags/batch-evaluation`);
+      const response = await fetch('/api/feature-flags/batch-evaluation');
       if (!response.ok) {
         throw new Error('Failed to get feature flags');
       }

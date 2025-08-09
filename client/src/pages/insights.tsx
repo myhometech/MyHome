@@ -34,7 +34,7 @@ interface UserAsset {
   type: 'house' | 'car';
 }
 
-export default function InsightsPage() {
+export function InsightsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTab, setSelectedTab] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");

@@ -84,7 +84,7 @@ export function ImageProcessingPanel({
     
     try {
       const opts = processingOptions || options;
-      // Processing image - debug info removed
+      console.log('Processing image with options:', opts);
       
       const result = await processorRef.current.processImage(originalFile, opts);
       

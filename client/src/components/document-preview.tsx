@@ -27,7 +27,6 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -35,61 +34,50 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
   // Helper functions
   const isImage = () => document.mimeType.startsWith('image/');
   const isPDF = () => document.mimeType === 'application/pdf';
-  const isDocx = () => document.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+  const isDocx = () => document.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
                       document.mimeType === 'application/vnd.ms-word.document.macroEnabled.12' ||
                       document.mimeType === 'application/msword';
   const getPreviewUrl = () => `/api/documents/${document.id}/preview`;
 
-  // Initialize loading state and fetch preview
+  // Initialize loading state
   useEffect(() => {
-    const handlePreview = async () => {
-      if (!document) return;
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        console.log(`🔍 Requesting preview for document ${document.id}: ${document.name}`);
-
-        const response = await fetch(`/api/documents/${document.id}/preview`, {
-          credentials: 'include', // Include cookies for session-based auth
-          headers: {
-            'Accept': document.mimeType || '*/*',
-          },
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error('Please log in to view this document');
-          } else if (response.status === 404) {
-            throw new Error('Document not found or file missing');
-          } else {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `Preview failed: ${response.status}`);
-          }
-        }
-
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        setPreviewUrl(url);
-        console.log(`✅ Preview loaded successfully for ${document.name}`);
-      } catch (error) {
-        console.error('Preview error:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load preview');
-      } finally {
+    console.log('🔄 DocumentPreview: Starting document load for:', document.id);
+    
+    const safetyTimeout = setTimeout(() => {
+      console.warn('⚠️ DocumentPreview safety timeout - forcing loading to complete');
+      setIsLoading(false);
+      if (!error) {
+        setError('Document loading took too long. Please try again.');
+      }
+    }, 5000);
+    
+    // For images, preload to ensure they work
+    if (isImage()) {
+      console.log('📸 Preloading image...');
+      const img = new Image();
+      img.onload = () => {
+        console.log('✅ Image preloaded successfully');
         setIsLoading(false);
-      }
-    };
-
-    handlePreview();
-
+        clearTimeout(safetyTimeout);
+      };
+      img.onerror = () => {
+        console.error('❌ Image failed to preload');
+        setError('Failed to load image');
+        setIsLoading(false);
+        clearTimeout(safetyTimeout);
+      };
+      img.src = getPreviewUrl();
+    } else {
+      // For non-images, just stop loading immediately
+      console.log('📄 Non-image document, stopping loading');
+      setIsLoading(false);
+      clearTimeout(safetyTimeout);
+    }
+    
     return () => {
-      // Clean up the preview URL when the component unmounts
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
+      clearTimeout(safetyTimeout);
     };
-  }, [document.id, document.mimeType, document.name, previewUrl]); // Re-run if document changes
+  }, [document.id, error]);
 
   console.log('Using simple modal for document:', document.id);
   return (
@@ -124,7 +112,7 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
               </div>
             </div>
           )}
-
+          
           {error && (
             <div className="flex items-center justify-center h-96 bg-gray-50">
               <div className="text-center">
@@ -139,10 +127,10 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
             </div>
           )}
 
-          {!isLoading && !error && isImage() && previewUrl && (
+          {!isLoading && !error && isImage() && (
             <div className="flex items-center justify-center h-96 bg-gray-50">
               <img
-                src={previewUrl}
+                src={getPreviewUrl()}
                 alt={document.name}
                 className="max-w-full max-h-full object-contain"
                 onLoad={() => console.log('✅ Image loaded in simple modal')}
@@ -154,10 +142,10 @@ export function DocumentPreview({ document, category, onClose, onDownload, onUpd
             </div>
           )}
 
-          {!isLoading && !error && isPDF() && previewUrl && (
+          {!isLoading && !error && isPDF() && (
             <div className="h-96 bg-gray-50">
               <iframe
-                src={previewUrl}
+                src={getPreviewUrl()}
                 className="w-full h-full border-0"
                 title={document.name}
                 onLoad={() => console.log('✅ PDF loaded in simple modal')}

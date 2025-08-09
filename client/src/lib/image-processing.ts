@@ -69,7 +69,7 @@ export class ImageProcessor {
     const config = { ...DEFAULT_PROCESSING_OPTIONS, ...options };
     const transformsApplied: string[] = [];
     
-    // Starting image processing - debug info removed
+    console.log('Starting image processing with options:', config);
 
     try {
       // Load image

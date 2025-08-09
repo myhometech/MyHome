@@ -1,60 +1,62 @@
-# ---------- Build stage ----------
-FROM node:20-slim AS build
+# Use Node.js 18 Alpine for smaller image size and better security
+FROM node:18-alpine
+
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies for build
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+# Install system dependencies needed for native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    musl-dev \
+    giflib-dev \
+    pixman-dev \
+    pangomm-dev \
+    libjpeg-turbo-dev \
+    freetype-dev
 
-# Copy package files and install all dependencies (including devDependencies for build)
+# Copy package files and install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --only=production
+
+# Copy TypeScript configuration and build dependencies
+COPY tsconfig.json ./
+COPY drizzle.config.ts ./
 
 # Copy source code
-COPY . .
+COPY server/ ./server/
+COPY shared/ ./shared/
+COPY types/ ./types/
+COPY client/ ./client/
 
-# Build both client and server
-RUN npm run build && \
-    mkdir -p dist/scripts && \
-    npx esbuild server/scripts/seedAdmin.ts --platform=node --packages=external --bundle --format=esm --outdir=dist/scripts
+# Install build dependencies and build the application
+RUN npm install --save-dev typescript tsx @types/node esbuild
+RUN npm run build
 
-# ---------- Runtime stage ----------
-FROM node:20-slim AS runtime
-WORKDIR /app
+# Remove dev dependencies to reduce image size
+RUN npm prune --production
 
-# Set production environment
-ENV NODE_ENV=production
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
 
-# Install PM2 globally
-RUN npm install -g pm2
+# Create uploads directory with proper permissions
+RUN mkdir -p /app/uploads && chown -R nodejs:nodejs /app/uploads
+RUN chown -R nodejs:nodejs /app
 
-# Install system dependencies for runtime (curl for health check)
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Switch to non-root user
+USER nodejs
 
-# Copy built artifacts from build stage
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/package*.json ./
-
-# Install only production dependencies  
-RUN npm ci --omit=dev && npm cache clean --force
-
-# Create directories for runtime config and uploads
-RUN mkdir -p public uploads
-
-# Copy entrypoint script
-COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
-
-# Copy PM2 ecosystem file
-COPY pm2.config.cjs ./pm2.config.cjs
-
-# Expose port
+# Expose port (using 5000 to match your current setup)
 EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5000/healthz || exit 1
+    CMD node -e "require('http').get('http://localhost:5000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Use entrypoint script
-CMD ["./entrypoint.sh"]
+# Start the application
+CMD ["npm", "start"]

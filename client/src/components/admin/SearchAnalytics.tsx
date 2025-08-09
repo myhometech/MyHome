@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { Search, TrendingUp, Users, BarChart3, Calendar, Crown } from "lucide-react";
-import { api } from "@/api/client";
 
 interface SearchAnalytics {
   totalSearches: number;
@@ -42,8 +41,13 @@ export function SearchAnalytics() {
       if (tierFilter !== 'all') {
         params.append('tier', tierFilter);
       }
-      const query = params.toString() ? `?${params.toString()}` : '';
-      return api.get<SearchAnalytics>(`/api/admin/search-analytics${query}`);
+      const response = await fetch(`/api/admin/search-analytics?${params.toString()}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch search analytics: ${response.status}`);
+      }
+      return response.json();
     },
   });
 

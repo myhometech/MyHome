@@ -1,7 +1,7 @@
 # MyHome Application
 
 ## Overview
-MyHome is a comprehensive document management application for homeowners, providing an intuitive platform for digitizing and organizing property-related documents. It features a web application (React + Node.js) and a native iOS app, both syncing through a shared backend API with a PostgreSQL database and authentication. Key capabilities include phone camera scanning for document digitization. The business vision is to offer a secure and efficient solution for managing property-related information.
+MyHome is a comprehensive document management application for homeowners, designed to organize property-related documents. It features a web application (React + Node.js) and a native iOS app, both syncing through a shared backend API with a PostgreSQL database and authentication. The project aims to provide an intuitive platform for document digitization via camera scanning, with future integrations planned for cloud storage services like Google Drive. The business vision is to provide an intuitive platform for document digitization, offering a solution for homeowners to manage property-related information efficiently and securely.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -13,27 +13,18 @@ Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot m
 Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting colors for a homely feel: Warm Background (#FAF4EF linen/ivory), Trust Base (#2B2F40 slate blue), Sage Green (#A5C9A1), Dusty Lavender (#A1A4D6), and Soft Coral (#E28F83). Document type colors: Emerald for images, calm red (#E74C3C) for PDFs, blue for documents.
 
 ### Application Behavior Preferences
-1. Document Upload: Auto-suggest categories using AI analysis with user confirmation before saving
-2. Premium Features: Hide premium features completely from free users for clean interface
-3. Free User Limits: Block uploads when free users hit 50-document limit with upgrade message
-4. Email Forwarding: Show as discrete dashboard option linking to settings (not prominent)
-5. Email Import Notifications: Notification badge/counter + tag documents as "imported via email"
-6. Mobile Camera: Allow offline scanning with local storage, sync/process when online
-7. Document Deletion: Premium trash bin (30-day) + confirmation dialogs for all users
-
-## Recent Changes
-- **2025-08-09**: Successfully updated Google OAuth credentials and resolved critical "Cannot access uninitialized variable" error in Home component. Fixed variable declaration order, added proper toast hook, and removed duplicate user queries. Authentication system now fully functional with users successfully logging into document library.
-- **2025-08-09**: Implemented comprehensive smoke test script (smoke-test.sh) for environment validation covering auth, uploads, OCR, insights, and RBAC. All core systems verified as operational.
-- **2025-08-08**: Resolved upstream CSP header interference - implemented comprehensive anti-upstream CSP override middleware with header removal, duplicate detection, and interference monitoring. Successfully allows favicon loading from https://myhome-docs.com without CSP blocking.
-- **2025-08-08**: Standardized all admin API calls to use centralized client (client/src/api/client.ts) - removed direct fetch calls, hardcoded URLs, and ensured proper runtime configuration support for all environments.
-- **2025-08-08**: Fixed all 37 backend routing TypeScript errors in server/routes.ts - removed mock database conflicts, added proper Drizzle imports, fixed type safety issues. Backend now compiles cleanly and all API endpoints functional.
-- **2025-08-08**: Added proper HTML meta tags for SEO/social sharing, removed development script from production build.
-- **2025-08-08**: Resolved critical `/api/auth/me` endpoint causing frontend hanging on "loading configuration".
+1. **Document Upload**: Auto-suggest categories using AI analysis with user confirmation before saving
+2. **Premium Features**: Hide premium features completely from free users for clean interface
+3. **Free User Limits**: Block uploads when free users hit 50-document limit with upgrade message
+4. **Email Forwarding**: Show as discrete dashboard option linking to settings (not prominent)
+5. **Email Import Notifications**: Notification badge/counter + tag documents as "imported via email"
+6. **Mobile Camera**: Allow offline scanning with local storage, sync/process when online
+7. **Document Deletion**: Premium trash bin (30-day) + confirmation dialogs for all users
 
 ## System Architecture
 
 ### Web Frontend
-- **Framework**: React 18 with TypeScript, Vite, Wouter, TanStack Query.
+- **Framework**: React 18 with TypeScript, Vite, Wouter for routing, TanStack Query for state management.
 - **UI/UX**: Radix UI components with Tailwind CSS (shadcn/ui), unified insights-first UX, comprehensive document viewer modal system.
 - **Feature Management**: Subscription-based feature flagging with `FeatureGate` components.
 
@@ -83,18 +74,11 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 ### Security & Monitoring
 - **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS, Mailgun webhook security (IP whitelisting, HMAC verification).
 - **Monitoring**: Sentry integration for error tracking and performance.
-- **Health Checks**: Multi-subsystem health checks via `/healthz` endpoint.
-
-### Runtime Configuration
-- **Frontend Config**: Runtime configuration loading via `/config.json` endpoint for dynamic API base URL configuration.
-- **Environment Agnostic**: No hardcoded dev URLs in frontend build; all API calls use runtime-configured base URL.
-- **Centralized API Client**: All admin dashboard components use shared API client (`client/src/api/client.ts`) with proper credential handling and runtime URL configuration.
-- **Production Static Serving**: Express serves client/dist static assets with SPA fallback for non-API routes.
+- **Health Checks**: Multi-subsystem health checks.
 
 ### Automated Systems
 - **Automated Backup**: PostgreSQL and file storage backups to GCS.
 - **CI/CD**: GitHub Actions for Docker builds and deployment.
-- **Build-time Security**: Guard script prevents dev references in production builds.
 
 ## External Dependencies
 
@@ -125,3 +109,61 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Error Tracking**: `@sentry/node`, `@sentry/react`
 - **Security Headers**: `helmet`
 - **Rate Limiting**: `express-rate-limit`
+
+## Recent Development Summary
+
+### August 7, 2025 - OCR-Before-Insights Feature Complete ✅
+- **Achievement**: Implemented automatic OCR triggering when users request insights for documents without extracted text
+- **User Experience Enhancement**: 
+  1. **Seamless Integration**: Users can now generate insights on any document, regardless of OCR status
+  2. **Smart Processing**: System automatically detects missing text and triggers OCR before insights
+  3. **Real-time Feedback**: Users see processing status with estimated completion times
+  4. **Auto-completion**: Frontend polls for OCR completion and automatically retries insights
+- **Technical Implementation**:
+  - Modified insights endpoint to auto-trigger OCR when extractedText is missing
+  - Enhanced file validation for both local and GCS stored documents
+  - Integrated high-priority OCR queue system for user-initiated requests
+  - Added 202 status responses with processing messages and polling support
+  - Updated frontend mutation with smart polling every 3 seconds
+  - Implemented automatic retry logic once OCR completes
+- **Components Enhanced**:
+  - `server/routes.ts` - OCR-before-insights endpoint logic with enhanced error handling
+  - `client/src/components/unified-document-card.tsx` - Smart polling and processing status
+  - Enhanced user messaging with estimated times and processing feedback
+- **Status**: ✅ **PRODUCTION READY** - Users can now generate insights on any document type with automatic OCR processing
+
+### August 7, 2025 - Insight Job Type Error Fix ✅
+- **Achievement**: Fixed PostgreSQL 22P02 error blocking OCR→Insights pipeline
+- **Root Cause Resolved**: 
+  1. **Schema Mismatch**: `confidence` column was INTEGER but receiving decimal values ("0.9")
+  2. **Type Conversion**: AI service passing 0-1 scale, database expecting 0-100 scale
+  3. **Error Cascade**: All insight jobs failing with invalid integer cast errors
+- **Technical Implementation**:
+  - Updated database schema: `confidence INTEGER` → `confidence NUMERIC(5,2)`
+  - Enhanced type validation with string→number conversion and range clamping
+  - Fixed AI service scale conversion (0-1 → 0-100) in `server/aiInsightService.ts`
+  - Added structured error logging with `[INSIGHT_TYPE_ERROR]` tags for monitoring
+  - Created recovery service for failed insight jobs from past 7 days
+- **Components Added**:
+  - `server/services/insightRecoveryService.ts` - Job recovery and reporting system
+  - `server/routes/insightRecoveryRoutes.ts` - Admin recovery endpoints
+  - Enhanced `server/storage.ts` with comprehensive type validation
+- **Status**: ✅ **PRODUCTION READY** - OCR→Insights pipeline restored, all type errors resolved
+
+### August 7, 2025 - Application Startup Issues Resolved ✅
+- **Achievement**: Fixed critical server startup failures preventing application launch
+- **Root Cause Resolved**:
+  1. **Port Conflicts**: Multiple tsx processes conflicting on port 5000 
+  2. **TypeScript Errors**: Type mismatches in vehicle date handling and confidence scoring
+  3. **Database Type Issues**: Date to string conversion problems in vehicle management
+- **Technical Implementation**:
+  - Identified and killed conflicting Node.js processes using port 5000
+  - Fixed confidence field type conversion (number to string) in document insights
+  - Resolved Date/string type mismatches in vehicle taxDueDate and motExpiryDate fields
+  - Enhanced type safety with proper type assertions for Date object handling
+  - Ensured VRN field validation in vehicle creation endpoints
+- **Components Fixed**:
+  - `server/index.ts` - Server startup and port binding
+  - `server/routes.ts` - Vehicle and document insight type handling
+  - Database connection and route registration restored
+- **Status**: ✅ **PRODUCTION READY** - Application successfully running on port 5000

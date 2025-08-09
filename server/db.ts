@@ -24,22 +24,16 @@ export const pool = new Pool({
 
 // Add error handling for the pool
 pool.on('error', (err) => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.error('Database pool error:', err.message);
-  }
+  console.error('Database pool error:', err.message);
   // Don't throw here, just log the error
 });
 
 pool.on('connect', () => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('Database connection established');
-  }
+  console.log('Database connection established');
 });
 
 pool.on('remove', () => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('Database connection removed from pool');
-  }
+  console.log('Database connection removed from pool');
 });
 
 export const db = drizzle({ client: pool, schema });

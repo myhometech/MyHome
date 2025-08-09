@@ -2,51 +2,25 @@ import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 
 export function useAuth() {
-  const queryResult = useQuery({
-    queryKey: ['/api/auth/user'],
-    queryFn: async () => {
-      console.log('[AUTH] Checking authentication status...');
-      
-      const response = await fetch('/api/auth/user', {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.log('[AUTH] User not authenticated');
-          return null; // User is not authenticated
-        }
-        console.error('[AUTH] Authentication check failed:', response.status);
-        throw new Error(`Authentication failed: ${response.status}`);
-      }
-
-      const userData = await response.json();
-      console.log('[AUTH] User authenticated:', userData.id);
-      return userData;
+  const { data: user, isLoading, error } = useQuery({
+    queryKey: ["/api/auth/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    retry: (failureCount, error) => {
+      // Log auth failures for debugging
+      console.log('[AUTH DEBUG] Query failed:', { failureCount, error, status: error?.status });
+      return failureCount < 2; // Retry once
     },
-    retry: (failureCount, error: any) => {
-      // Don't retry on 401 errors
-      if (error?.message?.includes('401')) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-    staleTime: 1 * 60 * 1000, // 1 minute (shorter for faster updates)
-    refetchOnWindowFocus: true, // Re-check when window gains focus
-    refetchOnMount: true, // Always check on mount
-    initialData: null, // Ensure user starts as null
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  const { data: user = null, isLoading, error, refetch } = queryResult;
+  // Debug logging
+  console.log('[AUTH DEBUG] useAuth state:', { user, isLoading, isAuthenticated: !!user, error });
 
   return {
     user,
     isLoading,
-    error,
-    refetch,
-    isAuthenticated: !!user && !isLoading
+    isAuthenticated: !!user,
+    error
   };
 }

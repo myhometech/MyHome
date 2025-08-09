@@ -48,7 +48,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
   const [showPagePreview, setShowPagePreview] = useState(false);
   const [previewAnimationId, setPreviewAnimationId] = useState<number | null>(null);
   const [overlayOrientation, setOverlayOrientation] = useState<'landscape' | 'portrait'>('portrait');
-
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,17 +58,17 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
   const initializeCamera = useCallback(async () => {
     try {
       setError(null);
-
+      
       // TICKET 8: Track scan started event
       trackScanEvent('browser_scan_started', {
         timestamp: new Date().toISOString()
       });
-
+      
       // Log available devices for debugging
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       console.log('Available video devices:', videoDevices.map(d => ({ label: d.label, deviceId: d.deviceId })));
-
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' }, // Try to prefer back camera
@@ -76,7 +76,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
           height: { ideal: 720 }
         }
       });
-
+      
       console.log('Media stream obtained:', {
         active: mediaStream.active,
         id: mediaStream.id,
@@ -88,35 +88,35 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
           settings: track.getSettings ? track.getSettings() : 'N/A'
         }))
       });
-
+      
       setStream(mediaStream);
-
+      
       if (videoRef.current) {
         console.log('Setting video source and properties...');
-
+        
         // Clear any existing source first
         videoRef.current.srcObject = null;
-
+        
         // Wait a tick then set the new stream
         await new Promise(resolve => setTimeout(resolve, 100));
-
+        
         videoRef.current.srcObject = mediaStream;
         videoRef.current.autoplay = true;
         videoRef.current.playsInline = true;
         videoRef.current.muted = true;
-
+        
         // Force load and dimensions
         videoRef.current.load();
         videoRef.current.style.width = '100%';
         videoRef.current.style.height = '100%';
         videoRef.current.style.objectFit = 'cover';
-
+        
         // Wait for video metadata to load
         await new Promise((resolve, reject) => {
           const timeoutId = setTimeout(() => {
             reject(new Error('Video metadata load timeout'));
           }, 10000);
-
+          
           videoRef.current!.onloadedmetadata = () => {
             clearTimeout(timeoutId);
             console.log('Video metadata loaded:', {
@@ -125,28 +125,28 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
               readyState: videoRef.current!.readyState,
               hasVideo: videoRef.current!.videoWidth > 0
             });
-
+            
             // Force a repaint if dimensions are 0
             if (videoRef.current!.videoWidth === 0) {
               console.log('Video width is 0, forcing reload...');
               videoRef.current!.load();
             }
-
+            
             resolve(void 0);
           };
-
+          
           videoRef.current!.onerror = (error) => {
             clearTimeout(timeoutId);
             console.error('Video element error:', error);
             reject(new Error('Video element error'));
           };
         });
-
+        
         // Start playing the video
         try {
           await videoRef.current.play();
           console.log('Video playing successfully');
-
+          
           // Double-check video dimensions and stream
           setTimeout(() => {
             if (videoRef.current) {
@@ -166,17 +166,17 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
           throw new Error('Failed to start video playback');
         }
       }
-
+      
       // Start canvas preview loop since video element isn't working on mobile
       startCanvasPreview(mediaStream);
-
+      
       setIsScanning(true);
     } catch (err: any) {
       console.error('Failed to access camera:', err);
-
+      
       let errorMessage = 'Unable to access camera. Please ensure camera permissions are granted.';
       let toastTitle = "Camera Access Failed";
-
+      
       if (err.name === 'NotAllowedError') {
         errorMessage = 'Camera permission denied. Please allow camera access and try again.';
         toastTitle = "Camera Permission Denied";
@@ -190,7 +190,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         errorMessage = 'Camera failed to initialize. Please try again.';
         toastTitle = "Camera Timeout";
       }
-
+      
       setError(errorMessage);
       toast({
         title: toastTitle,
@@ -207,26 +207,26 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     video.autoplay = true;
     video.playsInline = true;
     video.muted = true;
-
+    
     let animationId: number | null = null;
-
+    
     const updateCanvas = () => {
       if (previewCanvasRef.current && video.readyState >= 2) {
         const canvas = previewCanvasRef.current;
         const ctx = canvas.getContext('2d');
-
+        
         if (ctx && video.videoWidth > 0) {
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
           ctx.drawImage(video, 0, 0);
         }
       }
-
+      
       // Continue animation loop
       animationId = requestAnimationFrame(updateCanvas);
       setPreviewAnimationId(animationId);
     };
-
+    
     video.addEventListener('loadeddata', () => {
       console.log('Canvas preview video loaded:', {
         videoWidth: video.videoWidth,
@@ -234,7 +234,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       });
       updateCanvas();
     });
-
+    
     // Also try to start when metadata is loaded
     video.addEventListener('loadedmetadata', () => {
       console.log('Canvas preview metadata loaded:', {
@@ -245,7 +245,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         updateCanvas();
       }
     });
-
+    
     video.play().catch(console.error);
   }, []);
 
@@ -272,7 +272,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     const sourceCanvas = previewCanvasRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-
+    
     if (!ctx) {
       console.log('No canvas context available');
       return;
@@ -293,13 +293,13 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     // Set canvas dimensions to match source canvas
     canvas.width = sourceCanvas.width;
     canvas.height = sourceCanvas.height;
-
+    
     // Draw current frame from preview canvas
     ctx.drawImage(sourceCanvas, 0, 0, canvas.width, canvas.height);
-
+    
     // Convert to data URL with maximum quality for better PDF output
     const originalImageData = canvas.toDataURL('image/jpeg', 1.0);
-
+    
     // Create initial page entry
     const pageId = Date.now().toString();
     const newPage: CapturedPage = {
@@ -309,9 +309,9 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       timestamp: Date.now(),
       isProcessing: true
     };
-
+    
     setCapturedPages(prev => [...prev, newPage]);
-
+    
     toast({
       title: "Page Captured",
       description: `Processing page ${capturedPages.length + 1}...`,
@@ -321,10 +321,10 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     try {
       if (imageProcessor.isOpenCVReady()) {
         const processed: ProcessedImage = await imageProcessor.processImage(originalImageData, processingOptions);
-
+        
         // Update the page with processed results
-        setCapturedPages(prev => prev.map(page =>
-          page.id === pageId
+        setCapturedPages(prev => prev.map(page => 
+          page.id === pageId 
             ? {
                 ...page,
                 imageData: processed.processedDataUrl,
@@ -356,12 +356,12 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
         }
       } else {
         // OpenCV not ready, use original image
-        setCapturedPages(prev => prev.map(page =>
-          page.id === pageId
+        setCapturedPages(prev => prev.map(page => 
+          page.id === pageId 
             ? { ...page, isProcessing: false }
             : page
         ));
-
+        
         toast({
           title: "Processing Skipped",
           description: "Image enhancement unavailable. Using original capture.",
@@ -370,14 +370,14 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       }
     } catch (error) {
       console.error('Image processing failed:', error);
-
+      
       // Fall back to original image
-      setCapturedPages(prev => prev.map(page =>
-        page.id === pageId
+      setCapturedPages(prev => prev.map(page => 
+        page.id === pageId 
           ? { ...page, isProcessing: false }
           : page
       ));
-
+      
       toast({
         title: "Processing Failed",
         description: "Using original capture without enhancement.",
@@ -405,8 +405,8 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       if (page.id === pageId && page.originalImageData && page.processedImageData) {
         return {
           ...page,
-          imageData: page.imageData === page.originalImageData
-            ? page.processedImageData
+          imageData: page.imageData === page.originalImageData 
+            ? page.processedImageData 
             : page.originalImageData
         };
       }
@@ -419,16 +419,16 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
     const page = capturedPages.find(p => p.id === pageId);
     if (!page || !page.originalImageData) return;
 
-    setCapturedPages(prev => prev.map(p =>
+    setCapturedPages(prev => prev.map(p => 
       p.id === pageId ? { ...p, isProcessing: true } : p
     ));
 
     try {
       if (imageProcessor.isOpenCVReady()) {
         const processed: ProcessedImage = await imageProcessor.processImage(page.originalImageData, processingOptions);
-
-        setCapturedPages(prev => prev.map(p =>
-          p.id === pageId
+        
+        setCapturedPages(prev => prev.map(p => 
+          p.id === pageId 
             ? {
                 ...p,
                 imageData: processed.processedDataUrl,
@@ -448,7 +448,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
       }
     } catch (error) {
       console.error('Reprocessing failed:', error);
-      setCapturedPages(prev => prev.map(p =>
+      setCapturedPages(prev => prev.map(p => 
         p.id === pageId ? { ...p, isProcessing: false } : p
       ));
     }
@@ -488,7 +488,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
   // Navigate to specific page
   const navigateToPage = useCallback((direction: 'prev' | 'next') => {
     if (selectedPageIndex === null) return;
-
+    
     if (direction === 'prev' && selectedPageIndex > 0) {
       setSelectedPageIndex(selectedPageIndex - 1);
     } else if (direction === 'next' && selectedPageIndex < capturedPages.length - 1) {
@@ -497,253 +497,124 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
   }, [selectedPageIndex, capturedPages.length]);
 
   // Convert captured pages to files and finish - creates PDF upload
-  const handleProcessCapturedPages = useCallback(async () => {
+  const finishScanning = useCallback(async () => {
     if (capturedPages.length === 0) {
-      console.log('❌ No captured pages to process');
       toast({
         title: "No Pages Captured",
-        description: "Please capture at least one page before saving.",
+        description: "Please capture at least one page before finishing.",
         variant: "destructive",
       });
       return;
     }
 
-    console.log(`🚀 STARTING PDF CREATION: ${capturedPages.length} pages`);
-    console.log('🔍 Captured pages data:', capturedPages.map(p => ({ 
-      id: p.id, 
-      hasImage: !!p.imageData, 
-      imageLength: p.imageData?.length || 0,
-      isProcessing: p.isProcessing 
-    })));
+    if (capturedPages.length > 20) {
+      toast({
+        title: "Too Many Pages",
+        description: "Maximum 20 pages allowed. Please remove some pages.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsProcessing(true);
-
+    
     try {
-      console.log(`🔄 Processing ${capturedPages.length} captured pages for PDF creation`);
-
       // Create image files with document-scan- prefix to trigger PDF bundling
       const files: File[] = [];
       const timestamp = Date.now();
-
+      
       for (let i = 0; i < capturedPages.length; i++) {
         const page = capturedPages[i];
-        console.log(`🔄 Processing page ${i + 1}/${capturedPages.length}`);
-
-        try {
-          console.log(`🔄 Processing page ${i + 1} with image data type:`, typeof page.imageData);
-          console.log(`🔄 Page ${i + 1} image data length:`, page.imageData ? page.imageData.length : 0);
+        
+        // Convert data URL to blob with proper JPEG format
+        const response = await fetch(page.imageData);
+        const blob = await response.blob();
+        
+        // Ensure we have a valid JPEG by re-creating it if needed
+        if (blob.type !== 'image/jpeg') {
+          console.log('Converting blob to JPEG format');
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
           
-          if (!page.imageData || !page.imageData.startsWith('data:')) {
-            throw new Error(`Invalid image data format for page ${i + 1}`);
-          }
-
-          // Convert data URL to blob with proper JPEG format
-          const response = await fetch(page.imageData);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch image data for page ${i + 1}: ${response.status}`);
-          }
-
-          const blob = await response.blob();
-          if (!blob || blob.size === 0) {
-            throw new Error(`Empty or invalid blob created for page ${i + 1}`);
-          }
-          console.log(`📄 Page ${i + 1} blob size: ${blob.size} bytes, type: ${blob.type}`);
-
-          // Ensure we have a valid JPEG by re-creating it if needed
-          if (blob.type !== 'image/jpeg') {
-            console.log(`🔄 Converting page ${i + 1} blob to JPEG format`);
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-              throw new Error(`Failed to get canvas context for page ${i + 1}`);
-            }
-
-            const img = new Image();
-
-            await new Promise<void>((resolve, reject) => {
-              img.onload = () => {
-                try {
-                  canvas.width = img.width;
-                  canvas.height = img.height;
-                  ctx.drawImage(img, 0, 0);
-                  resolve();
-                } catch (error) {
-                  reject(new Error(`Failed to draw image for page ${i + 1}: ${error}`));
-                }
-              };
-              img.onerror = () => reject(new Error(`Failed to load image for page ${i + 1}`));
-              img.src = page.imageData;
-            });
-
-            const jpegBlob = await new Promise<Blob>((resolve, reject) => {
-              canvas.toBlob((blob) => {
-                if (blob) {
-                  resolve(blob);
-                } else {
-                  reject(new Error(`Failed to create JPEG blob for page ${i + 1}`));
-                }
-              }, 'image/jpeg', 0.95);
-            });
-
-            const fileName = `document-scan-page-${String(i + 1).padStart(2, '0')}-${timestamp}.jpg`;
-            const file = new File([jpegBlob], fileName, { type: 'image/jpeg' });
-            files.push(file);
-            console.log(`✅ Page ${i + 1} converted to JPEG: ${jpegBlob.size} bytes`);
-          } else {
-            // Create file with document-scan- prefix to trigger merge logic
-            const fileName = `document-scan-page-${String(i + 1).padStart(2, '0')}-${timestamp}.jpg`;
-            const file = new File([blob], fileName, { type: 'image/jpeg' });
-            files.push(file);
-            console.log(`✅ Page ${i + 1} processed as JPEG: ${blob.size} bytes`);
-          }
-        } catch (pageError) {
-          console.error(`❌ Failed to process page ${i + 1}:`, pageError);
-          console.error(`❌ Page ${i + 1} details:`, {
-            hasImageData: !!page.imageData,
-            imageDataType: typeof page.imageData,
-            imageDataPrefix: page.imageData ? page.imageData.substring(0, 50) : 'NO_DATA'
+          await new Promise((resolve) => {
+            img.onload = () => {
+              canvas.width = img.width;
+              canvas.height = img.height;
+              ctx.drawImage(img, 0, 0);
+              resolve(void 0);
+            };
+            img.src = page.imageData;
           });
           
-          // Show error with toast for mobile debugging
-          toast({
-            title: "Processing Error",
-            description: `Failed to process page ${i + 1}`,
-            variant: "destructive",
+          const jpegBlob = await new Promise<Blob>((resolve) => {
+            canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.95);
           });
           
-          const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
-          throw new Error(`Processing error: Failed to process page ${i + 1}: ${errorMessage}`);
+          const fileName = `document-scan-page-${String(i + 1).padStart(2, '0')}-${timestamp}.jpg`;
+          const file = new File([jpegBlob], fileName, { type: 'image/jpeg' });
+          files.push(file);
+        } else {
+          // Create file with document-scan- prefix to trigger merge logic
+          const fileName = `document-scan-page-${String(i + 1).padStart(2, '0')}-${timestamp}.jpg`;
+          const file = new File([blob], fileName, { type: 'image/jpeg' });
+          files.push(file);
         }
       }
-
-      if (files.length === 0) {
-        throw new Error('No valid image files were created from captured pages');
-      }
-
-      console.log(`📁 Created ${files.length} files for upload`);
+      
       stopCamera();
-
+      
       // Use FormData to send multiple files for PDF bundling
       const formData = new FormData();
       files.forEach((file, index) => {
         formData.append('pages', file);
-        console.log(`📎 Added file ${index + 1}: ${file.name} (${file.size} bytes)`);
       });
-
+      
       // Add metadata
-      const documentName = `Scanned Document ${new Date().toLocaleDateString()}`;
       formData.append('uploadSource', 'browser_scan');
-      formData.append('documentName', documentName);
+      formData.append('documentName', `Scanned Document ${new Date().toLocaleDateString()}`);
       formData.append('pageCount', files.length.toString());
-
-      console.log(`🚀 Uploading ${files.length} pages to create PDF: ${documentName}`);
-
+      
       // TICKET 8: Track scan upload initiated
       trackScanEvent('browser_scan_uploaded', {
         pageCount: files.length,
         timestamp: new Date().toISOString()
       });
-
-      console.log(`🔐 Preparing authenticated upload with ${files.length} files`);
-      console.log(`📝 FormData contents:`, {
-        uploadSource: 'browser_scan',
-        documentName: documentName,
-        pageCount: files.length
+      
+      // Upload to server for PDF creation
+      const response = await fetch('/api/documents/multi-page-scan-upload', {
+        method: 'POST',
+        body: formData,
       });
-
-      // Upload to server for PDF creation with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
-
-      try {
-        const response = await fetch('/api/documents/multi-page-scan-upload', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal,
-          credentials: 'include'  // Include authentication cookies
-        });
-
-        clearTimeout(timeoutId);
-
-        console.log(`📡 Upload response: ${response.status} ${response.statusText}`);
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: 'Unknown server error' }));
-          console.error(`❌ Upload failed with status ${response.status}:`, errorData);
-          throw new Error(`Server error (${response.status}): ${errorData.message || 'Failed to create PDF document'}`);
-        }
-
-        const result = await response.json();
-        console.log('✅ PDF creation successful:', result);
-
-        if (!result.success) {
-          throw new Error(result.message || 'PDF creation failed');
-        }
-
-        onClose();
-
-        toast({
-          title: "Scan Complete",
-          description: `Successfully created ${capturedPages.length}-page PDF document: ${result.document?.name || documentName}`,
-        });
-
-        // Redirect to document view or refresh page
-        if (result.documentId || result.document?.id) {
-          const docId = result.documentId || result.document.id;
-          window.location.href = `/document/${docId}`;
-        } else {
-          // Refresh the current page to show new document
-          setTimeout(() => window.location.reload(), 1000);
-        }
-
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        const error = fetchError as Error;
-        if (error.name === 'AbortError') {
-          throw new Error('Upload timed out. Please try again with fewer pages or check your connection.');
-        }
-        throw error;
+      
+      if (!response.ok) {
+        throw new Error('Upload failed');
       }
-
-    } catch (err: any) {
-      console.error('❌ Failed to process captured pages:', err);
-
-      // Provide more specific error messages
-      let errorMessage = 'Failed to create PDF document. Please try again.';
-      if (err.message) {
-        if (err.message.includes('timeout') || err.message.includes('timed out')) {
-          errorMessage = 'Upload timed out. Please try again or reduce the number of pages.';
-        } else if (err.message.includes('network') || err.message.includes('fetch')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        } else if (err.message.includes('page')) {
-          errorMessage = `Image processing error: ${err.message}`;
-        } else if (err.message.includes('Server error')) {
-          errorMessage = err.message;
-        }
+      
+      const result = await response.json();
+      
+      onClose();
+      
+      // Redirect to document view or refresh page
+      if (result.documentId) {
+        window.location.href = `/document/${result.documentId}`;
+      } else {
+        // Refresh the current page to show new document
+        window.location.reload();
       }
-
+      
+      toast({
+        title: "Scan Complete",
+        description: `Successfully created ${capturedPages.length}-page PDF document.`,
+      });
+      
+    } catch (err) {
+      console.error('Failed to process captured pages:', err);
       toast({
         title: "Upload Failed",
-        description: errorMessage,
+        description: "Failed to create PDF document. Please try again.",
         variant: "destructive",
       });
-
-      // Track the error for debugging with additional context
-      trackScanEvent('browser_scan_failed', {
-        error: err.message || 'Unknown error',
-        pageCount: capturedPages.length,
-        timestamp: new Date().toISOString()
-      });
-
-      // Additional error logging for debugging
-      console.error('❌ Complete scan error context:', {
-        originalError: err,
-        errorMessage,
-        pageCount: capturedPages.length,
-        timestamp: new Date().toISOString(),
-        errorStack: err.stack
-      });
-
     } finally {
       setIsProcessing(false);
     }
@@ -816,7 +687,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
             </div>
           </DialogTitle>
         </DialogHeader>
-
+        
         {/* Processing Settings Panel */}
         {showProcessingSettings && (
           <div className="bg-gray-50 p-4 rounded-lg space-y-4">
@@ -865,7 +736,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
             </div>
           </div>
         )}
-
+        
         <div className="flex flex-col lg:flex-row gap-4 h-[70vh]">
           {/* Camera Section */}
           <div className="flex-1 flex flex-col relative">
@@ -898,17 +769,17 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     playsInline
                     muted
                   />
-
+                  
                   {/* Canvas preview that should work on mobile */}
                   <canvas
                     ref={previewCanvasRef}
                     className="w-full h-full object-cover"
-                    style={{
+                    style={{ 
                       backgroundColor: '#000'
                       // Removed mirror transform for natural camera movement
                     }}
                   />
-
+                  
                   {/* Debug overlay with more details */}
                   <div className="absolute top-2 right-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
                     <div>Camera: {stream ? 'Active' : 'Inactive'}</div>
@@ -917,7 +788,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                   </div>
                 </div>
               )}
-
+              
               {/* Camera overlay guides with orientation support */}
               {isScanning && (
                 <div className="absolute inset-0 pointer-events-none">
@@ -930,7 +801,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white"></div>
                     <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white"></div>
                   </div>
-
+                  
                   {/* Orientation toggle button */}
                   <div className="absolute top-4 right-4">
                     <Button
@@ -943,14 +814,14 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                       {overlayOrientation === 'portrait' ? 'Portrait' : 'Landscape'}
                     </Button>
                   </div>
-
+                  
                   <div className="absolute bottom-20 md:bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded">
                     Align document within frame • {overlayOrientation === 'portrait' ? 'Portrait mode' : 'Landscape mode'}
                   </div>
                 </div>
               )}
             </div>
-
+            
             {/* Camera Controls - Always visible on mobile */}
             {isScanning && (
               <>
@@ -966,7 +837,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     </Button>
                   </div>
                 </div>
-
+                
                 {/* Desktop Controls - Below camera */}
                 <div className="hidden md:flex justify-center gap-4 mt-4">
                   <Button onClick={stopCamera} variant="outline">
@@ -981,7 +852,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
               </>
             )}
           </div>
-
+          
           {/* Captured Pages Section */}
           <div className="w-full lg:w-80 flex flex-col">
             {/* Horizontal Page Preview Bar */}
@@ -1055,8 +926,8 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                 )}
               </div>
               {capturedPages.length > 0 && (
-                <Button
-                  onClick={handleProcessCapturedPages}
+                <Button 
+                  onClick={finishScanning} 
                   disabled={isProcessing || capturedPages.length > 20}
                   variant={capturedPages.length > 20 ? "destructive" : "default"}
                 >
@@ -1065,7 +936,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                 </Button>
               )}
             </div>
-
+            
             {capturedPages.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-gray-500 text-center">
                 <div>
@@ -1083,7 +954,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     alt={`Page ${selectedPageIndex + 1}`}
                     className="max-w-full max-h-full object-contain"
                   />
-
+                  
                   {/* Navigation overlays */}
                   {selectedPageIndex > 0 && (
                     <button
@@ -1101,7 +972,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                       <ChevronRight className="h-6 w-6" />
                     </button>
                   )}
-
+                  
                   {/* Page info overlay */}
                   <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded text-sm">
                     Page {selectedPageIndex + 1} of {capturedPages.length}
@@ -1110,7 +981,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     )}
                   </div>
                 </div>
-
+                
                 {/* Page controls */}
                 <div className="flex justify-center gap-2">
                   <Button
@@ -1121,7 +992,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                     <X className="h-3 w-3 mr-1" />
                     Close Preview
                   </Button>
-
+                  
                   {capturedPages[selectedPageIndex]?.processedImageData && capturedPages[selectedPageIndex]?.originalImageData && (
                     <Button
                       size="sm"
@@ -1133,7 +1004,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                       Toggle Enhancement
                     </Button>
                   )}
-
+                  
                   <Button
                     size="sm"
                     variant="outline"
@@ -1153,8 +1024,8 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
               /* List View Mode */
               <div className="flex-1 overflow-y-auto space-y-3">
                 {capturedPages.map((page, index) => (
-                  <Card
-                    key={page.id}
+                  <Card 
+                    key={page.id} 
                     className={`relative cursor-pointer transition-all ${
                       selectedPageIndex === index ? 'ring-2 ring-blue-500' : ''
                     } ${draggedPage === page.id ? 'opacity-50' : ''}`}
@@ -1173,7 +1044,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                         <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
                           <GripVertical className="h-4 w-4" />
                         </div>
-
+                        
                         <div className="relative">
                           <img
                             src={page.imageData}
@@ -1190,13 +1061,13 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                               {Math.round(page.confidence * 100)}%
                             </div>
                           )}
-
+                          
                           {/* Page number overlay */}
                           <div className="absolute -top-2 -left-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                             {index + 1}
                           </div>
                         </div>
-
+                        
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-sm">Page {index + 1}</p>
@@ -1211,7 +1082,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                             {page.processingTime && ` • ${Math.round(page.processingTime)}ms`}
                           </p>
                         </div>
-
+                        
                         <div className="flex gap-1">
                           <Button
                             size="sm"
@@ -1225,7 +1096,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                           >
                             <Eye className="h-3 w-3" />
                           </Button>
-
+                          
                           {page.processedImageData && page.originalImageData && (
                             <Button
                               size="sm"
@@ -1239,7 +1110,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                               <Wand2 className="h-3 w-3" />
                             </Button>
                           )}
-
+                          
                           {page.originalImageData && (
                             <Button
                               size="sm"
@@ -1254,7 +1125,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                               <RotateCcw className="h-3 w-3" />
                             </Button>
                           )}
-
+                          
                           <Button
                             size="sm"
                             variant="outline"
@@ -1272,12 +1143,12 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                 ))}
               </div>
             )}
-
+            
             {/* Add More Pages Button */}
             {capturedPages.length > 0 && !isScanning && !showPagePreview && (
-              <Button
-                onClick={initializeCamera}
-                variant="outline"
+              <Button 
+                onClick={initializeCamera} 
+                variant="outline" 
                 className="mt-3"
                 disabled={capturedPages.length >= 20}
               >
@@ -1285,7 +1156,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
                 {capturedPages.length >= 20 ? 'Maximum Pages Reached' : 'Add More Pages'}
               </Button>
             )}
-
+            
             {/* Page count warning */}
             {capturedPages.length > 15 && (
               <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
@@ -1294,7 +1165,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
             )}
           </div>
         </div>
-
+        
         {/* Hidden canvas for image capture */}
         <canvas ref={canvasRef} className="hidden" />
       </DialogContent>

@@ -3,9 +3,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Crown, Mail, Calendar, ToggleLeft, ToggleRight } from "lucide-react";
-import { api } from "@/api/client";
 
 interface UserDetails {
   id: string;
@@ -27,7 +27,16 @@ export function UsersTable() {
   const { data: users, isLoading, error } = useQuery<UserDetails[]>({
     queryKey: ['/api/admin/users'],
     queryFn: async () => {
-      return api.get<UserDetails[]>('/api/admin/users');
+      const response = await fetch('/api/admin/users', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch users: ${response.status}`);
+      }
+      return response.json();
     },
     retry: 3,
     retryDelay: 1000
@@ -35,7 +44,10 @@ export function UsersTable() {
 
   const toggleUserMutation = useMutation({
     mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-      return api.patch(`/api/admin/users/${userId}/toggle`, { isActive });
+      return apiRequest(`/api/admin/users/${userId}/toggle`, {
+        method: 'PATCH',
+        body: { isActive }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });

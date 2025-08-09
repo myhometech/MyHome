@@ -101,12 +101,12 @@ export default function FeatureFlagsAdmin() {
   const queryClient = useQueryClient();
 
   // Fetch feature flags
-  const { data: featureFlags, isLoading: isLoadingFlags } = useQuery<FeatureFlag[]>({
+  const { data: featureFlags, isLoading: isLoadingFlags } = useQuery({
     queryKey: ['/api/admin/feature-flags'],
   });
 
   // Fetch feature flag overrides
-  const { data: overrides, isLoading: isLoadingOverrides } = useQuery<FeatureFlagOverride[]>({
+  const { data: overrides, isLoading: isLoadingOverrides } = useQuery({
     queryKey: ['/api/admin/feature-flag-overrides'],
   });
 
@@ -307,7 +307,7 @@ export default function FeatureFlagsAdmin() {
           </Card>
 
           {/* Feature Flags Grid */}
-          <div data-testid="feature-flags-table" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredFlags.map((flag) => (
               <Card key={flag.id} className="relative">
                 <CardHeader className="pb-3">
@@ -420,7 +420,7 @@ export default function FeatureFlagsAdmin() {
                 <CardTitle className="text-base">Total Flags</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{(featureFlags || []).length}</div>
+                <div className="text-2xl font-bold">{featureFlags?.length || 0}</div>
               </CardContent>
             </Card>
             <Card>
@@ -429,7 +429,7 @@ export default function FeatureFlagsAdmin() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {(featureFlags || []).filter(f => f.enabled).length}
+                  {(featureFlags as FeatureFlag[] || []).filter(f => f.enabled).length}
                 </div>
               </CardContent>
             </Card>
@@ -438,7 +438,7 @@ export default function FeatureFlagsAdmin() {
                 <CardTitle className="text-base">User Overrides</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{(overrides || []).length}</div>
+                <div className="text-2xl font-bold">{overrides?.length || 0}</div>
               </CardContent>
             </Card>
             <Card>
@@ -447,7 +447,7 @@ export default function FeatureFlagsAdmin() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {(featureFlags || []).filter(f => f.tierRequired === 'premium').length}
+                  {(featureFlags as FeatureFlag[] || []).filter(f => f.tierRequired === 'premium').length}
                 </div>
               </CardContent>
             </Card>

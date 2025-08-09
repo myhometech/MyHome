@@ -114,7 +114,7 @@ export function SmartSearch({
   };
 
   const handleDocumentSelect = (document: Document) => {
-    // Document selected - debug logging removed
+    console.log('handleDocumentSelect called with:', document);
     onDocumentSelect?.(document);
     setIsOpen(false);
     setSelectedIndex(-1);

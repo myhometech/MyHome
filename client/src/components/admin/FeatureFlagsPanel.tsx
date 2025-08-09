@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Flag, Crown, Zap, Brain, Cog, Share2, ToggleLeft, ToggleRight, BarChart3 } from "lucide-react";
-import { api } from "@/api/client";
 
 interface FeatureFlag {
   id: string;
@@ -35,20 +35,35 @@ export function FeatureFlagsPanel() {
   const { data: flags, isLoading: flagsLoading } = useQuery<FeatureFlag[]>({
     queryKey: ['/api/admin/feature-flags'],
     queryFn: async () => {
-      return api.get<FeatureFlag[]>('/api/admin/feature-flags');
+      const response = await fetch('/api/admin/feature-flags', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch feature flags: ${response.status}`);
+      }
+      return response.json();
     },
   });
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery<FeatureFlagAnalytics>({
     queryKey: ['/api/admin/feature-flag-analytics'],
     queryFn: async () => {
-      return api.get<FeatureFlagAnalytics>('/api/admin/feature-flag-analytics');
+      const response = await fetch('/api/admin/feature-flag-analytics', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch feature flag analytics: ${response.status}`);
+      }
+      return response.json();
     },
   });
 
   const toggleFlagMutation = useMutation({
     mutationFn: async ({ flagId, enabled }: { flagId: string; enabled: boolean }) => {
-      return api.patch(`/api/admin/feature-flags/${flagId}/toggle`, { enabled });
+      return apiRequest(`/api/admin/feature-flags/${flagId}/toggle`, {
+        method: 'PATCH',
+        body: { enabled }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/feature-flags'] });

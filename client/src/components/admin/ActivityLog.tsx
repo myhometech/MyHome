@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { Activity, AlertCircle, Info, Shield, Clock } from "lucide-react";
-import { api } from "@/api/client";
 
 interface SystemActivity {
   id: number;
@@ -24,7 +23,13 @@ export function ActivityLog() {
     queryKey: ['/api/admin/activities', severityFilter],
     queryFn: async () => {
       const params = severityFilter !== 'all' ? `?severity=${severityFilter}` : '';
-      return api.get<SystemActivity[]>(`/api/admin/activities${params}`);
+      const response = await fetch(`/api/admin/activities${params}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch activities: ${response.status}`);
+      }
+      return response.json();
     },
   });
 

@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Cloud, HardDrive, Zap, DollarSign, TrendingUp, TrendingDown, Brain, Database } from "lucide-react";
-import { api } from "@/api/client";
 
 interface GCSUsage {
   totalStorageGB: number;
@@ -34,7 +33,17 @@ export function CloudUsageCards() {
   const { data: gcsUsage, isLoading: gcsLoading, error: gcsError } = useQuery<GCSUsage>({
     queryKey: ['/api/admin/cloud-usage'],
     queryFn: async () => {
-      return api.get<GCSUsage>('/api/admin/cloud-usage');
+      console.log('🔄 Fetching GCS usage data...');
+      const response = await fetch('/api/admin/cloud-usage', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        console.error('❌ GCS usage fetch failed:', response.status, response.statusText);
+        throw new Error(`Failed to fetch GCS usage: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('✅ GCS usage data received:', data);
+      return data;
     },
     retry: 3,
     retryDelay: 1000,
@@ -43,7 +52,17 @@ export function CloudUsageCards() {
   const { data: openaiUsage, isLoading: openaiLoading, error: openaiError } = useQuery<OpenAIUsage>({
     queryKey: ['/api/admin/llm-usage/analytics'],
     queryFn: async () => {
-      return api.get<OpenAIUsage>('/api/admin/llm-usage/analytics');
+      console.log('🔄 Fetching OpenAI usage data...');
+      const response = await fetch('/api/admin/llm-usage/analytics', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        console.error('❌ OpenAI usage fetch failed:', response.status, response.statusText);
+        throw new Error(`Failed to fetch OpenAI usage: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('✅ OpenAI usage data received:', data);
+      return data;
     },
     retry: 3,
     retryDelay: 1000,

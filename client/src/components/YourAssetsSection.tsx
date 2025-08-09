@@ -134,41 +134,18 @@ export function YourAssetsSection() {
 
   const bulkDeleteAssets = useMutation({
     mutationFn: async (ids: string[]) => {
-      console.log('Bulk delete assets request:', { assetIds: ids, count: ids.length });
-      
-      const response = await fetch('/api/user-assets/bulk-delete', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ assetIds: ids }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Bulk delete assets failed:', errorData);
-        throw new Error(`Failed to delete assets: ${response.status} - ${errorData.message || 'Unknown error'}`);
-      }
-      
-      return response.json();
+      await Promise.all(
+        ids.map(id => fetch(`/api/user-assets/${id}`, { method: "DELETE" }))
+      );
     },
-    onSuccess: (result: any) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user-assets"] });
       setSelectedAssets(new Set());
       setBulkMode(false);
-      
-      const successMessage = `Successfully deleted ${result.success} assets${result.failed > 0 ? `, ${result.failed} failed` : ''}`;
-      
-      toast({ 
-        title: "Bulk Delete Complete", 
-        description: successMessage,
-        variant: result.failed > 0 ? "destructive" : "default"
-      });
+      toast({ title: "Assets deleted", description: `Successfully deleted ${selectedAssets.size} assets.` });
     },
-    onError: (error) => {
-      console.error('Bulk delete assets error:', error);
-      toast({ title: "Failed to delete assets", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
+    onError: () => {
+      toast({ title: "Failed to delete assets", description: "Please try again.", variant: "destructive" });
     },
   });
 

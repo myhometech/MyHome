@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Enable manual garbage collection if available
-if (global.gc && process.env.NODE_ENV !== 'production') {
+if (global.gc) {
   console.log('✅ Manual GC enabled');
-} else if (process.env.NODE_ENV !== 'production') {
+} else {
   console.warn('⚠️ Manual GC not available - start with --expose-gc for better memory management');
 }
 
@@ -15,40 +15,37 @@ initializeSentry();
 // DEPLOYMENT FIX: Check deployment environment once
 const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
 
-// DEVELOPMENT PERFORMANCE FIX: Disable all monitoring in development
-if (process.env.NODE_ENV === 'development') {
-  console.log('ℹ️  Development mode: All monitoring disabled for performance');
-} else {
-  console.log('ℹ️  Production mode: System monitoring available if needed');
-}
+// TEMPORARILY DISABLE SYSTEM MONITORING TO RESOLVE STARTUP ISSUES
+// if (!isDeployment) {
+//   // Start system health monitoring
+//   monitorSystemHealth();
+// } else {
+//   console.log('ℹ️  Deployment mode: Skipping system health monitoring');
+// }
 
 import express, { type Request, Response, NextFunction } from "express";
-import path from "path";
-import fs from "fs";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import authRoutes from "./authRoutes";
 
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
-if (process.env.NODE_ENV !== 'production') {
-  console.log('ℹ️  Simplified memory management enabled');
-}
+console.log('ℹ️  Simplified memory management enabled');
 
-// DEVELOPMENT FIX: Reduce GC frequency to prevent interference
+// Basic GC only when needed (less aggressive)
 if (!isDeployment && global.gc) {
   setInterval(() => {
     const memUsage = process.memoryUsage();
     const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
 
-    // Less aggressive GC in development
-    if (heapPercent > 90 && global.gc) {
+    // More aggressive GC due to current 97% heap usage
+    if (heapPercent > 80 && global.gc) {
       global.gc();
+      console.log(`🧹 GC: Memory was ${heapPercent}%, running cleanup`);
     }
-  }, 60000); // Every 60 seconds to reduce interference
+  }, 15000); // Every 15 seconds for current memory pressure
 }
 
 // SIMPLIFIED STARTUP: Minimal logging only
-if (!isDeployment && process.env.NODE_ENV !== 'production') {
+if (!isDeployment) {
   const initialMem = process.memoryUsage();
   console.log(`📊 Initial memory: ${Math.round(initialMem.heapUsed/1024/1024)}MB heap`);
 
@@ -66,8 +63,6 @@ let backupService: any = null;
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-// NOTE: CSP override middleware moved to routes.ts to run after security headers
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -108,43 +103,28 @@ app.use((req, res, next) => {
   console.log('🚀 Process arguments:', process.argv);
   console.log('🚀 Working directory:', process.cwd());
 
-  // DEVELOPMENT PERFORMANCE FIX: Disable backup service in development too
-  console.log('ℹ️ Backup service disabled for better development performance');
+  // PRODUCTION WHITE SCREEN FIX: Completely disable backup service in production
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      // Dynamic import prevents loading GCS modules in production  
+      const { backupService: bs } = await import('./backupService.js');
+      backupService = bs;
+      backupService.initialize()
+        .then(() => console.log('✅ Backup service initialized successfully'))
+        .catch((error: any) => console.warn('⚠️ Backup service initialization failed (non-critical):', error.message));
+    } catch (importError: any) {
+      console.warn('⚠️ Could not import backup service (non-critical):', importError.message);
+    }
+  } else {
+    console.log('ℹ️ Backup service disabled in production');
+  }
 
   // Register main routes to handle all routing - no duplicates needed
   const deploymentMarker = Date.now();
   console.log('🔧 ROUTE REGISTRATION: Registering all routes via routes.ts');
   console.log(`🚀 DEPLOYMENT MARKER: ${deploymentMarker}`);
 
-  // ===== Pre-Middleware Endpoints (No Auth Required) =====
-  // These endpoints need to be registered BEFORE main routes to avoid middleware interference
-
-  // Health Check Endpoint
-  app.get('/healthz', (_req, res) => {
-    res.json({
-      status: 'ok',
-      version: process.env.GIT_SHA || 'dev',
-      timestamp: new Date().toISOString()
-    });
-  });
-
-  // Config File Serving
-  app.get('/config.json', (_req, res) => {
-    const configPath = path.resolve(process.cwd(), 'server', 'public', 'config.json');
-    if (!fs.existsSync(configPath)) {
-      // Fallback to client config if server config doesn't exist
-      const fallbackConfigPath = path.resolve(process.cwd(), 'client', 'public', 'config.json');
-      if (fs.existsSync(fallbackConfigPath)) {
-        res.sendFile(fallbackConfigPath);
-      } else {
-        res.status(404).json({ error: 'Configuration file not found' });
-      }
-    } else {
-      res.sendFile(configPath);
-    }
-  });
-
-  // CRITICAL FIX: Register routes AFTER pre-middleware endpoints
+  // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
   const server = await registerRoutes(app);
   console.log('✅ API routes registered successfully');
 
@@ -171,97 +151,18 @@ app.use((req, res, next) => {
   if (nodeEnv === "development" && !isDeployment) {
     console.log('🔧 Setting up Vite development server');
     await setupVite(app, server);
-
-    // Development mode: Add explicit favicon route since static serving is handled by Vite
-    app.get('/favicon.ico', (req, res) => {
-      const faviconPaths = [
-        path.resolve(process.cwd(), "dist", "public", "favicon.ico"),
-        path.resolve(process.cwd(), "client", "public", "favicon.ico")
-      ];
-
-      for (const faviconPath of faviconPaths) {
-        if (fs.existsSync(faviconPath)) {
-          console.log('✅ Serving favicon from:', faviconPath);
-          return res.sendFile(faviconPath);
-        }
-      }
-
-      console.log('❌ Favicon not found at any location');
-      res.status(404).json({ error: 'Favicon not found' });
-    });
   } else {
     console.log('🔧 PRODUCTION MODE: Setting up static file serving for deployment');
-    console.log('🔧 Static files will be served from client/dist directory');
+    console.log('🔧 Static files will be served from dist/public directory');
     console.log('⚠️ IMPORTANT: Static file serving configured AFTER API routes to prevent route interception');
     try {
-      // ===== Static Frontend Assets =====
-      // Check both possible build locations
-      const clientDistPath = path.resolve(process.cwd(), "client", "dist");
-      const distPublicPath = path.resolve(process.cwd(), "dist", "public");
-
-      let distPath: string;
-      if (fs.existsSync(distPublicPath)) {
-        distPath = distPublicPath;
-        console.log('🔍 Using dist/public for static files');
-      } else if (fs.existsSync(clientDistPath)) {
-        distPath = clientDistPath;
-        console.log('🔍 Using client/dist for static files');
-      } else {
-        throw new Error(`Could not find the build directory. Checked: ${clientDistPath} and ${distPublicPath}`);
-      }
-
-      console.log('🔍 Static directory path:', distPath);
-      console.log('🔍 Static directory exists:', fs.existsSync(distPath));
-
-      // Serve static assets
-      app.use(express.static(distPath));
-      console.log('✅ Static assets configured from:', distPath);
-
-      // Explicit favicon route (in case it's not served by static middleware)
-      app.get('/favicon.ico', (req, res) => {
-        const faviconPath = path.join(distPath, 'favicon.ico');
-        if (fs.existsSync(faviconPath)) {
-          res.sendFile(faviconPath);
-        } else {
-          res.status(404).json({ error: 'Favicon not found' });
-        }
-      });
-
-      // ===== SPA Fallback - Only for non-API routes =====
-      app.get('*', (req, res, next) => {
-        // Skip API routes
-        if (req.path.startsWith('/api')) {
-          return next();
-        }
-
-        // Skip healthz and config endpoints
-        if (req.path === '/healthz' || req.path === '/config.json') {
-          return next();
-        }
-
-        // Serve index.html for all other routes (SPA fallback)
-        const indexPath = path.resolve(distPath, "index.html");
-        if (fs.existsSync(indexPath)) {
-          res.sendFile(indexPath);
-        } else {
-          res.status(404).json({ error: 'Frontend build not found' });
-        }
-      });
-
-      console.log('✅ SPA fallback configured successfully');
-
-      if (fs.existsSync(distPath)) {
-        const files = fs.readdirSync(distPath);
-        console.log('🔍 Static files found:', files.slice(0, 5)); // Show first 5 files
-      }
+      serveStatic(app);
+      console.log('✅ Static file serving configured successfully for production');
     } catch (error) {
       console.error('❌ Static file serving failed:', (error as Error).message);
-      console.error('❌ This means the frontend build is missing or misconfigured');
       // Continue without static files to prevent total failure
     }
   }
-
-  // CSP override is now applied early in middleware chain
 
   // Add error handling AFTER static file setup to avoid interfering with routes
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -285,25 +186,6 @@ app.use((req, res, next) => {
   console.log('   GET /debug');
   console.log('   GET /api/email-ingest');
   console.log('   POST /api/email-ingest');
-  // Mount routes with logging
-  console.log('🔗 Mounting API routes...');
-  
-  // Mount only the routes that are properly imported and defined
-  app.use('/api/oauth', authRoutes);
-  
-  // Other routes are handled by registerRoutes() function
-  // Comment out the undefined route variables to prevent ReferenceError
-  // app.use('/api/documents', requireAuth, documentRoutes); 
-  // app.use('/api/backup', backupRoutes);
-  // app.use('/api/categories', require('./routes/categorySuggestion').default);
-  // app.use('/api/llm-usage', llmUsageRoutes);
-  // app.use('/api/admin', adminTestRoutes);
-  // app.use('/api/multi-page-scan', multiPageScanRoutes);
-  // app.use('/api/advanced-scanning', advancedScanningRoutes);
-  // app.use('/api/ocr-error', ocrErrorRoutes);
-  // app.use('/api/insight-recovery', insightRecoveryRoutes);
-  // app.use('/api/canny', cannyRoutes);
-  console.log('✅ All API routes mounted successfully');
   console.log(`🚀 Starting server on port ${port} with NODE_ENV=${process.env.NODE_ENV}`);
 
   // DEPLOYMENT FIX: Add deployment environment detection (already declared above)
@@ -316,12 +198,11 @@ app.use((req, res, next) => {
 
   server.listen({
     port,
-    host: "0.0.0.0", // Force bind to 0.0.0.0 for Replit
+    host,
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
-    console.log(`🌐 Server ready at http://0.0.0.0:${port}`);
-    console.log(`🔧 Accessible via: ${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'local development'}`);
+    console.log(`🌐 Server ready at http://${host}:${port}`);
 
     if (isDeployment) {
       console.log('✅ DEPLOYMENT: Server successfully started and listening');

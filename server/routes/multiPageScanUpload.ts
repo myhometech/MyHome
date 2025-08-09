@@ -2,18 +2,12 @@ import { Express } from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { requireAuth } from '../simpleAuth';
 import { storage } from '../storage';
 import { PDFConversionService } from '../pdfConversionService';
 import { StorageService, storageProvider } from '../storage/StorageService';
 import { EncryptionService } from '../encryptionService';
 import { ocrQueue } from '../ocrQueue';
-import { nanoid } from 'nanoid';
-import { ResourceTracker } from '../resourceTracker';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 function getUserId(req: any): string {
   return req.user?.id || req.session?.user?.id;
@@ -28,27 +22,10 @@ if (!fs.existsSync(uploadsDir)) {
 
 const upload = multer({ dest: uploadsDir });
 const pdfConversionService = new PDFConversionService();
-const resourceTracker = new ResourceTracker(); // Initialize resource tracker
 
 export function setupMultiPageScanUpload(app: Express) {
   // Multi-page scan upload endpoint
   app.post('/api/documents/multi-page-scan-upload', requireAuth, upload.array('pages', 20), async (req: any, res) => {
-    console.log(`\n🚀 CAMERA SCAN UPLOAD ATTEMPT - ${new Date().toISOString()}`);
-    console.log(`📱 User Agent: ${req.headers['user-agent']}`);
-    console.log(`🔐 User ID: ${req.user?.id || 'NOT_AUTHENTICATED'}`);
-    console.log(`📦 Content Type: ${req.headers['content-type']}`);
-    console.log(`📝 Body Keys: ${Object.keys(req.body).join(', ')}`);
-    console.log(`📎 Files Received: ${req.files ? req.files.length : 0}`);
-    if (req.files && req.files.length > 0) {
-      const files = req.files as Express.Multer.File[];
-      files.forEach((file, i) => {
-        console.log(`   File ${i+1}: ${file.originalname} (${file.size} bytes, ${file.mimetype})`);
-      });
-    }
-
-    let pdfResourceId: string | undefined;
-    let document: any; // Declare document variable in outer scope
-
     try {
       const files = req.files as Express.Multer.File[];
       const userId = getUserId(req);
@@ -56,7 +33,7 @@ export function setupMultiPageScanUpload(app: Express) {
       const documentName = req.body.documentName || 'Scanned Document';
       const pageCount = parseInt(req.body.pageCount) || files.length;
 
-      console.log(`🔄 UPLOAD: Processing multi-page scan upload: ${pageCount} pages from user ${userId}`);
+      console.log(`🔄 UPLOAD: Processing multi-page scan upload: ${files.length} pages from user ${userId}`);
       console.log(`🔄 UPLOAD: Document name: "${documentName}"`);
       console.log(`🔄 UPLOAD: Page count: ${pageCount}`);
 
@@ -72,319 +49,189 @@ export function setupMultiPageScanUpload(app: Express) {
       files.sort((a, b) => a.originalname.localeCompare(b.originalname));
       console.log(`🔄 UPLOAD: Sorted files:`, files.map(f => f.originalname));
 
-      // Create temporary files for processing
-      const tempDir = path.join(__dirname, '../temp');
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
+      // Convert multiple images to single PDF
+      const imagePaths = files.map(file => file.path);
+      console.log(`🔄 UPLOAD: Starting PDF conversion for paths:`, imagePaths);
+      
+      const pdfConversionResult = await pdfConversionService.convertMultipleImagesToPDF(
+        imagePaths,
+        uploadsDir,
+        documentName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-')
+      );
+      
+      console.log(`🔄 UPLOAD: PDF conversion result:`, { 
+        success: pdfConversionResult.success, 
+        pdfPath: pdfConversionResult.pdfPath,
+        error: pdfConversionResult.error 
+      });
+
+      if (!pdfConversionResult.success) {
+        // Clean up uploaded files
+        files.forEach(file => {
+          try {
+            fs.unlinkSync(file.path);
+          } catch (error) {
+            console.warn(`Failed to cleanup file: ${file.path}`);
+          }
+        });
+        
+        return res.status(500).json({ 
+          message: "Failed to create PDF from scanned pages",
+          error: pdfConversionResult.error 
+        });
       }
 
-      const tempImagePaths: string[] = [];
+      // Create document data for the PDF
+      const timestamp = new Date();
+      const pdfFileName = path.basename(pdfConversionResult.pdfPath);
+      
+      const documentData = {
+        userId,
+        fileName: pdfFileName,
+        name: documentName,
+        filePath: pdfConversionResult.pdfPath,
+        fileSize: fs.statSync(pdfConversionResult.pdfPath).size,
+        mimeType: 'application/pdf',
+        tags: ['browser-scanned', `${pageCount}-pages`],
+        uploadSource,
+        status: 'pending' as const,
+        uploadedAt: timestamp,
+        createdAt: timestamp,
+        updatedAt: timestamp
+      };
+
+      // Upload to cloud storage with proper streaming
+      let cloudStorageKey = '';
+      try {
+        const storage = storageProvider();
+        const fileStream = fs.createReadStream(pdfConversionResult.pdfPath);
+        
+        if (typeof storage.uploadStream === 'function') {
+          cloudStorageKey = await storage.uploadStream(
+            fileStream, 
+            StorageService.generateFileKey(userId, `temp_${Date.now()}`, pdfFileName),
+            documentData.mimeType
+          );
+        } else {
+          const fileBuffer = await fs.promises.readFile(pdfConversionResult.pdfPath);
+          cloudStorageKey = await storage.upload(
+            fileBuffer, 
+            StorageService.generateFileKey(userId, `temp_${Date.now()}`, pdfFileName),
+            documentData.mimeType
+          );
+        }
+        
+        fileStream.destroy();
+        console.log(`✅ Multi-page PDF uploaded to cloud storage: ${cloudStorageKey}`);
+
+      } catch (uploadError) {
+        console.error('❌ Cloud storage upload failed:', uploadError);
+        
+        // Clean up files
+        files.forEach(file => {
+          try {
+            fs.unlinkSync(file.path);
+          } catch (error) {
+            console.warn(`Failed to cleanup file: ${file.path}`);
+          }
+        });
+        
+        try {
+          fs.unlinkSync(pdfConversionResult.pdfPath);
+        } catch (error) {
+          console.warn(`Failed to cleanup PDF: ${pdfConversionResult.pdfPath}`);
+        }
+        
+        return res.status(500).json({ message: "Failed to upload PDF to cloud storage" });
+      }
+
+      // Generate encryption metadata
+      let encryptedDocumentKey = '';
+      let encryptionMetadata = '';
+      
+      try {
+        const documentKey = EncryptionService.generateDocumentKey();
+        encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
+        
+        encryptionMetadata = JSON.stringify({
+          storageType: 'cloud',
+          storageKey: cloudStorageKey,
+          encrypted: true,
+          algorithm: 'AES-256-GCM'
+        });
+        
+      } catch (encryptionError) {
+        console.error('Document encryption setup failed:', encryptionError);
+        return res.status(500).json({ message: "Document encryption setup failed" });
+      }
+
+      // Create document record with cloud storage reference
+      const cloudDocumentData = {
+        ...documentData,
+        filePath: cloudStorageKey,
+        gcsPath: cloudStorageKey,
+        encryptedDocumentKey,
+        encryptionMetadata,
+      };
+
+      const document = await storage.createDocument(cloudDocumentData);
+
+      // Clean up temporary files
+      files.forEach(file => {
+        try {
+          fs.unlinkSync(file.path);
+        } catch (error) {
+          console.warn(`Failed to cleanup file: ${file.path}`);
+        }
+      });
 
       try {
-        console.log(`🔄 UPLOAD: Creating temporary files for ${files.length} pages`);
-
-        // Use the files that multer already saved to disk
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-
-          // Multer already saved the file to disk using 'dest' option
-          if (!file.path || !fs.existsSync(file.path)) {
-            throw new Error(`Uploaded file ${i + 1} not found at: ${file.path}`);
-          }
-
-          // Copy to our temp directory with proper naming
-          const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '');
-          const tempImagePath = path.join(tempDir, `temp-page-${i + 1}-${Date.now()}-${sanitizedName}`);
-
-          // Copy the file to our temp location
-          await fs.promises.copyFile(file.path, tempImagePath);
-          tempImagePaths.push(tempImagePath);
-          console.log(`🔄 UPLOAD: Copied temp file ${i + 1}: ${tempImagePath} (${file.size} bytes)`);
-        }
-
-        console.log(`🔄 UPLOAD: Converting ${tempImagePaths.length} images to PDF`);
-
-        // Convert images to multi-page PDF
-        const sanitizedDocName = documentName.replace(/[^a-zA-Z0-9-_\s]/g, '').trim() || 'scanned-document';
-        const conversionResult = await pdfConversionService.convertMultipleImagesToPDF(
-          tempImagePaths,
-          tempDir,
-          sanitizedDocName
-        );
-
-        if (!conversionResult.success) {
-          throw new Error(`PDF conversion failed: ${conversionResult.error || 'Unknown conversion error'}`);
-        }
-
-        if (!conversionResult.pdfPath) {
-          throw new Error('PDF conversion did not return a file path');
-        }
-
-        // Verify PDF exists immediately after conversion
-        if (!fs.existsSync(conversionResult.pdfPath)) {
-          throw new Error(`PDF not found at expected path: ${conversionResult.pdfPath}`);
-        }
-
-        // CRITICAL: Register PDF with resource tracker to prevent premature deletion
-        pdfResourceId = resourceTracker.trackFile(conversionResult.pdfPath);
-        console.log(`🔒 UPLOAD: Protected PDF file with resource ID: ${pdfResourceId}`);
-
-        // Double-check file is still there after tracking
-        if (!fs.existsSync(conversionResult.pdfPath)) {
-          throw new Error(`PDF disappeared after resource tracking: ${conversionResult.pdfPath}`);
-        }
-
-        console.log(`✅ UPLOAD: PDF created successfully: ${conversionResult.pdfPath}`);
-
-        // CRITICAL: Read the PDF file IMMEDIATELY before any cleanup can occur
-        const pdfStats = fs.statSync(conversionResult.pdfPath);
-        console.log(`📄 UPLOAD: PDF file size: ${pdfStats.size} bytes`);
-
-        if (pdfStats.size === 0) {
-          throw new Error('Generated PDF file is empty');
-        }
-
-        const pdfBuffer = await fs.promises.readFile(conversionResult.pdfPath);
-
-        if (pdfBuffer.length === 0) {
-          throw new Error('Generated PDF file is empty after reading');
-        }
-
-        console.log(`📄 UPLOAD: PDF buffer loaded: ${pdfBuffer.length} bytes`);
-
-        // Generate unique file name for permanent storage
-        const fileId = nanoid();
-        const cleanDocName = sanitizedDocName.replace(/\s+/g, '-');
-        const fileName = `${cleanDocName}-${fileId}.pdf`;
-
-        // Save to permanent location in uploads directory
-        const permanentFilePath = path.join(uploadsDir, fileName);
-        await fs.promises.writeFile(permanentFilePath, pdfBuffer);
-
-        console.log(`💾 UPLOAD: PDF saved to permanent location: ${permanentFilePath}`);
-
-        // Verify permanent file was written correctly
-        const permanentStats = fs.statSync(permanentFilePath);
-        if (permanentStats.size !== pdfBuffer.length) {
-          throw new Error(`PDF save verification failed: expected ${pdfBuffer.length} bytes, got ${permanentStats.size} bytes`);
-        }
-
-        console.log(`✅ UPLOAD: PDF verified at permanent location: ${permanentStats.size} bytes`);
-
-        // Try to extract text using OCR on the first few pages
-        let extractedText = '';
-        let confidence = 0.7; // Default confidence for scanned documents
-
-        try {
-          console.log(`🔍 UPLOAD: Attempting OCR on first page for searchability...`);
-          const firstImagePath = tempImagePaths[0];
-          if (firstImagePath && fs.existsSync(firstImagePath)) {
-            const { extractTextFromImage } = await import('../ocrService.js');
-            const ocrResult = await extractTextFromImage(firstImagePath, 'image/jpeg');
-            extractedText = ocrResult ? ocrResult.substring(0, 2000) : ''; // Limit to first 2000 characters
-            console.log(`📝 UPLOAD: OCR extracted ${extractedText.length} characters`);
-
-            // Calculate confidence based on text length
-            if (extractedText.length > 100) {
-              confidence = 0.8;
-            } else if (extractedText.length > 20) {
-              confidence = 0.6;
-            } else {
-              confidence = 0.4;
-            }
-          }
-        } catch (ocrError: any) {
-          console.warn(`⚠️ UPLOAD: OCR failed, continuing without text extraction:`, ocrError.message);
-          extractedText = `Scanned document with ${files.length} pages. Text extraction will be processed in background.`;
-        }
-
-        // Upload to cloud storage using the existing pattern
-        const storageKey = StorageService.generateFileKey(userId, fileId, fileName);
-
-        try {
-          const storageService = storageProvider();
-          const cloudStorageKey = await storageService.upload(pdfBuffer, storageKey, 'application/pdf');
-          console.log(`☁️ UPLOAD: PDF uploaded to cloud storage: ${cloudStorageKey}`);
-
-          // Generate encryption metadata
-          const documentKey = EncryptionService.generateDocumentKey();
-          const encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
-          const encryptionMetadata = JSON.stringify({
-            storageType: 'cloud',
-            storageKey: cloudStorageKey,
-            encrypted: true,
-            algorithm: 'AES-256-GCM'
-          });
-
-          // Create document record with cloud storage path
-          document = await storage.createDocument({
-            userId,
-            name: documentName,
-            fileName,
-            filePath: cloudStorageKey, // Use cloud storage key
-            mimeType: 'application/pdf',
-            fileSize: permanentStats.size,
-            extractedText,
-            uploadSource,
-            status: 'active',
-            summary: `Scanned document with ${files.length} pages. OCR confidence: ${Math.round(confidence * 100)}%`,
-            encryptedDocumentKey,
-            encryptionMetadata,
-            isEncrypted: true
-          });
-
-          console.log(`✅ UPLOAD: Document created with cloud storage: ${document.id}`);
-
-        } catch (storageError) {
-          console.error('☁️ UPLOAD: Cloud storage failed, falling back to local:', storageError);
-
-          // Fallback to local storage
-          document = await storage.createDocument({
-            userId,
-            name: documentName,
-            fileName,
-            filePath: permanentFilePath, // Use permanent local path as fallback
-            mimeType: 'application/pdf',
-            fileSize: permanentStats.size,
-            extractedText,
-            uploadSource,
-            status: 'active',
-            summary: `Scanned document with ${files.length} pages. OCR confidence: ${Math.round(confidence * 100)}%`
-          });
-        }
-
-        console.log(`✅ UPLOAD: Document created successfully with ID: ${document.id}`);
-
-        // Clean up temporary files (but NOT the permanent PDF)
-        console.log(`🧹 UPLOAD: Cleaning up ${tempImagePaths.length} temp image files after successful upload`);
-        await Promise.all(tempImagePaths.map(async (path) => {
-          try {
-            if (fs.existsSync(path)) {
-              await fs.promises.unlink(path);
-              console.log(`🗑️ Deleted temp image file: ${path}`);
-            }
-          } catch (unlinkError) {
-            console.warn(`Failed to delete temp file ${path}:`, unlinkError);
-          }
-        }));
-
-        // Clean up the temporary PDF (original conversion output) and local permanent file if cloud upload succeeded
-        try {
-          if (fs.existsSync(conversionResult.pdfPath)) {
-            await fs.promises.unlink(conversionResult.pdfPath);
-            console.log(`🗑️ Deleted temporary PDF: ${conversionResult.pdfPath}`);
-          }
-
-          // If document is stored in cloud, clean up local permanent file too
-          if (document.encryptionMetadata && document.filePath !== permanentFilePath) {
-            if (fs.existsSync(permanentFilePath)) {
-              await fs.promises.unlink(permanentFilePath);
-              console.log(`🗑️ Deleted local permanent file after cloud upload: ${permanentFilePath}`);
-            }
-          }
-        } catch (unlinkError) {
-          console.warn(`Failed to delete temp files:`, unlinkError);
-        }
-
-        // Force garbage collection if available
-        if (global.gc) {
-          global.gc();
-          console.log('🧹 UPLOAD: Forced garbage collection after processing');
-        }
-
-        const documentId = document.id; // Capture document ID before response
-
-        console.log(`✅ UPLOAD: Successfully processed scanned document - ID: ${documentId}`);
-
-        res.json({
-          success: true,
-          documentId,
-          message: 'Scanned document uploaded successfully'
-        });
-
-        // Release PDF resource AFTER response is sent to ensure file persists during request
-        if (pdfResourceId) {
-          // Small delay to ensure response is fully sent
-          setTimeout(async () => {
-            await resourceTracker.releaseResource(pdfResourceId);
-            console.log(`🧹 Released PDF resource: ${pdfResourceId}`);
-          }, 1000);
-        }
-
-      } catch (processingError: any) {
-        console.error('🔥 UPLOAD: Error during PDF creation processing:', processingError);
-
-        // Clean up any temporary files on error
-        console.log(`🧹 UPLOAD: Cleaning up ${tempImagePaths.length} temp files after error`);
-        await Promise.all(
-          tempImagePaths.map(path =>
-            fs.promises.unlink(path).catch(err =>
-              console.warn(`Failed to cleanup temp file on error: ${path}`, err)
-            )
-          )
-        );
-
-        // Release PDF resource on error as well
-        if (pdfResourceId) {
-          await resourceTracker.releaseResource(pdfResourceId);
-          console.log(`🧹 Released PDF resource on error: ${pdfResourceId}`);
-        }
-
-        // Provide more specific error message
-        let errorMessage = 'Failed to create PDF document';
-        if (processingError.message) {
-          if (processingError.message.includes('conversion')) {
-            errorMessage = 'Failed to convert images to PDF';
-          } else if (processingError.message.includes('storage') || processingError.message.includes('save')) {
-            errorMessage = 'Failed to save PDF document';
-          } else if (processingError.message.includes('empty')) {
-            errorMessage = 'Generated PDF file is invalid';
-          } else if (processingError.message.includes('memory')) {
-            errorMessage = 'Not enough memory to process document';
-          }
-        }
-
-        throw new Error(`${errorMessage}: ${processingError.message}`);
+        fs.unlinkSync(pdfConversionResult.pdfPath);
+      } catch (error) {
+        console.warn(`Failed to cleanup PDF: ${pdfConversionResult.pdfPath}`);
       }
-    } catch (error: any) {
-      console.error("❌ UPLOAD ERROR: Processing multi-page scan upload failed:", error);
-      console.error("❌ UPLOAD ERROR: Stack trace:", error.stack);
 
+      console.log(`✅ Multi-page document created: ${document.id} (${pageCount} pages)`);
+
+      // Queue OCR processing
+      try {
+        await ocrQueue.addJob({
+          documentId: document.id,
+          fileName: document.fileName,
+          filePathOrGCSKey: cloudStorageKey,
+          mimeType: document.mimeType,
+          userId: document.userId,
+          priority: 5
+        });
+        console.log(`📄 OCR job queued for multi-page document ${document.id}`);
+      } catch (ocrError) {
+        console.error('Failed to queue OCR job:', ocrError);
+      }
+
+      res.status(201).json({
+        success: true,
+        documentId: document.id,
+        fileName: document.fileName,
+        pageCount: pageCount,
+        message: `Successfully created ${pageCount}-page PDF document`
+      });
+
+    } catch (error) {
+      console.error("Error processing multi-page scan upload:", error);
+      
       // Clean up any uploaded files on error
       if (req.files) {
         const files = req.files as Express.Multer.File[];
         files.forEach(file => {
           try {
-            if (file.path) {
-              fs.unlinkSync(file.path);
-            }
+            fs.unlinkSync(file.path);
           } catch (cleanupError) {
             console.warn(`Failed to cleanup file: ${file.path}`);
           }
         });
       }
-
-      // Clean up the document record if it was created but processing failed before saving
-      if (document?.id) {
-        try {
-          await storage.deleteDocument(document.id, getUserId(req));
-          console.log(`🗑️ Cleaned up orphaned document record: ${document.id}`);
-        } catch (docCleanupError) {
-          console.warn(`Failed to cleanup document record ${document.id}:`, docCleanupError);
-        }
-      }
-
-
-      // Provide detailed error information for debugging
-      const errorResponse = {
-        success: false,
-        message: error.message || "Failed to process multi-page scan upload",
-        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        timestamp: new Date().toISOString()
-      };
-
-      console.error("❌ UPLOAD ERROR: Sending error response:", errorResponse);
-      res.status(500).json(errorResponse);
+      
+      res.status(500).json({ message: "Failed to process multi-page scan upload" });
     }
   });
 }

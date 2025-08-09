@@ -1,5 +1,4 @@
-import { Switch, Route, useLocation, Redirect } from "wouter";
-import { useEffect } from "react";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,7 +7,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { initializeFrontendSentry } from "@/lib/monitoring";
 import NetworkStatusBanner from "@/components/network-status-banner";
-import { ConfigProvider } from "@/components/ConfigProvider";
 
 // Initialize frontend error tracking
 try {
@@ -37,51 +35,34 @@ import UnifiedDocuments from "@/pages/unified-documents";
 import InsightsFirstPage from "@/pages/insights-first";
 import { Support } from "@/pages/support";
 
-// Additional page imports
-import Insights from "@/pages/insights";
-import SharedWithMe from "@/pages/shared-with-me";
-
 
 function Router() {
-  const authResult = useAuth();
-  const { user = null, isLoading = false, refetch } = authResult;
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [, setLocation] = useLocation();
-
-  // Re-check auth on page focus to handle OAuth redirects
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log('[APP] Window focused, re-checking auth...');
-      refetch();
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [refetch]);
-
-  console.log('[APP] Router rendering - User:', user?.id || 'none', 'Loading:', isLoading);
 
   // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="text-lg">Loading...</div>
       </div>
     );
   }
 
-  console.log('App component rendering with user:', user, 'loading:', isLoading);
-  console.log('Auth state:', {
-    isAuthenticated: !!user,
-    isLoading,
-    hasUser: !!user
-  });
+  // Debug info for production
+  if (typeof window !== 'undefined') {
+    console.log('Auth state:', { isAuthenticated, isLoading, hasUser: !!user });
+    // Additional debugging for white screen issue
+    if (!isLoading && !isAuthenticated) {
+      console.log('Rendering landing page for unauthenticated user');
+    }
+  }
 
-  // Handle routing for both authenticated and unauthenticated users
   return (
     <Switch>
-      {!user ? (
-        // Unauthenticated routes
+      {!isAuthenticated ? (
         <>
+          <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
           <Route path="/forgot-password" component={ForgotPassword} />
@@ -89,32 +70,47 @@ function Router() {
           <Route path="/pricing" component={Pricing} />
           <Route path="/blog" component={Blog} />
           <Route path="/blog/:slug" component={BlogPost} />
-          <Route path="/support" component={Support} />
-          <Route path="/" component={Landing} />
-          {/* Catch-all for unauthenticated users to redirect to landing */}
-          <Route component={Landing} />
+          {/* Redirect protected routes to login */}
+
+
+          <Route path="/settings">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/support">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/admin">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+
         </>
       ) : (
-        // Authenticated routes
         <>
-          <Route path="/" component={Home} />
+          <Route path="/" component={InsightsFirstPage} />
           <Route path="/documents" component={UnifiedDocuments} />
+
           <Route path="/document/:id" component={DocumentPage} />
-          <Route path="/insights" component={Insights} />
-          <Route path="/insights-first" component={InsightsFirstPage} />
           <Route path="/settings" component={Settings} />
-          <Route path="/shared-with-me" component={SharedWithMe} />
+          <Route path="/support" component={Support} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
+          <Route path="/pricing" component={Pricing} />
+
+          <Route path="/blog" component={Blog} />
+          <Route path="/blog/:slug" component={BlogPost} />
           {/* Redirect auth routes to home for logged in users */}
-          <Route path="/login" component={() => <Redirect to="/" />} />
-          <Route path="/register" component={() => <Redirect to="/" />} />
-          <Route path="/forgot-password" component={() => <Redirect to="/" />} />
-          <Route path="/reset-password" component={() => <Redirect to="/" />} />
-          {/* Catch-all for authenticated users to redirect to NotFound */}
-          <Route component={NotFound} />
+          <Route path="/login">
+            {() => { setLocation("/"); return null; }}
+          </Route>
+          <Route path="/register">
+            {() => { setLocation("/"); return null; }}
+          </Route>
+          <Route path="/forgot-password">
+            {() => { setLocation("/"); return null; }}
+          </Route>
         </>
       )}
+      <Route component={NotFound} />
     </Switch>
   );
 }
@@ -122,15 +118,13 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ConfigProvider>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <NetworkStatusBanner />
-            <Router />
-            <Toaster />
-          </TooltipProvider>
-        </QueryClientProvider>
-      </ConfigProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <NetworkStatusBanner />
+          <Router />
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

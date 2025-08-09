@@ -13,14 +13,13 @@ interface AnalyticsEvent {
 }
 
 // Track scan flow events
-export const trackScanEvent = (action: 'browser_scan_started' | 'browser_scan_uploaded' | 'browser_scan_ocr_failed' | 'browser_scan_insights_generated' | 'browser_scan_failed', data?: {
+export const trackScanEvent = (action: 'browser_scan_started' | 'browser_scan_uploaded' | 'browser_scan_ocr_failed' | 'browser_scan_insights_generated', data?: {
   userId?: string;
   documentId?: number;
   pageCount?: number;
   processingTime?: number;
   ocrError?: string;
   insightsCount?: number;
-  error?: string;
   timestamp?: string;
 }) => {
   try {

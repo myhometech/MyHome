@@ -9,7 +9,9 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`,
+      callbackURL: process.env.REPL_SLUG 
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPLIT_USER || 'simontaylor66'}.repl.co/api/auth/google/callback`
+        : `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {

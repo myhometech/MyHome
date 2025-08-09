@@ -931,7 +931,7 @@ function VehicleEditModal({ vehicle, isOpen, onClose, onSaved }: {
 
 // Assets Tab Content Component
 function AssetsTabContent() {
-  const { user, isAuthenticated } = useAuth();
+  const { user: currentUser, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);

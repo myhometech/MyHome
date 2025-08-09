@@ -42,10 +42,10 @@ export function initializeFrontendSentry() {
       try {
         const userData = localStorage.getItem('user');
         if (userData && !event.user) {
-          const user = JSON.parse(userData);
+          const parsedUser = JSON.parse(userData);
           event.user = {
-            id: user.id,
-            email: user.email,
+            id: parsedUser.id,
+            email: parsedUser.email,
           };
         }
       } catch (e) {

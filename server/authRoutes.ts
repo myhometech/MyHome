@@ -6,15 +6,19 @@ const router = Router();
 // Google OAuth routes
 router.get("/google", (req, res, next) => {
   const isProduction = process.env.REPLIT_DEV_DOMAIN?.includes('myhome-docs.com');
+  const clientId = isProduction 
+    ? (process.env.GOOGLE_CLIENT_ID_PROD || process.env.GOOGLE_CLIENT_ID!)
+    : (process.env.GOOGLE_CLIENT_ID_DEV || process.env.GOOGLE_CLIENT_ID!);
   const callbackURL = isProduction
     ? `https://myhome-docs.com/api/auth/google/callback`  // Production
     : `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`;  // Development
     
   console.log(`🔥 OAUTH INITIATION: Starting Google OAuth for user from ${req.ip}`);
-  console.log(`🔥 OAUTH CONFIG: Client ID present: ${!!process.env.GOOGLE_CLIENT_ID}`);
+  console.log(`🔥 OAUTH CONFIG: Environment: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+  console.log(`🔥 OAUTH CONFIG: Using Client ID: ${clientId.substring(0, 20)}...`);
   console.log(`🔥 OAUTH CONFIG: Using callback URL: ${callbackURL}`);
-  console.log(`🔥 OAUTH CONFIG: REPLIT_DEV_DOMAIN: ${process.env.REPLIT_DEV_DOMAIN}`);
-  console.log(`🔥 OAUTH CONFIG: Production detection: ${isProduction}`);
+  console.log(`🔥 OAUTH CONFIG: Dev credentials available: ${!!process.env.GOOGLE_CLIENT_ID_DEV}`);
+  console.log(`🔥 OAUTH CONFIG: Prod credentials available: ${!!process.env.GOOGLE_CLIENT_ID_PROD}`);
     
   passport.authenticate("google", { 
     scope: ["profile", "email"] 

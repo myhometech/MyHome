@@ -3,15 +3,27 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { AuthService } from "./authService";
 import type { User } from "@shared/schema";
 
+// Determine environment and credentials
+const isProduction = process.env.REPLIT_DEV_DOMAIN?.includes('myhome-docs.com');
+const clientId = isProduction 
+  ? (process.env.GOOGLE_CLIENT_ID_PROD || process.env.GOOGLE_CLIENT_ID!)
+  : (process.env.GOOGLE_CLIENT_ID_DEV || process.env.GOOGLE_CLIENT_ID!);
+const clientSecret = isProduction 
+  ? (process.env.GOOGLE_CLIENT_SECRET_PROD || process.env.GOOGLE_CLIENT_SECRET!)
+  : (process.env.GOOGLE_CLIENT_SECRET_DEV || process.env.GOOGLE_CLIENT_SECRET!);
+const callbackURL = isProduction
+  ? `https://myhome-docs.com/api/auth/google/callback`
+  : `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`;
+
+console.log(`🔧 OAuth Strategy Setup - Production: ${isProduction}, Client ID: ${clientId.substring(0, 20)}...`);
+
 // Configure Google OAuth Strategy
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: process.env.REPLIT_DEV_DOMAIN?.includes('myhome-docs.com')
-        ? `https://myhome-docs.com/api/auth/google/callback`  // Production (when domain is myhome-docs.com)
-        : `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`,  // Development
+      clientID: clientId,
+      clientSecret: clientSecret,
+      callbackURL: callbackURL,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {

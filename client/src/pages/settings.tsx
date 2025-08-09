@@ -931,7 +931,7 @@ function VehicleEditModal({ vehicle, isOpen, onClose, onSaved }: {
 
 // Assets Tab Content Component
 function AssetsTabContent() {
-  const { user: currentUser, isAuthenticated } = useAuth();
+  const { user: authCurrentUser, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
@@ -1119,7 +1119,7 @@ function AssetsTabContent() {
 }
 
 export default function Settings() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user: authUser, isAuthenticated, isLoading } = useAuth();
   // Get subscription status for proper premium detection
   const { data: subscriptionStatus } = useQuery<{
     tier: string;
@@ -1155,16 +1155,16 @@ export default function Settings() {
       return `${firstName[0]}${lastName[0]}`.toUpperCase();
     }
     if (firstName) return firstName[0].toUpperCase();
-    if ((user as any)?.email) return (user as any).email[0].toUpperCase();
+    if ((authUser as any)?.email) return (authUser as any).email[0].toUpperCase();
     return "U";
   };
 
   const getDisplayName = () => {
-    if ((user as any)?.firstName && (user as any)?.lastName) {
-      return `${(user as any).firstName} ${(user as any).lastName}`;
+    if ((authUser as any)?.firstName && (authUser as any)?.lastName) {
+      return `${(authUser as any).firstName} ${(authUser as any).lastName}`;
     }
-    if ((user as any)?.firstName) return (user as any).firstName;
-    return (user as any)?.email || "User";
+    if ((authUser as any)?.firstName) return (authUser as any).firstName;
+    return (authUser as any)?.email || "User";
   };
 
 
@@ -1232,16 +1232,16 @@ export default function Settings() {
               <CardContent>
                 <div className="flex items-start gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={(user as any)?.profileImageUrl} alt="Profile" />
+                    <AvatarImage src={(authUser as any)?.profileImageUrl} alt="Profile" />
                     <AvatarFallback className="text-lg">
-                      {getInitials((user as any)?.firstName, (user as any)?.lastName)}
+                      {getInitials((authUser as any)?.firstName, (authUser as any)?.lastName)}
                     </AvatarFallback>
                   </Avatar>
                   
                   <div className="flex-1 space-y-2">
                     <div>
                       <h3 className="text-lg font-semibold">{getDisplayName()}</h3>
-                      <p className="text-gray-600">{(user as any)?.email}</p>
+                      <p className="text-gray-600">{(authUser as any)?.email}</p>
                     </div>
                     
                     <div className="flex gap-2">
@@ -1257,7 +1257,7 @@ export default function Settings() {
                     </div>
                     
                     <p className="text-sm text-gray-500">
-                      Member since {(user as any)?.createdAt ? new Date((user as any).createdAt).toLocaleDateString('en-US', { 
+                      Member since {(authUser as any)?.createdAt ? new Date((authUser as any).createdAt).toLocaleDateString('en-US', { 
                         month: 'long', 
                         year: 'numeric' 
                       }) : 'Recently'}

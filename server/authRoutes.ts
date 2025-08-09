@@ -19,10 +19,19 @@ router.get("/google/callback",
     console.log(`🔥 OAuth callback received - URL: ${req.url}`);
     console.log(`🔥 OAuth callback - Query params:`, req.query);
     console.log(`🔥 OAuth callback - Session ID:`, req.sessionID);
+    
+    // Check for OAuth error parameters
+    if (req.query.error) {
+      console.error(`❌ OAuth error from Google:`, req.query.error);
+      console.error(`❌ OAuth error description:`, req.query.error_description);
+      return res.redirect("/login?error=oauth_failed");
+    }
+    
     next();
   },
   passport.authenticate("google", { 
-    failureRedirect: "/login?error=google" 
+    failureRedirect: "/login?error=google",
+    failureFlash: true
   }),
   (req, res) => {
     // Successful authentication

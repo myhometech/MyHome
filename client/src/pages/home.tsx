@@ -350,6 +350,7 @@ function QuickActionCards() {
 }
 
 export default function Home() {
+  const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");

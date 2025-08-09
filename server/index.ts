@@ -2,7 +2,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Validate auth configuration early in startup
-import "./config/auth";
+import "./config/auth.js";
+import { validateAuthConfig } from "./startup/checkAuthConfig.js";
+
+// AUTH-324: Validate OAuth configuration before proceeding
+validateAuthConfig();
 
 // Enable manual garbage collection if available
 if (global.gc) {

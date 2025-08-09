@@ -124,6 +124,13 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Security**: Cryptographically secure state generation, session-based storage, strict verification, replay prevention
 - **Status**: ✅ **PRODUCTION READY** - OAuth flow now includes comprehensive CSRF protection
 
+### August 9, 2025 - Config Guardrails and Startup Validation (AUTH-324) ✅
+- **Achievement**: Implemented comprehensive OAuth configuration guardrails preventing misconfigurations from being deployed
+- **Startup Validation**: Automatic OAuth configuration validation on server boot with environment matrix checking
+- **CI Static Checks**: Executable script preventing hard-coded OAuth URLs in source code (`scripts/check-auth-config.sh`)
+- **Documentation**: Complete Config Guardrails section with change control procedures
+- **Status**: ✅ **PRODUCTION READY** - Complete OAuth configuration guardrail system operational
+
 ### August 9, 2025 - OAuth Callback Environment Configuration (AUTH-321) ✅
 - **Achievement**: Implemented absolute, environment-driven Google OAuth callback URLs to eliminate redirect URI mismatches
 - **Configuration**: Dynamic callback URL construction, boot-time validation, intelligent development defaults

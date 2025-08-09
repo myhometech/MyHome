@@ -103,6 +103,49 @@ For each environment, verify:
 - [ ] No trailing slashes on any entries
 - [ ] All legacy/extra entries removed from Google Console
 
+## Config Guardrails (AUTH-324)
+
+### Startup Validation
+
+The application automatically validates OAuth configuration on startup:
+
+1. **Callback URL Consistency**: Verifies `GOOGLE_CALLBACK_URL` matches `APP_ORIGIN + CALLBACK_PATH`
+2. **Environment Matrix Check**: Validates against known environment configurations
+3. **URL Format Validation**: Ensures all URLs are properly formatted
+4. **Immediate Failure**: Server exits with clear error if misconfigured
+
+### CI Static Checks
+
+Run the configuration check locally:
+```bash
+bash scripts/check-auth-config.sh
+```
+
+This script prevents deployment of:
+- Hard-coded `callbackURL` values in source code
+- Hard-coded `redirect_uri` URLs with hosts
+- OAuth origins outside of `config/auth.ts`
+
+### Environment Matrix Validation
+
+The startup validator checks against this matrix:
+
+| Environment | Expected APP_ORIGIN | Expected Callback |
+|-------------|-------------------|-------------------|
+| Local | `http://localhost:5000` | `http://localhost:5000/auth/google/callback` |
+| Staging | `https://staging.myhome-docs.com` | `https://staging.myhome-docs.com/auth/google/callback` |
+| Production | `https://myhome-docs.com` | `https://myhome-docs.com/auth/google/callback` |
+
+### Change Control
+
+When updating OAuth configuration:
+
+1. Update the environment matrix in `server/startup/checkAuthConfig.ts`
+2. Run `bash scripts/check-auth-config.sh` to validate
+3. Test startup validation in affected environments
+4. Update Google Console settings to match
+5. Document changes in this file
+
 ### Debug Information:
 
 The application logs the following on startup:

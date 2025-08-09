@@ -358,6 +358,35 @@ export default function Home() {
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
 
+  // Add toast hook
+  const { toast } = useToast();
+
+  // User authentication query - moved to top since it's used in useEffect hooks below
+  const { data: user, isLoading: userLoading } = useQuery({
+    queryKey: ['/api/auth/user'],
+    queryFn: async () => {
+      const response = await fetch('/api/auth/user', { credentials: 'include' });
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Redirect to login if not authenticated
+          window.location.href = '/login';
+          return null;
+        }
+        throw new Error('Not authenticated');
+      }
+      return response.json();
+    },
+    retry: false,
+  });
+
+  console.log('Home component rendering with user:', user, 'loading:', userLoading);
+
+  // Redirect to login if not authenticated
+  if (!userLoading && !user) {
+    window.location.href = '/login';
+    return null;
+  }
+
   // Handle dashboard card filter changes
   const handleDashboardFilter = (filter: any) => {
     if (filter.reset) {
@@ -623,27 +652,6 @@ export default function Home() {
     // This is the filter for the UnifiedInsightsDashboard, not the main dashboard overview cards
     // It's currently a placeholder and might need adjustment based on how UnifiedInsightsDashboard uses filters.
   };
-
-  const { data: user, isLoading: userLoading } = useQuery({
-    queryKey: ['/api/auth/user'],
-    queryFn: async () => {
-      const response = await fetch('/api/auth/user', { credentials: 'include' });
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Redirect to login if not authenticated
-          window.location.href = '/login';
-          return null;
-        }
-        throw new Error('Not authenticated');
-      }
-      return response.json();
-    },
-    retry: false,
-  });
-
-  console.log('Home component rendering with user:', user, 'loading:', userLoading);
-
-  // Redirect to login if not authenticated
   if (!userLoading && !user) {
     window.location.href = '/login';
     return null;

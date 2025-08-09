@@ -1,22 +1,46 @@
 import { Router } from "express";
 import passport from "./passport";
 import { GOOGLE_CALLBACK_URL } from "./config/auth";
+import crypto from "crypto";
 
 const router = Router();
 
 // Google OAuth routes
 router.get("/google", 
   (req, res, next) => {
+    // Generate cryptographically strong state parameter for CSRF protection
+    const state = crypto.randomUUID();
+    (req.session as any).oauthState = state;
+    
     const redirectUri = new URL(GOOGLE_CALLBACK_URL);
-    console.log(`🔐 auth.login.start - redirect_uri host: ${redirectUri.host}, path: ${redirectUri.pathname}`);
-    next();
-  },
-  passport.authenticate("google", { 
-    scope: ["profile", "email"] 
-  })
+    console.log(`🔐 auth.login.start - provider: google, redirect_uri host: ${redirectUri.host}, path: ${redirectUri.pathname}, state_set: true`);
+    
+    // Pass state parameter to Google OAuth
+    passport.authenticate("google", { 
+      scope: ["profile", "email"],
+      state: state
+    })(req, res, next);
+  }
 );
 
 router.get("/google/callback",
+  (req, res, next) => {
+    // Verify OAuth state parameter for CSRF protection
+    const expectedState = (req.session as any).oauthState;
+    const receivedState = typeof req.query.state === 'string' ? req.query.state : undefined;
+    
+    // One-time use: clear state regardless of match to prevent replay
+    delete (req.session as any).oauthState;
+    
+    if (!expectedState || !receivedState || expectedState !== receivedState) {
+      const redirectUri = new URL(GOOGLE_CALLBACK_URL);
+      console.warn(`🔐 auth.login.error - provider: google, code: state_mismatch, expected: ${!!expectedState}, received: ${!!receivedState}, redirect_uri host: ${redirectUri.host}`);
+      return res.redirect('/login?error=state_mismatch');
+    }
+    
+    // State verification passed, proceed with Passport
+    next();
+  },
   passport.authenticate("google", { 
     failureRedirect: "/login?error=google" 
   }),
@@ -25,7 +49,7 @@ router.get("/google/callback",
     const user = req.user as any;
     const redirectUri = new URL(GOOGLE_CALLBACK_URL);
     
-    console.log(`🔐 auth.login.success - redirect_uri host: ${redirectUri.host}, user: ${user.id}`);
+    console.log(`🔐 auth.login.success - provider: google, redirect_uri host: ${redirectUri.host}, user: ${user.id}`);
     
     // Store user in session format compatible with simpleAuth
     (req.session as any).user = user;
@@ -38,7 +62,7 @@ router.get("/google/callback",
     req.session.save((err: any) => {
       if (err) {
         const redirectUri = new URL(GOOGLE_CALLBACK_URL);
-        console.error(`🔐 auth.login.error - redirect_uri host: ${redirectUri.host}, error:`, err);
+        console.error(`🔐 auth.login.error - provider: google, redirect_uri host: ${redirectUri.host}, error:`, err);
         return res.redirect("/login?error=google");
       }
       

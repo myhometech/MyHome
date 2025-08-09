@@ -42,11 +42,27 @@ https://staging.myhome.app
 https://myhome.app
 ```
 
+## OAuth Security Features
+
+### CSRF Protection with State Parameter
+
+The application implements OAuth `state` parameter for CSRF protection:
+
+1. **State Generation**: Each login generates a unique state value using `crypto.randomUUID()`
+2. **Session Storage**: State is stored server-side in PostgreSQL-backed sessions
+3. **Verification**: Callback verifies the state parameter matches the stored value
+4. **Single Use**: State is cleared after use to prevent replay attacks
+
+### Error Handling
+
+- `?error=google`: General Google OAuth failure
+- `?error=state_mismatch`: CSRF protection triggered (state parameter mismatch)
+
 ## Configuration Validation
 
 The application validates configuration on startup:
 
-1. **APP_ORIGIN** must be present and a valid absolute URL
+1. **APP_ORIGIN** must be present and a valid absolute URL (or defaults to `http://localhost:5000` in development)
 2. **GOOGLE_CLIENT_ID** and **GOOGLE_CLIENT_SECRET** must be present
 3. Application will fail to start if any required variables are missing
 
@@ -57,6 +73,11 @@ The application validates configuration on startup:
 1. **redirect_uri_mismatch**: The callback URL in Google Console doesn't match your `APP_ORIGIN + CALLBACK_PATH`
 2. **invalid_request**: Missing or invalid `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
 3. **Configuration error on startup**: Invalid or missing `APP_ORIGIN`
+4. **state_mismatch**: CSRF protection triggered - usually indicates:
+   - Session store connectivity issues
+   - Cookie configuration problems (domain/path/sameSite)
+   - User manually modified the callback URL
+   - Potential CSRF attack attempt
 
 ### Debug Information:
 
@@ -68,6 +89,7 @@ The application logs the following on startup:
 
 And during OAuth flow:
 ```
-🔐 auth.login.start - redirect_uri host: localhost:5000, path: /auth/google/callback
-🔐 auth.login.success - redirect_uri host: localhost:5000, user: [user-id]
+🔐 auth.login.start - provider: google, redirect_uri host: localhost:5000, path: /auth/google/callback, state_set: true
+🔐 auth.login.success - provider: google, redirect_uri host: localhost:5000, user: [user-id]
+🔐 auth.login.error - provider: google, code: state_mismatch, expected: true, received: true, redirect_uri host: localhost:5000
 ```

@@ -37,7 +37,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 
 ### Backend
 - **Runtime**: Node.js with Express.js (TypeScript, ES modules).
-- **Authentication**: Replit Auth with OpenID Connect (web) + Apple Sign In (iOS), bcrypt hashing, PostgreSQL-backed sessions, route-level middleware. Supports multi-provider authentication.
+- **Authentication**: Replit Auth with OpenID Connect (web) + Apple Sign In (iOS), bcrypt hashing, PostgreSQL-backed sessions, route-level middleware. Supports multi-provider authentication. OAuth `state` parameter is used for CSRF protection.
 - **File Uploads**: Multer.
 - **API Design**: RESTful endpoints with JSON responses.
 
@@ -72,7 +72,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Memory Optimization**: Manual garbage collection, resource tracking, OCR resource cleanup.
 
 ### Security & Monitoring
-- **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS, Mailgun webhook security (IP whitelisting, HMAC verification).
+- **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS, Mailgun webhook security (IP whitelisting, HMAC verification). OAuth callback URLs are environment-driven.
 - **Monitoring**: Sentry integration for error tracking and performance.
 - **Health Checks**: Multi-subsystem health checks.
 
@@ -109,86 +109,3 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Error Tracking**: `@sentry/node`, `@sentry/react`
 - **Security Headers**: `helmet`
 - **Rate Limiting**: `express-rate-limit`
-
-## Recent Development Summary
-
-### August 7, 2025 - OCR-Before-Insights Feature Complete ✅
-- **Achievement**: Implemented automatic OCR triggering when users request insights for documents without extracted text
-- **User Experience Enhancement**: 
-  1. **Seamless Integration**: Users can now generate insights on any document, regardless of OCR status
-  2. **Smart Processing**: System automatically detects missing text and triggers OCR before insights
-  3. **Real-time Feedback**: Users see processing status with estimated completion times
-  4. **Auto-completion**: Frontend polls for OCR completion and automatically retries insights
-- **Technical Implementation**:
-  - Modified insights endpoint to auto-trigger OCR when extractedText is missing
-  - Enhanced file validation for both local and GCS stored documents
-  - Integrated high-priority OCR queue system for user-initiated requests
-  - Added 202 status responses with processing messages and polling support
-  - Updated frontend mutation with smart polling every 3 seconds
-  - Implemented automatic retry logic once OCR completes
-- **Components Enhanced**:
-  - `server/routes.ts` - OCR-before-insights endpoint logic with enhanced error handling
-  - `client/src/components/unified-document-card.tsx` - Smart polling and processing status
-  - Enhanced user messaging with estimated times and processing feedback
-- **Status**: ✅ **PRODUCTION READY** - Users can now generate insights on any document type with automatic OCR processing
-
-### August 7, 2025 - Insight Job Type Error Fix ✅
-- **Achievement**: Fixed PostgreSQL 22P02 error blocking OCR→Insights pipeline
-- **Root Cause Resolved**: 
-  1. **Schema Mismatch**: `confidence` column was INTEGER but receiving decimal values ("0.9")
-  2. **Type Conversion**: AI service passing 0-1 scale, database expecting 0-100 scale
-  3. **Error Cascade**: All insight jobs failing with invalid integer cast errors
-- **Technical Implementation**:
-  - Updated database schema: `confidence INTEGER` → `confidence NUMERIC(5,2)`
-  - Enhanced type validation with string→number conversion and range clamping
-  - Fixed AI service scale conversion (0-1 → 0-100) in `server/aiInsightService.ts`
-  - Added structured error logging with `[INSIGHT_TYPE_ERROR]` tags for monitoring
-  - Created recovery service for failed insight jobs from past 7 days
-- **Components Added**:
-  - `server/services/insightRecoveryService.ts` - Job recovery and reporting system
-  - `server/routes/insightRecoveryRoutes.ts` - Admin recovery endpoints
-  - Enhanced `server/storage.ts` with comprehensive type validation
-- **Status**: ✅ **PRODUCTION READY** - OCR→Insights pipeline restored, all type errors resolved
-
-### August 9, 2025 - OAuth Callback Environment Configuration (AUTH-321) ✅
-- **Achievement**: Implemented absolute, environment-driven Google OAuth callback URLs to eliminate redirect URI mismatches
-- **Security Enhancement**:
-  1. **Environment-specific Callbacks**: Dynamic callback URL construction based on APP_ORIGIN + CALLBACK_PATH
-  2. **Configuration Validation**: Boot-time validation of APP_ORIGIN with intelligent development defaults
-  3. **Centralized Config**: Single source of truth for OAuth settings in `server/config/auth.ts`
-  4. **Enhanced Telemetry**: Structured logging for OAuth flow debugging (`auth.login.start`, `auth.login.success`, `auth.login.error`)
-- **Technical Implementation**:
-  - Created `server/config/auth.ts` with validateAppOrigin() function and environment-specific URL building
-  - Updated `server/passport.ts` to use GOOGLE_CALLBACK_URL instead of hardcoded relative path
-  - Enhanced `server/authRoutes.ts` with telemetry logging for redirect URI host/path tracking
-  - Added intelligent development defaults (auto-detects localhost:5000) while requiring explicit APP_ORIGIN in production
-  - Created comprehensive documentation in `docs/auth/google.md` with environment matrix and troubleshooting
-- **Components Enhanced**:
-  - `server/config/auth.ts` - New centralized OAuth configuration module
-  - `server/passport.ts` - Uses absolute callback URL from config
-  - `server/authRoutes.ts` - Added telemetry for OAuth flow monitoring
-  - `server/index.ts` - Early validation of auth config on startup
-  - `docs/auth/google.md` - Complete environment configuration guide
-- **Environment Support**:
-  - **Development**: `http://localhost:5000/auth/google/callback` (auto-detected)
-  - **Staging**: `https://staging.myhome.app/auth/google/callback` (via APP_ORIGIN)
-  - **Production**: `https://myhome.app/auth/google/callback` (via APP_ORIGIN)
-- **Status**: ✅ **PRODUCTION READY** - OAuth callbacks now dynamically configured per environment
-
-### August 7, 2025 - Application Startup Issues Resolved ✅
-- **Achievement**: Fixed critical server startup failures preventing application launch
-- **Root Cause Resolved**:
-  1. **Port Conflicts**: Multiple tsx processes conflicting on port 5000 
-  2. **TypeScript Errors**: Type mismatches in vehicle date handling and confidence scoring
-  3. **Database Type Issues**: Date to string conversion problems in vehicle management
-- **Technical Implementation**:
-  - Identified and killed conflicting Node.js processes using port 5000
-  - Fixed confidence field type conversion (number to string) in document insights
-  - Resolved Date/string type mismatches in vehicle taxDueDate and motExpiryDate fields
-  - Enhanced type safety with proper type assertions for Date object handling
-  - Ensured VRN field validation in vehicle creation endpoints
-- **Components Fixed**:
-  - `server/index.ts` - Server startup and port binding
-  - `server/routes.ts` - Vehicle and document insight type handling
-  - Database connection and route registration restored
-- **Status**: ✅ **PRODUCTION READY** - Application successfully running on port 5000

@@ -36,8 +36,11 @@ export default function Login() {
   // Check for OAuth error on page load
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('error') === 'google') {
+    const errorType = urlParams.get('error');
+    if (errorType === 'google') {
       setError('Google sign-in failed. Please try again or use email/password.');
+    } else if (errorType === 'state_mismatch') {
+      setError('Security error during sign-in. Please try again or use email/password.');
     }
   }, []);
 

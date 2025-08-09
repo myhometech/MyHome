@@ -106,7 +106,7 @@ export default function Login() {
 
           {/* Google OAuth Sign In */}
           <Button
-            onClick={() => window.location.href = '/auth/google'}
+            onClick={() => window.location.href = '/api/auth/google'}
             className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:hover:bg-gray-700"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">

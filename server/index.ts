@@ -144,6 +144,9 @@ app.use((req, res, next) => {
     }
   });
 
+  // Mount auth routes BEFORE registerRoutes to prevent catch-all interference  
+  app.use('/api/auth', authRoutes);
+  
   // CRITICAL FIX: Register routes AFTER pre-middleware endpoints
   const server = await registerRoutes(app);
   console.log('✅ API routes registered successfully');
@@ -288,10 +291,7 @@ app.use((req, res, next) => {
   // Mount routes with logging
   console.log('🔗 Mounting API routes...');
   
-  // Mount only the routes that are properly imported and defined
-  app.use('/api/oauth', authRoutes);
-  
-  // Other routes are handled by registerRoutes() function
+  // Auth routes were already mounted before registerRoutes to prevent conflicts
   // Comment out the undefined route variables to prevent ReferenceError
   // app.use('/api/documents', requireAuth, documentRoutes); 
   // app.use('/api/backup', backupRoutes);

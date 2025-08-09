@@ -1102,17 +1102,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Check if this is a "file not found" error
           if (downloadError instanceof Error && downloadError.message.includes('No such object')) {
-            console.log(`📁 GCS file not found: ${storageKey}`);
+            console.log(`📁 GCS file not found: ${document.gcsPath || document.filePath}`);
 
             // Try to find the file in the bucket with a broader search
             try {
-              const bucket = storageService.storage.bucket(storageService.bucketName);
+              const storageServiceInstance = storageProvider();
+              const bucket = storageServiceInstance.storage.bucket(storageServiceInstance.bucketName);
               const [files] = await bucket.getFiles({
                 prefix: `${userId}/`
               });
 
               // Look for files that might match this document
-              const possibleMatches = files.filter(file => {
+              const possibleMatches = files.filter((file: any) => {
                 const fileName = file.name.toLowerCase();
                 const docName = document.fileName.toLowerCase();
                 return fileName.includes(docName.substring(0, 10)) || 
@@ -1132,7 +1133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.log(`🔧 Updated document ${document.id} with correct path: ${correctFile.name}`);
 
                 // Try downloading again with the correct path
-                const fileBuffer = await storageService.download(correctFile.name);
+                const fileBuffer = await storageServiceInstance.download(correctFile.name);
                 res.setHeader('Content-Type', document.mimeType);
                 res.setHeader('Cache-Control', 'public, max-age=3600');
                 res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
@@ -1155,7 +1156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(404).json({ 
               message: "File not found in cloud storage - document record has been cleaned up",
               documentId: document.id,
-              expectedPath: storageKey,
+              expectedPath: document.gcsPath || document.filePath,
               suggestion: "The file may have been moved or deleted. Please re-upload the document."
             });
           }

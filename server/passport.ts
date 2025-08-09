@@ -7,7 +7,7 @@ import type { User } from "@shared/schema";
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID!,
+      clientID: process.env.GOOGLE_CLIENT_ID || "470933712389-lfkv085ans840vjgvgrnt5jvj0h2cho4.apps.googleusercontent.com",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       callbackURL: process.env.REPLIT_DEV_DOMAIN
         ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`

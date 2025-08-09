@@ -150,6 +150,31 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
   - Enhanced `server/storage.ts` with comprehensive type validation
 - **Status**: ✅ **PRODUCTION READY** - OCR→Insights pipeline restored, all type errors resolved
 
+### August 9, 2025 - OAuth Callback Environment Configuration (AUTH-321) ✅
+- **Achievement**: Implemented absolute, environment-driven Google OAuth callback URLs to eliminate redirect URI mismatches
+- **Security Enhancement**:
+  1. **Environment-specific Callbacks**: Dynamic callback URL construction based on APP_ORIGIN + CALLBACK_PATH
+  2. **Configuration Validation**: Boot-time validation of APP_ORIGIN with intelligent development defaults
+  3. **Centralized Config**: Single source of truth for OAuth settings in `server/config/auth.ts`
+  4. **Enhanced Telemetry**: Structured logging for OAuth flow debugging (`auth.login.start`, `auth.login.success`, `auth.login.error`)
+- **Technical Implementation**:
+  - Created `server/config/auth.ts` with validateAppOrigin() function and environment-specific URL building
+  - Updated `server/passport.ts` to use GOOGLE_CALLBACK_URL instead of hardcoded relative path
+  - Enhanced `server/authRoutes.ts` with telemetry logging for redirect URI host/path tracking
+  - Added intelligent development defaults (auto-detects localhost:5000) while requiring explicit APP_ORIGIN in production
+  - Created comprehensive documentation in `docs/auth/google.md` with environment matrix and troubleshooting
+- **Components Enhanced**:
+  - `server/config/auth.ts` - New centralized OAuth configuration module
+  - `server/passport.ts` - Uses absolute callback URL from config
+  - `server/authRoutes.ts` - Added telemetry for OAuth flow monitoring
+  - `server/index.ts` - Early validation of auth config on startup
+  - `docs/auth/google.md` - Complete environment configuration guide
+- **Environment Support**:
+  - **Development**: `http://localhost:5000/auth/google/callback` (auto-detected)
+  - **Staging**: `https://staging.myhome.app/auth/google/callback` (via APP_ORIGIN)
+  - **Production**: `https://myhome.app/auth/google/callback` (via APP_ORIGIN)
+- **Status**: ✅ **PRODUCTION READY** - OAuth callbacks now dynamically configured per environment
+
 ### August 7, 2025 - Application Startup Issues Resolved ✅
 - **Achievement**: Fixed critical server startup failures preventing application launch
 - **Root Cause Resolved**:

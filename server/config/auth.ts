@@ -6,7 +6,17 @@
 // Validate APP_ORIGIN on startup
 function validateAppOrigin(origin: string | undefined): string {
   if (!origin) {
-    throw new Error('APP_ORIGIN environment variable is required');
+    // Provide sensible default for development
+    const defaultOrigin = process.env.NODE_ENV === 'production' 
+      ? undefined 
+      : `http://localhost:${process.env.PORT || 5000}`;
+    
+    if (!defaultOrigin) {
+      throw new Error('APP_ORIGIN environment variable is required in production');
+    }
+    
+    console.log(`⚠️  Using default APP_ORIGIN for development: ${defaultOrigin}`);
+    return defaultOrigin;
   }
   
   try {

@@ -9,8 +9,8 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: process.env.REPLIT_DEPLOYMENT === '1'
-        ? `https://myhome-docs.com/api/auth/google/callback`  // Production
+      callbackURL: process.env.REPLIT_DEV_DOMAIN?.includes('myhome-docs.com')
+        ? `https://myhome-docs.com/api/auth/google/callback`  // Production (when domain is myhome-docs.com)
         : `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`,  // Development
     },
     async (accessToken, refreshToken, profile, done) => {

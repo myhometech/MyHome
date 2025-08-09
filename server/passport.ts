@@ -9,7 +9,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1' 
+      callbackURL: process.env.REPL_SLUG && process.env.REPL_OWNER
         ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/api/auth/google/callback`
         : "/api/auth/google/callback",
     },

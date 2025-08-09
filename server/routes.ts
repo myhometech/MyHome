@@ -315,7 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.session());
 
   // OAuth authentication routes
-  app.use('/auth', authRoutes);
+  app.use('/api/auth', authRoutes);
 
   // Authentication routes
   app.post('/api/auth/register', async (req: any, res) => {

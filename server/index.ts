@@ -144,8 +144,7 @@ app.use((req, res, next) => {
     }
   });
 
-  // Mount auth routes BEFORE registerRoutes to prevent catch-all interference  
-  app.use('/api/auth', authRoutes);
+  // Auth routes are mounted in registerRoutes() - removing duplicate to avoid conflicts
   
   // CRITICAL FIX: Register routes AFTER pre-middleware endpoints
   const server = await registerRoutes(app);

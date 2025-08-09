@@ -314,11 +314,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // OAuth authentication routes
+  // OAuth authentication routes  
+  console.log('🔧 MOUNTING OAUTH ROUTES: /api/auth');
   app.use('/api/auth', authRoutes);
+  console.log('✅ OAuth routes mounted successfully');
 
-  // Authentication routes
-  app.post('/api/auth/register', async (req: any, res) => {
+  // Email/Password Authentication routes (separate from OAuth)
+  app.post('/api/auth/email/register', async (req: any, res) => {
     try {
       const data = registerSchema.parse(req.body);
 
@@ -367,7 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/login', async (req: any, res) => {
+  app.post('/api/auth/email/login', async (req: any, res) => {
     try {
       const data = loginSchema.parse(req.body);
 

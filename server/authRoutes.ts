@@ -56,6 +56,22 @@ router.get("/google/callback",
   }
 );
 
+// Check user authentication status
+router.get("/user", (req: any, res) => {
+  console.log('Auth check - Session user:', req.session?.user ? 'exists' : 'none');
+  console.log('Auth check - Session userId:', req.session?.userId);
+  
+  const user = req.user || req.session?.user;
+  
+  if (!user) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  
+  // Return safe user data (without password hash)
+  const { passwordHash, ...safeUser } = user;
+  res.json({ user: safeUser });
+});
+
 // Logout route (works for all auth providers)
 router.post("/logout", (req, res) => {
   req.session.destroy((err) => {

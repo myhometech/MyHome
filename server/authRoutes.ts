@@ -18,40 +18,29 @@ router.get("/google/callback",
     // Successful authentication
     const user = req.user as any;
     
-    console.log(`Google OAuth Success: User ${user.id} logged in`);
+    console.log(`🔥 Google OAuth Success: User ${user.id} (${user.email}) logged in`);
+    console.log(`🔥 OAuth callback - req.user:`, !!req.user);
+    console.log(`🔥 OAuth callback - req.session before:`, !!(req.session as any)?.user);
     
     // Store user in session format compatible with simpleAuth
     (req.session as any).user = user;
     (req.session as any).userId = user.id;
     (req.session as any).authProvider = "google";
     
+    console.log(`🔥 OAuth callback - req.session after:`, !!(req.session as any)?.user);
+    
     // Force session save before redirect
     req.session.save((err: any) => {
       if (err) {
-        console.error("OAuth session save error:", err);
+        console.error("❌ OAuth session save error:", err);
         return res.redirect("/login?error=google");
       }
       
-      console.log(`OAuth session saved successfully for user: ${user.id}`);
+      console.log(`✅ OAuth session saved successfully for user: ${user.id} (${user.email})`);
       
-      // Send a success page that redirects to home with user data
-      res.send(`
-        <html>
-        <head><title>Login Successful</title></head>
-        <body>
-          <script>
-            console.log('Google OAuth successful, redirecting...');
-            // Clear any stale cache
-            if (window.localStorage) {
-              localStorage.removeItem('auth-user');
-            }
-            // Redirect to home
-            window.location.href = '/';
-          </script>
-          <p>Login successful, redirecting...</p>
-        </body>
-        </html>
-      `);
+      // Direct redirect instead of HTML page to avoid issues
+      console.log(`🔀 Redirecting user ${user.id} to home page`);
+      res.redirect('/');
     });
   }
 );

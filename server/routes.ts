@@ -369,7 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/email/login', async (req: any, res) => {
+  app.post('/api/auth/login', async (req: any, res) => {
     try {
       const data = loginSchema.parse(req.body);
 

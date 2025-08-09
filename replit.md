@@ -22,7 +22,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 7. Document Deletion: Premium trash bin (30-day) + confirmation dialogs for all users
 
 ## Recent Changes
-- **2025-08-09**: Completely fixed Google OAuth authentication flow - resolved redirect URI mismatch by prioritizing REPL_SLUG domain (workspace.simontaylor66.repl.co) over REPLIT_DEV_DOMAIN in callback URL configuration. OAuth now properly redirects to Google, processes callback, stores session, and redirects user back to authenticated app. Enhanced OAuth logging for comprehensive flow tracing.
+- **2025-08-09**: Fixed OAuth callback URL configuration to use environment-specific domains - production uses myhome-docs.com, development uses REPLIT_DEV_DOMAIN. This resolves redirect URI mismatch errors that were breaking both development and production OAuth flows. Enhanced OAuth logging for comprehensive flow tracing.
 - **2025-08-09**: Resolved all lexical declaration conflicts causing JavaScript runtime errors - fixed multiple `const user` declarations in monitoring.ts, admin.tsx, and settings.tsx that were creating variable scoping conflicts during compilation and hot reloading.
 - **2025-08-09**: Resolved auth route mounting conflicts - moved auth routes before registerRoutes() to prevent catch-all handler interference. Auth endpoints now respond correctly with 302 redirects to Google OAuth service.
 - **2025-08-08**: Resolved upstream CSP header interference - implemented comprehensive anti-upstream CSP override middleware with header removal, duplicate detection, and interference monitoring. Successfully allows favicon loading from https://myhome-docs.com without CSP blocking.

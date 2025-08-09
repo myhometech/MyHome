@@ -5,14 +5,14 @@ const router = Router();
 
 // Google OAuth routes
 router.get("/google", (req, res, next) => {
-  const callbackURL = process.env.REPL_SLUG 
-    ? `https://${process.env.REPL_SLUG}.${process.env.REPLIT_USER || 'simontaylor66'}.repl.co/api/auth/google/callback`
-    : `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`;
+  const callbackURL = process.env.REPLIT_DEPLOYMENT === '1'
+    ? `https://myhome-docs.com/api/auth/google/callback`  // Production
+    : `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`;  // Development
     
   console.log(`🔥 OAUTH INITIATION: Starting Google OAuth for user from ${req.ip}`);
   console.log(`🔥 OAUTH CONFIG: Client ID present: ${!!process.env.GOOGLE_CLIENT_ID}`);
   console.log(`🔥 OAUTH CONFIG: Using callback URL: ${callbackURL}`);
-  console.log(`🔥 OAUTH CONFIG: REPL_SLUG: ${process.env.REPL_SLUG}, REPLIT_USER: ${process.env.REPLIT_USER}`);
+  console.log(`🔥 OAUTH CONFIG: REPLIT_DEPLOYMENT: ${process.env.REPLIT_DEPLOYMENT}`);
     
   passport.authenticate("google", { 
     scope: ["profile", "email"] 

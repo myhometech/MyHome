@@ -71,12 +71,11 @@ export async function loadConfig(): Promise<Config> {
 export function getConfig(): Config {
   if (!config) {
     // Return immediate fallback if config not loaded
-    const fallbackConfig = {
+    return {
       API_BASE_URL: '/api',
       ENV: 'development',
       VERSION: '1.0.0'
     };
-    return fallbackConfig;
   }
   return config;
 }

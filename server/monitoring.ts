@@ -127,9 +127,8 @@ export function sentryRequestHandler() {
     Sentry.withScope((scope) => {
       scope.setTag('route', req.path);
       scope.setTag('method', req.method);
-      const reqUser = req.user; // Rename to avoid conflicts
-      if (reqUser?.id) {
-        scope.setUser({ id: reqUser.id, email: reqUser.email });
+      if (req.user?.id) {
+        scope.setUser({ id: req.user.id, email: req.user.email });
       }
     });
     next();

@@ -32,8 +32,8 @@ interface UserWithRole {
 
 export default function AdminDashboard() {
   const { toast } = useToast();
-  const { user: authUser, isLoading: authLoading, isAuthenticated } = useAuth();
-  const userWithRole = authUser as UserWithRole | null;
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const userWithRole = user as UserWithRole;
 
   // Admin access check
   useEffect(() => {

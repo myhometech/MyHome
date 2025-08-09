@@ -604,14 +604,14 @@ export default function Home() {
 
   // Force refetch documents if they're empty but should exist (with debounce)
   useEffect(() => {
-    if (!documentsLoading && (!documents || documents.length === 0) && !documentsError && currentUser) {
+    if (!documentsLoading && (!documents || documents.length === 0) && !documentsError && user) {
       console.log('[HOME] No documents found for authenticated user, attempting single refetch...');
       const timeoutId = setTimeout(() => {
         queryClient.refetchQueries({ queryKey: ["/api/documents"] });
       }, 1000);
       return () => clearTimeout(timeoutId);
     }
-  }, [documentsLoading, documents?.length, documentsError, queryClient, currentUser]);
+  }, [documentsLoading, documents?.length, documentsError, queryClient, user]);
 
   // Mock components for demonstration purposes, replace with actual imports
   const CriticalInsightsDashboard = () => <div className="bg-gray-100 p-4 rounded-lg">Critical Insights Dashboard</div>;
@@ -624,7 +624,7 @@ export default function Home() {
     // It's currently a placeholder and might need adjustment based on how UnifiedInsightsDashboard uses filters.
   };
 
-  const { data: currentUser, isLoading: userLoading } = useQuery({
+  const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ['/api/auth/user'],
     queryFn: async () => {
       const response = await fetch('/api/auth/user', { credentials: 'include' });
@@ -641,10 +641,10 @@ export default function Home() {
     retry: false,
   });
 
-  console.log('Home component rendering with user:', currentUser, 'loading:', userLoading);
+  console.log('Home component rendering with user:', user, 'loading:', userLoading);
 
   // Redirect to login if not authenticated
-  if (!userLoading && !currentUser) {
+  if (!userLoading && !user) {
     window.location.href = '/login';
     return null;
   }

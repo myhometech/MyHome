@@ -314,13 +314,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // OAuth authentication routes  
-  console.log('🔧 MOUNTING OAUTH ROUTES: /api/auth');
-  app.use('/api/auth', authRoutes);
-  console.log('✅ OAuth routes mounted successfully');
+  // OAuth authentication routes
+  app.use('/auth', authRoutes);
 
-  // Email/Password Authentication routes (separate from OAuth)
-  app.post('/api/auth/email/register', async (req: any, res) => {
+  // Authentication routes
+  app.post('/api/auth/register', async (req: any, res) => {
     try {
       const data = registerSchema.parse(req.body);
 
@@ -1104,20 +1102,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Check if this is a "file not found" error
           if (downloadError instanceof Error && downloadError.message.includes('No such object')) {
-            console.log(`📁 GCS file not found: ${document.gcsPath || document.filePath}`);
+            console.log(`📁 GCS file not found: ${storageKey}`);
 
             // Try to find the file in the bucket with a broader search
             try {
-              const storageServiceInstance = storageProvider();
-              // Access bucket through service instance (fix TypeScript error)
-              const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'myhometech-storage';
-              const bucket = storageServiceInstance.bucket?.(bucketName);
+              const bucket = storageService.storage.bucket(storageService.bucketName);
               const [files] = await bucket.getFiles({
                 prefix: `${userId}/`
               });
 
               // Look for files that might match this document
-              const possibleMatches = files.filter((file: any) => {
+              const possibleMatches = files.filter(file => {
                 const fileName = file.name.toLowerCase();
                 const docName = document.fileName.toLowerCase();
                 return fileName.includes(docName.substring(0, 10)) || 
@@ -1137,7 +1132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.log(`🔧 Updated document ${document.id} with correct path: ${correctFile.name}`);
 
                 // Try downloading again with the correct path
-                const fileBuffer = await storageServiceInstance.download(correctFile.name);
+                const fileBuffer = await storageService.download(correctFile.name);
                 res.setHeader('Content-Type', document.mimeType);
                 res.setHeader('Cache-Control', 'public, max-age=3600');
                 res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
@@ -1160,7 +1155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(404).json({ 
               message: "File not found in cloud storage - document record has been cleaned up",
               documentId: document.id,
-              expectedPath: document.gcsPath || document.filePath,
+              expectedPath: storageKey,
               suggestion: "The file may have been moved or deleted. Please re-upload the document."
             });
           }

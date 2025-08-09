@@ -15,6 +15,12 @@ router.get("/google", (req, res, next) => {
 });
 
 router.get("/google/callback",
+  (req, res, next) => {
+    console.log(`🔥 OAuth callback received - URL: ${req.url}`);
+    console.log(`🔥 OAuth callback - Query params:`, req.query);
+    console.log(`🔥 OAuth callback - Session ID:`, req.sessionID);
+    next();
+  },
   passport.authenticate("google", { 
     failureRedirect: "/login?error=google" 
   }),
@@ -25,6 +31,7 @@ router.get("/google/callback",
     console.log(`🔥 Google OAuth Success: User ${user.id} (${user.email}) logged in`);
     console.log(`🔥 OAuth callback - req.user:`, !!req.user);
     console.log(`🔥 OAuth callback - req.session before:`, !!(req.session as any)?.user);
+    console.log(`🔥 OAuth callback - Session ID after auth:`, req.sessionID);
     
     // Store user in session format compatible with simpleAuth
     (req.session as any).user = user;
@@ -41,6 +48,7 @@ router.get("/google/callback",
       }
       
       console.log(`✅ OAuth session saved successfully for user: ${user.id} (${user.email})`);
+      console.log(`✅ Session details - ID: ${req.sessionID}, User: ${user.email}`);
       
       // Direct redirect instead of HTML page to avoid issues
       console.log(`🔀 Redirecting user ${user.id} to home page`);

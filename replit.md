@@ -22,8 +22,8 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 7. Document Deletion: Premium trash bin (30-day) + confirmation dialogs for all users
 
 ## Recent Changes
+- **2025-08-09**: Fixed Google OAuth authentication with new client credentials - resolved persistent redirect_uri_mismatch error by creating new OAuth 2.0 client ID (470933712389-lfkv085ans840vjgvgrnt5jvj0h2cho4) and updating both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables. Previous TokenError: Unauthorized was caused by mismatched client secret with new client ID.
 - **2025-08-09**: Resolved all lexical declaration conflicts causing JavaScript runtime errors - fixed multiple `const user` declarations in monitoring.ts, admin.tsx, and settings.tsx that were creating variable scoping conflicts during compilation and hot reloading.
-- **2025-08-09**: Fixed Google OAuth authentication flow - resolved callback URL mismatch and route mounting issues. Updated passport configuration to use proper /api/auth/google/callback URL with environment-aware public domain support. Fixed frontend login button to use correct /api/auth/google endpoint. Authentication now properly redirects through Google OAuth service.
 - **2025-08-09**: Resolved auth route mounting conflicts - moved auth routes before registerRoutes() to prevent catch-all handler interference. Auth endpoints now respond correctly with 302 redirects to Google OAuth service.
 - **2025-08-08**: Resolved upstream CSP header interference - implemented comprehensive anti-upstream CSP override middleware with header removal, duplicate detection, and interference monitoring. Successfully allows favicon loading from https://myhome-docs.com without CSP blocking.
 - **2025-08-08**: Standardized all admin API calls to use centralized client (client/src/api/client.ts) - removed direct fetch calls, hardcoded URLs, and ensured proper runtime configuration support for all environments.

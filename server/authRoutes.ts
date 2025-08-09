@@ -4,11 +4,19 @@ import passport from "./passport";
 const router = Router();
 
 // Google OAuth routes
-router.get("/google", 
+router.get("/google", (req, res, next) => {
+  console.log(`🔥 OAUTH INITIATION: Starting Google OAuth for user from ${req.ip}`);
+  console.log(`🔥 OAUTH CONFIG: Client ID present: ${!!process.env.GOOGLE_CLIENT_ID}`);
+  console.log(`🔥 OAUTH CONFIG: Callback URL will be: ${process.env.REPLIT_DEV_DOMAIN 
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`
+    : process.env.REPL_SLUG && process.env.REPL_OWNER
+    ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/api/auth/google/callback`
+    : "/api/auth/google/callback"}`);
+    
   passport.authenticate("google", { 
     scope: ["profile", "email"] 
-  })
-);
+  })(req, res, next);
+});
 
 router.get("/google/callback",
   passport.authenticate("google", { 

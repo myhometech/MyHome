@@ -1107,7 +1107,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Try to find the file in the bucket with a broader search
             try {
               const storageServiceInstance = storageProvider();
-              const bucket = storageServiceInstance.storage.bucket(storageServiceInstance.bucketName);
+              // Access bucket through service instance (fix TypeScript error)
+              const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'myhometech-storage';
+              const bucket = storageServiceInstance.bucket?.(bucketName);
               const [files] = await bucket.getFiles({
                 prefix: `${userId}/`
               });

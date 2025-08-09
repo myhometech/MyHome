@@ -41,47 +41,14 @@ import {
   mailgunSignatureVerification
 } from './middleware/mailgunSecurity';
 
-// Mock database and schema objects for local execution if not provided elsewhere
-// In a real scenario, these would be imported from your database setup file.
-const db = {
-  select: (query: any) => ({
-    from: (table: any) => ({
-      where: (condition: any) => ({
-        orderBy: (order: any) => ({}),
-      }),
-      select: (subQuery: any) => ({
-        from: (subTable: any) => ({
-          where: (subCondition: any) => ({
-            select: (subSubQuery: any) => ({}),
-          }),
-        }),
-      }),
-    }),
-    update: (table: any) => ({
-      set: (values: any) => ({
-        where: (condition: any) => ({}),
-      }),
-    }),
-    insert: (table: any) => ({
-      values: (data: any) => ({}),
-    }),
-    delete: (table: any) => ({
-      where: (condition: any) => ({}),
-    }),
-  }),
-};
+// Import real database and schema objects
+import { db } from "./db";
+import { users, documents, featureFlags } from "@shared/schema";
+import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
 
-const sql = (strings: TemplateStringsArray, ...values: any[]) => strings.join('');
-
-// Mock schema objects
-const users = { id: '', email: '', role: '', isActive: true, createdAt: new Date(), updatedAt: new Date(), lastLoginAt: new Date(), firstName: '', lastName: '', passwordHash: '' };
-const documents = { userId: '', id: 0, name: '', fileName: '', filePath: '', fileSize: 0, mimeType: '', tags: [], expiryDate: null, uploadedAt: new Date(), uploadSource: '', status: '', gcsPath: '', encryptedDocumentKey: '', encryptionMetadata: '', isEncrypted: false };
-const featureFlags = { id: '', name: '', enabled: true, rollout_percentage: 100, tierRequired: 'free', createdAt: new Date(), updatedAt: new Date() };
-
-// Placeholder for AuthenticatedRequest, Response, NextFunction types
-type AuthenticatedRequest = any;
-type Response = any;
-type NextFunction = any;
+// Import proper types
+import type { Request, Response, NextFunction } from "express";
+type AuthenticatedRequest = Request & { user?: any };
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -1850,11 +1817,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin middleware
   function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    console.log('🔧 Admin middleware check - Session user:', req.session?.user?.email, 'Role:', req.session?.user?.role);
+    console.log('🔧 Admin middleware check - Session user:', (req.session as any)?.user?.email, 'Role:', (req.session as any)?.user?.role);
     console.log('🔧 Admin middleware check - Req user:', req.user?.email, 'Role:', req.user?.role);
 
     // Check both session and req.user for compatibility
-    const user = req.user || req.session?.user;
+    const user = req.user || (req.session as any)?.user;
 
     if (!user) {
       console.log('❌ Admin middleware: No user found in session or req.user');

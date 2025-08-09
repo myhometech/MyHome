@@ -3,27 +3,72 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { AuthService } from "./authService";
 import type { User } from "@shared/schema";
 
-// Determine environment and credentials
-const isProduction = process.env.REPLIT_DEV_DOMAIN?.includes('myhome-docs.com');
-const clientId = isProduction 
-  ? (process.env.GOOGLE_CLIENT_ID_PROD || process.env.GOOGLE_CLIENT_ID!)
-  : (process.env.GOOGLE_CLIENT_ID_DEV || process.env.GOOGLE_CLIENT_ID!);
-const clientSecret = isProduction 
-  ? (process.env.GOOGLE_CLIENT_SECRET_PROD || process.env.GOOGLE_CLIENT_SECRET!)
-  : (process.env.GOOGLE_CLIENT_SECRET_DEV || process.env.GOOGLE_CLIENT_SECRET!);
-const callbackURL = isProduction
-  ? `https://myhome-docs.com/api/auth/google/callback`
-  : `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`;
+console.log(`🔧 OAuth Strategy Setup - DEV Client ID: ${(process.env.GOOGLE_CLIENT_ID_DEV || process.env.GOOGLE_CLIENT_ID!).substring(0, 20)}...`);
+console.log(`🔧 OAuth Strategy Setup - DEV Callback: https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`);
+console.log(`🔧 OAuth Strategy Setup - PROD Client ID: ${(process.env.GOOGLE_CLIENT_ID_PROD || process.env.GOOGLE_CLIENT_ID!).substring(0, 20)}...`);
+console.log(`🔧 OAuth Strategy Setup - PROD Callback: https://myhome-docs.com/api/auth/google/callback`);
 
-console.log(`🔧 OAuth Strategy Setup - Production: ${isProduction}, Client ID: ${clientId.substring(0, 20)}...`);
-
-// Configure Google OAuth Strategy
-passport.use(
+// Development OAuth strategy
+passport.use("google-dev", 
   new GoogleStrategy(
     {
-      clientID: clientId,
-      clientSecret: clientSecret,
-      callbackURL: callbackURL,
+      clientID: process.env.GOOGLE_CLIENT_ID_DEV || process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET_DEV || process.env.GOOGLE_CLIENT_SECRET!,
+      callbackURL: `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        // Extract profile information
+        const email = profile.emails?.[0]?.value;
+        const googleId = profile.id;
+        const firstName = profile.name?.givenName || "";
+        const lastName = profile.name?.familyName || "";
+
+        console.log(`Google OAuth: Processing user ${googleId} with email ${email}`);
+
+        // First, check if user already exists with this Google ID
+        let user = await AuthService.findUserByProvider("google", googleId);
+
+        if (user) {
+          console.log(`Google OAuth: Existing user found - ${user.id}`);
+          return done(null, user);
+        }
+
+        // If no existing Google user, check for email conflict (optional deduplication)
+        if (email) {
+          const existingEmailUser = await AuthService.findUserByEmailAndProvider(email, "email");
+          if (existingEmailUser) {
+            console.log(`Google OAuth: Email ${email} already exists with email provider - creating separate Google account`);
+            // Continue to create new Google account (no automatic linking)
+          }
+        }
+
+        // Create new Google OAuth user
+        user = await AuthService.createOAuthUser({
+          email: email || undefined,
+          firstName,
+          lastName,
+          authProvider: "google",
+          providerId: googleId,
+        });
+
+        console.log(`Google OAuth: New user created - ${user.id}`);
+        return done(null, user);
+      } catch (error) {
+        console.error("Google OAuth Error:", error);
+        return done(error, false);
+      }
+    }
+  )
+);
+
+// Production OAuth strategy
+passport.use("google-prod", 
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID_PROD || process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET_PROD || process.env.GOOGLE_CLIENT_SECRET!,
+      callbackURL: `https://myhome-docs.com/api/auth/google/callback`,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {

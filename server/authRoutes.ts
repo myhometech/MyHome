@@ -5,7 +5,17 @@ const router = Router();
 
 // Google OAuth routes
 router.get("/google", (req, res, next) => {
-  const isProduction = process.env.REPLIT_DEV_DOMAIN?.includes('myhome-docs.com');
+  // CRITICAL FIX: FORCE production for myhome-docs.com domain
+  const host = req.get('host') || req.get('x-forwarded-host') || '';
+  const referer = req.get('referer') || '';
+  
+  console.log(`🚨 CRITICAL OAUTH REQUEST: Host=${host}, Referer=${referer}`);
+  
+  // HARDCODE production detection for myhome-docs.com
+  const isProduction = host === 'myhome-docs.com';
+  
+  console.log(`🚨 PRODUCTION DETECTION: ${isProduction ? 'YES' : 'NO'} (host: ${host})`);
+  
   const clientId = isProduction 
     ? (process.env.GOOGLE_CLIENT_ID_PROD || process.env.GOOGLE_CLIENT_ID!)
     : (process.env.GOOGLE_CLIENT_ID_DEV || process.env.GOOGLE_CLIENT_ID!);
@@ -14,13 +24,21 @@ router.get("/google", (req, res, next) => {
     : `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`;  // Development
     
   console.log(`🔥 OAUTH INITIATION: Starting Google OAuth for user from ${req.ip}`);
+  console.log(`🔥 OAUTH CONFIG: Host header: ${host}`);
+  console.log(`🔥 OAUTH CONFIG: Referer: ${referer}`);
+  console.log(`🔥 OAUTH CONFIG: Original URL: ${req.originalUrl}`);  
+  console.log(`🔥 OAUTH CONFIG: All headers:`, JSON.stringify(req.headers, null, 2));
   console.log(`🔥 OAUTH CONFIG: Environment: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
   console.log(`🔥 OAUTH CONFIG: Using Client ID: ${clientId.substring(0, 20)}...`);
   console.log(`🔥 OAUTH CONFIG: Using callback URL: ${callbackURL}`);
-  console.log(`🔥 OAUTH CONFIG: Dev credentials available: ${!!process.env.GOOGLE_CLIENT_ID_DEV}`);
-  console.log(`🔥 OAUTH CONFIG: Prod credentials available: ${!!process.env.GOOGLE_CLIENT_ID_PROD}`);
+  console.log(`🔥 OAUTH CONFIG: REPLIT_DEPLOYMENT: ${process.env.REPLIT_DEPLOYMENT}`);
+  console.log(`🔥 OAUTH CONFIG: NODE_ENV: ${process.env.NODE_ENV}`);
+  
+  // Use the appropriate strategy based on environment
+  const strategyName = isProduction ? "google-prod" : "google-dev";
+  console.log(`🔥 OAUTH CONFIG: Using strategy: ${strategyName}`);
     
-  passport.authenticate("google", { 
+  passport.authenticate(strategyName, { 
     scope: ["profile", "email"] 
   })(req, res, next);
 });
@@ -40,10 +58,21 @@ router.get("/google/callback",
     
     next();
   },
-  passport.authenticate("google", { 
-    failureRedirect: "/login?error=google",
-    failureFlash: true
-  }),
+  (req, res, next) => {
+    // FORCE PRODUCTION DETECTION for myhome-docs.com callback requests  
+    const host = req.get('host') || req.get('x-forwarded-host') || '';
+    const isProduction = host === 'myhome-docs.com' || 
+                         process.env.REPLIT_DEPLOYMENT === '1' || 
+                         process.env.NODE_ENV === 'production';
+    
+    const strategyName = isProduction ? "google-prod" : "google-dev";
+    console.log(`🔥 OAUTH CALLBACK: Using strategy: ${strategyName} for host: ${host}`);
+    
+    passport.authenticate(strategyName, { 
+      failureRedirect: "/login?error=google",
+      failureFlash: true
+    })(req, res, next);
+  },
   (req, res) => {
     // Successful authentication
     const user = req.user as any;

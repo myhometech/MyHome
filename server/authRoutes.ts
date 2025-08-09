@@ -1,10 +1,16 @@
 import { Router } from "express";
 import passport from "./passport";
+import { GOOGLE_CALLBACK_URL } from "./config/auth";
 
 const router = Router();
 
 // Google OAuth routes
 router.get("/google", 
+  (req, res, next) => {
+    const redirectUri = new URL(GOOGLE_CALLBACK_URL);
+    console.log(`🔐 auth.login.start - redirect_uri host: ${redirectUri.host}, path: ${redirectUri.pathname}`);
+    next();
+  },
   passport.authenticate("google", { 
     scope: ["profile", "email"] 
   })
@@ -17,6 +23,9 @@ router.get("/google/callback",
   (req, res) => {
     // Successful authentication
     const user = req.user as any;
+    const redirectUri = new URL(GOOGLE_CALLBACK_URL);
+    
+    console.log(`🔐 auth.login.success - redirect_uri host: ${redirectUri.host}, user: ${user.id}`);
     
     // Store user in session format compatible with simpleAuth
     (req.session as any).user = user;
@@ -28,7 +37,8 @@ router.get("/google/callback",
     // Force session save before redirect
     req.session.save((err: any) => {
       if (err) {
-        console.error("OAuth session save error:", err);
+        const redirectUri = new URL(GOOGLE_CALLBACK_URL);
+        console.error(`🔐 auth.login.error - redirect_uri host: ${redirectUri.host}, error:`, err);
         return res.redirect("/login?error=google");
       }
       

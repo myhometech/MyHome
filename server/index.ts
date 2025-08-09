@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Validate auth configuration early in startup
+import "./config/auth";
+
 // Enable manual garbage collection if available
 if (global.gc) {
   console.log('✅ Manual GC enabled');

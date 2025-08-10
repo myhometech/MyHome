@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useVehicles } from "@/hooks/useVehicles";
 import { useState, useEffect } from "react";
 import { useFeatures } from "@/hooks/useFeatures";
 import { Crown } from "lucide-react";
@@ -940,11 +941,8 @@ function AssetsTabContent() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [vehicleToEdit, setVehicleToEdit] = useState<Vehicle | null>(null);
   
-  // Fetch vehicles data
-  const { data: vehicles, isLoading, error } = useQuery<Vehicle[]>({
-    queryKey: ['/api/vehicles'],
-    enabled: isAuthenticated,
-  });
+  // Fetch vehicles data with enhanced error handling
+  const { data: vehicles, isLoading, error } = useVehicles();
 
   const handleAddVehicle = () => {
     setIsAddVehicleModalOpen(true);
@@ -1031,7 +1029,26 @@ function AssetsTabContent() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-8">
-              <p className="text-red-600">Could not load your vehicles. Please refresh or try again.</p>
+              {error?.type === 'auth' ? (
+                <div>
+                  <p className="text-blue-600 mb-4">You need to sign in to view your vehicles.</p>
+                  <Button onClick={() => window.location.href = '/auth/google'}>
+                    Sign In
+                  </Button>
+                </div>
+              ) : error?.type === 'forbidden' ? (
+                <div>
+                  <p className="text-amber-600 mb-4">You don't have access to Vehicle Assets.</p>
+                  <Button variant="outline">Contact Admin</Button>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-red-600">
+                    Could not load your vehicles. Please refresh or try again.
+                    {error?.cid && <span className="text-xs block mt-1">Ref: {error.cid}</span>}
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

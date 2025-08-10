@@ -33,6 +33,7 @@ const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_E
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { withCorrelationId } from "./middleware/correlationId.js";
 
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
 console.log('ℹ️  Simplified memory management enabled');
@@ -68,6 +69,10 @@ if (!isDeployment) {
 let backupService: any = null;
 
 const app = express();
+
+// Add correlation ID middleware first
+app.use(withCorrelationId);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

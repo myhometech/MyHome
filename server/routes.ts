@@ -3882,10 +3882,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const vehicles = await storage.getVehicles(userId);
-      res.json(vehicles);
-    } catch (error) {
-      console.error("Error fetching vehicles:", error);
-      res.status(500).json({ message: "Failed to fetch vehicles" });
+      
+      // Always return an array, even if empty
+      const result = Array.isArray(vehicles) ? vehicles : [];
+      return res.status(200).json(result);
+      
+    } catch (error: any) {
+      console.error(`[${req.cid || 'no-cid'}] vehicles_fetch_error:`, error);
+      
+      // Handle specific error types
+      if (error.code === 'DB_TIMEOUT') {
+        return res.status(503).json({ 
+          code: 'DB_TIMEOUT', 
+          message: 'Temporary database issue', 
+          cid: req.cid 
+        });
+      }
+      
+      return res.status(500).json({ 
+        code: 'VEHICLES_FETCH_FAILED', 
+        message: 'Failed to fetch vehicles', 
+        cid: req.cid 
+      });
     }
   });
 

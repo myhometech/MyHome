@@ -13,17 +13,21 @@ export function getSession() {
     tableName: "sessions",
   });
 
+  const isProd = process.env.NODE_ENV === 'production';
+  
   return session({
+    name: 'mh.sid',
     secret: process.env.SESSION_SECRET || "simple-auth-secret-key-for-development",
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: sessionTtl,
-      sameSite: 'lax',
-      domain: undefined, // Let the browser handle domain automatically
+      secure: isProd, // true behind HTTPS
+      sameSite: isProd ? 'none' : 'lax', // 'none' if frontend & API are cross-site
+      domain: isProd ? '.myhome-docs.com' : undefined,
+      path: '/',
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     },
   });
 }

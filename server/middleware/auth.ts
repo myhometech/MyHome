@@ -31,11 +31,16 @@ export function requireAdmin(req: AuthenticatedRequest, res: Response, next: Nex
 }
 
 /**
- * Basic authentication check
+ * Basic authentication check with correlation ID support
  */
-export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+export function requireAuth(req: AuthenticatedRequest & { cid?: string }, res: Response, next: NextFunction) {
   if (!req.user) {
-    return res.status(401).json({ error: 'Authentication required' });
+    console.warn(`[${req.cid || 'no-cid'}] auth_missing_user`);
+    return res.status(401).json({ 
+      code: 'AUTH_REQUIRED',
+      message: 'Authentication required',
+      cid: req.cid
+    });
   }
 
   next();

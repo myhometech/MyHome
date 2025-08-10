@@ -523,14 +523,24 @@ export type InsertVehicle = typeof vehicles.$inferInsert;
 
 // TICKET 3: Vehicle creation schema with DVLA enrichment
 export const createVehicleSchema = z.object({
-  vrn: z.string().min(1, "VRN is required").max(10, "VRN too long").transform(val => val.toUpperCase().replace(/\s/g, '')),
-  notes: z.string().optional().nullable(),
+  vrn: z.string()
+    .min(1, "VRN is required")
+    .max(10, "VRN too long")
+    .regex(/^[A-Z0-9\s-]+$/i, "VRN contains invalid characters")
+    .transform(val => val.trim().toUpperCase().replace(/[\s-]/g, '')),
+  notes: z.string().optional().nullable().default(null),
   // Allow manual fallback fields if DVLA lookup fails
-  make: z.string().optional().nullable(),
-  model: z.string().optional().nullable(),
-  yearOfManufacture: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional().nullable(),
-  fuelType: z.string().optional().nullable(),
-  colour: z.string().optional().nullable(),
+  make: z.string().optional().nullable().default(null),
+  model: z.string().optional().nullable().default(null),
+  yearOfManufacture: z.number()
+    .int("Year must be a whole number")
+    .min(1900, "Year must be 1900 or later")
+    .max(new Date().getFullYear() + 1, "Year cannot be in the future")
+    .optional().nullable().default(null),
+  fuelType: z.enum(["PETROL", "DIESEL", "ELECTRIC", "HYBRID", "OTHER"], {
+    errorMap: () => ({ message: "Fuel type must be PETROL, DIESEL, ELECTRIC, HYBRID, or OTHER" })
+  }).optional().nullable().default(null),
+  colour: z.string().optional().nullable().default(null),
 });
 
 // Full vehicle schema for manual creation and updates (existing functionality) 

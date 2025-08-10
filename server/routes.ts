@@ -4010,135 +4010,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
 
-      console.log("[DEBUG] Raw request body:", JSON.stringify(req.body, null, 2));
+      console.log(`[${req.cid || 'no-cid'}] Raw request body:`, JSON.stringify(req.body, null, 2));
 
       // Validate request body using TICKET 3 schema
       const validatedData = createVehicleSchema.parse(req.body);
-      console.log("[DEBUG] Validated input data:", JSON.stringify(validatedData, null, 2));
+      console.log(`[${req.cid || 'no-cid'}] Validated input data:`, JSON.stringify(validatedData, null, 2));
       const { vrn, notes, ...manualFields } = validatedData;
 
       // Check if vehicle already exists for this user
       const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
       if (existingVehicle) {
         return res.status(409).json({ 
+          code: 'DUPLICATE_VRM',
           message: "Vehicle with this VRN already exists",
-          vehicle: existingVehicle
+          vehicle: existingVehicle,
+          cid: req.cid
         });
       }
 
-      // Attempt DVLA lookup first
-      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
-
-      let vehicleData;
-      let dvlaFields: string[] = [];
-      let userEditableFields = ['notes'];
-      let dvlaError = null;
-
-      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
-        // DVLA lookup successful - use DVLA data with proper date conversion
-        const dvlaVehicle = dvlaLookupResult.vehicle;
-        vehicleData = {
-          ...dvlaVehicle,
-          userId,
-          notes: notes || null,
-          source: 'dvla' as const,
-          dvlaLastRefreshed: new Date(),
-          // Convert string dates to Date objects
-          taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
-          motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
-        };
-
-        // Mark DVLA fields as read-only
-        dvlaFields = [
-          'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
-          'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
-          'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
-        ];
-      } else {
-        // DVLA lookup failed - use manual data with fallback
-        dvlaError = dvlaLookupResult.error;
-        vehicleData = {
-          userId,
-          vrn,
-          notes: notes || null,
-          source: 'manual',
-          // Use manual fields as fallback
-          ...manualFields,
-        };
-
-        // All fields are user-editable when DVLA fails
-        userEditableFields = [
-          'notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour'
-        ];
-      }
-
-      // Debug logging for validation issues
-      console.log("[DEBUG] Vehicle data before validation:", JSON.stringify(vehicleData, null, 2));
-
-      // Validate the vehicle data before creating
-      try {
-        const validatedVehicleData = insertVehicleSchema.parse(vehicleData);
-        console.log("[DEBUG] Validation successful, validated data:", JSON.stringify(validatedVehicleData, null, 2));
-      } catch (validationError) {
-        console.error("[DEBUG] Validation failed:", JSON.stringify(validationError, null, 2));
-        throw validationError;
-      }
-
-      // Convert Date objects to strings for database storage
-      const vehicleDataForStorage = {
-        ...vehicleData,
-        vrn: vehicleData.vrn || vrn, // Ensure VRN is always present
-        taxDueDate: (vehicleData as any).taxDueDate instanceof Date ? (vehicleData as any).taxDueDate.toISOString().split('T')[0] : (vehicleData as any).taxDueDate,
-        motExpiryDate: (vehicleData as any).motExpiryDate instanceof Date ? (vehicleData as any).motExpiryDate.toISOString().split('T')[0] : (vehicleData as any).motExpiryDate
+      // Create vehicle immediately with manual data - don't block on DVLA lookup
+      const vehicleData = {
+        userId,
+        vrn,
+        notes: notes || null,
+        source: 'manual',
+        // Use manual fields if provided
+        ...manualFields,
       };
 
-      const validatedVehicleData = insertVehicleSchema.parse(vehicleDataForStorage);
+      let dvlaFields: string[] = [];
+      let userEditableFields = ['notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour'];
 
-      // Create the vehicle
-      const createdVehicle = await storage.createVehicle(vehicleDataForStorage);
+      // Debug logging for validation issues
+      console.log(`[${req.cid || 'no-cid'}] Creating vehicle with data:`, JSON.stringify(vehicleData, null, 2));
 
-      // TICKET 4: Generate vehicle insights after creation
-      try {
-        if (createdVehicle.motExpiryDate || createdVehicle.taxDueDate) {
-          console.log(`[TICKET 4] Generating insights for vehicle ${createdVehicle.vrn}`);
-          const insightResult = await vehicleInsightService.generateVehicleInsights(createdVehicle);
+      // Create the vehicle immediately
+      const createdVehicle = await storage.createVehicle(vehicleData);
 
-          if (insightResult.success && insightResult.insights.length > 0) {
-            await vehicleInsightService.saveVehicleInsights(createdVehicle, insightResult.insights);
-            console.log(`[TICKET 4] Generated ${insightResult.insights.length} vehicle insights for ${createdVehicle.vrn}`);
+      // Async DVLA enrichment + Vehicle Insights (don't block response)
+      setImmediate(async () => {
+        try {
+          // Attempt DVLA lookup in background
+          const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
+          
+          if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+            // Update vehicle with DVLA data
+            const dvlaVehicle = dvlaLookupResult.vehicle;
+            const dvlaUpdateData = {
+              ...dvlaVehicle,
+              source: 'dvla' as const,
+              dvlaLastRefreshed: new Date(),
+              // Convert string dates to Date objects  
+              taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
+              motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
+              // Preserve user notes
+              notes: createdVehicle.notes,
+            };
+            
+            await storage.updateVehicle(createdVehicle.id, userId, dvlaUpdateData);
+            console.log(`[${req.cid || 'no-cid'}] DVLA enrichment completed for ${vrn}`);
+            
+            // Update DVLA fields for async response
+            dvlaFields = [
+              'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+              'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+              'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+            ];
+            userEditableFields = ['notes'];
           }
-        }
-      } catch (error) {
-        console.error('[TICKET 4] Error generating vehicle insights:', error);
-        // Don't fail vehicle creation if insight generation fails
-      }
 
-      // TICKET 3 response format
+          // Generate Vehicle Insights
+          if (createdVehicle) {
+            const insightResult = await vehicleInsightService.generateVehicleInsights(createdVehicle);
+            if (insightResult.success && insightResult.insights.length > 0) {
+              await vehicleInsightService.saveVehicleInsights(createdVehicle, insightResult.insights);
+              console.log(`[${req.cid || 'no-cid'}] Generated ${insightResult.insights.length} vehicle insights for ${vrn}`);
+            }
+          }
+        } catch (error) {
+          console.error(`[${req.cid || 'no-cid'}] Error in background DVLA/insights processing:`, error);
+        }
+      });
+
+      // TICKET 3 response format - immediate response with manual data
       const response = {
         vehicle: createdVehicle,
-        dvlaEnriched: dvlaLookupResult.success,
+        dvlaEnriched: false, // Initially false, will be updated async
         dvlaFields,
         userEditableFields,
-        ...(dvlaError && { 
-          dvlaError: {
-            code: dvlaError.code,
-            message: dvlaError.message,
-            status: dvlaError.status
-          }
-        })
+        message: "Vehicle created successfully. DVLA data will be added automatically if available."
       };
 
       res.status(201).json(response);
     } catch (error: any) {
-      console.error("Error creating vehicle:", error);
+      console.error(`[${req.cid || 'no-cid'}] Error creating vehicle:`, error);
+      
       if (error.name === 'ZodError') {
-        console.error("[DEBUG] Zod validation error details:", JSON.stringify(error.errors, null, 2));
+        console.error(`[${req.cid || 'no-cid'}] Zod validation error details:`, JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ 
+          code: 'VALIDATION_ERROR',
           message: "Validation error", 
-          errors: error.errors 
+          errors: error.errors.map((err: any) => ({
+            path: err.path.join('.'),
+            message: err.message,
+            received: err.received
+          })),
+          cid: req.cid
         });
       }
-      res.status(500).json({ message: "Failed to create vehicle" });
+      
+      // Handle database constraint errors
+      if (error.code === '23505') { // PostgreSQL unique constraint violation
+        return res.status(409).json({ 
+          code: 'DUPLICATE_VRM',
+          message: "Vehicle with this VRN already exists",
+          cid: req.cid
+        });
+      }
+      
+      return res.status(500).json({ 
+        code: 'VEHICLE_CREATE_FAILED',
+        message: "Failed to create vehicle",
+        cid: req.cid
+      });
     }
   });
 

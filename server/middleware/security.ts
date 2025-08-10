@@ -19,15 +19,23 @@ const contentSecurityPolicy = {
       "https://cdn.jsdelivr.net",
       "https://unpkg.com"
     ],
+    scriptSrcAttr: ["'none'"], // Block inline event handlers
     styleSrc: [
       "'self'",
       "'unsafe-inline'", // Required for styled-components and CSS-in-JS
       "https://fonts.googleapis.com",
       "https://cdn.jsdelivr.net"
     ],
+    styleSrcElem: [
+      "'self'",
+      "'unsafe-inline'",
+      "https://fonts.googleapis.com", 
+      "https://cdn.jsdelivr.net"
+    ],
     fontSrc: [
       "'self'",
       "https://fonts.gstatic.com",
+      "https://cdn.jsdelivr.net",
       "data:"
     ],
     imgSrc: [

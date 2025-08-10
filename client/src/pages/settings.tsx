@@ -1031,7 +1031,7 @@ function AssetsTabContent() {
           </CardHeader>
           <CardContent>
             <div className="text-center py-8">
-              <p className="text-red-600">Failed to load vehicles. Please try again.</p>
+              <p className="text-red-600">Could not load your vehicles. Please refresh or try again.</p>
             </div>
           </CardContent>
         </Card>

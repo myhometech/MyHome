@@ -24,36 +24,54 @@ export interface ProcessingOptions {
 class ImageProcessor {
   private cv: any;
   private isReady: boolean = false;
+  private loadingPromise: Promise<void> | null = null;
 
   constructor() {
-    this.waitForOpenCV();
+    // Don't automatically load OpenCV - load on demand
   }
 
-  private async waitForOpenCV(): Promise<void> {
-    return new Promise((resolve) => {
-      const checkOpenCV = () => {
+  private async loadOpenCV(): Promise<void> {
+    if (this.loadingPromise) {
+      return this.loadingPromise;
+    }
+
+    this.loadingPromise = new Promise(async (resolve, reject) => {
+      try {
+        // Check if OpenCV is already available
         if (window.cv && window.cv.Mat) {
           this.cv = window.cv;
           this.isReady = true;
-          console.log('✅ OpenCV.js loaded successfully');
+          console.log('✅ OpenCV.js already loaded');
           resolve();
-        } else {
-          // Listen for the opencv-ready event
-          window.addEventListener('opencv-ready', () => {
-            if (window.cv && window.cv.Mat) {
-              this.cv = window.cv;
-              this.isReady = true;
-              console.log('✅ OpenCV.js loaded successfully via event');
-              resolve();
-            }
-          }, { once: true });
-          
-          // Also keep checking periodically
-          setTimeout(checkOpenCV, 100);
+          return;
         }
-      };
-      checkOpenCV();
+
+        // Load OpenCV.js dynamically
+        console.log('🔄 Loading OpenCV.js dynamically...');
+        
+        // Setup the Module object for OpenCV
+        (window as any).Module = {
+          onRuntimeInitialized: () => {
+            this.cv = (window as any).cv;
+            this.isReady = true;
+            console.log('✅ OpenCV.js loaded successfully');
+            resolve();
+          }
+        };
+
+        // Load OpenCV.js from jsDelivr (CSP compliant)
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/opencv.js@4.10.0/opencv.js';
+        script.async = true;
+        script.onerror = () => reject(new Error('Failed to load OpenCV.js'));
+        document.head.appendChild(script);
+        
+      } catch (error) {
+        reject(error);
+      }
     });
+
+    return this.loadingPromise;
   }
 
   public async processImage(
@@ -69,7 +87,7 @@ class ImageProcessor {
     const startTime = performance.now();
     
     if (!this.isReady) {
-      await this.waitForOpenCV();
+      await this.loadOpenCV();
     }
 
     try {
@@ -205,7 +223,7 @@ class ImageProcessor {
             this.cv.approxPolyDP(contour, approx, epsilon, true);
 
             // Accept quadrilaterals or pentagons (documents may have slightly curved edges)
-            if ((approx.rows === 4 || approx.rows === 5) && area > bestResult.area) {
+            if ((approx.total() === 4 || approx.total() === 5) && area > bestResult.area) {
               // Additional validation: check if it's roughly rectangular
               const boundingRect = this.cv.boundingRect(contour);
               const rectArea = boundingRect.width * boundingRect.height;
@@ -223,7 +241,7 @@ class ImageProcessor {
                 );
                 
                 if (confidence > bestResult.confidence) {
-                  if (bestResult.contour) bestResult.contour.delete();
+                  if (bestResult.contour && typeof bestResult.contour.delete === 'function') bestResult.contour.delete();
                   bestResult = {
                     contour: approx.clone(),
                     confidence: confidence,
@@ -259,7 +277,7 @@ class ImageProcessor {
         const corners: { x: number; y: number }[] = [];
         const data = bestResult.contour.data32S;
         
-        for (let i = 0; i < bestResult.contour.rows; i++) {
+        for (let i = 0; i < bestResult.contour.total(); i++) {
           corners.push({
             x: data[i * 2],
             y: data[i * 2 + 1]
@@ -283,7 +301,7 @@ class ImageProcessor {
           // Extract hull points
           const hullData = hull.data32S;
           const hullCorners = [];
-          for (let i = 0; i < hull.rows; i++) {
+          for (let i = 0; i < hull.total(); i++) {
             const idx = hullData[i];
             hullCorners.push(corners[idx]);
           }
@@ -303,7 +321,7 @@ class ImageProcessor {
         return { corners: sortedCorners, confidence: bestResult.confidence };
       }
 
-      if (bestResult.contour) {
+      if (bestResult.contour && typeof bestResult.contour.delete === 'function') {
         bestResult.contour.delete();
       }
       

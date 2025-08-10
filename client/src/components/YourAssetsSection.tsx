@@ -84,12 +84,18 @@ export function YourAssetsSection() {
     }
   }, [watchedType, selectedType, form]);
 
-  const { data: legacyAssets = [], isLoading: isLoadingLegacy } = useQuery({
+  const { data: legacyAssets = [], isLoading: isLoadingLegacy, error } = useQuery({
     queryKey: ["/api/user-assets"],
     queryFn: async () => {
-      const res = await fetch("/api/user-assets");
-      if (!res.ok) throw new Error("Failed to fetch assets");
-      return res.json();
+      try {
+        const res = await fetch("/api/user-assets", { credentials: 'include' });
+        if (!res.ok) throw new Error(`assets_fetch_${res.status}`);
+        const data = await res.json();
+        return data;
+      } catch (err) {
+        console.error('assets_fetch_error', err);
+        throw new Error('Could not load your assets. Please refresh or try again.');
+      }
     },
   });
 

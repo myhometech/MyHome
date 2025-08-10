@@ -7,16 +7,8 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- OpenCV.js for image processing -->
-    <script>
-      window.onOpenCvReady = function() {
-        console.log('OpenCV.js is ready!');
-        window.dispatchEvent(new CustomEvent('opencv-ready'));
-      };
-    </script>
-    <script async src="https://docs.opencv.org/4.10.0/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <!-- OpenCV.js removed from global loading - now loaded only in scanner components -->
     <script type="module" src="/src/main.tsx"></script>
-    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
-    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+    <!-- Replit dev banner removed for production CSP compliance -->
   </body>
 </html>

@@ -184,19 +184,16 @@ export default function UnifiedUploadButton({
         description: "Your document has been uploaded and organized.",
       });
       
-      // Store files reference before clearing
-      const uploadedFiles = [...selectedFiles];
-      
       // Clear state first
       setSelectedFiles([]);
       setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
       setCategorySuggestion(null);
       
-      // Close modal
+      // Close modal immediately - don't trigger parent callbacks that might cause additional modals
       setShowUploadDialog(false);
       
-      // Call onUpload callback last to trigger parent cleanup
-      onUpload(uploadedFiles);
+      // Only call onUpload with empty array to signal completion without triggering additional UI
+      onUpload([]);
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -521,8 +518,9 @@ export default function UnifiedUploadButton({
       {/* Upload Dialog - only show when not suppressed */}
       {!suppressDialog && (
         <Dialog open={showUploadDialog} onOpenChange={(open) => {
+          setShowUploadDialog(open);
           if (!open) {
-            // Only reset state and call onUpload when manually closing
+            // Only reset state when manually closing (not after successful upload)
             setSelectedFiles([]);
             setUploadData({
               categoryId: "",
@@ -531,9 +529,8 @@ export default function UnifiedUploadButton({
               customName: "",
             });
             setCategorySuggestion(null);
-            onUpload([]);
+            // Don't call onUpload here - it's handled in success callback
           }
-          setShowUploadDialog(open);
         }}>
           <DialogContent className="max-w-lg">
             <DialogHeader>

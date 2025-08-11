@@ -434,59 +434,64 @@ export default function UnifiedUploadButton({
 
   return (
     <>
-      {/* Show upload form inline when suppressDialog is true and files are selected */}
-      {suppressDialog && selectedFiles.length > 0 ? (
-        uploadFormContent
-      ) : (
+      {/* Only show inline content when suppressDialog is true */}
+      {suppressDialog && (
         <>
-          {/* Compact Upload Button */}
-          <Card 
-            className={`w-full max-w-md h-48 border-2 border-dashed transition-colors cursor-pointer hover:border-primary ${
-              isDragOver 
-                ? "border-primary bg-blue-50" 
-                : "border-gray-300"
-            }`}
-            onDrop={handleDrop}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragOver(true);
-            }}
-            onDragLeave={() => setIsDragOver(false)}
-            onClick={handleFileUpload}
-            role="button"
-            aria-label="Upload documents by clicking or dragging files"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleFileUpload();
-              }
-            }}
-          >
-            <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
-              <CloudUpload className="h-8 w-8 text-gray-400 mb-3" />
-              <h3 className="text-sm font-medium mb-2">Upload Documents</h3>
-              <p className="text-xs text-gray-500 mb-4">
-                PDF, JPG, PNG, WebP (max 10MB)
-              </p>
-              
-              {/* Primary Choose Files Button */}
-              <Button 
-                variant="default" 
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleFileUpload();
+          {/* Show upload form inline when files are selected */}
+          {selectedFiles.length > 0 ? (
+            uploadFormContent
+          ) : (
+            <>
+              {/* Compact Upload Button */}
+              <Card 
+                className={`w-full max-w-md h-48 border-2 border-dashed transition-colors cursor-pointer hover:border-primary ${
+                  isDragOver 
+                    ? "border-primary bg-blue-50" 
+                    : "border-gray-300"
+                }`}
+                onDrop={handleDrop}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(true);
                 }}
-                className="mb-3 text-xs"
+                onDragLeave={() => setIsDragOver(false)}
+                onClick={handleFileUpload}
+                role="button"
+                aria-label="Upload documents by clicking or dragging files"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleFileUpload();
+                  }
+                }}
               >
-                <Plus className="h-3 w-3 mr-1" />
-                Choose Files
-              </Button>
-              
-              {/* TICKET 7: Legacy scanner buttons removed - scanning now handled via Add menu */}
-            </CardContent>
-          </Card>
+                <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
+                  <CloudUpload className="h-8 w-8 text-gray-400 mb-3" />
+                  <h3 className="text-sm font-medium mb-2">Upload Documents</h3>
+                  <p className="text-xs text-gray-500 mb-4">
+                    PDF, JPG, PNG, WebP (max 10MB)
+                  </p>
+                  
+                  {/* Primary Choose Files Button */}
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleFileUpload();
+                    }}
+                    className="mb-3 text-xs"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Choose Files
+                  </Button>
+                  
+                  {/* TICKET 7: Legacy scanner buttons removed - scanning now handled via Add menu */}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </>
       )}
 
@@ -506,12 +511,50 @@ export default function UnifiedUploadButton({
 
       {/* Upload Dialog - only show when not suppressed */}
       {!suppressDialog && (
-        <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-          <DialogContent className="max-w-md">
+        <Dialog open={showUploadDialog} onOpenChange={(open) => {
+          setShowUploadDialog(open);
+          if (!open) {
+            // Reset state when modal closes
+            setSelectedFiles([]);
+            setUploadData({
+              categoryId: "",
+              tags: "",
+              expiryDate: "",
+              customName: "",
+            });
+            onUpload([]);
+          }
+        }}>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Upload Documents</DialogTitle>
             </DialogHeader>
-            {uploadFormContent}
+            {selectedFiles.length > 0 ? (
+              uploadFormContent
+            ) : (
+              <div className="space-y-4">
+                <Card 
+                  className={`w-full h-32 border-2 border-dashed transition-colors cursor-pointer hover:border-primary ${
+                    isDragOver 
+                      ? "border-primary bg-blue-50" 
+                      : "border-gray-300"
+                  }`}
+                  onDrop={handleDrop}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragOver(true);
+                  }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onClick={handleFileUpload}
+                >
+                  <CardContent className="p-4 h-full flex flex-col items-center justify-center text-center">
+                    <CloudUpload className="h-6 w-6 text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600 mb-2">Drop files here or click to browse</p>
+                    <p className="text-xs text-gray-500">PDF, JPG, PNG, WebP (max 10MB)</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       )}

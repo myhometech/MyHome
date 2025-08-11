@@ -15,24 +15,27 @@ import { queryClient } from "@/lib/queryClient";
 import { useFeatures } from "@/hooks/useFeatures";
 
 interface UnifiedUploadButtonProps {
-  onUpload: (files: File[]) => void;
-  /** Set to true when component is already inside a dialog to prevent nested dialogs */
-  suppressDialog?: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: (result: any) => void;
   /** Optional context for prefilling modals (e.g., selected house/vehicle) */
   selectedAssetId?: string;
   selectedAssetName?: string;
 }
 
 export default function UnifiedUploadButton({ 
-  onUpload, 
-  suppressDialog = false, 
+  open,
+  onOpenChange,
+  onSuccess,
   selectedAssetId, 
   selectedAssetName 
 }: UnifiedUploadButtonProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  // Guard against late async completions trying to update UI after close
+  const closedRef = useRef(false);
+  
   // TICKET 7: Legacy scanner states removed
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadData, setUploadData] = useState({
@@ -97,15 +100,11 @@ export default function UnifiedUploadButton({
   const { hasFeature, features } = useFeatures();
   const isFree = !features.BULK_OPERATIONS; // Simple check for free tier
 
-  // Track if upload was successful to prevent re-opening modal
-  const [uploadCompleted, setUploadCompleted] = useState(false);
-
-  // Auto-open modal when used directly (not suppressed)
-  useEffect(() => {
-    if (!suppressDialog && !uploadCompleted) {
-      setShowUploadDialog(true);
-    }
-  }, [suppressDialog, uploadCompleted]);
+  // Helper to close modal - never try to set internal open state
+  const close = () => {
+    closedRef.current = true;
+    onOpenChange(false);
+  };
 
   const createCategoryMutation = useMutation({
     mutationFn: async (data: { name: string; icon: string; color: string }) => {
@@ -181,9 +180,9 @@ export default function UnifiedUploadButton({
 
       return response.json();
     },
-    onSuccess: () => {
-      // First, immediately signal parent to unmount this component (prevents re-render)
-      onUpload([]);
+    onSuccess: (result) => {
+      // Guard against late async completion after close
+      if (closedRef.current) return;
       
       // Show success toast
       toast({
@@ -191,14 +190,14 @@ export default function UnifiedUploadButton({
         description: "Your document has been uploaded and organized.",
       });
       
-      // Mark upload as completed to block any dialog rendering
-      setUploadCompleted(true);
-      setShowUploadDialog(false);
-      
       // Clear state
       setSelectedFiles([]);
       setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
       setCategorySuggestion(null);
+      
+      // Close modal and notify parent
+      close();
+      onSuccess(result);
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -254,10 +253,7 @@ export default function UnifiedUploadButton({
         await getSuggestion(validFiles[0]);
       }
       
-      // Only show dialog if not suppressed (when used inside another dialog)
-      if (!suppressDialog) {
-        setShowUploadDialog(true);
-      }
+      // Files are loaded, ready for upload form
     }
   };
 
@@ -427,7 +423,7 @@ export default function UnifiedUploadButton({
       <div className="flex gap-2 pt-4">
         <Button 
           variant="outline" 
-          onClick={() => suppressDialog ? onUpload([]) : setShowUploadDialog(false)}
+          onClick={() => close()}
           className="flex-1"
         >
           Cancel
@@ -445,66 +441,7 @@ export default function UnifiedUploadButton({
 
   return (
     <>
-      {/* Only show inline content when suppressDialog is true */}
-      {suppressDialog && (
-        <>
-          {/* Show upload form inline when files are selected */}
-          {selectedFiles.length > 0 ? (
-            uploadFormContent
-          ) : (
-            <>
-              {/* Compact Upload Button */}
-              <Card 
-                className={`w-full max-w-md h-48 border-2 border-dashed transition-colors cursor-pointer hover:border-primary ${
-                  isDragOver 
-                    ? "border-primary bg-blue-50" 
-                    : "border-gray-300"
-                }`}
-                onDrop={handleDrop}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragOver(true);
-                }}
-                onDragLeave={() => setIsDragOver(false)}
-                onClick={handleFileUpload}
-                role="button"
-                aria-label="Upload documents by clicking or dragging files"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleFileUpload();
-                  }
-                }}
-              >
-                <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
-                  <CloudUpload className="h-8 w-8 text-gray-400 mb-3" />
-                  <h3 className="text-sm font-medium mb-2">Upload Documents</h3>
-                  <p className="text-xs text-gray-500 mb-4">
-                    PDF, JPG, PNG, WebP (max 10MB)
-                  </p>
-                  
-                  {/* Primary Choose Files Button */}
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleFileUpload();
-                    }}
-                    className="mb-3 text-xs"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Choose Files
-                  </Button>
-                  
-                  {/* TICKET 7: Legacy scanner buttons removed - scanning now handled via Add menu */}
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </>
-      )}
+      {/* No inline content - only modal based */}
 
       {/* Hidden file input */}
       <input
@@ -512,32 +449,17 @@ export default function UnifiedUploadButton({
         type="file"
         multiple
         onChange={(e) => {
-          const files = Array.from(e.target.files || []);
-          handleFileSelect(files);
-          e.target.value = "";
+          if (e.target.files) {
+            const fileArray = Array.from(e.target.files);
+            handleFileSelection(fileArray);
+          }
         }}
         style={{ display: "none" }}
         accept="application/pdf,image/*"
       />
 
-      {/* Upload Dialog - only show when not suppressed and upload not completed */}
-      {!suppressDialog && !uploadCompleted && showUploadDialog && (
-        <Dialog open={showUploadDialog} onOpenChange={(open) => {
-          setShowUploadDialog(open);
-          if (!open) {
-            // Only reset state when manually closing (not after successful upload)
-            setSelectedFiles([]);
-            setUploadData({
-              categoryId: "",
-              tags: "",
-              expiryDate: "",
-              customName: "",
-            });
-            setCategorySuggestion(null);
-            // Signal cancellation to parent
-            onUpload([]);
-          }
-        }}>
+      {/* Fully controlled upload dialog */}
+      <Dialog open={open} onOpenChange={onOpenChange}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Upload Documents</DialogTitle>
@@ -547,7 +469,7 @@ export default function UnifiedUploadButton({
             ) : (
               <div className="space-y-4">
                 <Card 
-                  className={`w-full h-32 border-2 border-dashed transition-colors cursor-pointer hover:border-primary ${
+                  className={`h-32 border-2 border-dashed transition-colors cursor-pointer hover:border-primary ${
                     isDragOver 
                       ? "border-primary bg-blue-50" 
                       : "border-gray-300"
@@ -578,7 +500,6 @@ export default function UnifiedUploadButton({
             )}
           </DialogContent>
         </Dialog>
-      )}
 
       {/* Create Category Dialog */}
       <Dialog open={showCreateCategory} onOpenChange={setShowCreateCategory}>

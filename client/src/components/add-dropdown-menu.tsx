@@ -42,6 +42,8 @@ export function AddDropdownMenu({
   const [showManualDateDialog, setShowManualDateDialog] = useState(false);
   const [showScanFlow, setShowScanFlow] = useState(false);
   const [showUploadButton, setShowUploadButton] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [instanceKey, setInstanceKey] = useState(0);
 
   // TICKET 8: Track scan document selection
   const handleScanDocument = () => {
@@ -101,7 +103,7 @@ export function AddDropdownMenu({
           <DropdownMenuItem 
             onClick={() => {
               handleDocumentUpload();
-              setShowUploadButton(true);
+              setUploadDialogOpen(true);
             }}
             className="cursor-pointer focus:bg-accent focus:text-accent-foreground"
           >
@@ -126,16 +128,22 @@ export function AddDropdownMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Direct UnifiedUploadButton with its own modal */}
-      {showUploadButton && (
+      {/* Fully controlled UnifiedUploadButton modal */}
+      {uploadDialogOpen && (
         <UnifiedUploadButton 
-          onUpload={(files) => {
-            // Immediately close the upload button component to prevent any re-rendering
-            setShowUploadButton(false);
-            // Refresh data
-            queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-          }} 
-          suppressDialog={false}
+          key={instanceKey}
+          open={uploadDialogOpen}
+          onOpenChange={setUploadDialogOpen}
+          onSuccess={(result) => {
+            // 1. Close and unmount immediately
+            setUploadDialogOpen(false);
+            setInstanceKey(k => k + 1);
+            
+            // 2. Invalidate queries after unmount to avoid remount loops
+            queueMicrotask(() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+            });
+          }}
           selectedAssetId={selectedAssetId}
           selectedAssetName={selectedAssetName}
         />

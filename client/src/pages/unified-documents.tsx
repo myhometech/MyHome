@@ -43,6 +43,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ShareDocumentDialog } from "@/components/share-document-dialog";
 import { BatchTagManager } from "@/components/batch-tag-manager";
+import EmailSearchFilters from "@/components/EmailSearchFilters";
 // import { InsightJobStatus } from "@/components/InsightJobStatus"; // Temporarily disabled
 import type { Category, Document } from "@shared/schema";
 
@@ -70,6 +71,10 @@ export default function UnifiedDocuments() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState<string>("priority"); // priority, date, name, category
+  
+  // TICKET 7: Email metadata filters
+  const [emailFilters, setEmailFilters] = useState<any>({});
+  const [emailSort, setEmailSort] = useState<string>("uploadedAt:desc");
   
   // Insight filters
   const [hasInsightsFilter, setHasInsightsFilter] = useState<string>("all"); // all, critical, any, none
@@ -119,9 +124,35 @@ export default function UnifiedDocuments() {
 
   // Fetch documents
   const { data: documents = [], isLoading: documentsLoading, error: documentsError } = useQuery<Document[]>({
-    queryKey: ["/api/documents"],
+    queryKey: ["/api/documents", emailFilters, emailSort],
     queryFn: async () => {
-      const response = await fetch("/api/documents", {
+      // TICKET 7: Build query parameters with email filters
+      const params = new URLSearchParams();
+      
+      if (emailFilters.source) {
+        params.append('filter[source]', emailFilters.source);
+      }
+      if (emailFilters['email.subject']) {
+        params.append('filter[email.subject]', emailFilters['email.subject']);
+      }
+      if (emailFilters['email.from']) {
+        params.append('filter[email.from]', emailFilters['email.from']);
+      }
+      if (emailFilters['email.messageId']) {
+        params.append('filter[email.messageId]', emailFilters['email.messageId']);
+      }
+      if (emailFilters['email.receivedAt']?.gte) {
+        params.append('filter[email.receivedAt][gte]', emailFilters['email.receivedAt'].gte);
+      }
+      if (emailFilters['email.receivedAt']?.lte) {
+        params.append('filter[email.receivedAt][lte]', emailFilters['email.receivedAt'].lte);
+      }
+      if (emailSort && emailSort !== 'uploadedAt:desc') {
+        params.append('sort', emailSort);
+      }
+      
+      const url = "/api/documents" + (params.toString() ? `?${params.toString()}` : "");
+      const response = await fetch(url, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch documents");
@@ -450,6 +481,14 @@ export default function UnifiedDocuments() {
         <Card>
           <CardContent className="p-4">
             <div className="space-y-4">
+              {/* TICKET 7: Email Search Filters */}
+              <EmailSearchFilters
+                onFiltersChange={setEmailFilters}
+                onSortChange={setEmailSort}
+                activeFilters={emailFilters}
+                activeSort={emailSort}
+              />
+
               {/* Search and primary filters */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">

@@ -376,7 +376,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Document operations
-  async getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: 'expired' | 'expiring-soon' | 'this-month'): Promise<Document[]> {
+  async getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: 'expired' | 'expiring-soon' | 'this-month', filters?: any, sort?: string): Promise<Document[]> {
     const conditions = [eq(documents.userId, userId)];
 
     if (categoryId) {
@@ -385,8 +385,46 @@ export class DatabaseStorage implements IStorage {
 
     if (search) {
       conditions.push(
-        sql`(${documents.name} ILIKE ${`%${search}%`} OR ${documents.extractedText} ILIKE ${`%${search}%`})`
+        sql`(${documents.name} ILIKE ${`%${search}%`} OR ${documents.extractedText} ILIKE ${`%${search}%`} OR ${documents.emailContext}->>'subject' ILIKE ${`%${search}%`} OR ${documents.emailContext}->>'from' ILIKE ${`%${search}%`})`
       );
+    }
+
+    // TICKET 7: Email metadata filters
+    if (filters) {
+      if (filters.source === 'email') {
+        conditions.push(eq(documents.uploadSource, 'email'));
+      }
+      
+      if (filters['email.subject']) {
+        conditions.push(
+          sql`${documents.emailContext}->>'subject' ILIKE ${`%${filters['email.subject']}%`}`
+        );
+      }
+      
+      if (filters['email.from']) {
+        conditions.push(
+          sql`${documents.emailContext}->>'from' ILIKE ${`%${filters['email.from']}%`}`
+        );
+      }
+      
+      if (filters['email.messageId']) {
+        conditions.push(
+          sql`${documents.emailContext}->>'messageId' = ${filters['email.messageId']}`
+        );
+      }
+      
+      if (filters['email.receivedAt']) {
+        if (filters['email.receivedAt'].gte) {
+          conditions.push(
+            sql`(${documents.emailContext}->>'receivedAt')::timestamp >= ${filters['email.receivedAt'].gte}`
+          );
+        }
+        if (filters['email.receivedAt'].lte) {
+          conditions.push(
+            sql`(${documents.emailContext}->>'receivedAt')::timestamp <= ${filters['email.receivedAt'].lte}`
+          );
+        }
+      }
     }
 
     // Add expiry filter conditions
@@ -427,11 +465,21 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // TICKET 7: Dynamic sorting
+    let orderBy;
+    if (sort === 'email.receivedAt:asc') {
+      orderBy = sql`(${documents.emailContext}->>'receivedAt')::timestamp ASC`;
+    } else if (sort === 'email.receivedAt:desc') {
+      orderBy = sql`(${documents.emailContext}->>'receivedAt')::timestamp DESC`;
+    } else {
+      orderBy = desc(documents.uploadedAt);
+    }
+
     return await this.db
       .select()
       .from(documents)
       .where(and(...conditions))
-      .orderBy(desc(documents.uploadedAt));
+      .orderBy(orderBy);
   }
 
   async getDocument(id: number, userId: string): Promise<Document | undefined> {

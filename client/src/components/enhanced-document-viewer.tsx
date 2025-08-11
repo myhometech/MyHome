@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DocumentInsights } from "@/components/document-insights";
 import DocumentReferences from "./DocumentReferences";
+import EmailMetadataPanel from "./EmailMetadataPanel";
 import { Document, Page, pdfjs } from 'react-pdf';
 
 // Set up PDF.js worker with correct extension
@@ -74,6 +75,14 @@ interface FullDocumentDetails {
   uploadedAt: string;
   userId: string;
   uploadSource?: string;
+  emailContext?: {
+    messageId: string;
+    from: string;
+    to: string[];
+    subject: string;
+    receivedAt: string;
+    ingestGroupId?: string;
+  };
   messageId?: string;
   emailContext?: string;
   documentReferences?: string;
@@ -674,6 +683,14 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                       )}
                     </CardContent>
                   </Card>
+
+                  {/* TICKET 7: Email Metadata Panel - Show email context for email-sourced documents */}
+                  {fullDocument && fullDocument.uploadSource === 'email' && fullDocument.emailContext && (
+                    <EmailMetadataPanel 
+                      emailContext={fullDocument.emailContext}
+                      className="mt-3"
+                    />
+                  )}
 
                   {/* Document References - Comprehensive References UI (Ticket 6) */}
                   <DocumentReferences 

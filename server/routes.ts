@@ -521,8 +521,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
       const search = req.query.search as string;
       const expiryFilter = req.query.expiryFilter as 'expired' | 'expiring-soon' | 'this-month' | undefined;
-
-      const documents = await storage.getDocuments(userId, categoryId, search, expiryFilter);
+      
+      // TICKET 7: Email metadata filters and sorting
+      const filters: any = {};
+      if (req.query['filter[source]']) {
+        filters.source = req.query['filter[source]'];
+      }
+      if (req.query['filter[email.subject]']) {
+        filters['email.subject'] = req.query['filter[email.subject]'];
+      }
+      if (req.query['filter[email.from]']) {
+        filters['email.from'] = req.query['filter[email.from]'];
+      }
+      if (req.query['filter[email.messageId]']) {
+        filters['email.messageId'] = req.query['filter[email.messageId]'];
+      }
+      if (req.query['filter[email.receivedAt][gte]'] || req.query['filter[email.receivedAt][lte]']) {
+        filters['email.receivedAt'] = {};
+        if (req.query['filter[email.receivedAt][gte]']) {
+          filters['email.receivedAt'].gte = req.query['filter[email.receivedAt][gte]'];
+        }
+        if (req.query['filter[email.receivedAt][lte]']) {
+          filters['email.receivedAt'].lte = req.query['filter[email.receivedAt][lte]'];
+        }
+      }
+      
+      const sort = req.query.sort as string;
+      
+      const documents = await storage.getDocuments(userId, categoryId, search, expiryFilter, Object.keys(filters).length ? filters : undefined, sort);
       res.json(documents);
     } catch (error) {
       console.error("Error fetching documents:", error);

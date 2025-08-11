@@ -122,6 +122,11 @@ export const documents = pgTable("documents", {
   
   // Email Body PDF indexes for deduplication and lookup
   index("idx_documents_message_id").on(table.messageId),
+  index("idx_documents_body_hash").on(table.bodyHash),
+  
+  // TICKET 7: Email metadata search indexes
+  index("idx_documents_email_context_gin").on(table.emailContext), // GIN index for JSONB queries
+  index("idx_documents_upload_source").on(table.uploadSource), // Filter by source
   
   // Unique constraint for email body PDF deduplication per user
   // Prevents duplicate email body PDFs for same (userId, messageId, bodyHash) when uploadSource='email'

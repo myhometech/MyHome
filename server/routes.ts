@@ -3574,6 +3574,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document references endpoint
+  app.get('/api/documents/:id/references', requireAuth, async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ error: 'Invalid document ID' });
+      }
+
+      // Get the document to ensure user has access
+      const document = await storage.getDocumentById(userId, documentId);
+      if (!document) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      // Parse references from document
+      let references = [];
+      if (document.references) {
+        try {
+          const parsedRefs = typeof document.references === 'string' 
+            ? JSON.parse(document.references) 
+            : document.references;
+          references = Array.isArray(parsedRefs) ? parsedRefs : [];
+        } catch (error) {
+          console.warn('Failed to parse document references:', error);
+        }
+      }
+
+      res.json({ references });
+    } catch (error) {
+      console.error('Failed to fetch document references:', error);
+      res.status(500).json({ error: 'Failed to fetch document references' });
+    }
+  });
+
+  // Batch document summary endpoint for references UI
+  app.post('/api/documents/batch-summary', requireAuth, async (req, res) => {
+    try {
+      const { documentIds } = req.body;
+      const userId = req.user!.id;
+
+      if (!Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Limit batch size to prevent abuse
+      if (documentIds.length > 50) {
+        return res.status(400).json({ error: 'Batch size too large (max 50)' });
+      }
+
+      // Get all user documents and filter by requested IDs
+      const allUserDocs = await storage.getDocuments(userId);
+      const requestedDocs = allUserDocs.filter(doc => 
+        documentIds.includes(doc.id)
+      );
+
+      // Return summary information only
+      const summaries = requestedDocs.map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        fileName: doc.fileName || doc.name,
+        mimeType: doc.mimeType,
+        fileSize: doc.fileSize,
+        source: doc.source || 'upload',
+        uploadedAt: doc.uploadedAt,
+        // Check if this looks like an email body PDF
+        isEmailBodyPdf: doc.source === 'email' && (
+          doc.name?.includes('Email -') || 
+          (doc.emailContext && typeof doc.emailContext === 'object' && 'bodyHash' in doc.emailContext)
+        ),
+        bodyHash: doc.emailContext && typeof doc.emailContext === 'object' && 'bodyHash' in doc.emailContext
+          ? (doc.emailContext as any).bodyHash 
+          : undefined
+      }));
+
+      res.json(summaries);
+    } catch (error) {
+      console.error('Failed to fetch batch document summaries:', error);
+      res.status(500).json({ error: 'Failed to fetch document summaries' });
+    }
+  });
+
   // CORE-002: Enhanced Health Check Endpoint
   app.get('/api/health', enhancedHealthCheck);
 

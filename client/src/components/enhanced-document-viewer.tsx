@@ -736,7 +736,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                   <DocumentReferences 
                     documentId={document.id}
                     references={getDocumentReferences()}
-                    onNavigate={(docId) => {
+                    onDocumentClick={(docId: number) => {
                       // Navigate to referenced document
                       // This would typically use your routing system
                       window.location.href = `/documents?id=${docId}`;

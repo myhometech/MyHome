@@ -75,6 +75,7 @@ interface FullDocumentDetails {
   uploadedAt: string;
   userId: string;
   uploadSource?: string;
+  source?: string;
   emailContext?: {
     messageId: string;
     from: string;
@@ -82,9 +83,10 @@ interface FullDocumentDetails {
     subject: string;
     receivedAt: string;
     ingestGroupId?: string;
+    bodyHtml?: string;
+    bodyPlain?: string;
   };
   messageId?: string;
-  emailContext?: string;
   documentReferences?: string;
 }
 
@@ -224,19 +226,57 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
       return response.json();
     },
     onSuccess: (data) => {
+      const actionButton = data.created ? {
+        action: () => {
+          // Close current modal and open the email PDF document
+          onClose();
+          // Navigate to the email PDF - this would depend on your routing setup
+          // For now, just reload documents to see the new PDF
+          queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+        },
+        label: 'View Email PDF'
+      } : undefined;
+
       toast({
         title: data.created ? "Email saved as PDF" : "Email PDF already exists",
         description: data.created 
-          ? `Created PDF with ${data.linkedCount} linked documents`
-          : "Opening existing email PDF",
+          ? `Created PDF "${data.name}" with ${data.linkedCount} linked documents`
+          : `Opening existing email PDF "${data.name}"`,
+        action: actionButton ? (
+          <button 
+            onClick={actionButton.action}
+            className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {actionButton.label}
+            <ExternalLink className="ml-1 h-3 w-3" />
+          </button>
+        ) : undefined
       });
+      
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
-      // Could optionally navigate to the email PDF document
+      queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}`] });
     },
     onError: (error: Error) => {
+      const errorMessages: Record<string, string> = {
+        'FEATURE_DISABLED': 'Email PDF feature is not enabled for your account',
+        'EMAIL_CONTEXT_MISSING': 'Email content not available for PDF creation',
+        'EMAIL_TOO_LARGE_AFTER_COMPRESSION': 'Email content is too large to convert to PDF',
+        'EMAIL_RENDER_FAILED': 'Failed to render email content to PDF',
+        'DOCUMENT_NOT_FOUND': 'Document not found or access denied'
+      };
+
+      // Try to extract error code from the error message
+      let description = error.message;
+      for (const [code, message] of Object.entries(errorMessages)) {
+        if (error.message.includes(code)) {
+          description = message;
+          break;
+        }
+      }
+
       toast({
         title: "Failed to create email PDF",
-        description: error.message,
+        description,
         variant: "destructive",
       });
     },
@@ -244,8 +284,8 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
   // Check if document is from email and can show "Store email as PDF" action
   const canStoreEmailAsPdf = () => {
-    return fullDocument?.uploadSource === 'email' && 
-           fullDocument?.messageId && 
+    return (fullDocument?.source === 'email' || fullDocument?.uploadSource === 'email') && 
+           fullDocument?.emailContext?.messageId && 
            !hasEmailBodyReference();
   };
 

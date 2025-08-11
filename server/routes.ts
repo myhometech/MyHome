@@ -3417,6 +3417,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual "Store email as PDF" action endpoint
+  app.post('/api/email/render-to-pdf', requireAuth, async (req, res) => {
+    try {
+      const { documentId, targetCategoryId } = req.body;
+      const userId = req.user!.id;
+      const userTier = req.user!.subscriptionTier || 'free';
+
+      // Validate required fields
+      if (!documentId) {
+        return res.status(400).json({
+          errorCode: 'INVALID_REQUEST',
+          message: 'documentId is required'
+        });
+      }
+
+      // Feature flag check - server-side authoritative
+      const { emailFeatureFlagService } = await import('./emailFeatureFlags.js');
+      const isEnabled = await emailFeatureFlagService.isManualEmailPdfEnabled(userId, userTier);
+      
+      if (!isEnabled) {
+        return res.status(403).json({
+          errorCode: 'FEATURE_DISABLED',
+          message: 'Manual email PDF creation is not enabled for your account'
+        });
+      }
+
+      // Load the source document
+      const document = await storage.getDocumentById(userId, documentId);
+      if (!document) {
+        return res.status(404).json({
+          errorCode: 'DOCUMENT_NOT_FOUND',
+          message: 'Document not found or access denied'
+        });
+      }
+
+      // Verify this is an email-sourced document
+      if (document.source !== 'email' || !document.emailContext?.messageId) {
+        return res.status(400).json({
+          errorCode: 'EMAIL_CONTEXT_MISSING',
+          message: 'Document is not an email attachment or missing email context'
+        });
+      }
+
+      // Extract email context for PDF creation
+      const emailContext = document.emailContext as any;
+      const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+
+      // Log user action
+      console.log(`[ANALYTICS] email_pdf_create_clicked: { docId: ${documentId}, messageId: ${emailContext.messageId}, userId: ${userId} }`);
+
+      // Prepare input for email body PDF service
+      const renderInput = {
+        tenantId: userId,
+        messageId: emailContext.messageId,
+        subject: emailContext.subject || null,
+        from: emailContext.from || 'Unknown Sender',
+        to: emailContext.to || ['unknown@recipient.com'],
+        receivedAt: emailContext.receivedAt || new Date().toISOString(),
+        html: emailContext.bodyHtml || null,
+        text: emailContext.bodyPlain || null,
+        ingestGroupId: emailContext.ingestGroupId || null,
+        categoryId: targetCategoryId || null,
+        tags: ['email', 'manual']
+      };
+
+      const renderStartTime = Date.now();
+      const result = await renderAndCreateEmailBodyPdf(renderInput);
+      const renderTime = Date.now() - renderStartTime;
+
+      // Link email body PDF with sibling attachments
+      let linkedCount = 0;
+      try {
+        // Find all documents from the same email (same messageId or ingestGroupId)
+        const allUserDocs = await storage.getDocuments(userId);
+        const siblingDocs = allUserDocs.filter(doc => 
+          doc.source === 'email' && 
+          doc.emailContext &&
+          typeof doc.emailContext === 'object' &&
+          'messageId' in doc.emailContext &&
+          doc.emailContext.messageId === emailContext.messageId &&
+          doc.id !== result.documentId // Don't link to itself
+        );
+
+        // Create bidirectional references between email body PDF and attachments
+        for (const siblingDoc of siblingDocs) {
+          // Add reference from email body PDF to attachment (source relation)
+          await storage.addDocumentReference(result.documentId, {
+            type: 'email',
+            relation: 'source', 
+            documentId: siblingDoc.id,
+            metadata: { messageId: emailContext.messageId }
+          });
+
+          // Add reference from attachment to email body PDF (related relation)
+          await storage.addDocumentReference(siblingDoc.id, {
+            type: 'email',
+            relation: 'related',
+            documentId: result.documentId,
+            metadata: { messageId: emailContext.messageId }
+          });
+
+          linkedCount++;
+        }
+
+        console.log(`[ANALYTICS] references_linked: { emailBodyDocId: ${result.documentId}, attachmentCount: ${linkedCount} }`);
+      } catch (linkError) {
+        console.warn('Failed to create document references:', linkError);
+        // Don't fail the whole operation if linking fails
+      }
+
+      // Log success analytics
+      console.log(`[ANALYTICS] email_pdf_created: { newDocId: ${result.documentId}, messageId: ${emailContext.messageId}, created: ${result.created}, renderMs: ${renderTime}, sizeBytes: estimated }`);
+
+      res.json({
+        documentId: result.documentId,
+        created: result.created,
+        linkedCount,
+        name: result.name
+      });
+
+    } catch (error: any) {
+      console.error('Manual email PDF creation failed:', error);
+      
+      // Log failure analytics
+      const documentId = req.body.documentId;
+      const messageId = req.body.messageId || 'unknown';
+      console.log(`[ANALYTICS] email_pdf_create_failed: { docId: ${documentId}, messageId: ${messageId}, errorCode: ${error.code || 'UNKNOWN_ERROR'} }`);
+
+      // Map service errors to API error codes
+      if (error.code === 'EMAIL_BODY_MISSING') {
+        return res.status(400).json({
+          errorCode: 'EMAIL_CONTEXT_MISSING',
+          message: 'Email content not available for PDF creation'
+        });
+      }
+
+      if (error.code === 'EMAIL_TOO_LARGE_AFTER_COMPRESSION') {
+        return res.status(413).json({
+          errorCode: 'EMAIL_TOO_LARGE_AFTER_COMPRESSION',
+          message: 'Email content too large to convert to PDF'
+        });
+      }
+
+      if (error.code === 'EMAIL_RENDER_FAILED') {
+        return res.status(500).json({
+          errorCode: 'EMAIL_RENDER_FAILED',
+          message: 'Failed to render email content to PDF'
+        });
+      }
+
+      res.status(500).json({
+        errorCode: 'INTERNAL_ERROR',
+        message: 'Failed to create email PDF'
+      });
+    }
+  });
+
   // CORE-002: Enhanced Health Check Endpoint
   app.get('/api/health', enhancedHealthCheck);
 

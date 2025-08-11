@@ -130,11 +130,10 @@ export function AddDropdownMenu({
       {showUploadButton && (
         <UnifiedUploadButton 
           onUpload={(files) => {
-            // Close the upload button component completely
+            // Immediately close the upload button component to prevent any re-rendering
             setShowUploadButton(false);
-            // Invalidate documents cache to refresh the list
+            // Refresh data
             queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-            // Files array is empty when manually cancelled, so no additional processing needed
           }} 
           suppressDialog={false}
           selectedAssetId={selectedAssetId}

@@ -182,24 +182,23 @@ export default function UnifiedUploadButton({
       return response.json();
     },
     onSuccess: () => {
+      // First, immediately signal parent to unmount this component (prevents re-render)
+      onUpload([]);
+      
+      // Show success toast
       toast({
         title: "Upload successful",
         description: "Your document has been uploaded and organized.",
       });
       
-      // Mark upload as completed to prevent modal re-opening
+      // Mark upload as completed to block any dialog rendering
       setUploadCompleted(true);
+      setShowUploadDialog(false);
       
-      // Clear state first
+      // Clear state
       setSelectedFiles([]);
       setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
       setCategorySuggestion(null);
-      
-      // Close modal immediately 
-      setShowUploadDialog(false);
-      
-      // Signal completion to parent to unmount this component
-      onUpload([]);
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -522,7 +521,7 @@ export default function UnifiedUploadButton({
       />
 
       {/* Upload Dialog - only show when not suppressed and upload not completed */}
-      {!suppressDialog && !uploadCompleted && (
+      {!suppressDialog && !uploadCompleted && showUploadDialog && (
         <Dialog open={showUploadDialog} onOpenChange={(open) => {
           setShowUploadDialog(open);
           if (!open) {

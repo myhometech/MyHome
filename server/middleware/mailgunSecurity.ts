@@ -283,7 +283,13 @@ export function validateMailgunContentType(req: Request, res: Response, next: Ne
     return next();
   }
   
-  if (!contentType || !contentType.startsWith('multipart/form-data')) {
+  // Accept both multipart/form-data (with attachments) and application/x-www-form-urlencoded (without attachments)
+  const isValidContentType = contentType && (
+    contentType.startsWith('multipart/form-data') || 
+    contentType.startsWith('application/x-www-form-urlencoded')
+  );
+  
+  if (!isValidContentType) {
     console.warn('🚫 REJECTED: Invalid Content-Type for Mailgun webhook', {
       contentType,
       userAgent,
@@ -293,13 +299,17 @@ export function validateMailgunContentType(req: Request, res: Response, next: Ne
     
     return res.status(400).json({
       error: 'Invalid Content-Type',
-      message: 'Expected multipart/form-data for webhook requests',
+      message: 'Expected multipart/form-data or application/x-www-form-urlencoded for webhook requests',
       received: contentType || 'none',
       userAgent,
-      hint: 'Ensure Mailgun webhook is configured to send multipart/form-data'
+      hint: 'Mailgun sends multipart/form-data for emails with attachments, application/x-www-form-urlencoded for emails without attachments'
     });
   }
   
-  console.log('✅ CONTENT-TYPE VALID: Proceeding with multipart/form-data');
+  const contentTypeDesc = contentType.startsWith('multipart/form-data') ? 
+    'multipart/form-data (with attachments)' : 
+    'application/x-www-form-urlencoded (without attachments)';
+  
+  console.log(`✅ CONTENT-TYPE VALID: Proceeding with ${contentTypeDesc}`);
   next();
 }

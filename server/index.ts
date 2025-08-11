@@ -11,8 +11,15 @@ validateAuthConfig();
 // Enable manual garbage collection if available
 if (global.gc) {
   console.log('✅ Manual GC enabled');
+  // Force immediate GC to reduce startup memory pressure
+  const beforeGC = process.memoryUsage().heapUsed / 1024 / 1024;
+  global.gc();
+  const afterGC = process.memoryUsage().heapUsed / 1024 / 1024;
+  console.log(`🧹 Startup GC: ${beforeGC.toFixed(1)}MB → ${afterGC.toFixed(1)}MB (freed ${(beforeGC - afterGC).toFixed(1)}MB)`);
 } else {
-  console.warn('⚠️ Manual GC not available - start with --expose-gc for better memory management');
+  console.warn('❌ Manual GC not available - memory optimizations severely limited');
+  console.warn('   Current command:', process.argv.join(' '));
+  console.warn('   NODE_OPTIONS:', process.env.NODE_OPTIONS || 'not set');
 }
 
 // Initialize error tracking and monitoring first
@@ -38,18 +45,22 @@ import { withCorrelationId } from "./middleware/correlationId.js";
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
 console.log('ℹ️  Simplified memory management enabled');
 
-// Basic GC only when needed (less aggressive)
-if (!isDeployment && global.gc) {
+// Aggressive GC for both development and production due to current memory crisis
+if (global.gc) {
   setInterval(() => {
     const memUsage = process.memoryUsage();
     const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
 
-    // More aggressive GC due to current 97% heap usage
-    if (heapPercent > 80 && global.gc) {
+    // Emergency GC at 75% to prevent reaching 94%+ again
+    if (heapPercent > 75) {
+      const before = memUsage.heapUsed / 1024 / 1024;
       global.gc();
-      console.log(`🧹 GC: Memory was ${heapPercent}%, running cleanup`);
+      const after = process.memoryUsage().heapUsed / 1024 / 1024;
+      console.log(`🚨 EMERGENCY GC: ${heapPercent}% → ${Math.round((after / (memUsage.heapTotal / 1024 / 1024)) * 100)}% (freed ${(before - after).toFixed(1)}MB)`);
     }
-  }, 15000); // Every 15 seconds for current memory pressure
+  }, 10000); // Every 10 seconds for immediate relief
+} else {
+  console.error('❌ CRITICAL: Cannot perform emergency GC - memory will continue to climb');
 }
 
 // SIMPLIFIED STARTUP: Minimal logging only

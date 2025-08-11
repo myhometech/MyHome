@@ -30,8 +30,12 @@ class MemoryManager {
   private checkGCAvailability(): void {
     if (global.gc) {
       console.log('✅ Garbage collection is available and ready');
+      // Force an initial GC to test functionality
+      this.forceGC();
     } else {
       console.error('❌ CRITICAL: Garbage collection not exposed! Memory optimizations will be limited.');
+      console.error('   Current NODE_OPTIONS:', process.env.NODE_OPTIONS || 'undefined');
+      console.error('   Process argv:', process.argv.join(' '));
       console.error('   Ensure Node.js is started with --expose-gc flag');
     }
   }
@@ -83,8 +87,8 @@ class MemoryManager {
       const memUsage = process.memoryUsage();
       const heapPercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
       
-      // Force GC if heap usage > 85%
-      if (heapPercent > 85) {
+      // Force GC if heap usage > 80% (more aggressive due to current 94% usage)
+      if (heapPercent > 80) {
         console.log(`🚨 AUTO-GC TRIGGERED: Heap at ${heapPercent.toFixed(1)}%`);
         this.forceGC();
       }

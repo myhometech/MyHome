@@ -10,6 +10,7 @@ export interface MailgunMessage {
   timestamp: string;
   token: string;
   signature: string;
+  messageId?: string; // Mailgun Message-Id header for deduplication
   attachments: Array<{
     filename: string;
     contentType: string;
@@ -43,6 +44,7 @@ export function parseMailgunWebhook(req: Request): ParsedMailgunWebhook {
     const timestamp = body.timestamp;
     const token = body.token;
     const signature = body.signature;
+    const messageId = body['Message-Id']; // Extract Mailgun Message-Id header
 
     // Validate required fields
     if (!recipient || !sender || !timestamp || !token || !signature) {
@@ -70,6 +72,7 @@ export function parseMailgunWebhook(req: Request): ParsedMailgunWebhook {
       timestamp,
       token,
       signature,
+      messageId, // Include messageId for deduplication
       attachments
     };
 

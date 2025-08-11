@@ -95,6 +95,12 @@ export const documents = pgTable("documents", {
   status: varchar("status", { length: 20 }).default("active"), // 'pending', 'active', 'failed'
   // DOC-303: AI categorization fields
   categorizationSource: varchar("categorization_source", { length: 20 }).default("rules"), // 'rules', 'ai', 'manual'
+  
+  // Email Body PDF fields for deduplication and linking
+  messageId: text("message_id"), // Mailgun message ID for deduplication
+  bodyHash: text("body_hash"), // SHA-256 hash of email body content
+  emailContext: jsonb("email_context"), // Email metadata: { from, to, subject, receivedAt, ingestGroupId }
+  documentReferences: jsonb("document_references"), // Document relations: [{ type, relation, documentId, createdAt }]
 }, (table) => [
   // Primary user-based indexes for common queries
   index("idx_documents_user_id").on(table.userId),
@@ -113,6 +119,13 @@ export const documents = pgTable("documents", {
   
   // OCR processing status for background jobs
   index("idx_documents_ocr_status").on(table.ocrProcessed),
+  
+  // Email Body PDF indexes for deduplication and lookup
+  index("idx_documents_message_id").on(table.messageId),
+  
+  // Unique constraint for email body PDF deduplication per user
+  // Prevents duplicate email body PDFs for same (userId, messageId, bodyHash) when uploadSource='email'
+  unique("doc_email_body_uniq").on(table.userId, table.messageId, table.bodyHash),
 ]);
 
 // Document sharing table

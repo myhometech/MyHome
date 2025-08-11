@@ -12,6 +12,8 @@ import { JSDOM } from 'jsdom';
 import type { MailgunMessage } from './mailgunService';
 import { storage } from './storage';
 import type { InsertDocument } from '@shared/schema';
+import { documents } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
 
 // Create DOMPurify instance for server-side HTML sanitization
 const window = new JSDOM('').window;
@@ -202,7 +204,7 @@ export class EmailBodyPdfService {
    */
   private async renderHtmlToPdf(html: string, options: EmailPdfOptions = {}): Promise<Buffer> {
     const browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -249,33 +251,25 @@ export class EmailBodyPdfService {
   }
 
   /**
-   * Check if email body PDF already exists
+   * Check if email body PDF already exists using unique constraint fields
    */
   private async checkForDuplicate(userId: string, bodyHash: string, messageId?: string): Promise<number | null> {
     try {
-      // First check by messageId if available
-      if (messageId) {
-        const existingByMessageId = await storage.db
-          .select({ id: storage.schema.documents.id })
-          .from(storage.schema.documents)
-          .where(storage.eq(storage.schema.documents.userId, userId))
-          .where(storage.eq(storage.schema.documents.messageId, messageId))
-          .limit(1);
-        
-        if (existingByMessageId.length > 0) {
-          return existingByMessageId[0].id;
-        }
+      // For now, use a simpler approach through storage.getDocuments
+      // Check for documents with matching messageId or bodyHash
+      const userDocuments = await storage.getDocuments(userId);
+      
+      // Filter for email documents that might be duplicates
+      const emailDocs = userDocuments.filter((doc: any) => 
+        doc.uploadSource === 'email' && 
+        (doc.messageId === messageId || doc.bodyHash === bodyHash)
+      );
+
+      if (emailDocs.length > 0) {
+        return emailDocs[0].id;
       }
 
-      // Then check by body hash
-      const existingByHash = await storage.db
-        .select({ id: storage.schema.documents.id })
-        .from(storage.schema.documents)
-        .where(storage.eq(storage.schema.documents.userId, userId))
-        .where(storage.eq(storage.schema.documents.bodyHash, bodyHash))
-        .limit(1);
-
-      return existingByHash.length > 0 ? existingByHash[0].id : null;
+      return null;
 
     } catch (error) {
       console.error('Error checking for duplicate email body PDF:', error);
@@ -385,7 +379,26 @@ export class EmailBodyPdfService {
       // Upload to GCS
       const { gcsPath } = await this.uploadToGCS(pdfBuffer, filename);
 
-      // Create document record
+      // Create document record with Email Body PDF fields
+      const emailContext = {
+        from: emailData.sender,
+        to: [emailData.recipient],
+        subject: emailData.subject,
+        receivedAt: emailData.timestamp,
+        hasAttachments: linkedAttachmentIds.length > 0,
+        attachmentCount: linkedAttachmentIds.length,
+        bodyType: emailData.bodyHtml ? 'html' : 'plain',
+        ingestGroupId: nanoid() // Unique group ID for this ingestion batch
+      };
+
+      // Create references to linked attachment documents
+      const references = linkedAttachmentIds.map(documentId => ({
+        type: 'email',
+        relation: 'related',
+        documentId,
+        createdAt: new Date().toISOString()
+      }));
+
       const documentData: Omit<InsertDocument, 'id'> = {
         userId,
         categoryId: null, // Default category
@@ -397,17 +410,11 @@ export class EmailBodyPdfService {
         tags: ['email', emailData.sender.split('@')[1] || 'email'], // Add sender domain as tag
         uploadSource: 'email',
         gcsPath,
-        // Email-specific fields (when schema is updated)
+        // Email Body PDF specific fields
         messageId: emailData.messageId,
         bodyHash,
-        emailContext: JSON.stringify({
-          sender: emailData.sender,
-          subject: emailData.subject,
-          receivedAt: emailData.timestamp,
-          hasAttachments: linkedAttachmentIds.length > 0,
-          attachmentCount: linkedAttachmentIds.length,
-          bodyType: emailData.bodyHtml ? 'html' : 'plain'
-        })
+        emailContext: JSON.stringify(emailContext),
+        documentReferences: references.length > 0 ? JSON.stringify(references) : null
       };
 
       const document = await storage.createDocument(documentData);

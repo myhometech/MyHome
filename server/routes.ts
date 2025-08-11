@@ -32,6 +32,7 @@ import cors from 'cors';
 import passport from './passport';
 import authRoutes from './authRoutes';
 import { parseMailgunWebhook, verifyMailgunSignature, extractUserIdFromRecipient, validateEmailAttachments } from './mailgunService';
+import EmailBodyPdfService from './emailBodyPdfService';
 import { setupMultiPageScanUpload } from './routes/multiPageScanUpload';
 import { 
   mailgunIPWhitelist, 
@@ -3484,8 +3485,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TICKET 4: Validate and filter attachments with comprehensive checks
       const attachmentValidation = validateEmailAttachments(message.attachments);
 
-      // Reject emails with no valid attachments
+      // Check if we should process email body as PDF (no valid attachments)
       if (!attachmentValidation.hasValidAttachments) {
+        // Try to create email body PDF if email has content
+        if (message.bodyHtml || message.bodyPlain) {
+          try {
+            console.log('📧 Processing email body as PDF for email without attachments');
+            const emailBodyService = new EmailBodyPdfService();
+            const documentId = await emailBodyService.createEmailBodyDocument(userId, message);
+            
+            if (documentId) {
+              console.log(`✅ Created email body PDF document: ${documentId}`);
+              return res.status(200).json({
+                success: true,
+                message: 'Email body converted to PDF successfully',
+                documentId,
+                documentsCreated: 1,
+                emailBodyPdf: true
+              });
+            }
+          } catch (emailBodyError) {
+            console.error('❌ Email body PDF creation failed:', emailBodyError);
+            // Continue with normal attachment validation error
+          }
+        }
+
         // TICKET 6: Log attachment validation failures
         EmailUploadLogger.logAttachmentError({
           sender: message.sender,
@@ -3499,7 +3523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         return res.status(400).json({
           error: 'No valid attachments found',
-          details: 'Emails must contain at least one valid attachment (PDF, JPG, PNG, WebP, DOCX ≤10MB)',
+          details: 'Emails must contain at least one valid attachment (PDF, JPG, PNG, WebP, DOCX ≤10MB) or email body content',
           invalidAttachments: attachmentValidation.invalidAttachments,
           summary: attachmentValidation.summary
         });

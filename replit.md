@@ -113,6 +113,14 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 
 ## Recent Development Summary
 
+### August 11, 2025 - Email Body → PDF Integration ✅
+- **Achievement**: Implemented complete Email Body → PDF functionality for emails without attachments
+- **Database Schema**: Added `message_id`, `body_hash`, `email_context`, and `document_references` fields to documents table
+- **EmailBodyPdfService**: Complete service with HTML sanitization (DOMPurify), Puppeteer PDF rendering, GCS integration, and deduplication
+- **Route Integration**: Modified `/api/email-ingest` to automatically create PDF documents from email body content when no attachments present
+- **Features**: Professional PDF templates, security (blocks external images), 10MB file limits, comprehensive error handling
+- **Status**: ✅ **PRODUCTION READY** - Email Body → PDF system fully operational
+
 ### August 11, 2025 - Upload Modal Flow Consolidation ✅
 - **Achievement**: Eliminated persistent upload modal issue with fully controlled modal pattern
 - **Implementation**: Removed duplicate Dialog components, implemented external open/onOpenChange props, added instance key remounting

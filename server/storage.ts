@@ -86,12 +86,15 @@ export interface IStorage {
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: number, userId: string): Promise<void>;
   updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined>;
-  updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string }): Promise<Document | undefined>;
+  updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string; documentReferences?: string }): Promise<Document | undefined>;
   updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined>;
   updateDocumentOCRAndSummary(id: number, userId: string, extractedText: string, summary: string): Promise<Document | undefined>;
   updateDocumentOCRStatus(id: number, userId: string, ocrStatus: { status: string; ocrProcessed: boolean; extractedText: string | null }): Promise<Document | undefined>;
   updateDocumentSummary(id: number, userId: string, summary: string): Promise<void>;
   updateDocumentTags(id: number, userId: string, tags: string[]): Promise<void>;
+  
+  // Email-specific document operations
+  getDocumentsByMessageId(userId: string, messageId: string): Promise<Document[]>;
 
 
 
@@ -460,7 +463,7 @@ export class DatabaseStorage implements IStorage {
     return updatedDoc;
   }
 
-  async updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string }): Promise<Document | undefined> {
+  async updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string; documentReferences?: string }): Promise<Document | undefined> {
     const updateData: any = {};
 
     if (updates.name !== undefined) {
@@ -499,6 +502,10 @@ export class DatabaseStorage implements IStorage {
 
     if (updates.status !== undefined) {
       updateData.status = updates.status;
+    }
+
+    if (updates.documentReferences !== undefined) {
+      updateData.documentReferences = updates.documentReferences;
     }
 
     const [updatedDoc] = await this.db
@@ -879,6 +886,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userForwardingMappings.emailHash, emailHash));
 
     return result[0]?.user;
+  }
+
+  // Email-specific document operations
+  async getDocumentsByMessageId(userId: string, messageId: string): Promise<Document[]> {
+    return await this.db
+      .select()
+      .from(documents)
+      .where(
+        and(
+          eq(documents.userId, userId),
+          eq(documents.messageId, messageId)
+        )
+      )
+      .orderBy(desc(documents.uploadedAt));
   }
 
   // Expiry reminder operations

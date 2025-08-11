@@ -26,7 +26,9 @@ import {
   AlertTriangle,
   ArrowUp,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Mail,
+  ExternalLink
 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -70,6 +72,10 @@ interface FullDocumentDetails {
   ocrProcessed?: boolean;
   uploadedAt: string;
   userId: string;
+  uploadSource?: string;
+  messageId?: string;
+  emailContext?: string;
+  documentReferences?: string;
 }
 
 interface Category {
@@ -189,6 +195,69 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
     setEditName(fullDocument?.name || document.name);
     setEditExpiryDate(fullDocument?.expiryDate || "");
     setIsEditing(false);
+  };
+
+  // Email Body PDF functionality
+  const renderEmailToPdfMutation = useMutation({
+    mutationFn: async (documentId: number) => {
+      const response = await fetch('/api/email/render-to-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create email PDF');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.created ? "Email saved as PDF" : "Email PDF already exists",
+        description: data.created 
+          ? `Created PDF with ${data.linkedCount} linked documents`
+          : "Opening existing email PDF",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      // Could optionally navigate to the email PDF document
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to create email PDF",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Check if document is from email and can show "Store email as PDF" action
+  const canStoreEmailAsPdf = () => {
+    return fullDocument?.uploadSource === 'email' && 
+           fullDocument?.messageId && 
+           !hasEmailBodyReference();
+  };
+
+  // Check if document already has email body reference
+  const hasEmailBodyReference = () => {
+    if (!fullDocument?.documentReferences) return false;
+    try {
+      const refs = JSON.parse(fullDocument.documentReferences);
+      return refs.some((ref: any) => ref.type === 'email' && ref.relation === 'source');
+    } catch {
+      return false;
+    }
+  };
+
+  // Parse and display document references
+  const getDocumentReferences = () => {
+    if (!fullDocument?.documentReferences) return [];
+    try {
+      return JSON.parse(fullDocument.documentReferences);
+    } catch {
+      return [];
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -512,6 +581,15 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                         <Edit3 className="w-3 h-3 mr-2" />
                         Edit
                       </DropdownMenuItem>
+                      {canStoreEmailAsPdf() && (
+                        <DropdownMenuItem 
+                          onClick={() => renderEmailToPdfMutation.mutate(document.id)}
+                          disabled={renderEmailToPdfMutation.isPending}
+                        >
+                          <Mail className="w-3 h-3 mr-2" />
+                          Store email as PDF
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -596,6 +674,46 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                     </CardContent>
                   </Card>
 
+                  {/* Document References */}
+                  {fullDocument && getDocumentReferences().length > 0 && (
+                    <Card className="border-0 shadow-none bg-white">
+                      <CardHeader className="pb-2 px-3 pt-3">
+                        <CardTitle className="text-xs font-medium text-gray-700">
+                          References ({getDocumentReferences().length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2 px-3 pb-3">
+                        {getDocumentReferences().map((ref: any, index: number) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-3 h-3 text-blue-600" />
+                              <div>
+                                <p className="text-xs font-medium">
+                                  {ref.relation === 'source' ? 'Email body (PDF)' : 
+                                   ref.relation === 'attachment' ? 'Email attachment' : 'Related document'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(ref.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => {
+                                // Would navigate to the referenced document
+                                console.log('Navigate to document:', ref.documentId);
+                              }}
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* Processing Information */}
                   {fullDocument && (
                     <Card className="border-0 shadow-none bg-white">
@@ -618,6 +736,18 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                             <div className="mt-1 p-2 bg-blue-50 rounded-md">
                               <p className="text-xs">{fullDocument.summary}</p>
                             </div>
+                          </div>
+                        )}
+
+                        {fullDocument.uploadSource === 'email' && (
+                          <div>
+                            <Label className="text-xs text-gray-600">Source</Label>
+                            <p className="text-xs mt-1">
+                              <Badge variant="outline" className="text-xs">
+                                <Mail className="w-2 h-2 mr-1" />
+                                Email Import
+                              </Badge>
+                            </p>
                           </div>
                         )}
                       </CardContent>

@@ -53,7 +53,7 @@ export function AddDropdownMenu({
   };
 
   const handleDocumentUpload = () => {
-    trackAddMenuSelection('upload_document', {
+    trackAddMenuSelection('document_upload', {
       selectedAssetId,
       selectedAssetName
     });
@@ -130,8 +130,8 @@ export function AddDropdownMenu({
       {showUploadButton && (
         <UnifiedUploadButton 
           onUpload={(files) => {
+            // Simply close the upload button and refresh data - no additional callbacks
             setShowUploadButton(false);
-            onDocumentUpload?.();
             // Invalidate documents cache to refresh the list
             queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
           }} 

@@ -183,11 +183,20 @@ export default function UnifiedUploadButton({
         title: "Upload successful",
         description: "Your document has been uploaded and organized.",
       });
-      onUpload(selectedFiles);
+      
+      // Store files reference before clearing
+      const uploadedFiles = [...selectedFiles];
+      
+      // Clear state first
       setSelectedFiles([]);
-      setShowUploadDialog(false);
       setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
       setCategorySuggestion(null);
+      
+      // Close modal
+      setShowUploadDialog(false);
+      
+      // Call onUpload callback last to trigger parent cleanup
+      onUpload(uploadedFiles);
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -512,9 +521,8 @@ export default function UnifiedUploadButton({
       {/* Upload Dialog - only show when not suppressed */}
       {!suppressDialog && (
         <Dialog open={showUploadDialog} onOpenChange={(open) => {
-          setShowUploadDialog(open);
           if (!open) {
-            // Reset state when modal closes
+            // Only reset state and call onUpload when manually closing
             setSelectedFiles([]);
             setUploadData({
               categoryId: "",
@@ -522,8 +530,10 @@ export default function UnifiedUploadButton({
               expiryDate: "",
               customName: "",
             });
+            setCategorySuggestion(null);
             onUpload([]);
           }
+          setShowUploadDialog(open);
         }}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -553,6 +563,14 @@ export default function UnifiedUploadButton({
                     <p className="text-xs text-gray-500">PDF, JPG, PNG, WebP (max 10MB)</p>
                   </CardContent>
                 </Card>
+                
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 mb-3">Or choose files directly:</p>
+                  <Button onClick={handleFileUpload} variant="outline" className="w-full">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Choose Files
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>

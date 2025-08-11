@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,9 +18,17 @@ interface UnifiedUploadButtonProps {
   onUpload: (files: File[]) => void;
   /** Set to true when component is already inside a dialog to prevent nested dialogs */
   suppressDialog?: boolean;
+  /** Optional context for prefilling modals (e.g., selected house/vehicle) */
+  selectedAssetId?: string;
+  selectedAssetName?: string;
 }
 
-export default function UnifiedUploadButton({ onUpload, suppressDialog = false }: UnifiedUploadButtonProps) {
+export default function UnifiedUploadButton({ 
+  onUpload, 
+  suppressDialog = false, 
+  selectedAssetId, 
+  selectedAssetName 
+}: UnifiedUploadButtonProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -88,6 +96,13 @@ export default function UnifiedUploadButton({ onUpload, suppressDialog = false }
 
   const { hasFeature, features } = useFeatures();
   const isFree = !features.BULK_OPERATIONS; // Simple check for free tier
+
+  // Auto-open modal when used directly (not suppressed)
+  useEffect(() => {
+    if (!suppressDialog) {
+      setShowUploadDialog(true);
+    }
+  }, [suppressDialog]);
 
   const createCategoryMutation = useMutation({
     mutationFn: async (data: { name: string; icon: string; color: string }) => {

@@ -7,9 +7,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import { ManualEventModal } from "@/components/manual-event-modal";
+import { queryClient } from "@/lib/queryClient";
 
 import ScanDocumentFlow from "@/components/scan-document-flow";
 import { trackAddMenuSelection } from "@/lib/analytics";
@@ -39,9 +39,9 @@ export function AddDropdownMenu({
   size = "default",
   variant = "default"
 }: AddDropdownMenuProps) {
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showManualDateDialog, setShowManualDateDialog] = useState(false);
   const [showScanFlow, setShowScanFlow] = useState(false);
+  const [showUploadButton, setShowUploadButton] = useState(false);
 
   // TICKET 8: Track scan document selection
   const handleScanDocument = () => {
@@ -53,8 +53,11 @@ export function AddDropdownMenu({
   };
 
   const handleDocumentUpload = () => {
-    trackAddMenuSelection('document_upload');
-    setShowUploadDialog(true);
+    trackAddMenuSelection('upload_document', {
+      selectedAssetId,
+      selectedAssetName
+    });
+    // No longer setting showUploadDialog - UnifiedUploadButton will handle its own modal
     onDocumentUpload?.();
   };
 
@@ -96,7 +99,10 @@ export function AddDropdownMenu({
           </DropdownMenuItem>
           
           <DropdownMenuItem 
-            onClick={handleDocumentUpload}
+            onClick={() => {
+              handleDocumentUpload();
+              setShowUploadButton(true);
+            }}
             className="cursor-pointer focus:bg-accent focus:text-accent-foreground"
           >
             <Upload className="h-4 w-4 mr-2" />
@@ -120,17 +126,20 @@ export function AddDropdownMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Document Upload Dialog */}
-      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Upload Documents</DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <UnifiedUploadButton onUpload={() => setShowUploadDialog(false)} suppressDialog={true} />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Direct UnifiedUploadButton with its own modal */}
+      {showUploadButton && (
+        <UnifiedUploadButton 
+          onUpload={(files) => {
+            setShowUploadButton(false);
+            onDocumentUpload?.();
+            // Invalidate documents cache to refresh the list
+            queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+          }} 
+          suppressDialog={false}
+          selectedAssetId={selectedAssetId}
+          selectedAssetName={selectedAssetName}
+        />
+      )}
 
       {/* Manual Event Modal */}
       <ManualEventModal

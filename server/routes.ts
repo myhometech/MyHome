@@ -3867,37 +3867,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if we should process email body as PDF (no valid attachments)
       if (!attachmentValidation.hasValidAttachments) {
-        // Try to create email body PDF if email has content
-        if (message.bodyHtml || message.bodyPlain) {
+        console.log('🔍 No valid attachments found, checking for email body PDF feature flag...');
+        
+        // Check feature flag before processing email body
+        let shouldCreateEmailBodyPdf = false;
+        try {
+          const { emailFeatureFlagService } = await import('./emailFeatureFlags.js');
+          shouldCreateEmailBodyPdf = await emailFeatureFlagService.isAutoNoAttachmentsEnabled(
+            userId,
+            user.subscriptionTier as 'free' | 'premium'
+          );
+          console.log(`🚩 EMAIL_PDF_AUTO_NO_ATTACHMENTS feature flag: ${shouldCreateEmailBodyPdf ? 'ENABLED' : 'DISABLED'} for user ${userId} (${user.subscriptionTier})`);
+        } catch (flagError) {
+          console.error('❌ Failed to check EMAIL_PDF_AUTO_NO_ATTACHMENTS feature flag:', flagError);
+          // Default to false if flag check fails
+          shouldCreateEmailBodyPdf = false;
+        }
+        
+        // Try to create email body PDF if email has content and feature is enabled
+        if ((message.bodyHtml || message.bodyPlain) && shouldCreateEmailBodyPdf) {
           try {
             console.log('📧 TICKET 3: Processing email body as PDF for email without attachments (using worker)');
+            console.log('📧 Email body content available:', {
+              hasHtml: !!message.bodyHtml,
+              hasPlain: !!message.bodyPlain,
+              htmlLength: message.bodyHtml?.length || 0,
+              plainLength: message.bodyPlain?.length || 0
+            });
             
             // Use worker for email body PDF creation if available
+            let useWorkerFallback = false;
+            console.log('🔧 emailRenderWorker exists:', !!emailRenderWorker);
             if (emailRenderWorker) {
-              const jobId = await emailRenderWorker.queueEmailPdfJob({
-                messageId: message.messageId,
-                tenantId: userId,
-                from: message.sender,
-                to: message.recipient,
-                subject: message.subject,
-                receivedAt: new Date().toISOString(),
-                bodyHtml: message.bodyHtml || '',
-                bodyPlain: message.bodyPlain || '',
-                ingestGroupId: requestId || Date.now().toString(),
-                priority: 'normal',
-                route: 'no_attachments'
-              });
-              
-              console.log(`✅ TICKET 3: Queued email body PDF job: ${jobId} for message: ${message.messageId}`);
-              
-              return res.status(200).json({
-                success: true,
-                message: 'Email body queued for PDF conversion',
-                jobId,
-                documentsCreated: 0, // Will be created asynchronously
-                emailBodyPdf: 'queued'
-              });
-            } else {
+              try {
+                console.log('🎯 Attempting to enqueue render job...');
+                const jobId = await emailRenderWorker.enqueueRenderJob({
+                  messageId: message.messageId,
+                  tenantId: userId,
+                  from: message.sender,
+                  to: [message.recipient],
+                  subject: message.subject,
+                  receivedAt: new Date().toISOString(),
+                  html: message.bodyHtml || null,
+                  text: message.bodyPlain || null,
+                  ingestGroupId: requestId || Date.now().toString(),
+                  route: 'auto_no_attachments'
+                }, 0);
+                
+                console.log(`✅ TICKET 3: Queued email body PDF job: ${jobId} for message: ${message.messageId}`);
+                
+                return res.status(200).json({
+                  success: true,
+                  message: 'Email body queued for PDF conversion',
+                  jobId,
+                  documentsCreated: 0, // Will be created asynchronously
+                  emailBodyPdf: 'queued'
+                });
+              } catch (workerError) {
+                console.warn(`⚠️ Worker failed to queue job: ${workerError.message}, falling back to inline`);
+                useWorkerFallback = true;
+              }
+            }
+            
+            if (!emailRenderWorker || useWorkerFallback) {
               // Fallback to inline creation if worker unavailable
               console.warn('⚠️ Worker not available - falling back to inline email body PDF creation');
               const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
@@ -3933,6 +3965,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error('❌ TICKET 3: Email body PDF creation failed:', emailBodyError);
             // Continue with normal attachment validation error
           }
+        } else {
+          console.log('🚫 Email body PDF creation conditions not met:', {
+            hasContent: !!(message.bodyHtml || message.bodyPlain),
+            featureEnabled: shouldCreateEmailBodyPdf,
+            htmlLength: message.bodyHtml?.length || 0,
+            plainLength: message.bodyPlain?.length || 0
+          });
         }
 
         // TICKET 6: Log attachment validation failures

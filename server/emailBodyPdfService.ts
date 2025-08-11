@@ -68,7 +68,7 @@ export class EmailBodyPdfService {
   /**
    * Sanitize HTML content for safe PDF rendering
    */
-  private sanitizeHtml(html: string): string {
+  public sanitizeHtml(html: string): string {
     return purify.sanitize(html, {
       ALLOWED_TAGS: [
         'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -197,6 +197,29 @@ export class EmailBodyPdfService {
   </main>
 </body>
 </html>`;
+  }
+
+  /**
+   * Render HTML to PDF using Puppeteer with provided page (for worker)
+   */
+  public async renderToPdf(html: string, emailMetadata: any, page: any): Promise<Buffer> {
+    // Set content and wait for network idle
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+
+    // Generate PDF
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      margin: {
+        top: '1in',
+        right: '0.75in', 
+        bottom: '1in',
+        left: '0.75in'
+      },
+      printBackground: true,
+      preferCSSPageSize: false,
+    });
+
+    return Buffer.from(pdfBuffer);
   }
 
   /**

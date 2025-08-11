@@ -95,6 +95,7 @@ export interface IStorage {
   
   // Email-specific document operations
   getDocumentsByMessageId(userId: string, messageId: string): Promise<Document[]>;
+  createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document>;
 
 
 
@@ -948,6 +949,74 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(desc(documents.uploadedAt));
+  }
+
+  async createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document> {
+    // Upload PDF to GCS first
+    const { Storage } = await import('@google-cloud/storage');
+    const gcs = new Storage({
+      keyFilename: process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS,
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'myhome-467408',
+    });
+    const bucketName = process.env.GCS_BUCKET_NAME || 'myhometech-storage';
+    
+    // Generate filename
+    const cleanSubject = (emailData.subject || 'No Subject')
+      .replace(/[^a-zA-Z0-9\s\-_]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 50);
+    
+    const date = new Date(emailData.receivedAt).toISOString().substring(0, 10);
+    const { nanoid } = await import('nanoid');
+    const uniqueId = nanoid(8);
+    const filename = `Email-Body-${cleanSubject}-${date}-${uniqueId}.pdf`;
+    const gcsPath = `${userId}/email-pdfs/${filename}`;
+    
+    // Upload to GCS
+    const file = gcs.bucket(bucketName).file(gcsPath);
+    await file.save(pdfBuffer, {
+      metadata: {
+        contentType: 'application/pdf',
+        cacheControl: 'public, max-age=3600',
+      },
+    });
+
+    // Prepare email context
+    const emailContext = {
+      messageId: emailData.messageId,
+      from: emailData.from,
+      to: emailData.to,
+      subject: emailData.subject,
+      receivedAt: emailData.receivedAt,
+      ingestGroupId: emailData.ingestGroupId
+    };
+
+    // Create document record
+    const documentData: InsertDocument = {
+      userId,
+      categoryId: emailData.categoryId || null,
+      name: `Email Body: ${emailData.subject || 'No Subject'}`,
+      fileName: filename,
+      filePath: gcsPath,
+      gcsPath,
+      fileSize: pdfBuffer.length,
+      mimeType: 'application/pdf',
+      tags: emailData.tags || ['email', 'email-body'],
+      uploadSource: 'email',
+      messageId: emailData.messageId,
+      emailContext: JSON.stringify(emailContext),
+      status: 'completed',
+      ocrProcessed: false
+    };
+
+    const [document] = await this.db
+      .insert(documents)
+      .values(documentData)
+      .returning();
+
+    console.log(`📧→📄 Created email body document: ${document.id}, size: ${Math.round(pdfBuffer.length / 1024)}KB`);
+    return document;
   }
 
   // Expiry reminder operations

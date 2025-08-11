@@ -68,6 +68,10 @@ if (!isDeployment) {
 // Import backup service only in development to prevent memory issues
 let backupService: any = null;
 
+// TICKET 8: Initialize Email Render Worker
+import { initializeEmailRenderWorker } from './emailRenderWorker';
+import { initializeWorkerHealthChecker } from './workerHealthCheck';
+
 const app = express();
 
 // Add correlation ID middleware first
@@ -146,6 +150,19 @@ app.use((req, res, next) => {
     manualEventNotificationService.initialize();
   } catch (error: any) {
     console.warn('⚠️  Could not initialize manual event notification service (non-critical):', error.message);
+  }
+
+  // TICKET 8: Initialize Email Render Worker
+  try {
+    console.log('🎬 Initializing Email Render Worker...');
+    await initializeEmailRenderWorker();
+    const { emailRenderWorker } = await import('./emailRenderWorker');
+    initializeWorkerHealthChecker(emailRenderWorker);
+    console.log('✅ Email Render Worker initialized successfully');
+  } catch (error: any) {
+    console.error('❌ Email Render Worker initialization failed:', error.message);
+    console.warn('⚠️ Email body PDF processing will fallback to inline rendering');
+    initializeWorkerHealthChecker(null);
   }
 
   // importantly only setup vite in development and after

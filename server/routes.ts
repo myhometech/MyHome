@@ -33,6 +33,8 @@ import passport from './passport';
 import authRoutes from './authRoutes';
 import { parseMailgunWebhook, verifyMailgunSignature, extractUserIdFromRecipient, validateEmailAttachments } from './mailgunService';
 import EmailBodyPdfService from './emailBodyPdfService';
+import { emailRenderWorker } from './emailRenderWorker';
+import { workerHealthChecker } from './workerHealthCheck';
 import { setupMultiPageScanUpload } from './routes/multiPageScanUpload';
 import { 
   mailgunIPWhitelist, 
@@ -3698,22 +3700,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Try to create email body PDF if email has content
         if (message.bodyHtml || message.bodyPlain) {
           try {
-            console.log('📧 Processing email body as PDF for email without attachments');
-            const emailBodyService = new EmailBodyPdfService();
-            const documentId = await emailBodyService.createEmailBodyDocument(userId, message);
+            console.log('📧 TICKET 3: Processing email body as PDF for email without attachments (using worker)');
             
-            if (documentId) {
-              console.log(`✅ Created email body PDF document: ${documentId}`);
+            // Use worker for email body PDF creation if available
+            if (emailRenderWorker) {
+              const jobId = await emailRenderWorker.queueEmailPdfJob({
+                messageId: message.messageId,
+                tenantId: userId,
+                from: message.sender,
+                to: message.recipient,
+                subject: message.subject,
+                receivedAt: new Date().toISOString(),
+                bodyHtml: message.bodyHtml || '',
+                bodyPlain: message.bodyPlain || '',
+                ingestGroupId: requestId || Date.now().toString(),
+                priority: 'normal',
+                route: 'no_attachments'
+              });
+              
+              console.log(`✅ TICKET 3: Queued email body PDF job: ${jobId} for message: ${message.messageId}`);
+              
               return res.status(200).json({
                 success: true,
-                message: 'Email body converted to PDF successfully',
-                documentId,
-                documentsCreated: 1,
-                emailBodyPdf: true
+                message: 'Email body queued for PDF conversion',
+                jobId,
+                documentsCreated: 0, // Will be created asynchronously
+                emailBodyPdf: 'queued'
               });
+            } else {
+              // Fallback to inline creation if worker unavailable
+              console.warn('⚠️ Worker not available - falling back to inline email body PDF creation');
+              const emailBodyService = new EmailBodyPdfService();
+              const documentId = await emailBodyService.createEmailBodyDocument(userId, message);
+              
+              if (documentId) {
+                console.log(`✅ TICKET 3: Created email body PDF document: ${documentId} (fallback)`);
+                return res.status(200).json({
+                  success: true,
+                  message: 'Email body converted to PDF successfully',
+                  documentId,
+                  documentsCreated: 1,
+                  emailBodyPdf: true
+                });
+              }
             }
           } catch (emailBodyError) {
-            console.error('❌ Email body PDF creation failed:', emailBodyError);
+            console.error('❌ TICKET 3: Email body PDF creation failed:', emailBodyError);
             // Continue with normal attachment validation error
           }
         }
@@ -4177,6 +4209,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
         requestId
+      });
+    }
+  });
+
+  // TICKET 8: Worker health check endpoint
+  app.get('/api/worker-health', async (_req, res) => {
+    try {
+      if (!workerHealthChecker) {
+        return res.status(503).json({
+          status: 'unavailable',
+          message: 'Worker health checker not initialized'
+        });
+      }
+
+      const healthStatus = await workerHealthChecker.getHealthStatus();
+      const httpStatus = healthStatus.status === 'healthy' ? 200 :
+                        healthStatus.status === 'degraded' ? 200 : 503;
+
+      res.status(httpStatus).json(healthStatus);
+    } catch (error) {
+      console.error('Worker health check failed:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
       });
     }
   });

@@ -97,12 +97,15 @@ export default function UnifiedUploadButton({
   const { hasFeature, features } = useFeatures();
   const isFree = !features.BULK_OPERATIONS; // Simple check for free tier
 
+  // Track if upload was successful to prevent re-opening modal
+  const [uploadCompleted, setUploadCompleted] = useState(false);
+
   // Auto-open modal when used directly (not suppressed)
   useEffect(() => {
-    if (!suppressDialog) {
+    if (!suppressDialog && !uploadCompleted) {
       setShowUploadDialog(true);
     }
-  }, [suppressDialog]);
+  }, [suppressDialog, uploadCompleted]);
 
   const createCategoryMutation = useMutation({
     mutationFn: async (data: { name: string; icon: string; color: string }) => {
@@ -184,15 +187,18 @@ export default function UnifiedUploadButton({
         description: "Your document has been uploaded and organized.",
       });
       
+      // Mark upload as completed to prevent modal re-opening
+      setUploadCompleted(true);
+      
       // Clear state first
       setSelectedFiles([]);
       setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
       setCategorySuggestion(null);
       
-      // Close modal immediately - don't trigger parent callbacks that might cause additional modals
+      // Close modal immediately 
       setShowUploadDialog(false);
       
-      // Only call onUpload with empty array to signal completion without triggering additional UI
+      // Signal completion to parent to unmount this component
       onUpload([]);
     },
     onError: (error) => {
@@ -515,8 +521,8 @@ export default function UnifiedUploadButton({
         accept="application/pdf,image/*"
       />
 
-      {/* Upload Dialog - only show when not suppressed */}
-      {!suppressDialog && (
+      {/* Upload Dialog - only show when not suppressed and upload not completed */}
+      {!suppressDialog && !uploadCompleted && (
         <Dialog open={showUploadDialog} onOpenChange={(open) => {
           setShowUploadDialog(open);
           if (!open) {
@@ -529,7 +535,8 @@ export default function UnifiedUploadButton({
               customName: "",
             });
             setCategorySuggestion(null);
-            // Don't call onUpload here - it's handled in success callback
+            // Signal cancellation to parent
+            onUpload([]);
           }
         }}>
           <DialogContent className="max-w-lg">

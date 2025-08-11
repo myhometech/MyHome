@@ -3913,6 +3913,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requestId
       });
 
+      // TICKET 5: V2 Auto-create Email-Body PDF alongside attachments (Feature Flag)
+      let emailBodyPdfResult: { documentId?: number; created: boolean; linkedCount?: number } | null = null;
+      
+      if (processedDocuments.length > 0) {
+        // Check feature flag for EMAIL_BODY_PDF_AUTO_WITH_ATTACHMENTS
+        try {
+          const featureFlagEnabled = await featureFlagService.isFeatureEnabled(
+            'EMAIL_BODY_PDF_AUTO_WITH_ATTACHMENTS',
+            { userId, userTier: user.subscriptionTier as 'free' | 'premium' },
+            false // Don't log feature flag checks for high-volume webhooks
+          );
+
+          if (featureFlagEnabled && (message.bodyHtml || message.bodyPlain)) {
+            console.log('🚀 TICKET 5: V2 Auto-create Email-Body PDF feature enabled - creating email body PDF alongside attachments');
+            
+            try {
+              const emailBodyPdfService = new EmailBodyPdfService();
+              const bodyPdfDocId = await emailBodyPdfService.createEmailBodyDocument(userId, message);
+
+              if (bodyPdfDocId) {
+                console.log(`✅ V2 Created email body PDF document: ${bodyPdfDocId} alongside ${processedDocuments.length} attachments`);
+                
+                // Link email body PDF with all attachments bidirectionally
+                let linkedCount = 0;
+                try {
+                  const attachmentDocumentIds = processedDocuments.map(doc => doc.documentId);
+                  
+                  // Get current references for email body PDF
+                  const emailBodyDoc = await storage.getDocument(bodyPdfDocId, userId);
+                  const currentEmailBodyRefs = emailBodyDoc?.documentReferences ? JSON.parse(emailBodyDoc.documentReferences) : [];
+                  
+                  // Add attachment references to email body PDF
+                  for (const attachmentDocId of attachmentDocumentIds) {
+                    // Check if reference already exists to avoid duplicates
+                    const refExists = currentEmailBodyRefs.some((ref: any) => 
+                      ref.type === 'email' && ref.relation === 'attachment' && ref.documentId === attachmentDocId
+                    );
+                    
+                    if (!refExists) {
+                      currentEmailBodyRefs.push({
+                        type: 'email',
+                        relation: 'attachment',
+                        documentId: attachmentDocId,
+                        createdAt: new Date().toISOString()
+                      });
+                      linkedCount++;
+                    }
+                    
+                    // Add source reference to attachment document
+                    const attachmentDoc = await storage.getDocument(attachmentDocId, userId);
+                    const currentAttachmentRefs = attachmentDoc?.documentReferences ? JSON.parse(attachmentDoc.documentReferences) : [];
+                    
+                    // Check if source reference already exists
+                    const sourceRefExists = currentAttachmentRefs.some((ref: any) => 
+                      ref.type === 'email' && ref.relation === 'source' && ref.documentId === bodyPdfDocId
+                    );
+                    
+                    if (!sourceRefExists) {
+                      currentAttachmentRefs.push({
+                        type: 'email',
+                        relation: 'source',
+                        documentId: bodyPdfDocId,
+                        createdAt: new Date().toISOString()
+                      });
+                      
+                      // Update attachment document with source reference
+                      await storage.updateDocument(attachmentDocId, userId, {
+                        documentReferences: JSON.stringify(currentAttachmentRefs)
+                      });
+                    }
+                  }
+                  
+                  // Update email body PDF with attachment references
+                  await storage.updateDocument(bodyPdfDocId, userId, {
+                    documentReferences: JSON.stringify(currentEmailBodyRefs)
+                  });
+                  
+                  console.log(`🔗 V2 Linked email body PDF ${bodyPdfDocId} with ${linkedCount} attachment documents`);
+                  
+                  // Analytics for V2 feature
+                  console.log(`📊 email_ingest_body_pdf_generated: route=auto_with_attachments, userId=${userId}, documentId=${bodyPdfDocId}, created=true`);
+                  console.log(`📊 references_linked: emailBodyDocId=${bodyPdfDocId}, attachmentCount=${attachmentDocumentIds.length}, route=auto_with_attachments`);
+                  
+                } catch (linkingError) {
+                  console.error('❌ V2 Reference linking failed:', linkingError);
+                  // Email body PDF still created successfully, linking failure is non-critical
+                }
+
+                emailBodyPdfResult = { 
+                  documentId: bodyPdfDocId, 
+                  created: true, 
+                  linkedCount 
+                };
+              }
+              
+            } catch (emailBodyError) {
+              console.error('❌ V2 Email body PDF creation failed (non-critical):', emailBodyError);
+              
+              // Analytics for failure
+              const errorCode = emailBodyError instanceof Error && emailBodyError.message.includes('EMAIL_TOO_LARGE') ? 'EMAIL_TOO_LARGE_AFTER_COMPRESSION' :
+                              emailBodyError instanceof Error && emailBodyError.message.includes('EMAIL_BODY_MISSING') ? 'EMAIL_BODY_MISSING' :
+                              'EMAIL_RENDER_FAILED';
+                              
+              console.log(`📊 email_ingest_body_pdf_failed: route=auto_with_attachments, errorCode=${errorCode}`);
+              
+              // V2 behavior: Don't fail the entire ingestion if email body PDF fails
+              // Attachments have already been processed successfully
+            }
+          } else if (featureFlagEnabled) {
+            console.log('🚀 TICKET 5: V2 feature enabled but no email body content available');
+          } else {
+            console.log('🚀 TICKET 5: V2 Auto-create Email-Body PDF feature disabled for user');
+          }
+        } catch (featureFlagError) {
+          console.error('❌ V2 Feature flag check failed:', featureFlagError);
+          // Continue without email body PDF creation
+        }
+      }
+
       // Record email processing in the database
       try {
         await storage.createEmailForward({
@@ -3922,7 +4041,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           emailBody: message.bodyPlain || '',
           hasAttachments: processedDocuments.length > 0,
           attachmentCount: attachmentValidation.validAttachments.length,
-          documentsCreated: processedDocuments.length,
+          documentsCreated: processedDocuments.length + (emailBodyPdfResult?.created ? 1 : 0),
           status: documentErrors.length === 0 ? 'processed' : 'partial',
           errorMessage: documentErrors.length > 0 ? JSON.stringify(documentErrors) : null
         });
@@ -3931,7 +4050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Return success with processing results
-      res.status(200).json({
+      const response: any = {
         message: 'Email processed successfully',
         data: {
           recipient: message.recipient,
@@ -3940,11 +4059,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           processedDocuments,
           documentErrors,
-          summary: `${processedDocuments.length} documents created, ${documentErrors.length} errors`,
+          summary: `${processedDocuments.length} attachments created${emailBodyPdfResult?.created ? ', 1 email body PDF created' : ''}${documentErrors.length ? `, ${documentErrors.length} errors` : ''}`,
           validAttachmentsCount: attachmentValidation.validAttachments.length,
           invalidAttachmentsCount: attachmentValidation.invalidAttachments.length
         }
-      });
+      };
+
+      // TICKET 5: Include email body PDF result in response
+      if (emailBodyPdfResult) {
+        response.data.emailBodyPdf = emailBodyPdfResult;
+      }
+
+      res.status(200).json(response);
 
     } catch (error) {
       // TICKET 6: Log critical system errors with full stack trace

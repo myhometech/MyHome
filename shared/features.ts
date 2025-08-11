@@ -107,6 +107,12 @@ export const FEATURES: Record<string, FeatureFlag> = {
     tier: 'premium',
     category: 'automation'
   },
+  EMAIL_BODY_PDF_AUTO_WITH_ATTACHMENTS: {
+    name: 'Auto Email Body PDF with Attachments',
+    description: 'Automatically create email body PDF when email has attachments',
+    tier: 'premium',
+    category: 'automation'
+  },
   EXPIRY_REMINDERS: {
     name: 'Smart Reminders',
     description: 'Automated reminders for renewals and deadlines',

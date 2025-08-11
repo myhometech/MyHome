@@ -113,13 +113,24 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 
 ## Recent Development Summary
 
-### August 11, 2025 - Email Body → PDF Integration ✅
-- **Achievement**: Implemented complete Email Body → PDF functionality for emails without attachments
-- **Database Schema**: Added `message_id`, `body_hash`, `email_context`, and `document_references` fields to documents table
-- **EmailBodyPdfService**: Complete service with HTML sanitization (DOMPurify), Puppeteer PDF rendering, GCS integration, and deduplication
-- **Route Integration**: Modified `/api/email-ingest` to automatically create PDF documents from email body content when no attachments present
+### August 11, 2025 - V2 Auto-create Email-Body PDF with Attachments (Feature Flag) ✅
+- **Achievement**: Implemented V2 Auto-create Email-Body PDF feature with comprehensive feature flag support
+- **Feature Flag**: `EMAIL_BODY_PDF_AUTO_WITH_ATTACHMENTS` (Premium tier, automation category, default OFF)
+- **V2 Enhancement**: Automatically creates email body PDFs alongside attachments when feature flag enabled
+- **Bidirectional Linking**: Complete document reference system linking email body PDFs ↔ attachments
+- **Frontend Integration**: Conditional "Store email as PDF" action visibility based on existing references
+- **Error Handling**: Non-blocking failures - V2 PDF creation errors don't impact attachment processing
+- **Analytics**: Comprehensive success/failure metrics with route tracking (auto_with_attachments)
+- **Status**: ✅ **PRODUCTION READY** - V2 feature ready for controlled rollout
+
+### August 11, 2025 - Complete Email Body → PDF System Integration ✅
+- **Ticket 2**: EmailBodyPdfService with HTML sanitization (DOMPurify), Puppeteer PDF rendering, GCS integration, deduplication
+- **Ticket 3**: Auto-convert functionality for emails without attachments via `/api/email-ingest` modification
+- **Ticket 4**: Manual "Store email as PDF" action with bidirectional document references linking
+- **Ticket 5**: V2 Auto-create feature for emails with attachments (feature-flagged)
 - **Features**: Professional PDF templates, security (blocks external images), 10MB file limits, comprehensive error handling
-- **Status**: ✅ **PRODUCTION READY** - Email Body → PDF system fully operational
+- **Integration**: Complete frontend/backend integration with enhanced document viewer and reference display
+- **Status**: ✅ **PRODUCTION READY** - Complete Email Body → PDF system operational
 
 ### August 11, 2025 - Upload Modal Flow Consolidation ✅
 - **Achievement**: Eliminated persistent upload modal issue with fully controlled modal pattern

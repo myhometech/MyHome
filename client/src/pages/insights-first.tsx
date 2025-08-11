@@ -62,7 +62,6 @@ export default function InsightsFirstPage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   // No longer using tabs - unified view
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -261,7 +260,9 @@ export default function InsightsFirstPage() {
           <AddDropdownMenu 
             size="lg" 
             className="bg-blue-600 hover:bg-blue-700"
-            onDocumentUpload={() => setShowUploadDialog(true)}
+            onDocumentUpload={() => {
+              // Upload is now handled directly by AddDropdownMenu
+            }}
             onManualDateCreate={() => {
               // This will be handled by the AddDropdownMenu component
               console.log('Manual date creation requested');
@@ -471,10 +472,10 @@ export default function InsightsFirstPage() {
                     ? "Try adjusting your search terms or filters." 
                     : "Upload your first document to get started."}
                 </p>
-                <Button onClick={() => setShowUploadDialog(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Upload Document
-                </Button>
+                {/* Upload button removed - users should use Add menu */}
+                <div className="text-sm text-gray-500">
+                  Use the "Add" button above to upload your first document.
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -503,27 +504,7 @@ export default function InsightsFirstPage() {
         </div>
       </main>
 
-      {/* Upload Dialog */}
-      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Upload Document</DialogTitle>
-            <DialogDescription>
-              Select a document to upload to your library
-            </DialogDescription>
-          </DialogHeader>
-          <UnifiedUploadButton 
-            onUpload={() => {
-              setShowUploadDialog(false);
-              queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-              toast({
-                title: "Upload successful",
-                description: "Your document has been uploaded and processed.",
-              });
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Upload dialog removed - now handled by AddDropdownMenu */}
 
       {/* Document Preview Dialog */}
       <Dialog open={showDocumentPreview} onOpenChange={setShowDocumentPreview}>

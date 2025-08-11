@@ -451,7 +451,7 @@ export default function UnifiedUploadButton({
         onChange={(e) => {
           if (e.target.files) {
             const fileArray = Array.from(e.target.files);
-            handleFileSelection(fileArray);
+            handleFileSelect(fileArray);
           }
         }}
         style={{ display: "none" }}

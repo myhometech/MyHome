@@ -3902,7 +3902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               try {
                 console.log('🎯 Attempting to enqueue render job...');
                 const jobId = await emailRenderWorker.enqueueRenderJob({
-                  messageId: message.messageId,
+                  messageId: message.messageId || `msg_${Date.now()}`,
                   tenantId: userId,
                   from: message.sender,
                   to: [message.recipient],
@@ -3936,7 +3936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               const emailBodyInput = {
                 tenantId: userId,
-                messageId: message.messageId,
+                messageId: message.messageId || `msg_${Date.now()}`,
                 subject: message.subject,
                 from: message.sender,
                 to: [message.recipient],

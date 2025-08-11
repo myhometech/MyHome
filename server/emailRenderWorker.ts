@@ -195,7 +195,11 @@ export class EmailRenderWorker {
     this.pageTimeoutMs = parseInt(process.env.RENDER_PAGE_TIMEOUT_MS || '8000');
     this.maxQueueDepthAlert = parseInt(process.env.RENDER_MAX_QUEUE_DEPTH_ALERT || '500');
 
-    this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+    this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+      maxRetriesPerRequest: null,
+      retryDelayOnFailover: 100,
+      enableOfflineQueue: false
+    });
     this.browserPool = new BrowserPool(this.maxConcurrency);
     // EmailBodyPdfService removed - using direct function calls
     

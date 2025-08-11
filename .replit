@@ -1,10 +1,10 @@
-modules = ["nodejs-20", "web", "postgresql-16"]
+modules = ["nodejs-20", "web", "postgresql-16", "python-3.11"]
 run = "npm run build && NODE_ENV=production node dist/index.js"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["redis"]
+packages = ["redis", "glib", "atk", "gtk3", "pango", "cairo", "gdk-pixbuf", "nspr", "nss", "alsa-lib", "libxkbcommon", "mesa"]
 
 [deployment]
 deploymentTarget = "autoscale"

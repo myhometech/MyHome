@@ -81,8 +81,9 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **CI/CD**: GitHub Actions for Docker builds and deployment.
 
 ### Email Processing
-- **Email to PDF**: System for creating PDFs from email bodies (HTML sanitization, Puppeteer rendering) with bidirectional document references. Includes feature-flagged auto-creation for emails with attachments and a worker system for scalable PDF rendering (BullMQ, Puppeteer).
+- **Email to PDF**: System for creating PDFs from email bodies (HTML sanitization, Puppeteer rendering) with bidirectional document references. Includes feature-flagged auto-creation for emails with attachments and a worker system for scalable PDF rendering (BullMQ, Puppeteer). **BROWSER DEPENDENCIES RESOLVED** - Puppeteer can now successfully launch browsers for PDF generation.
 - **Email Metadata**: Exposure and filtering system for enhanced document discovery, including backfill for legacy attachments using Mailgun Events API.
+- **Worker Configuration**: Redis-based background worker with BullMQ for scalable PDF processing, with inline fallback when Redis unavailable.
 
 ### UI Flows
 - **Upload Modal**: Consolidated and streamlined upload modal flow.

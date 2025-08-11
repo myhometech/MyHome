@@ -4238,6 +4238,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TICKET 9: Email context backfill endpoint
+  app.post('/api/admin/backfill-email-context', requireAuth, async (req, res) => {
+    try {
+      // Admin-only endpoint
+      if (req.user?.role !== 'admin' && req.user?.email !== 'simontaylor66@googlemail.com') {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Admin access required for email context backfill'
+        });
+      }
+
+      const { EmailContextBackfillService } = await import('./backfillEmailContext.js');
+      const backfillService = new EmailContextBackfillService();
+
+      const { userId, dryRun } = req.body;
+      
+      // Set dry run mode from request
+      if (typeof dryRun === 'boolean') {
+        process.env.BACKFILL_DRY_RUN = dryRun ? '1' : '0';
+      }
+
+      console.log(`🚀 TICKET 9: Starting email context backfill (userId: ${userId || 'all'}, dryRun: ${dryRun})`);
+      
+      const metrics = await backfillService.backfillEmailContext(userId);
+
+      res.json({
+        success: true,
+        message: 'Email context backfill completed',
+        metrics,
+        dryRun: process.env.BACKFILL_DRY_RUN === '1'
+      });
+
+    } catch (error) {
+      console.error('❌ TICKET 9: Email context backfill failed:', error);
+      res.status(500).json({
+        error: 'Backfill failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : undefined
+      });
+    }
+  });
+
+  // TICKET 9: Get backfill status/preview
+  app.get('/api/admin/backfill-email-context/preview', requireAuth, async (req, res) => {
+    try {
+      // Admin-only endpoint  
+      if (req.user?.role !== 'admin' && req.user?.email !== 'simontaylor66@googlemail.com') {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Admin access required for backfill preview'
+        });
+      }
+
+      const { userId } = req.query;
+      const lookbackDays = parseInt(req.query.lookbackDays as string || '60');
+
+      // Find legacy documents that would be processed
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - lookbackDays);
+
+      const allDocs = await storage.getDocuments('');
+      const legacyDocs = allDocs.filter((doc: any) => {
+        const isEmailSource = doc.uploadSource === 'email';
+        const missingEmailContext = !doc.emailContext || !doc.emailContext.messageId;
+        const withinWindow = new Date(doc.createdAt) >= sinceDate;
+        const matchesUser = !userId || doc.userId === userId;
+
+        return isEmailSource && missingEmailContext && withinWindow && matchesUser;
+      });
+
+      const previewDocs = legacyDocs.slice(0, 10).map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        createdAt: doc.createdAt,
+        userId: doc.userId,
+        hasEmailContext: !!doc.emailContext?.messageId
+      }));
+
+      res.json({
+        success: true,
+        preview: {
+          totalLegacyDocuments: legacyDocs.length,
+          lookbackDays,
+          sinceDate: sinceDate.toISOString(),
+          sampleDocuments: previewDocs
+        },
+        config: {
+          lookbackDays: parseInt(process.env.BACKFILL_LOOKBACK_DAYS || '60'),
+          windowMinutes: parseInt(process.env.BACKFILL_WINDOW_MINUTES || '5'),
+          batchSize: parseInt(process.env.BACKFILL_BATCH_SIZE || '10'),
+          dryRun: process.env.BACKFILL_DRY_RUN === '1'
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ TICKET 9: Backfill preview failed:', error);
+      res.status(500).json({
+        error: 'Preview failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Debug route for production testing
   app.get("/debug", (_req, res) => {
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);

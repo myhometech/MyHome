@@ -13,13 +13,13 @@ Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot m
 Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting colors for a homely feel: Warm Background (#FAF4EF linen/ivory), Trust Base (#2B2F40 slate blue), Sage Green (#A5C9A1), Dusty Lavender (#A1A4D6), and Soft Coral (#E28F83). Document type colors: Emerald for images, calm red (#E74C3C) for PDFs, blue for documents.
 
 ### Application Behavior Preferences
-1. **Document Upload**: Auto-suggest categories using AI analysis with user confirmation before saving
-2. **Premium Features**: Hide premium features completely from free users for clean interface
-3. **Free User Limits**: Block uploads when free users hit 50-document limit with upgrade message
-4. **Email Forwarding**: Show as discrete dashboard option linking to settings (not prominent)
-5. **Email Import Notifications**: Notification badge/counter + tag documents as "imported via email"
-6. **Mobile Camera**: Allow offline scanning with local storage, sync/process when online
-7. **Document Deletion**: Premium trash bin (30-day) + confirmation dialogs for all users
+1. Document Upload: Auto-suggest categories using AI analysis with user confirmation before saving
+2. Premium Features: Hide premium features completely from free users for clean interface
+3. Free User Limits: Block uploads when free users hit 50-document limit with upgrade message
+4. Email Forwarding: Show as discrete dashboard option linking to settings (not prominent)
+5. Email Import Notifications: Notification badge/counter + tag documents as "imported via email"
+6. Mobile Camera: Allow offline scanning with local storage, sync/process when online
+7. Document Deletion: Premium trash bin (30-day) + confirmation dialogs for all users
 
 ## System Architecture
 
@@ -37,7 +37,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 
 ### Backend
 - **Runtime**: Node.js with Express.js (TypeScript, ES modules).
-- **Authentication**: Replit Auth with OpenID Connect (web) + Apple Sign In (iOS), bcrypt hashing, PostgreSQL-backed sessions, route-level middleware. Supports multi-provider authentication. OAuth `state` parameter is used for CSRF protection.
+- **Authentication**: Replit Auth with OpenID Connect (web) + Apple Sign In (iOS), bcrypt hashing, PostgreSQL-backed sessions, route-level middleware. Supports multi-provider authentication. OAuth `state` parameter is used for CSRF protection. Environment-driven callback URLs, configuration guardrails, and startup validation are implemented.
 - **File Uploads**: Multer.
 - **API Design**: RESTful endpoints with JSON responses.
 
@@ -72,14 +72,20 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Memory Optimization**: Manual garbage collection, resource tracking, OCR resource cleanup.
 
 ### Security & Monitoring
-- **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS, Mailgun webhook security (IP whitelisting, HMAC verification).
-- **OAuth Security**: Environment-driven callback URLs (AUTH-321), CSRF protection with state parameter (AUTH-322), Google Console alignment (AUTH-323).
+- **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS.
 - **Monitoring**: Sentry integration for error tracking and performance.
 - **Health Checks**: Multi-subsystem health checks.
 
 ### Automated Systems
 - **Automated Backup**: PostgreSQL and file storage backups to GCS.
 - **CI/CD**: GitHub Actions for Docker builds and deployment.
+
+### Email Processing
+- **Email to PDF**: System for creating PDFs from email bodies (HTML sanitization, Puppeteer rendering) with bidirectional document references. Includes feature-flagged auto-creation for emails with attachments and a worker system for scalable PDF rendering (BullMQ, Puppeteer).
+- **Email Metadata**: Exposure and filtering system for enhanced document discovery, including backfill for legacy attachments using Mailgun Events API.
+
+### UI Flows
+- **Upload Modal**: Consolidated and streamlined upload modal flow.
 
 ## External Dependencies
 
@@ -110,82 +116,3 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Error Tracking**: `@sentry/node`, `@sentry/react`
 - **Security Headers**: `helmet`
 - **Rate Limiting**: `express-rate-limit`
-
-## Recent Development Summary
-
-### August 11, 2025 - Email Metadata & Filtering System (Ticket 7) ✅
-- **Achievement**: Implemented comprehensive email metadata exposure and filtering system for enhanced document discovery
-- **Email Metadata Panel**: Professional display of email context (sender, subject, received date, message ID) with copy functionality
-- **Advanced Search Filters**: Expandable interface with email source, sender, subject, and date range filtering
-- **Database Optimization**: GIN indexes for JSONB emailContext field with efficient PostgreSQL queries
-- **API Enhancement**: Extended `/api/documents` with email metadata filters and email-based sorting
-- **Integration**: Seamless integration with document viewer and main document list components
-- **Performance**: Real-time filtering with React Query caching and optimized database queries
-- **Accessibility**: Full keyboard navigation, screen reader support, and mobile-responsive design
-- **Status**: ✅ **PRODUCTION READY** - Complete email metadata and filtering system operational
-
-### August 11, 2025 - V2 Auto-create Email-Body PDF with Attachments (Feature Flag) ✅
-- **Achievement**: Implemented V2 Auto-create Email-Body PDF feature with comprehensive feature flag support
-- **Feature Flag**: `EMAIL_BODY_PDF_AUTO_WITH_ATTACHMENTS` (Premium tier, automation category, default OFF)
-- **V2 Enhancement**: Automatically creates email body PDFs alongside attachments when feature flag enabled
-- **Bidirectional Linking**: Complete document reference system linking email body PDFs ↔ attachments
-- **Frontend Integration**: Conditional "Store email as PDF" action visibility based on existing references
-- **Error Handling**: Non-blocking failures - V2 PDF creation errors don't impact attachment processing
-- **Analytics**: Comprehensive success/failure metrics with route tracking (auto_with_attachments)
-- **Status**: ✅ **PRODUCTION READY** - V2 feature ready for controlled rollout
-
-### August 11, 2025 - Email Render Worker System (Ticket 8) ✅
-- **Achievement**: Implemented comprehensive Email Render Worker with BullMQ queue management and Puppeteer browser pooling for scalable PDF rendering
-- **Worker Architecture**: Redis-backed job queuing, configurable concurrency (2 workers), browser pool management, comprehensive error handling
-- **Health Monitoring**: Real-time worker health checks via `/api/worker-health` with metrics, alerts, and performance tracking
-- **Email Integration**: Enhanced TICKET 3 (no attachments) to use worker-based PDF generation with graceful fallback
-- **Observability**: Complete monitoring system with queue statistics, browser pool status, success/failure metrics, and alert conditions
-- **Production Features**: Retry logic, timeout management, memory optimization, and scalable architecture
-- **Status**: ✅ **PRODUCTION READY** - Complete worker-based Email Body PDF rendering pipeline operational
-
-### August 11, 2025 - Complete Email Body → PDF System Integration ✅
-- **Ticket 2**: EmailBodyPdfService with HTML sanitization (DOMPurify), Puppeteer PDF rendering, GCS integration, deduplication
-- **Ticket 3**: Auto-convert functionality for emails without attachments via `/api/email-ingest` modification (now worker-enhanced)
-- **Ticket 4**: Manual "Store email as PDF" action with bidirectional document references linking
-- **Ticket 5**: V2 Auto-create feature for emails with attachments (feature-flagged)
-- **Features**: Professional PDF templates, security (blocks external images), 10MB file limits, comprehensive error handling
-- **Integration**: Complete frontend/backend integration with enhanced document viewer and reference display
-- **Status**: ✅ **PRODUCTION READY** - Complete Email Body → PDF system operational
-
-### August 11, 2025 - Upload Modal Flow Consolidation ✅
-- **Achievement**: Eliminated persistent upload modal issue with fully controlled modal pattern
-- **Implementation**: Removed duplicate Dialog components, implemented external open/onOpenChange props, added instance key remounting
-- **Resolution**: Single, clean upload flow - Add Document → Upload Document → single modal → success toast → modal closes permanently
-- **Technical**: Fixed TypeScript errors, removed suppressDialog logic, added async guard with closedRef
-- **Status**: ✅ **PRODUCTION READY** - Upload flow now meets all acceptance criteria from comprehensive specification
-
-### August 9, 2025 - Google Console Environment Alignment (AUTH-323) ✅
-- **Achievement**: Established single source of truth for OAuth URIs with comprehensive Google Cloud Console alignment documentation
-- **Configuration Matrix**: Defined exact APP_ORIGIN and callback URLs for Local (`localhost:5000`), Staging (`staging.myhome-docs.com`), Production (`myhome-docs.com`)
-- **Documentation**: Created step-by-step Google Cloud Console configuration procedure, validation checklist, enhanced troubleshooting
-- **Status**: ✅ **DOCUMENTATION COMPLETE** - Ready for Google Console alignment using documented procedures
-
-### August 9, 2025 - OAuth State CSRF Protection (AUTH-322) ✅  
-- **Achievement**: Implemented OAuth `state` parameter for CSRF protection in Google OAuth flow
-- **Security**: Cryptographically secure state generation, session-based storage, strict verification, replay prevention
-- **Status**: ✅ **PRODUCTION READY** - OAuth flow now includes comprehensive CSRF protection
-
-### August 9, 2025 - Config Guardrails and Startup Validation (AUTH-324) ✅
-- **Achievement**: Implemented comprehensive OAuth configuration guardrails preventing misconfigurations from being deployed
-- **Startup Validation**: Automatic OAuth configuration validation on server boot with environment matrix checking
-- **CI Static Checks**: Executable script preventing hard-coded OAuth URLs in source code (`scripts/check-auth-config.sh`)
-- **Documentation**: Complete Config Guardrails section with change control procedures
-- **Status**: ✅ **PRODUCTION READY** - Complete OAuth configuration guardrail system operational
-
-### August 9, 2025 - OAuth Callback Environment Configuration (AUTH-321) ✅
-- **Achievement**: Implemented absolute, environment-driven Google OAuth callback URLs to eliminate redirect URI mismatches
-- **Configuration**: Dynamic callback URL construction, boot-time validation, intelligent development defaults
-- **Status**: ✅ **PRODUCTION READY** - OAuth callbacks now dynamically configured per environment
-
-### August 9, 2025 - APP_ORIGIN Deployment Fix ✅
-- **Issue**: Production deployments failed with "APP_ORIGIN environment variable is required" error
-- **Root Cause**: Missing APP_ORIGIN environment variable caused validateAppOrigin function to throw startup error
-- **Resolution**: Added APP_ORIGIN secret with production domain `https://myhome-docs.com`
-- **Validation**: OAuth configuration validation now passes, server starts successfully
-- **Documentation**: Updated DEPLOYMENT.md and .env.example with APP_ORIGIN requirements
-- **Status**: ✅ **DEPLOYMENT READY** - All environment variables configured, production deployment unblocked

@@ -182,7 +182,7 @@ export class EmailRenderWorker {
   private queue: Queue | null = null;
   private redis: Redis;
   private browserPool: BrowserPool;
-  private emailBodyPdfService: EmailBodyPdfService;
+  // Remove class-based service - use direct function imports instead
   private metrics: RenderMetrics;
   private readonly maxConcurrency: number;
   private readonly jobTimeoutMs: number;
@@ -197,7 +197,7 @@ export class EmailRenderWorker {
 
     this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
     this.browserPool = new BrowserPool(this.maxConcurrency);
-    this.emailBodyPdfService = new EmailBodyPdfService();
+    // EmailBodyPdfService removed - using direct function calls
     
     this.metrics = {
       attempts: new Map(),
@@ -334,7 +334,9 @@ export class EmailRenderWorker {
 
         // Sanitize HTML
         const sanitizeStart = Date.now();
-        const sanitizedHtml = data.html ? await this.emailBodyPdfService.sanitizeHtml(data.html) : null;
+        // Import sanitizeHtml function directly
+        const { sanitizeHtml } = await import('./emailBodyPdfService.js');
+        const sanitizedHtml = data.html ? await sanitizeHtml(data.html) : null;
         const sanitizeDuration = Date.now() - sanitizeStart;
         this.metrics.sanitizeDurations.push(sanitizeDuration);
 
@@ -344,7 +346,9 @@ export class EmailRenderWorker {
 
         // Render PDF
         const renderStart = Date.now();
-        const pdfBuffer = await this.emailBodyPdfService.renderToPdf(sanitizedHtml || data.text || '', {
+        // Import renderToPdf function directly
+        const { renderToPdf } = await import('./emailBodyPdfService.js');
+        const pdfBuffer = await renderToPdf(sanitizedHtml || data.text || '', {
           from: data.from,
           to: data.to,
           subject: data.subject || 'No Subject',

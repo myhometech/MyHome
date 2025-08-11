@@ -2793,140 +2793,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== MANUAL TRACKED EVENTS ROUTES (TICKET B1) =====
 
-  // Email Body PDF render endpoint (Ticket 4)
-  app.post('/api/email/render-to-pdf', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const { documentId, targetCategoryId = null } = req.body;
-      const userId = req.user!.id;
-
-      // Validate input
-      if (!documentId) {
-        return res.status(400).json({ errorCode: 'MISSING_DOCUMENT_ID' });
-      }
-
-      // Look up the source document
-      const sourceDoc = await storage.getDocument(documentId, userId);
-      if (!sourceDoc) {
-        return res.status(404).json({ errorCode: 'DOCUMENT_NOT_FOUND' });
-      }
-
-      // Verify this is an email document
-      if (sourceDoc.uploadSource !== 'email') {
-        return res.status(400).json({ errorCode: 'NOT_EMAIL_DOCUMENT' });
-      }
-
-      // Parse email context
-      let emailContext;
-      try {
-        emailContext = sourceDoc.emailContext ? JSON.parse(sourceDoc.emailContext) : null;
-      } catch (e) {
-        console.error('Failed to parse emailContext:', e);
-        return res.status(400).json({ errorCode: 'EMAIL_CONTEXT_INVALID' });
-      }
-
-      if (!emailContext?.messageId || !sourceDoc.messageId) {
-        return res.status(400).json({ errorCode: 'EMAIL_CONTEXT_MISSING' });
-      }
-
-      // Reconstruct Mailgun message from stored context
-      const reconstructedMessage = {
-        messageId: sourceDoc.messageId,
-        recipient: emailContext.to?.[0] || `u${userId}@uploads.myhome-tech.com`,
-        sender: emailContext.from,
-        subject: emailContext.subject,
-        bodyHtml: emailContext.bodyHtml,
-        bodyPlain: emailContext.bodyPlain || 'Email body not available',
-        timestamp: emailContext.receivedAt,
-        token: 'manual-render',
-        signature: 'manual-render',
-        attachments: []
-      };
-
-      // Create email body PDF
-      const emailBodyService = new EmailBodyPdfService();
-      const result = await emailBodyService.createEmailBodyDocument(userId, reconstructedMessage);
-
-      if (!result) {
-        return res.status(500).json({ errorCode: 'EMAIL_RENDER_FAILED' });
-      }
-
-      // Find all related documents from same email (for linking)
-      const relatedDocs = await storage.getDocumentsByMessageId(userId, sourceDoc.messageId);
-      
-      // Create bidirectional references between email body PDF and attachments
-      let linkedCount = 0;
-      for (const doc of relatedDocs) {
-        if (doc.id !== result && doc.uploadSource === 'email') {
-          // Update document references arrays
-          const currentRefsDoc = doc.documentReferences ? JSON.parse(doc.documentReferences) : [];
-          const currentRefsEmail = [];
-          
-          // Add reference from attachment to email body PDF
-          currentRefsDoc.push({
-            type: 'email',
-            relation: 'source',
-            documentId: result,
-            createdAt: new Date().toISOString()
-          });
-
-          // Add reference from email body PDF to attachment  
-          currentRefsEmail.push({
-            type: 'email', 
-            relation: 'attachment',
-            documentId: doc.id,
-            createdAt: new Date().toISOString()
-          });
-
-          // Update both documents
-          await storage.updateDocument(doc.id, userId, {
-            documentReferences: JSON.stringify(currentRefsDoc)
-          });
-
-          await storage.updateDocument(result, userId, {
-            documentReferences: JSON.stringify(currentRefsEmail)
-          });
-
-          linkedCount++;
-        }
-      }
-
-      // Audit log
-      console.log(`📧→📄 Manual email PDF created: user ${userId}, sourceDoc ${documentId}, emailBodyDoc ${result}, linked ${linkedCount} docs`);
-
-      res.json({
-        documentId: result,
-        created: true,
-        linkedCount
-      });
-
-    } catch (error) {
-      console.error('Email render to PDF failed:', error);
-      
-      if (error instanceof Error && error.message.includes('duplicate')) {
-        // Get existing document ID from error or find by messageId
-        const existingDocs = await storage.getDocumentsByMessageId(req.user!.id, req.body.documentId);
-        const existingEmailPdf = existingDocs.find(doc => 
-          doc.uploadSource === 'email' && 
-          doc.mimeType === 'application/pdf' &&
-          doc.name.includes('Email:')
-        );
-        
-        if (existingEmailPdf) {
-          return res.json({
-            documentId: existingEmailPdf.id,
-            created: false,
-            linkedCount: 0
-          });
-        }
-      }
-      
-      res.status(500).json({ 
-        errorCode: 'EMAIL_RENDER_FAILED',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
   // Get all manual tracked events for the authenticated user
   app.get('/api/manual-events', requireAuth, async (req: any, res) => {
     try {
@@ -4034,8 +3900,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } else {
               // Fallback to inline creation if worker unavailable
               console.warn('⚠️ Worker not available - falling back to inline email body PDF creation');
-              const emailBodyService = new EmailBodyPdfService();
-              const documentId = await emailBodyService.createEmailBodyDocument(userId, message);
+              const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+              
+              const emailBodyInput = {
+                tenantId: userId,
+                messageId: message.messageId,
+                subject: message.subject,
+                from: message.sender,
+                to: [message.recipient],
+                receivedAt: new Date().toISOString(),
+                html: message.bodyHtml,
+                text: message.bodyPlain,
+                ingestGroupId: requestId || Date.now().toString(),
+                tags: ['email']
+              };
+              
+              const result = await renderAndCreateEmailBodyPdf(emailBodyInput);
+              const documentId = result.created ? result.documentId : null;
               
               if (documentId) {
                 console.log(`✅ TICKET 3: Created email body PDF document: ${documentId} (fallback)`);
@@ -4339,8 +4220,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log('🚀 TICKET 5: V2 Auto-create Email-Body PDF feature enabled - creating email body PDF alongside attachments');
             
             try {
-              const emailBodyPdfService = new EmailBodyPdfService();
-              const bodyPdfDocId = await emailBodyPdfService.createEmailBodyDocument(userId, message);
+              const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+              
+              const emailBodyInput = {
+                tenantId: userId,
+                messageId: message.messageId,
+                subject: message.subject,
+                from: message.sender,
+                to: [message.recipient],
+                receivedAt: new Date().toISOString(),
+                html: message.bodyHtml,
+                text: message.bodyPlain,
+                ingestGroupId: requestId || Date.now().toString(),
+                tags: ['email']
+              };
+              
+              const result = await renderAndCreateEmailBodyPdf(emailBodyInput);
+              const bodyPdfDocId = result.created ? result.documentId : null;
 
               if (bodyPdfDocId) {
                 console.log(`✅ V2 Created email body PDF document: ${bodyPdfDocId} alongside ${processedDocuments.length} attachments`);

@@ -2267,6 +2267,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TICKET 6: Get document references
+  app.get('/api/documents/:id/references', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // Verify user has access to the document
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Parse document references
+      let references: any[] = [];
+      if (document.documentReferences) {
+        try {
+          references = JSON.parse(document.documentReferences);
+        } catch (error) {
+          console.error("Error parsing document references:", error);
+          references = [];
+        }
+      }
+
+      // Filter references to only include documents the user can access
+      const accessibleReferences = [];
+      for (const ref of references) {
+        try {
+          const refDoc = await storage.getDocument(ref.documentId, userId);
+          if (refDoc) {
+            accessibleReferences.push(ref);
+          }
+        } catch (error) {
+          // Document not accessible or doesn't exist - skip it
+          console.warn(`Reference document ${ref.documentId} not accessible for user ${userId}`);
+        }
+      }
+
+      res.json(accessibleReferences);
+    } catch (error) {
+      console.error("Error fetching document references:", error);
+      res.status(500).json({ message: "Failed to fetch document references" });
+    }
+  });
+
 
   // Import Stripe route handlers
   const { 

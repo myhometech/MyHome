@@ -34,6 +34,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DocumentInsights } from "@/components/document-insights";
+import DocumentReferences from "./DocumentReferences";
 import { Document, Page, pdfjs } from 'react-pdf';
 
 // Set up PDF.js worker with correct extension
@@ -674,45 +675,16 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                     </CardContent>
                   </Card>
 
-                  {/* Document References */}
-                  {fullDocument && getDocumentReferences().length > 0 && (
-                    <Card className="border-0 shadow-none bg-white">
-                      <CardHeader className="pb-2 px-3 pt-3">
-                        <CardTitle className="text-xs font-medium text-gray-700">
-                          References ({getDocumentReferences().length})
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2 px-3 pb-3">
-                        {getDocumentReferences().map((ref: any, index: number) => (
-                          <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                            <div className="flex items-center gap-2">
-                              <Mail className="w-3 h-3 text-blue-600" />
-                              <div>
-                                <p className="text-xs font-medium">
-                                  {ref.relation === 'source' ? 'Email body (PDF)' : 
-                                   ref.relation === 'attachment' ? 'Email attachment' : 'Related document'}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {new Date(ref.createdAt).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={() => {
-                                // Would navigate to the referenced document
-                                console.log('Navigate to document:', ref.documentId);
-                              }}
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  )}
+                  {/* Document References - Comprehensive References UI (Ticket 6) */}
+                  <DocumentReferences 
+                    documentId={document.id}
+                    references={getDocumentReferences()}
+                    onNavigate={(docId) => {
+                      // Navigate to referenced document
+                      // This would typically use your routing system
+                      window.location.href = `/documents?id=${docId}`;
+                    }}
+                  />
 
                   {/* Processing Information */}
                   {fullDocument && (

@@ -952,11 +952,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document> {
-    console.log('📧 Creating email body document - using configured StorageService');
+    console.log('📧 Creating email body document - using direct GCS upload');
     
-    // Use the configured StorageService instead of creating a new GCS instance
-    const { StorageService } = await import('./storage/StorageService');
-    const storageProvider = StorageService.getProvider();
+    // Use direct GCS instance to avoid StorageService wrapper issues
+    const { GCSStorage } = await import('./storage/GCSStorage');
+    const storageProvider = new GCSStorage(
+      process.env.GCS_BUCKET_NAME || 'myhometech-storage',
+      process.env.GCS_PROJECT_ID,
+      process.env.GCS_KEY_FILENAME
+    );
     
     // Generate filename
     const cleanSubject = (emailData.subject || 'No Subject')
@@ -974,23 +978,23 @@ export class DatabaseStorage implements IStorage {
     
     let gcsPath: string;
     try {
-      // Upload using the configured StorageService
+      // Upload using the configured StorageService - returns the key/path directly  
+      console.log(`🔍 StorageProvider type: ${storageProvider.constructor.name}`);
       const uploadResult = await storageProvider.upload(
         pdfBuffer,
         filename,
-        {
-          contentType: 'application/pdf',
-          userId: userId,
-          metadata: {
-            source: 'email-body-pdf',
-            messageId: emailData.messageId,
-            subject: emailData.subject,
-          }
-        }
+        'application/pdf'
       );
       
-      console.log(`✅ StorageService upload successful: ${uploadResult.key}`);
-      gcsPath = uploadResult.key; // Use the key returned by storage service
+      console.log(`✅ StorageService upload result (type: ${typeof uploadResult}):`, uploadResult);
+      
+      // Check if uploadResult is falsy and use filename as fallback
+      if (!uploadResult) {
+        console.log('⚠️ Upload result was falsy, using filename as fallback');
+        gcsPath = filename;
+      } else {
+        gcsPath = uploadResult;
+      }
       
     } catch (error) {
       console.error(`❌ StorageService upload failed for ${filename}:`, error);

@@ -6,7 +6,10 @@ import { AuthService } from "./authService";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema, createVehicleSchema, updateVehicleUserFieldsSchema } from "@shared/schema";
+import { EmailUploadLogger } from './emailUploadLogger';
+import { dvlaLookupService } from './dvlaLookupService';
+import { vehicleInsightService } from './vehicleInsightService';
 import { z } from 'zod';
 import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, processDocumentWithDateExtraction, isPDFFile } from "./ocrService";
 
@@ -14,9 +17,12 @@ import { tagSuggestionService } from "./tagSuggestionService";
 import { aiInsightService } from "./aiInsightService";
 import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
+import docxConversionService from './docxConversionService';
 import { featureFlagService } from './featureFlagService';
+import { getFeatureFlagValue } from './emailFeatureFlags';
+// Removed incorrect import - will use storage.createEmailBodyDocument
 import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQuery } from './monitoring';
-import { emailService } from './emailService';
+
 import { StorageService, storageProvider } from './storage/StorageService';
 import { backupRoutes } from './routes/backup.js';
 import advancedScanningRoutes from './routes/advancedScanning.js';
@@ -27,7 +33,27 @@ import { setupOCRErrorRoutes } from './routes/ocrErrorRoutes.js';
 import cors from 'cors';
 import passport from './passport';
 import authRoutes from './authRoutes';
-import busboy from 'busboy';
+import { parseMailgunWebhook, verifyMailgunSignature, extractUserIdFromRecipient, validateEmailAttachments } from './mailgunService';
+// EmailBodyPdfService will be imported dynamically when needed
+import { emailRenderWorker } from './emailRenderWorker';
+import { workerHealthChecker } from './workerHealthCheck';
+import { setupMultiPageScanUpload } from './routes/multiPageScanUpload';
+import { 
+  mailgunIPWhitelist, 
+  mailgunWebhookRateLimit, 
+  mailgunWebhookLogger, 
+  validateMailgunContentType,
+  mailgunSignatureVerification
+} from './middleware/mailgunSecurity';
+
+// Import real database and schema objects
+import { db } from "./db";
+import { users, documents, featureFlags } from "@shared/schema";
+import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
+
+// Import proper types
+import type { Request, Response, NextFunction } from "express";
+type AuthenticatedRequest = Request & { user?: any };
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -56,15 +82,47 @@ const upload = multer({
       'image/heic',    // iPhone HEIC format
       'image/heif',    // iPhone HEIF format
       'image/tiff',    // TIFF format sometimes used by cameras
-      'image/bmp'      // BMP format
+      'image/bmp',     // BMP format
+      // DOCX support
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-word.document.macroEnabled.12',
+      'application/msword' // Legacy DOC files
     ];
-    
+
     // Also allow files with no specified mimetype (some camera uploads)
     if (!file.mimetype || allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       console.warn(`Rejected file upload - unsupported MIME type: ${file.mimetype} for file: ${file.originalname}`);
       cb(new Error(`Unsupported file type: ${file.mimetype}. Only PDF and image files are allowed.`));
+    }
+  }
+});
+
+// Mailgun webhook-specific multer configuration
+const mailgunUpload = multer({
+  storage: multer.memoryStorage(), // Store in memory for webhook processing
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file (Mailgun standard)
+    files: 10, // Maximum 10 attachments (increased for multiple attachments)
+    fieldSize: 10 * 1024 * 1024, // Reduce from 50MB to 10MB to prevent memory issues
+    fields: 100 // Reduce from 1000 to 100 fields to speed up parsing
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/webp',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // DOCX
+    ];
+
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      console.warn(`Mailgun webhook: Rejected attachment with unsupported MIME type: ${file.mimetype} for file: ${file.originalname}`);
+      cb(null, false); // Don't throw error, just skip the file
     }
   }
 });
@@ -80,7 +138,7 @@ function getUserId(req: any): string {
 // TICKET 4: Helper function to generate dashboard-ready messages
 function generateInsightMessage(insight: any, documentName: string): string {
   const docName = documentName.length > 30 ? documentName.substring(0, 30) + '...' : documentName;
-  
+
   switch (insight.type) {
     case 'key_dates':
       return `${docName}: Important date identified - ${insight.title}`;
@@ -103,7 +161,7 @@ function generateInsightMessage(insight: any, documentName: string): string {
 function extractDueDate(insight: any): string | null {
   const content = (insight.content || '').toLowerCase();
   const dateRegex = /(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}-\d{1,2}-\d{4})/;
-  
+
   // Look for date patterns in the content
   const match = content.match(dateRegex);
   if (match) {
@@ -116,27 +174,43 @@ function extractDueDate(insight: any): string | null {
       // Invalid date format
     }
   }
-  
+
   // For certain types, set default due dates
   if (insight.type === 'action_items' && insight.priority === 'high') {
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
     return thirtyDaysFromNow.toISOString().split('T')[0];
   }
-  
+
   return null;
 }
+
+// Middleware to check admin role
+const requireAdmin = async (req: any, res: any, next: any) => {
+  try {
+    console.log('🔧 [ADMIN CHECK] User:', req.user?.email, 'Role:', req.user?.role, 'Path:', req.path);
+    if (!req.user || req.user.role !== 'admin') {
+      console.log('❌ [ADMIN CHECK] Admin access denied for user:', req.user?.email, 'role:', req.user?.role);
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    console.log('✅ [ADMIN CHECK] Admin access granted');
+    next();
+  } catch (error) {
+    console.error('❌ [ADMIN CHECK] Admin middleware error:', error);
+    res.status(500).json({ error: "Authorization error" });
+  }
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup error tracking middleware
   app.use(sentryRequestHandler());
-  
+
   // CORE-002: Security Headers and Rate Limiting
   app.use(securityHeaders);
   app.use(rateLimiter);
   app.use(cors(corsOptions));
   app.use(securityLogger);
-  
+
   // Setup simple authentication
   setupSimpleAuth(app);
 
@@ -151,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/register', async (req: any, res) => {
     try {
       const data = registerSchema.parse(req.body);
-      
+
       // Check if user already exists (only check email provider to avoid conflicts)
       const existingUser = await AuthService.findUserByEmailAndProvider(data.email!, "email");
       if (existingUser) {
@@ -164,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: data.firstName,
         lastName: data.lastName
       });
-      
+
       // Initialize default categories for new user
       const defaultCategories = [
         { name: 'Car', icon: 'fas fa-car', color: 'blue', userId: user.id },
@@ -173,7 +247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { name: 'Utilities', icon: 'fas fa-bolt', color: 'orange', userId: user.id },
         { name: 'Receipts', icon: 'fas fa-receipt', color: 'yellow', userId: user.id },
       ];
-      
+
       for (const category of defaultCategories) {
         try {
           await storage.createCategory(category);
@@ -181,10 +255,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Category ${category.name} creation skipped for user ${user.id}`);
         }
       }
-      
+
       // Store user in session
       req.session.user = user;
-      
+
       const { passwordHash, ...safeUser } = user;
       res.status(201).json({ 
         message: "Account created successfully", 
@@ -200,25 +274,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/login', async (req: any, res) => {
     try {
       const data = loginSchema.parse(req.body);
-      
+
       const user = await AuthService.authenticateEmailUser(data.email, data.password);
       if (!user) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
-      
+
       // Update last login timestamp
       await storage.updateUserLastLogin(user.id);
-      
+
       // Store user in session and save explicitly
       req.session.user = user;
-      
+
       // Force session save before responding
       req.session.save((err: any) => {
         if (err) {
           console.error("Session save error:", err);
           return res.status(500).json({ message: "Login failed - session error" });
         }
-        
+
         console.log("Session saved successfully for user:", user.id);
         const { passwordHash, ...safeUser } = user;
         res.json({ 
@@ -258,6 +332,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Logout error:", error);
       res.status(500).json({ message: "Logout failed" });
+    }
+  });
+
+  // Password reset request route
+  app.post('/api/auth/forgot-password', async (req: any, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const result = await AuthService.generatePasswordResetToken(email);
+
+      if (result.success) {
+        // In a real application, you would send an email here
+        // For now, we'll just log the token and return success
+        console.log(`Password reset token for ${email}: ${result.token}`);
+
+        res.json({ 
+          message: "If an account with this email exists, password reset instructions have been sent.",
+          success: true
+        });
+      } else {
+        // Always return success message for security (don't reveal if email exists)
+        res.json({ 
+          message: "If an account with this email exists, password reset instructions have been sent.",
+          success: true
+        });
+      }
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Failed to process request" });
+    }
+  });
+
+  // Verify reset token route
+  app.get('/api/auth/verify-reset-token/:token', async (req: any, res) => {
+    try {
+      const { token } = req.params;
+
+      const result = await AuthService.verifyPasswordResetToken(token);
+
+      if (result.valid) {
+        res.json({ valid: true, message: result.message });
+      } else {
+        res.status(400).json({ valid: false, message: result.message });
+      }
+    } catch (error) {
+      console.error("Token verification error:", error);
+      res.status(500).json({ valid: false, message: "Failed to verify token" });
+    }
+  });
+
+  // Reset password with token route
+  app.post('/api/auth/reset-password', async (req: any, res) => {
+    try {
+      const { token, password } = req.body;
+
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+
+      const result = await AuthService.resetPasswordWithToken(token, password);
+
+      if (result.success) {
+        res.json({ success: true, message: result.message });
+      } else {
+        res.status(400).json({ success: false, message: result.message });
+      }
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ success: false, message: "Failed to reset password" });
     }
   });
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
@@ -306,7 +457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updates = insertCategorySchema.partial().parse(req.body);
       const updatedCategory = await storage.updateCategory(categoryId, userId, updates);
-      
+
       if (!updatedCategory) {
         return res.status(404).json({ message: "Category not found" });
       }
@@ -347,7 +498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use regular document search with filtering as reliable fallback
       const allDocuments = await storage.getDocuments(userId);
       const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 1);
-      
+
       const filteredResults = allDocuments.filter(doc => {
         const searchContent = [
           doc.name,
@@ -356,7 +507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           doc.summary,
           (doc.tags || []).join(' '),
         ].join(' ').toLowerCase();
-        
+
         return searchTerms.some(term => searchContent.includes(term));
       });
 
@@ -375,7 +526,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const search = req.query.search as string;
       const expiryFilter = req.query.expiryFilter as 'expired' | 'expiring-soon' | 'this-month' | undefined;
       
-      const documents = await storage.getDocuments(userId, categoryId, search, expiryFilter);
+      // TICKET 7: Email metadata filters and sorting
+      const filters: any = {};
+      if (req.query['filter[source]']) {
+        filters.source = req.query['filter[source]'];
+      }
+      if (req.query['filter[email.subject]']) {
+        filters['email.subject'] = req.query['filter[email.subject]'];
+      }
+      if (req.query['filter[email.from]']) {
+        filters['email.from'] = req.query['filter[email.from]'];
+      }
+      if (req.query['filter[email.messageId]']) {
+        filters['email.messageId'] = req.query['filter[email.messageId]'];
+      }
+      if (req.query['filter[email.receivedAt][gte]'] || req.query['filter[email.receivedAt][lte]']) {
+        filters['email.receivedAt'] = {};
+        if (req.query['filter[email.receivedAt][gte]']) {
+          filters['email.receivedAt'].gte = req.query['filter[email.receivedAt][gte]'];
+        }
+        if (req.query['filter[email.receivedAt][lte]']) {
+          filters['email.receivedAt'].lte = req.query['filter[email.receivedAt][lte]'];
+        }
+      }
+      
+      const sort = req.query.sort as string;
+      
+      const documents = await storage.getDocuments(userId, categoryId, search, expiryFilter, Object.keys(filters).length ? filters : undefined, sort);
       res.json(documents);
     } catch (error) {
       console.error("Error fetching documents:", error);
@@ -408,10 +585,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let finalFilePath = req.file.path;
       let finalMimeType = req.file.mimetype;
 
-      // Convert scanned images to PDF format
-      if (pdfConversionService.isImageFile(req.file.path) && req.file.originalname.startsWith('processed_')) {
+      // DOCX Conversion: Convert DOCX files to PDF for viewing and OCR
+      if (docxConversionService.isDocxFile(req.file.mimetype)) {
+        console.log(`Converting DOCX document to PDF: ${req.file.originalname}`);
+
+        try {
+          const conversionResult = await docxConversionService.convertDocxToPdf(
+            req.file.path,
+            uploadsDir
+          );
+
+          if (conversionResult.success && conversionResult.pdfPath) {
+            // Create a secondary PDF file linked to the original DOCX
+            const pdfDocumentData = {
+              ...documentData,
+              filePath: conversionResult.pdfPath,
+              mimeType: 'application/pdf',
+              name: documentData.name.replace(/\.(docx|doc)$/i, '.pdf'),
+              fileName: documentData.fileName.replace(/\.(docx|doc)$/i, '.pdf'),
+              tags: [...(documentData.tags || []), 'converted-from-docx']
+            };
+
+            // Keep the original DOCX as primary, PDF as secondary for viewing
+            finalFilePath = conversionResult.pdfPath;
+            finalMimeType = 'application/pdf';
+            finalDocumentData = pdfDocumentData;
+
+            console.log(`✅ DOCX converted to PDF for viewing: ${conversionResult.pdfPath}`);
+          } else {
+            console.warn(`DOCX conversion failed: ${conversionResult.error}, keeping original DOCX`);
+            // Continue with original DOCX file - will be processed differently in document processor
+          }
+        } catch (conversionError) {
+          console.error('DOCX conversion error:', conversionError);
+          // Continue with original DOCX if conversion fails
+        }
+      }
+      // Convert scanned images to PDF format  
+      else if (pdfConversionService.isImageFile(req.file.path) && (req.file.originalname.startsWith('processed_') || req.file.originalname.startsWith('document-scan-'))) {
         console.log(`Converting scanned document image to PDF: ${req.file.originalname}`);
-        
+
         try {
           const conversionResult = await pdfConversionService.convertImageToPDF(
             req.file.path,
@@ -449,7 +662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate storage key using consistent naming convention
       const documentId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
       const storageKey = StorageService.generateFileKey(userId, documentId, finalDocumentData.fileName);
-      
+
       // Upload to cloud storage using stream (memory-efficient)
       let cloudStorageKey = '';
       try {
@@ -465,7 +678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cloudStorageKey = await storage.upload(fileBuffer, storageKey, finalMimeType);
         }
         console.log(`File streamed to cloud storage: ${cloudStorageKey}`);
-        
+
         // Close stream immediately
         fileStream.destroy();
       } catch (storageError) {
@@ -480,12 +693,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate encryption for cloud-stored file
       let encryptedDocumentKey = '';
       let encryptionMetadata = '';
-      
+
       try {
         // For GCS, we encrypt the file buffer before upload
         const documentKey = EncryptionService.generateDocumentKey();
         encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
-        
+
         // Create metadata indicating cloud storage with encryption
         encryptionMetadata = JSON.stringify({
           storageType: 'cloud',
@@ -493,7 +706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           encrypted: true,
           algorithm: 'AES-256-GCM'
         });
-        
+
         console.log(`Document prepared for cloud storage with encryption: ${cloudStorageKey}`);
       } catch (encryptionError) {
         console.error('Document encryption setup failed:', encryptionError);
@@ -535,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Use OCR queue for memory-bounded processing
           const { ocrQueue } = await import('./ocrQueue.js');
-          
+
           await ocrQueue.addJob({
             documentId: document.id,
             fileName: finalDocumentData.fileName,
@@ -544,9 +757,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userId,
             priority: 5 // Normal priority
           });
-          
+
           console.log(`📝 OCR job queued for document ${document.id}`);
-          
+
           // Continue with tag suggestions using basic filename analysis
           const tagSuggestions = await tagSuggestionService.suggestTags(
             finalDocumentData.fileName,
@@ -554,7 +767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             finalMimeType,
             documentData.tags
           );
-          
+
           // Get the updated document with extracted text for tag suggestions
           const updatedDocument = await storage.getDocument(document.id, userId);
           if (updatedDocument?.extractedText) {
@@ -565,7 +778,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               finalMimeType,
               documentData.tags
             );
-            
+
             // Add suggested tags to existing tags (if any)
             const combinedTags = [...documentData.tags];
             tagSuggestions.suggestedTags.forEach(suggestion => {
@@ -573,13 +786,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 combinedTags.push(suggestion.tag);
               }
             });
-            
+
             // Update document with suggested tags
             if (combinedTags.length > documentData.tags.length) {
               await storage.updateDocumentTags(document.id, userId, combinedTags);
             }
           }
-          
+
           console.log(`OCR, summary, date extraction, and tag suggestion completed for document ${document.id}`);
         } catch (ocrError) {
           console.error(`OCR and date extraction failed for document ${document.id}:`, ocrError);
@@ -591,7 +804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               finalMimeType
             );
             await storage.updateDocumentOCRAndSummary(document.id, userId, extractedText, summary);
-            
+
             // Generate tag suggestions for fallback OCR
             const tagSuggestions = await tagSuggestionService.suggestTags(
               finalDocumentData.fileName,
@@ -599,18 +812,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               req.file.mimetype,
               documentData.tags
             );
-            
+
             const combinedTags = [...documentData.tags];
             tagSuggestions.suggestedTags.forEach(suggestion => {
               if (suggestion.confidence >= 0.7 && !combinedTags.includes(suggestion.tag)) {
                 combinedTags.push(suggestion.tag);
               }
             });
-            
+
             if (combinedTags.length > documentData.tags.length) {
               await storage.updateDocumentTags(document.id, userId, combinedTags);
             }
-            
+
             console.log(`Fallback OCR with tag suggestions completed for document ${document.id}`);
           } catch (fallbackError) {
             console.error(`Fallback OCR also failed for document ${document.id}:`, fallbackError);
@@ -621,7 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const summary = `Document: ${req.file.originalname}. File type: ${req.file.mimetype}. Uploaded on ${new Date().toLocaleDateString()}.`;
           await storage.updateDocumentSummary(document.id, userId, summary);
-          
+
           // Generate tag suggestions based on filename only
           const tagSuggestions = await tagSuggestionService.suggestTags(
             req.file.originalname,
@@ -629,18 +842,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             req.file.mimetype,
             documentData.tags
           );
-          
+
           const combinedTags = [...documentData.tags];
           tagSuggestions.suggestedTags.forEach(suggestion => {
             if (suggestion.confidence >= 0.6 && !combinedTags.includes(suggestion.tag)) {
               combinedTags.push(suggestion.tag);
             }
           });
-          
+
           if (combinedTags.length > documentData.tags.length) {
             await storage.updateDocumentTags(document.id, userId, combinedTags);
           }
-          
+
           console.log(`Summary and tag suggestions generated for non-OCR document ${document.id}`);
         } catch (summaryError) {
           console.error(`Summary and tag generation failed for document ${document.id}:`, summaryError);
@@ -666,7 +879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documents = await storage.getDocuments(userId);
-      
+
       // Count documents imported via email in the last 24 hours
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recentlyImported = documents.filter(doc => {
@@ -674,7 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const isRecent = doc.uploadedAt ? new Date(doc.uploadedAt) > oneDayAgo : false;
         return hasEmailTag && isRecent;
       });
-      
+
       res.json(recentlyImported.length);
     } catch (error) {
       console.error('Error getting imported document count:', error);
@@ -688,16 +901,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
       }
-      
+
       res.json(document);
     } catch (error) {
       console.error("Error fetching document:", error);
@@ -710,11 +923,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       // Fast database lookup
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
@@ -737,21 +950,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (document.isEncrypted && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
-          
+
           // Check if this is a cloud storage document
           if (metadata.storageType === 'cloud' && metadata.storageKey) {
             console.log(`📁 GCS PREVIEW: Loading document ${metadata.storageKey} from cloud storage`);
-            
+
             const storage = storageProvider();
             try {
-              const signedUrl = await storage.getSignedUrl(metadata.storageKey, 3600);
-              if (document.mimeType === 'application/pdf' || document.mimeType.startsWith('image/')) {
-                return res.redirect(signedUrl);
-              }
-            } catch (signedUrlError) {
-              console.warn('Signed URL generation failed, falling back to proxied download:', signedUrlError);
-              
-              // Fallback to direct download and proxy the file
+              // Always proxy the file through our server to prevent modal breaking redirects
+              console.log('📁 GCS PREVIEW: Proxying document content to maintain modal functionality');
               const fileBuffer = await storage.download(metadata.storageKey);
               res.setHeader('Content-Type', document.mimeType);
               res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -760,18 +967,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
               res.setHeader('Access-Control-Allow-Credentials', 'true');
               res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
               res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+
+              // For PDFs, add headers to ensure proper display in iframe
+              if (document.mimeType === 'application/pdf') {
+                res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
+                res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+              }
               return res.send(fileBuffer);
+            } catch (downloadError) {
+              console.error('GCS download failed for preview:', downloadError);
+              return res.status(500).json({ 
+                message: "Failed to load document preview",
+                error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
+              });
             }
           }
-          
+
           // Handle legacy encrypted local files
           const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey!);
-          
+
           // For images, create decrypted stream
           if (document.mimeType.startsWith('image/')) {
             res.setHeader('Content-Type', document.mimeType);
             res.setHeader('Cache-Control', 'public, max-age=3600');
-            
+
             const decryptedStream = EncryptionService.createDecryptStream(
               document.filePath, 
               documentKey, 
@@ -780,19 +999,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             decryptedStream.pipe(res);
             return;
           }
-          
+
           // For PDFs, decrypt and serve with proper headers
           if (document.mimeType === 'application/pdf') {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Cache-Control', 'public, max-age=3600');
             res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-            
+
             // CORS headers for react-pdf compatibility
             res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
             res.setHeader('Access-Control-Allow-Credentials', 'true');
             res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
             res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-            
+
             const decryptedStream = EncryptionService.createDecryptStream(
               document.filePath, 
               documentKey, 
@@ -801,7 +1020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             decryptedStream.pipe(res);
             return;
           }
-          
+
           // For other encrypted file types
           return res.status(200).json({ 
             message: "Preview not supported for this encrypted file type",
@@ -828,16 +1047,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Cache-Control', 'public, max-age=3600');
         res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-        
+
         // CORS headers for react-pdf compatibility
         res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
         res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-        
+
         // Support for partial content requests (important for PDF streaming)
         res.setHeader('Accept-Ranges', 'bytes');
-        
+
         const stat = fs.statSync(document.filePath);
         const fileSize = stat.size;
         const range = req.headers.range;
@@ -878,7 +1097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user?.claims?.sub || 'demo-user-1';
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -905,11 +1124,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const { name, expiryDate } = req.body;
 
       if (name && (typeof name !== 'string' || name.trim().length === 0)) {
@@ -924,7 +1143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: name ? name.trim() : undefined,
         expiryDate: expiryDate === '' ? null : expiryDate
       });
-      
+
       if (!updatedDocument) {
         return res.status(404).json({ message: "Document not found" });
       }
@@ -941,11 +1160,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -982,11 +1201,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -1005,7 +1224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         storage
       );
-      
+
       res.json({ message: 'Document reprocessed successfully' });
     } catch (error: any) {
       console.error('Reprocess document error:', error);
@@ -1018,7 +1237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -1036,11 +1255,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // Require extracted text for insight generation
+      // Auto-trigger OCR if extracted text is missing
       if (!document.extractedText || document.extractedText.trim() === '') {
-        return res.status(400).json({ 
-          message: "Document has no extracted text. Please run OCR processing first." 
-        });
+        console.log(`🔄 AUTO-OCR TRIGGER: Document ${documentId} missing extracted text, triggering OCR before insights`);
+
+        // Check if document supports OCR
+        if (!supportsOCR(document.mimeType)) {
+          return res.status(400).json({ 
+            message: `Document type ${document.mimeType} does not support text extraction. Cannot generate insights.` 
+          });
+        }
+
+        // Import OCR queue and trigger processing
+        const { ocrQueue } = await import('./ocrQueue');
+
+        // Check if document file exists before queuing OCR
+        const fileExists = document.gcsPath ? 
+          true : // Assume GCS files exist - will be verified in OCR process
+          fs.existsSync(document.filePath);
+
+        if (!fileExists && !document.gcsPath) {
+          console.error(`❌ Document file not found: ${document.filePath}`);
+          return res.status(404).json({ 
+            message: "Document file not found on disk. Cannot extract text.",
+            debug: `File path: ${document.filePath}`
+          });
+        }
+
+        try {
+          // Queue OCR job with high priority for user-initiated request
+          const jobId = await ocrQueue.addJob({
+            documentId,
+            fileName: document.fileName,
+            filePathOrGCSKey: document.gcsPath || document.filePath,
+            mimeType: document.mimeType,
+            userId,
+            priority: 1, // High priority for user-initiated insights
+            isEmailImport: false
+          });
+
+          console.log(`🔄 OCR job queued: ${jobId} for document ${documentId} (${document.gcsPath ? 'GCS' : 'local'} file)`);
+
+          // Return response indicating OCR is processing
+          return res.status(202).json({ 
+            message: "Document text extraction in progress. Insights will be available in 10-30 seconds.",
+            status: "processing",
+            ocrJobId: jobId,
+            estimatedTime: "10-30 seconds",
+            action: "refresh_insights"
+          });
+
+        } catch (ocrError: any) {
+          console.error(`❌ Failed to queue OCR for document ${documentId}:`, ocrError);
+          return res.status(500).json({ 
+            message: "Failed to start text extraction. Please try again.",
+            error: ocrError.message,
+            debug: `File: ${document.gcsPath || document.filePath}`
+          });
+        }
       }
 
       const insights = await aiInsightService.generateDocumentInsights(
@@ -1057,15 +1329,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const actionUrl = `/documents/${documentId}`;
         const dueDate = extractDueDate(insight);
 
+        console.log('🔍 [ROUTE DEBUG] Creating insight with documentId:', documentId, 'type:', typeof documentId);
+        console.log('🔍 [ROUTE DEBUG] Insight confidence:', insight.confidence, 'rounded:', Math.round(insight.confidence * 100));
+        console.log('🔍 [ROUTE DEBUG] Processing time:', insights.processingTime, 'type:', typeof insights.processingTime);
+
         await storage.createDocumentInsight({
-          documentId,
+          documentId, // Should be number from parseInt above
           userId,
           insightId: insight.id,
           message, // TICKET 4: User-facing message
           type: insight.type,
           title: insight.title,
           content: insight.content,
-          confidence: Math.round(insight.confidence * 100), // Convert to 0-100 scale
+          confidence: Math.round(insight.confidence * 100).toString(), // Convert to 0-100 scale as string
           priority: insight.priority,
           dueDate, // TICKET 4: Due date for actionable insights
           actionUrl, // TICKET 4: URL to take action
@@ -1081,6 +1357,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // TICKET 8: Track insights generation for browser scans
+      if (document.uploadSource === 'browser_scan') {
+        console.log(`📊 Analytics: browser_scan_insights_generated for document ${documentId}`, {
+          userId,
+          documentId,
+          insightsCount: insights.insights.length,
+          processingTime: insights.processingTime,
+          timestamp: new Date().toISOString()
+        });
+      }
+
       res.json({
         success: true,
         insights: insights.insights,
@@ -1093,13 +1380,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error generating document insights:", error);
       captureError(error, req);
-      
+
       if (error.message.includes('quota exceeded')) {
         return res.status(429).json({ 
           message: "OpenAI API quota exceeded. Please check your billing and usage limits." 
         });
       }
-      
+
       res.status(500).json({ message: "Failed to generate document insights" });
     }
   });
@@ -1110,7 +1397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       const tier = req.query.tier as string; // INSIGHT-102: Optional tier filter ('primary', 'secondary')
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -1120,8 +1407,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const insights = await storage.getDocumentInsights(documentId, userId, tier);
-      
+      const allInsights = await storage.getDocumentInsights(documentId, userId, tier);
+
+      // Filter out unwanted insight types at API level
+      const insights = allInsights.filter(insight => 
+        !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
+      );
+
       res.json({
         success: true,
         insights,
@@ -1155,15 +1447,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let insights = await storage.getInsights(userId, status === 'all' ? undefined : status, type, priority);
 
+      // Get manual events and convert them to insights format
+      const manualEvents = await storage.getManualTrackedEvents(userId);
+      const manualInsights = manualEvents
+        .filter(event => status === 'all' || event.status === 'active')
+        .map(event => ({
+          id: `manual-${event.id}`,
+          insightId: `manual-${event.id}`,
+          documentId: null,
+          userId: event.createdBy,
+          type: 'manual_event',
+          priority: 'high', // All manual events are high priority
+          tier: 'core',
+          title: event.title,
+          content: event.notes || `${event.category} reminder`,
+          actionText: 'View Details',
+          dueDate: event.dueDate,
+          status: event.status === 'active' ? 'open' : 'dismissed',
+          createdAt: event.createdAt,
+          updatedAt: event.updatedAt,
+          source: 'manual',
+          category: event.category,
+          repeatInterval: event.repeatInterval,
+          linkedAssetId: event.linkedAssetId,
+          linkedDocumentIds: event.linkedDocumentIds
+        }));
+
+      // Keep all AI insights for dashboard display
+      const filteredAIInsights = insights;
+
+      // Combine AI insights and manual events
+      const allInsights = [...filteredAIInsights, ...manualInsights];
+
       // TICKET 9: Filter insights with due dates if requested
-      if (hasDueDate) {
-        insights = insights.filter(insight => insight.dueDate && insight.dueDate !== null);
-      }
+      const filteredInsights = hasDueDate 
+        ? allInsights.filter(insight => insight.dueDate && insight.dueDate !== null)
+        : allInsights;
 
       // Enhanced insight format for calendar support - keep camelCase for consistency
-      const enhancedInsights = insights.map(insight => ({
+      const enhancedInsights = filteredInsights.map(insight => ({
         ...insight,
-        actionUrl: `/document/${insight.documentId}`,
+        actionUrl: insight.type === 'manual_event' ? `/insights` : `/document/${insight.documentId}`,
         // Ensure dueDate is in YYYY-MM-DD format for calendar
         dueDate: insight.dueDate ? (typeof insight.dueDate === 'string' ? insight.dueDate.split('T')[0] : (insight.dueDate as Date).toISOString().split('T')[0]) : null
       }));
@@ -1185,50 +1509,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/insights/metrics', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       // Get all insights for calculations
       const allInsights = await storage.getInsights(userId);
-      
+
+      // Filter out unwanted insight types at API level
+      const filteredAIInsights = allInsights.filter(insight => 
+        !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
+      );
+
+      // Include manual events as high priority insights
+      const manualEvents = await storage.getManualTrackedEvents(userId);
+      const manualInsights = manualEvents
+        .filter(event => event.status === 'active')
+        .map(event => ({
+          ...event,
+          priority: 'high' as const,
+          status: 'open' as const,
+          type: 'manual_event' as const
+        }));
+
+      // Combine all insights
+      const combinedInsights = [...filteredAIInsights, ...manualInsights];
+
       // Calculate metrics
-      const openInsights = allInsights.filter(i => i.status === 'open' || !i.status);
-      const highPriority = allInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
-      const resolvedInsights = allInsights.filter(i => i.status === 'resolved');
-      
-      // Type-specific metrics (open only)
-      const actionItems = allInsights.filter(i => i.type === 'action_items' && (i.status === 'open' || !i.status));
-      const keyDates = allInsights.filter(i => i.type === 'key_dates' && (i.status === 'open' || !i.status));
-      const compliance = allInsights.filter(i => i.type === 'compliance' && (i.status === 'open' || !i.status));
-      
+      const openInsights = combinedInsights.filter(i => i.status === 'open' || !i.status);
+      const highPriority = combinedInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
+      const resolvedInsights = combinedInsights.filter(i => i.status === 'resolved');
+
+      // Type-specific metrics (open only) - exclude unwanted types
+      const manualEventCount = combinedInsights.filter(i => i.type === 'manual_event' && (i.status === 'open' || !i.status));
+      const summaryInsights = combinedInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status));
+      const contactInsights = combinedInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status));
+
       // Upcoming deadlines (within 30 days)
       const today = new Date();
       const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
-      const upcomingDeadlines = allInsights.filter(i => {
+      const upcomingDeadlines = combinedInsights.filter(i => {
         if (!i.dueDate || i.status !== 'open') return false;
         const dueDate = new Date(i.dueDate);
         return dueDate >= today && dueDate <= thirtyDaysFromNow;
       });
 
       res.json({
-        total: allInsights.length,
+        total: combinedInsights.length,
         open: openInsights.length,
         highPriority: highPriority.length,
         resolved: resolvedInsights.length,
-        actionItems: actionItems.length,
-        keyDates: keyDates.length,
-        compliance: compliance.length,
+        manualEvents: manualEventCount.length,
         upcomingDeadlines: upcomingDeadlines.length,
         byType: {
-          summary: allInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status)).length,
-          action_items: actionItems.length,
-          key_dates: keyDates.length,
-          financial_info: allInsights.filter(i => i.type === 'financial_info' && (i.status === 'open' || !i.status)).length,
-          contacts: allInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status)).length,
-          compliance: compliance.length
+          summary: summaryInsights.length,
+          contacts: contactInsights.length,
+          manual_event: manualEventCount.length
         },
         byPriority: {
           high: highPriority.length,
-          medium: allInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length,
-          low: allInsights.filter(i => i.priority === 'low' && (i.status === 'open' || !i.status)).length
+          medium: combinedInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length,
+          low: combinedInsights.filter(i => i.priority === 'low' && (i.status === 'open' || !i.status)).length
         }
       });
 
@@ -1245,6 +1583,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
 
       const criticalInsights = await storage.getCriticalInsights(userId);
+      console.log(`[DEBUG] Fetched ${criticalInsights.length} critical insights for user ${userId}:`, 
+                  criticalInsights.map(i => ({ id: i.id, status: i.status, message: i.message?.substring(0, 50) + '...' })));
 
       res.json(criticalInsights);
 
@@ -1267,7 +1607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedInsight = await storage.updateInsightStatus(insightId, userId, status);
-      
+
       if (!updatedInsight) {
         return res.status(404).json({ message: "Insight not found" });
       }
@@ -1288,16 +1628,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const insightId = req.params.id;
       const { status } = req.body;
 
+      console.log(`[DEBUG] Updating insight ${insightId} for user ${userId} to status: ${status}`);
+
       if (!['open', 'dismissed', 'resolved'].includes(status)) {
         return res.status(400).json({ message: "Invalid status. Must be 'open', 'dismissed', or 'resolved'." });
       }
 
       const updatedInsight = await storage.updateInsightStatus(insightId, userId, status);
-      
+
       if (!updatedInsight) {
+        console.log(`[DEBUG] Insight ${insightId} not found for user ${userId}`);
         return res.status(404).json({ message: "Insight not found" });
       }
 
+      console.log(`[DEBUG] Successfully updated insight ${insightId} to status: ${updatedInsight.status}`);
       res.json(updatedInsight);
 
     } catch (error) {
@@ -1307,13 +1651,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete a specific insight (general endpoint)
+  app.delete('/api/insights/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const insightId = req.params.id;
+
+      const deletedInsight = await storage.deleteInsight(insightId, userId);
+
+      if (!deletedInsight) {
+        return res.status(404).json({ message: "Insight not found" });
+      }
+
+      res.json({ success: true, message: "Insight deleted successfully" });
+
+    } catch (error) {
+      console.error("Error deleting insight:", error);
+      captureError(error as Error, req);
+      res.status(500).json({ message: "Failed to delete insight" });
+    }
+  });
+
   // DOC-501: Delete a specific insight
   app.delete('/api/documents/:id/insights/:insightId', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       const insightId = req.params.insightId;
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -1336,11 +1701,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -1364,11 +1729,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -1378,20 +1743,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (document.isEncrypted && document.encryptedDocumentKey && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
-          
+
           // Handle cloud storage documents with GCS download
           if (metadata.storageType === 'cloud' && metadata.storageKey) {
             console.log(`📁 GCS DOWNLOAD: Downloading document ${metadata.storageKey} from cloud storage`);
-            
+
             try {
               const storage = storageProvider();
               const fileBuffer = await storage.download(metadata.storageKey);
-              
+
               // Set appropriate headers for download
               res.setHeader('Content-Type', document.mimeType);
               res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
               res.setHeader('Cache-Control', 'private, max-age=3600');
-              
+
               res.send(fileBuffer);
               return;
             } catch (gcsError: any) {
@@ -1402,21 +1767,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
           }
-          
+
           // Handle local encrypted documents (legacy)
           const documentKey = EncryptionService.decryptDocumentKey(document.encryptedDocumentKey);
-          
+
           // Create decrypted stream
           const decryptedStream = EncryptionService.createDecryptStream(
             document.filePath, 
             documentKey, 
             document.encryptionMetadata
           );
-          
+
           // Set appropriate headers
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
-          
+
           decryptedStream.pipe(res);
           return;
         } catch (decryptionError) {
@@ -1428,28 +1793,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if file exists and handle missing files gracefully
       if (!fs.existsSync(document.filePath)) {
         console.error(`File not found: ${document.filePath} for document ${document.id}`);
-        
+
         // Try to find the file in uploads directory with original filename
         const uploadsDir = path.join(process.cwd(), 'uploads');
         const possiblePath = path.join(uploadsDir, document.fileName);
-        
+
         // Extract filename from file path if it contains a full path
         const pathBasename = path.basename(document.filePath);
         const basenameAttempt = path.join(uploadsDir, pathBasename);
-        
+
         if (fs.existsSync(possiblePath)) {
           console.log(`Found file at alternative path: ${possiblePath}`);
           res.download(possiblePath, document.fileName);
           return;
         }
-        
+
         // Try with the basename from the stored path
         if (fs.existsSync(basenameAttempt)) {
           console.log(`Found file at basename path: ${basenameAttempt}`);
           res.download(basenameAttempt, document.fileName);
           return;
         }
-        
+
         // Check if it's a relative path that needs to be resolved
         const resolvedPath = path.resolve(document.filePath);
         if (fs.existsSync(resolvedPath)) {
@@ -1457,7 +1822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.download(resolvedPath, document.fileName);
           return;
         }
-        
+
         return res.status(404).json({ 
           message: "File not found on server",
           debug: {
@@ -1482,19 +1847,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Admin middleware
-  const requireAdmin = (req: any, res: any, next: any) => {
-    if (!req.user || req.user.role !== 'admin') {
-      return res.status(403).json({ message: "Admin access required" });
+  function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    console.log('🔧 Admin middleware check - Session user:', (req.session as any)?.user?.email, 'Role:', (req.session as any)?.user?.role);
+    console.log('🔧 Admin middleware check - Req user:', req.user?.email, 'Role:', req.user?.role);
+
+    // Check both session and req.user for compatibility
+    const user = req.user || (req.session as any)?.user;
+
+    if (!user) {
+      console.log('❌ Admin middleware: No user found in session or req.user');
+      return res.status(401).json({ error: 'Authentication required' });
     }
+
+    if (user.role !== 'admin') {
+      console.log('❌ Admin middleware: User role is not admin:', user.role);
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Ensure req.user is set for downstream handlers
+    req.user = user;
+    console.log('✅ Admin middleware: Access granted for', user.email);
     next();
-  };
+  }
 
   // Encryption management endpoints
   app.get('/api/admin/encryption/stats', requireAuth, requireAdmin, async (req: any, res) => {
     try {
       const stats = await storage.getEncryptionStats();
       const hasMasterKey = !!process.env.DOCUMENT_MASTER_KEY;
-      
+
       res.json({
         ...stats,
         hasMasterKey,
@@ -1525,27 +1906,221 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Admin routes
-  app.get('/api/admin/stats', requireAuth, requireAdmin, async (req: any, res) => {
+  // Admin routes (protected by admin middleware)
+  app.get('/api/admin/stats', requireAuth, requireAdmin, async (req, res) => {
     try {
+      console.log('🔧 Admin stats endpoint called');
       const stats = await storage.getAdminStats();
+      console.log('🔧 Admin stats response:', stats);
       res.json(stats);
     } catch (error) {
-      console.error("Error fetching admin stats:", error);
-      res.status(500).json({ message: "Failed to fetch admin stats" });
+      console.error('❌ Admin stats error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch admin stats',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
-  app.get('/api/admin/users', requireAuth, requireAdmin, async (req: any, res) => {
+  // Admin users endpoint
+  app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
     try {
-      const users = await storage.getAllUsersWithStats();
-      res.json(users);
+      console.log('🔧 Admin users endpoint called');
+      const usersWithDetails = await storage.getAllUsersWithStats();
+      console.log('🔧 Found users:', usersWithDetails.length);
+      res.json(usersWithDetails);
     } catch (error) {
-      console.error("Error fetching users:", error);
-      res.status(500).json({ message: "Failed to fetch users" });
+      console.error('❌ Admin users error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch users',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
-  app.get('/api/admin/activities', requireAuth, requireAdmin, async (req: any, res) => {
+  // Toggle user status
+  app.patch('/api/admin/users/:userId/toggle', requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { isActive } = req.body;
+
+      await db.update(users)
+        .set({ isActive, updatedAt: new Date() })
+        .where(eq(users.id, userId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('❌ Toggle user error:', error);
+      res.status(500).json({ error: 'Failed to toggle user status' });
+    }
+  });
+
+  // Feature flags endpoints
+  // Admin - Feature flags
+  app.get("/api/admin/feature-flags", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      console.log('🔧 [FEATURE FLAGS] Request received from user:', req.user?.email);
+      console.log('🔧 [FEATURE FLAGS] User role:', req.user?.role);
+      console.log('🔧 [FEATURE FLAGS] Fetching all feature flags...');
+
+      const flags = await db.select().from(featureFlags);
+      console.log('🔧 [FEATURE FLAGS] Query result:', flags.length, 'flags found');
+      console.log('🔧 [FEATURE FLAGS] Sample flag data:', flags.slice(0, 2));
+
+      res.json(flags);
+    } catch (error) {
+      console.error('❌ [FEATURE FLAGS] Fetch error:', error);
+      res.status(500).json({ error: "Failed to fetch feature flags" });
+    }
+  });
+
+  // Toggle feature flag
+  app.patch('/api/admin/feature-flags/:flagId/toggle', requireAdmin, async (req, res) => {
+    try {
+      const { flagId } = req.params;
+      const { enabled } = req.body;
+
+      await db.update(featureFlags)
+        .set({ enabled, updatedAt: new Date() })
+        .where(eq(featureFlags.id, flagId));
+
+      // Clear feature flag cache
+      featureFlagService.clearCache();
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('❌ Toggle feature flag error:', error);
+      res.status(500).json({ error: 'Failed to toggle feature flag' });
+    }
+  });
+
+  // Feature flag analytics
+  // Admin - Feature flag analytics  
+  app.get("/api/admin/feature-flag-analytics", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Request received from user:', req.user?.email);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] User role:', req.user?.role);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Fetching feature flag analytics...');
+
+      // Get basic stats
+      const totalFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Total flags query result:', totalFlags);
+
+      const activeFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.enabled, true));
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Active flags query result:', activeFlags);
+
+      const premiumFlags = await db.select({ count: sql<number>`count(*)` }).from(featureFlags).where(eq(featureFlags.tierRequired, 'premium'));
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Premium flags query result:', premiumFlags);
+
+      // Calculate average rollout percentage
+      const avgRollout = await db.select({ 
+        avg: sql<number>`avg(COALESCE(rollout_percentage, 100))` 
+      }).from(featureFlags).where(eq(featureFlags.enabled, true));
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Average rollout query result:', avgRollout);
+
+      const analytics = {
+        totalFlags: String(totalFlags[0]?.count || 0),
+        activeFlags: String(activeFlags[0]?.count || 0),
+        premiumFlags: String(premiumFlags[0]?.count || 0),
+        averageRollout: String(Math.round(Number(avgRollout[0]?.avg || 0)))
+      };
+
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Final analytics result:', analytics);
+      res.json(analytics);
+    } catch (error) {
+      console.error('❌ [FEATURE FLAG ANALYTICS] Error:', error);
+      console.error('❌ [FEATURE FLAG ANALYTICS] Error stack:', error.stack);
+      res.status(500).json({ error: "Failed to fetch feature flag analytics" });
+    }
+  });
+
+  // Get system activities for admin dashboard (admin only)
+  app.get('/api/admin/activities', requireAdmin, async (req: any, res) => {
+    try {
+      const { severity } = req.query;
+      const activities = await storage.getSystemActivities(severity as string);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching system activities:", error);
+      res.status(500).json({ message: "Failed to fetch system activities" });
+    }
+  });
+
+  // Get search analytics (admin only)
+  app.get('/api/admin/search-analytics', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      console.log('🔧 Admin search analytics endpoint called');
+
+      // Since we don't have search logging table, return mock data
+      const analytics = {
+        totalSearches: 0,
+        avgResponseTime: 0,
+        topQueries: [],
+        searchSuccessRate: 100,
+        timeRange: '30d'
+      };
+
+      console.log('🔧 Search analytics:', analytics);
+      res.json(analytics);
+    } catch (error) {
+      console.error('❌ Search analytics error:', error);
+      res.status(500).json({ error: 'Failed to fetch search analytics' });
+    }
+  });
+
+  // Get cloud usage (admin only)  
+  app.get('/api/admin/cloud-usage', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      console.log('🔧 Admin cloud usage endpoint called');
+      const usage = await storage.getGCSUsage();
+      console.log('🔧 Cloud usage response:', usage);
+      res.json(usage);
+    } catch (error) {
+      console.error('❌ Cloud usage error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch cloud usage',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Get OpenAI usage (admin only)
+  app.get('/api/admin/usage/openai', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const usage = await storage.getOpenAIUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching OpenAI usage:", error);
+      res.status(500).json({ message: "Failed to fetch OpenAI usage" });
+    }
+  });
+
+  // Get LLM usage analytics (admin only) - alias for openai usage
+  app.get('/api/admin/llm-usage/analytics', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const usage = await storage.getOpenAIUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching LLM usage analytics:", error);
+      res.status(500).json({ message: "Failed to fetch LLM usage analytics" });
+    }
+  });
+
+  // Toggle user status (admin only)
+  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { isActive } = req.body;
+
+      await storage.updateUserStatus(userId, isActive);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
+  app.get('/api/admin/activities', requireAdmin, async (req: any, res) => {
     try {
       const { severity } = req.query;
       const activities = await storage.getSystemActivities(severity as string);
@@ -1561,11 +2136,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       const { isActive } = req.body;
-      
+
       if (typeof isActive !== 'boolean') {
         return res.status(400).json({ message: "isActive must be a boolean" });
       }
-      
+
       await storage.updateUserStatus(userId, isActive);
       res.json({ message: "User status updated successfully" });
     } catch (error) {
@@ -1640,26 +2215,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document sharing routes
-  
+
   // Share a document
   app.post('/api/documents/:id/share', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
       const { email, permissions = 'view' } = req.body;
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       if (!email || typeof email !== 'string') {
         return res.status(400).json({ message: "Valid email address is required" });
       }
-      
+
       if (permissions && !['view', 'edit'].includes(permissions)) {
         return res.status(400).json({ message: "Permissions must be 'view' or 'edit'" });
       }
-      
+
       const share = await storage.shareDocument(documentId, userId, email, permissions);
       res.json(share);
     } catch (error: any) {
@@ -1676,11 +2251,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const shares = await storage.getDocumentShares(documentId, userId);
       res.json(shares);
     } catch (error: any) {
@@ -1697,11 +2272,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const shareId = parseInt(req.params.shareId);
-      
+
       if (isNaN(shareId)) {
         return res.status(400).json({ message: "Invalid share ID" });
       }
-      
+
       await storage.unshareDocument(shareId, userId);
       res.json({ message: "Document unshared successfully" });
     } catch (error) {
@@ -1722,8 +2297,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Email forwarding endpoints - Using new GCS+SendGrid pipeline
-  
+  // TICKET 6: Get document references
+  app.get('/api/documents/:id/references', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // Verify user has access to the document
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Parse document references
+      let references: any[] = [];
+      if (document.documentReferences) {
+        try {
+          references = JSON.parse(document.documentReferences);
+        } catch (error) {
+          console.error("Error parsing document references:", error);
+          references = [];
+        }
+      }
+
+      // Filter references to only include documents the user can access
+      const accessibleReferences = [];
+      for (const ref of references) {
+        try {
+          const refDoc = await storage.getDocument(ref.documentId, userId);
+          if (refDoc) {
+            accessibleReferences.push(ref);
+          }
+        } catch (error) {
+          // Document not accessible or doesn't exist - skip it
+          console.warn(`Reference document ${ref.documentId} not accessible for user ${userId}`);
+        }
+      }
+
+      res.json(accessibleReferences);
+    } catch (error) {
+      console.error("Error fetching document references:", error);
+      res.status(500).json({ message: "Failed to fetch document references" });
+    }
+  });
+
+
   // Import Stripe route handlers
   const { 
     createCheckoutSession, 
@@ -1740,10 +2362,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/stripe/create-portal-session', requireAuth, createPortalSession);
   app.get('/api/stripe/subscription-status', requireAuth, getSubscriptionStatus);
   app.post('/api/stripe/cancel-subscription', requireAuth, cancelSubscription);
-  
+
   // Stripe webhook (no auth required - verified by signature)
   app.post('/api/stripe/webhook', processWebhook);
-  
+
   // Manual subscription update for testing
   app.post('/api/stripe/manual-update', requireAuth, async (req: any, res) => {
     try {
@@ -1759,7 +2381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  
+
   // Category suggestion endpoint
   const { suggestDocumentCategory } = await import('./routes/categorySuggestion');
   app.post('/api/documents/suggest-category', requireAuth, suggestDocumentCategory);
@@ -1807,7 +2429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(postId)) {
         return res.status(400).json({ message: "Invalid post ID" });
       }
-      
+
       const data = insertBlogPostSchema.partial().parse(req.body);
       const post = await storage.updateBlogPost(postId, data);
       res.json(post);
@@ -1823,7 +2445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(postId)) {
         return res.status(400).json({ message: "Invalid post ID" });
       }
-      
+
       await storage.deleteBlogPost(postId);
       res.json({ message: "Blog post deleted successfully" });
     } catch (error) {
@@ -1832,22 +2454,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get user's forwarding email address
-  app.get('/api/email/forwarding-address', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const EmailService = (await import('./emailService')).EmailService;
-      const emailService = new EmailService();
-      const forwardingData = await emailService.getForwardingAddress(userId);
-      res.json(forwardingData);
-    } catch (error) {
-      console.error("Error getting forwarding address:", error);
-      res.status(500).json({ message: "Failed to get forwarding address" });
-    }
-  });
 
 
-  
+
+
   // OCR configuration and status endpoint
   app.get('/api/ocr/config', async (req, res) => {
     try {
@@ -1870,7 +2480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           no_api_key_required: true
         }
       };
-      
+
       res.json(config);
     } catch (error) {
       console.error("Error getting OCR config:", error);
@@ -1878,489 +2488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get email forwarding history
-  app.get('/api/email/history', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const emailHistory = await storage.getEmailForwards(userId);
-      res.json(emailHistory);
-    } catch (error) {
-      console.error("Error fetching email history:", error);
-      res.status(500).json({ message: "Failed to fetch email history" });
-    }
-  });
 
-
-
-
-
-  // TEST TICKET 3: Create multipart-specific endpoint for testing
-  app.post('/api/email-ingest-multipart', (req: any, res: any) => {
-    const contentType = req.get('content-type') || '';
-    const requestId = Math.random().toString(36).substring(2, 15);
-    
-    if (!contentType.includes('multipart/form-data')) {
-      return res.status(400).json({ 
-        message: "This endpoint only accepts multipart/form-data",
-        requestId 
-      });
-    }
-    
-    console.log(`[${requestId}] Processing multipart/form-data from SendGrid`);
-    
-    const bb = busboy({ headers: req.headers });
-    const fields: any = {};
-    const attachments: any[] = [];
-    let filesProcessing = 0;
-    
-    // Handle form fields
-    bb.on('field', (name: string, value: string) => {
-      console.log(`[${requestId}] Form field: ${name} = ${value?.substring(0, 100)}${value?.length > 100 ? '...' : ''}`);
-      fields[name] = value;
-    });
-    
-    // Handle file attachments
-    bb.on('file', (name: string, file: any, info: any) => {
-      const { filename, mimeType } = info;
-      console.log(`[${requestId}] File attachment: ${filename} (${mimeType})`);
-      filesProcessing++;
-      
-      const chunks: Buffer[] = [];
-      file.on('data', (chunk: Buffer) => chunks.push(chunk));
-      file.on('end', () => {
-        const buffer = Buffer.concat(chunks);
-        attachments.push({
-          filename: filename || `attachment_${Date.now()}`,
-          type: mimeType || 'application/octet-stream',
-          content: buffer.toString('base64')
-        });
-        filesProcessing--;
-        
-        // If all files processed and form is finished, complete processing
-        if (filesProcessing === 0 && req._multipartFinished) {
-          completeMultipartProcessing();
-        }
-      });
-    });
-    
-    const completeMultipartProcessing = () => {
-      console.log(`[${requestId}] Multipart parsing complete:`, {
-        fieldCount: Object.keys(fields).length,
-        attachmentCount: attachments.length,
-        fieldNames: Object.keys(fields)
-      });
-      
-      // Convert form fields to expected JSON structure
-      const emailData = {
-        to: fields.to,
-        from: fields.from || fields.sender,
-        subject: fields.subject,
-        text: fields.text,
-        html: fields.html,
-        attachments: attachments.length > 0 ? attachments : undefined,
-        headers: fields.headers ? (typeof fields.headers === 'string' ? JSON.parse(fields.headers) : fields.headers) : {}
-      };
-      
-      console.log(`[${requestId}] Converted multipart to JSON:`, {
-        to: emailData.to,
-        from: emailData.from,
-        subject: emailData.subject,
-        hasText: !!emailData.text,
-        attachmentCount: emailData.attachments?.length || 0
-      });
-      
-      // Simulate successful processing
-      res.json({
-        message: "Multipart email processed successfully",
-        requestId,
-        emailData: {
-          to: emailData.to,
-          from: emailData.from,
-          subject: emailData.subject,
-          textLength: emailData.text?.length || 0,
-          attachmentCount: emailData.attachments?.length || 0
-        },
-        success: true
-      });
-    };
-    
-    bb.on('finish', () => {
-      req._multipartFinished = true;
-      if (filesProcessing === 0) {
-        completeMultipartProcessing();
-      }
-    });
-    
-    bb.on('error', (err: Error) => {
-      console.error(`[${requestId}] Multipart parsing error:`, err);
-      res.status(400).json({ 
-        message: "Failed to parse multipart form data",
-        error: err.message,
-        requestId 
-      });
-    });
-    
-    req.pipe(bb);
-  });
-
-  // DOC-301: SendGrid webhook endpoint for email ingestion (with multipart support)
-  app.post('/api/email-ingest', parseMultipartFormData, async (req, res) => {
-    const startTime = Date.now();
-    const requestId = Math.random().toString(36).substring(2, 15);
-    
-    try {
-      // TICKET 2: Enhanced payload format and attachment field logging
-      const contentType = req.get('content-type') || 'unknown';
-      const bodyKeys = Object.keys(req.body || {});
-      const bodySize = JSON.stringify(req.body || {}).length;
-      
-      // TICKET 2: Analyze attachment field structure
-      const attachmentFieldAnalysis = analyzeAttachmentFields(req.body);
-      
-      console.log(`[${requestId}] SendGrid webhook received:`, {
-        headers: {
-          'user-agent': req.get('user-agent'),
-          'x-forwarded-for': req.get('x-forwarded-for'),
-          'content-type': contentType,
-          'sendgrid-id': req.get('x-sendgrid-event-id')
-        },
-        payload: {
-          contentType: contentType,
-          bodyKeys: bodyKeys,
-          bodySize: bodySize,
-          isMultipart: contentType.includes('multipart'),
-          isJson: contentType.includes('application/json')
-        },
-        attachmentFields: attachmentFieldAnalysis
-      });
-
-      // Validate SendGrid source
-      const isValidSendGridSource = validateSendGridSource(req);
-      if (!isValidSendGridSource) {
-        console.warn(`[${requestId}] Invalid SendGrid source rejected:`, {
-          ip: req.ip,
-          userAgent: req.get('user-agent'),
-          headers: req.headers
-        });
-        return res.status(403).json({ 
-          message: "Invalid source - not from SendGrid",
-          requestId 
-        });
-      }
-
-      // Extract email data from SendGrid webhook format
-      const { to, from, subject, text, html, attachments, headers } = req.body;
-      
-      // Validate required fields
-      if (!to || !from) {
-        console.error(`[${requestId}] Missing required email fields:`, { to, from });
-        return res.status(400).json({ 
-          message: "Missing required email fields (to, from)",
-          requestId 
-        });
-      }
-
-      // Log raw email metadata for support/debugging
-      const emailMetadata = {
-        requestId,
-        timestamp: new Date().toISOString(),
-        to,
-        from,
-        subject: subject || '(no subject)',
-        textLength: text?.length || 0,
-        htmlLength: html?.length || 0,
-        attachmentCount: attachments?.length || 0,
-        headers: headers || {},
-        processingStarted: startTime
-      };
-      
-      console.log(`[${requestId}] Processing email metadata:`, emailMetadata);
-
-      // Parse user from forwarding email address (e.g., user123@inbox.myhome.com)
-      const EmailService = (await import('./emailService')).EmailService;
-      const emailService = new EmailService();
-      const userId = await emailService.parseUserFromEmail(to);
-      
-      if (!userId) {
-        console.warn(`[${requestId}] No user found for email address:`, { 
-          to, 
-          from,
-          domain: to.split('@')[1] 
-        });
-        return res.status(200).json({ 
-          message: 'Email processed but no user found',
-          requestId,
-          to: to.replace(/^docs-[a-z0-9]+/, 'docs-***') // Mask for privacy
-        });
-      }
-
-      // Get user for processing
-      const user = await storage.getUserById(userId);
-      if (!user) {
-        console.error(`[${requestId}] User ID found but user record missing:`, { userId });
-        return res.status(200).json({ 
-          message: 'User mapping found but user record missing',
-          requestId 
-        });
-      }
-
-      console.log(`[${requestId}] User association successful:`, {
-        userId: user.id,
-        userEmail: user.email?.replace(/(.{3}).*(@.*)/, '$1***$2') || 'no-email', // Mask email for privacy
-        forwardingAddress: to.replace(/^docs-[a-z0-9]+/, 'docs-***')
-      });
-
-      // Process attachments and email content
-      const processedAttachments = attachments?.map((attachment: any, index: number) => ({
-        index,
-        filename: attachment.filename || `attachment_${index}`,
-        contentType: attachment.type || 'application/octet-stream',
-        size: attachment.content?.length || 0,
-        hasContent: !!attachment.content
-      })) || [];
-
-      console.log(`[${requestId}] Attachment analysis:`, {
-        totalAttachments: processedAttachments.length,
-        attachmentDetails: processedAttachments
-      });
-
-      // DOC-302: Process attachments with comprehensive validation and GCS upload
-      let attachmentResults: {
-        processedAttachments: any[];
-        totalProcessed: number;
-        totalFailed: number;
-      } = {
-        processedAttachments: [],
-        totalProcessed: 0,
-        totalFailed: 0
-      };
-
-      if (attachments && attachments.length > 0) {
-        const { attachmentProcessor } = await import('./attachmentProcessor');
-        
-        // DOC-302: Map SendGrid attachment format to AttachmentProcessor format
-        const formattedAttachments = attachments.map((attachment: any) => ({
-          filename: attachment.filename || `attachment_${Date.now()}`,
-          content: attachment.content, // Base64 string from SendGrid
-          contentType: attachment.type || 'application/octet-stream', // Map 'type' -> 'contentType'
-          size: attachment.content?.length || 0
-        }));
-        
-        attachmentResults = await attachmentProcessor.processEmailAttachments(
-          formattedAttachments,
-          user.id,
-          { from, subject: subject || 'Email Document', requestId }
-        );
-      }
-
-      // Process the email content using existing GCS+SendGrid pipeline
-      const emailData = {
-        from,
-        subject: subject || 'Forwarded Document',
-        html,
-        text,
-        attachments: [], // Attachments handled separately by DOC-302 processor
-        metadata: emailMetadata
-      };
-
-      const result = await emailService.processIncomingEmail(emailData, user.email || 'no-email');
-      
-      // Combine results from email content and attachments
-      const totalDocumentsCreated = (result.documentsCreated || 0) + attachmentResults.totalProcessed;
-      
-      const processingTime = Date.now() - startTime;
-      
-      console.log(`[${requestId}] Email processing completed:`, {
-        success: result.success,
-        emailDocumentsCreated: result.documentsCreated || 0,
-        attachmentsProcessed: attachmentResults.totalProcessed,
-        attachmentsFailed: attachmentResults.totalFailed,
-        totalDocumentsCreated,
-        processingTimeMs: processingTime,
-        userId: user.id
-      });
-
-      // TICKET 1: Enhanced response logic for security-blocked attachments
-      const hasSecurityBlocked = attachmentResults.processedAttachments?.some(
-        (attachment: any) => attachment.error?.includes('Dangerous file') || 
-                            attachment.error?.includes('blocked')
-      );
-      
-      const hasOnlyAttachments = (!html || html.trim() === '') && 
-                                (!text || text.trim() === '') && 
-                                attachments && attachments.length > 0;
-      
-      // If email only contained attachments and all were blocked for security reasons
-      if (hasOnlyAttachments && attachmentResults.totalFailed > 0 && hasSecurityBlocked) {
-        return res.status(403).json({
-          message: 'Email rejected: All attachments blocked due to security policy',
-          requestId,
-          error: 'SECURITY_BLOCKED',
-          attachmentResults: {
-            processed: attachmentResults.totalProcessed,
-            failed: attachmentResults.totalFailed,
-            details: attachmentResults.processedAttachments
-          },
-          processingTimeMs: processingTime
-        });
-      }
-      
-      // Standard successful processing response
-      res.status(200).json({
-        message: 'Email processed successfully via SendGrid webhook',
-        requestId,
-        documentsCreated: totalDocumentsCreated,
-        attachmentResults: {
-          processed: attachmentResults.totalProcessed,
-          failed: attachmentResults.totalFailed,
-          details: attachmentResults.processedAttachments
-        },
-        success: result.success && attachmentResults.totalFailed === 0,
-        processingTimeMs: processingTime
-      });
-
-    } catch (error) {
-      const processingTime = Date.now() - startTime;
-      console.error(`[${requestId}] Error processing SendGrid webhook:`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        processingTimeMs: processingTime
-      });
-      
-      res.status(500).json({ 
-        message: 'Error processing email via SendGrid webhook',
-        requestId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        processingTimeMs: processingTime
-      });
-    }
-  });
-
-  // TICKET 2: Helper function to analyze attachment field structure
-  function analyzeAttachmentFields(body: any): {
-    attachmentsField: {
-      present: boolean;
-      type: string;
-      count: number;
-      structure: string;
-    };
-    individualFields: {
-      count: number;
-      patterns: string[];
-      fields: string[];
-    };
-    summary: string;
-  } {
-    if (!body) {
-      return {
-        attachmentsField: { present: false, type: 'none', count: 0, structure: 'no-body' },
-        individualFields: { count: 0, patterns: [], fields: [] },
-        summary: 'No request body received'
-      };
-    }
-
-    const analysis = {
-      attachmentsField: { present: false, type: 'none', count: 0, structure: 'none' },
-      individualFields: { count: 0, patterns: [], fields: [] },
-      summary: ''
-    };
-
-    // Check for 'attachments' array field (standard JSON format)
-    if (body.attachments) {
-      analysis.attachmentsField.present = true;
-      
-      if (Array.isArray(body.attachments)) {
-        analysis.attachmentsField.type = 'array';
-        analysis.attachmentsField.count = body.attachments.length;
-        analysis.attachmentsField.structure = body.attachments.map((att: any, idx: number) => {
-          const keys = Object.keys(att || {});
-          return `[${idx}]: {${keys.join(', ')}}`;
-        }).join('; ');
-      } else {
-        analysis.attachmentsField.type = typeof body.attachments;
-        analysis.attachmentsField.count = 1;
-        analysis.attachmentsField.structure = `single-${typeof body.attachments}`;
-      }
-    }
-
-    // Check for individual attachment fields (multipart format: attachment1, attachment2, etc.)
-    const attachmentFieldPattern = /^attachment\d*$/i;
-    const individualAttachmentFields = Object.keys(body).filter(key => 
-      attachmentFieldPattern.test(key) || key.toLowerCase().includes('attachment')
-    );
-
-    if (individualAttachmentFields.length > 0) {
-      analysis.individualFields.count = individualAttachmentFields.length;
-      analysis.individualFields.fields = individualAttachmentFields;
-      analysis.individualFields.patterns = [
-        ...new Set(individualAttachmentFields.map(field => {
-          if (/^attachment\d+$/i.test(field)) return 'attachment[N]';
-          if (/^attachment$/i.test(field)) return 'attachment';
-          return 'attachment-variant';
-        }))
-      ];
-    }
-
-    // Generate summary
-    const summaryParts = [];
-    if (analysis.attachmentsField.present) {
-      summaryParts.push(`attachments[]: ${analysis.attachmentsField.count} items`);
-    }
-    if (analysis.individualFields.count > 0) {
-      summaryParts.push(`individual fields: ${analysis.individualFields.count} (${analysis.individualFields.patterns.join(', ')})`);
-    }
-    if (summaryParts.length === 0) {
-      summaryParts.push('no attachment fields detected');
-    }
-
-    analysis.summary = summaryParts.join('; ');
-    return analysis;
-  }
-
-  // Helper function to validate SendGrid source
-  function validateSendGridSource(req: any): boolean {
-    // Method 1: Check User-Agent for SendGrid
-    const userAgent = req.get('user-agent') || '';
-    if (userAgent.includes('SendGrid')) {
-      return true;
-    }
-
-    // Method 2: Check for SendGrid-specific headers
-    const sendGridHeaders = [
-      'x-sendgrid-event-id',
-      'x-sendgrid-message-id',
-      'x-sendgrid-subscription-id'
-    ];
-    
-    for (const header of sendGridHeaders) {
-      if (req.get(header)) {
-        return true;
-      }
-    }
-
-    // Method 3: Check IP ranges (SendGrid's documented IP ranges)
-    const clientIP = req.ip || req.connection.remoteAddress || '';
-    const sendGridIPRanges = [
-      '167.89.', '168.245.', '169.45.', '173.193.',
-      '173.194.', '184.173.', '192.254.', '198.37.',
-      '198.61.', '199.255.', '208.115.'
-    ];
-    
-    const isFromSendGridIP = sendGridIPRanges.some(range => clientIP.startsWith(range));
-    if (isFromSendGridIP) {
-      return true;
-    }
-
-    // Method 4: For development/testing, allow localhost and development environments
-    if (process.env.NODE_ENV === 'development') {
-      const developmentSources = ['127.0.0.1', '::1', 'localhost'];
-      if (developmentSources.some(source => clientIP.includes(source))) {
-        return true;
-      }
-    }
-
-    return false;
-  }
 
 
   // Reprocess document with date extraction (for testing existing documents)
@@ -2368,16 +2496,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
-      
+
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
       }
-      
+
       // Reprocess the document with date extraction
       if (supportsOCR(document.mimeType)) {
         await processDocumentWithDateExtraction(
@@ -2462,7 +2590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const { reminderSuggestionService } = await import('./reminderSuggestionService');
       const result = await reminderSuggestionService.batchProcessDocuments(userId);
-      
+
       res.json({
         message: "Batch processing completed",
         processed: result.processed,
@@ -2475,30 +2603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // DOC-306: Get user's email forwarding address for profile display
-  app.get('/api/user/email-forwarding-address', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      
-      // Use existing email service to get forwarding address
-      const { EmailService } = await import('./emailService');
-      const emailService = new EmailService();
-      const forwardingData = await emailService.getForwardingAddress(userId);
-      
-      res.json({
-        address: forwardingData.address,
-        instructions: "Forward emails with attachments from your verified email address to automatically store and categorize them.",
-        isConfigured: true
-      });
-    } catch (error) {
-      console.error("DOC-306: Error fetching email forwarding address:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch forwarding address",
-        address: null,
-        instructions: "Unable to load forwarding address at this time."
-      });
-    }
-  });
+
 
   app.post('/api/expiry-reminders', requireAuth, async (req: any, res) => {
     try {
@@ -2518,7 +2623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -2545,7 +2650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents/analyze-tags', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       // Get all user documents with tags
       const userDocuments = await storage.getDocuments(userId);
       const documentsWithTags = userDocuments
@@ -2630,16 +2735,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const reminderId = parseInt(req.params.id);
-      
+
       if (isNaN(reminderId)) {
         return res.status(400).json({ message: "Invalid reminder ID" });
       }
-      
+
       const updatedReminder = await storage.updateExpiryReminder(reminderId, userId, req.body);
       if (!updatedReminder) {
         return res.status(404).json({ message: "Reminder not found" });
       }
-      
+
       res.json(updatedReminder);
     } catch (error) {
       console.error("Error updating expiry reminder:", error);
@@ -2651,11 +2756,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const reminderId = parseInt(req.params.id);
-      
+
       if (isNaN(reminderId)) {
         return res.status(400).json({ message: "Invalid reminder ID" });
       }
-      
+
       await storage.deleteExpiryReminder(reminderId, userId);
       res.json({ message: "Reminder deleted successfully" });
     } catch (error) {
@@ -2669,16 +2774,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const reminderId = parseInt(req.params.id);
       const { isCompleted } = req.body;
-      
+
       if (isNaN(reminderId)) {
         return res.status(400).json({ message: "Invalid reminder ID" });
       }
-      
+
       const updatedReminder = await storage.markReminderCompleted(reminderId, userId, isCompleted);
       if (!updatedReminder) {
         return res.status(404).json({ message: "Reminder not found" });
       }
-      
+
       res.json(updatedReminder);
     } catch (error) {
       console.error("Error marking reminder as completed:", error);
@@ -2688,10 +2793,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
+  // ===== MANUAL TRACKED EVENTS ROUTES (TICKET B1) =====
+
+  // Get all manual tracked events for the authenticated user
+  app.get('/api/manual-events', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const events = await storage.getManualTrackedEvents(userId);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching manual tracked events:", error);
+      res.status(500).json({ message: "Failed to fetch manual tracked events" });
+    }
+  });
+
+  // Get a specific manual tracked event
+  app.get('/api/manual-events/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const eventId = req.params.id;
+
+      const event = await storage.getManualTrackedEvent(eventId, userId);
+      if (!event) {
+        return res.status(404).json({ message: "Manual tracked event not found" });
+      }
+
+      res.json(event);
+    } catch (error) {
+      console.error("Error fetching manual tracked event:", error);
+      res.status(500).json({ message: "Failed to fetch manual tracked event" });
+    }
+  });
+
+  // Create a new manual tracked event
+  app.post('/api/manual-events', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+
+      // Validate request body
+      const validatedData = insertManualTrackedEventSchema.parse(req.body);
+
+      const event = await storage.createManualTrackedEvent({
+        ...validatedData,
+        createdBy: userId,
+      });
+
+      res.status(201).json(event);
+    } catch (error: any) {
+      console.error("Error creating manual tracked event:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create manual tracked event" });
+    }
+  });
+
+  // Update a manual tracked event
+  app.put('/api/manual-events/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const eventId = req.params.id;
+
+      // Validate request body (allowing partial updates)
+      const validatedData = insertManualTrackedEventSchema.partial().parse(req.body);
+
+      const event = await storage.updateManualTrackedEvent(eventId, userId, validatedData);
+      if (!event) {
+        return res.status(404).json({ message: "Manual tracked event not found" });
+      }
+
+      res.json(event);
+    } catch (error: any) {
+      console.error("Error updating manual tracked event:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update manual tracked event" });
+    }
+  });
+
+  // Delete a manual tracked event
+  app.delete('/api/manual-events/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const eventId = req.params.id;
+
+      await storage.deleteManualTrackedEvent(eventId, userId);
+      res.json({ message: "Manual tracked event deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting manual tracked event:", error);
+      res.status(500).json({ message: "Failed to delete manual tracked event" });
+    }
+  });
+
+  // ===== MANUAL EVENT NOTIFICATION ROUTES (TICKET B2) =====
+
+  // Manually trigger notifications for the authenticated user (testing endpoint)
+  app.post('/api/manual-events/trigger-notifications', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { manualEventNotificationService } = await import('./manualEventNotificationService');
+
+      await manualEventNotificationService.triggerUserNotifications(userId);
+      res.json({ message: "Notifications triggered successfully" });
+    } catch (error) {
+      console.error("Error triggering notifications:", error);
+      res.status(500).json({ message: "Failed to trigger notifications" });
+    }
+  });
+
+  // Check if a specific event should trigger notifications today
+  app.get('/api/manual-events/:id/notification-check', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const eventId = req.params.id;
+      const { manualEventNotificationService } = await import('./manualEventNotificationService');
+
+      const shouldNotify = await manualEventNotificationService.checkEventNotification(eventId, userId);
+      res.json({ shouldNotify, eventId });
+    } catch (error) {
+      console.error("Error checking event notification:", error);
+      res.status(500).json({ message: "Failed to check event notification" });
+    }
+  });
+
   // ===== FEATURE FLAG ADMIN ROUTES =====
-  
-  // Initialize feature flags on server start
-  featureFlagService.initializeFeatureFlags().catch(console.error);
+
+  // Initialize feature flags on startup
+  console.log('🏁 [STARTUP] Initializing feature flags...');
+  featureFlagService.initializeFeatureFlags()
+    .then(() => {
+      console.log('✅ [STARTUP] Feature flags initialization completed');
+    })
+    .catch((error) => {
+      console.error('❌ [STARTUP] Feature flags initialization failed:', error);
+    });
 
   // Get all feature flags (admin only)
   app.get("/api/admin/feature-flags", requireAuth, async (req: any, res) => {
@@ -2758,7 +3000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.toggleFeatureFlag(flagId, enabled);
       featureFlagService.clearCache();
-      
+
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error toggling feature flag:", error);
@@ -2793,7 +3035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { userId: targetUserId, featureFlagName, isEnabled, overrideReason, expiresAt } = req.body;
-      
+
       await featureFlagService.setUserOverride(
         targetUserId, 
         featureFlagName, 
@@ -2801,7 +3043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         overrideReason,
         expiresAt ? new Date(expiresAt) : undefined
       );
-      
+
       res.json({ success: true });
     } catch (error: any) {
       console.error("Error creating feature flag override:", error);
@@ -2878,7 +3120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk Operations API Endpoints
-  
+
   // Bulk update documents (tags, category, name)
   app.patch('/api/documents/bulk-update', requireAuth, async (req: any, res) => {
     try {
@@ -2899,7 +3141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { searchOptimizationService } = await import('./searchOptimizationService');
       const result = await searchOptimizationService.bulkUpdateDocuments(userId, documentIds, updates);
-      
+
       res.json({
         message: `Bulk update completed: ${result.success} successful, ${result.failed} failed`,
         ...result
@@ -2926,7 +3168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { searchOptimizationService } = await import('./searchOptimizationService');
       const result = await searchOptimizationService.bulkDeleteDocuments(userId, documentIds);
-      
+
       res.json({
         message: `Bulk delete completed: ${result.success} successful, ${result.failed} failed`,
         ...result
@@ -2942,18 +3184,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
-      
+
       if (user?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const { searchOptimizationService } = await import('./searchOptimizationService');
       const { performanceMonitoringService } = await import('./performanceMonitoringService');
-      
+
       const searchAnalytics = searchOptimizationService.getSearchAnalytics();
       const performanceAnalytics = performanceMonitoringService.getPerformanceAnalytics(24);
       const recommendations = performanceMonitoringService.getOptimizationRecommendations();
-      
+
       res.json({
         search: searchAnalytics,
         performance: performanceAnalytics,
@@ -2979,6 +3221,310 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email Body PDF render endpoint
+  app.post('/api/email/render-body-to-pdf', requireAuth, async (req, res) => {
+    try {
+      // Feature flag check - server-side authoritative
+      const { emailFeatureFlagService } = await import('./emailFeatureFlags.js');
+      const isEnabled = await emailFeatureFlagService.isManualEmailPdfEnabled(
+        req.user!.id, 
+        req.user!.subscriptionTier || 'free'
+      );
+      
+      if (!isEnabled) {
+        return res.status(403).json({
+          error: 'Feature not available',
+          message: 'Manual email PDF creation is not enabled for your account'
+        });
+      }
+
+      const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+      
+      // Validate request body
+      const input = req.body;
+      if (!input.messageId || !input.from || !input.to || !input.receivedAt) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'Missing required fields: messageId, from, to, receivedAt'
+        });
+      }
+
+      if (!input.html && !input.text) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'Either html or text content is required'
+        });
+      }
+
+      // Set tenantId from authenticated user
+      input.tenantId = req.user!.id;
+
+      const result = await renderAndCreateEmailBodyPdf(input);
+
+      res.json({
+        success: true,
+        ...result,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error('Email body PDF render failed:', error);
+      
+      if (error.code) {
+        return res.status(400).json({
+          error: 'Email processing failed',
+          code: error.code,
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to process email body PDF'
+      });
+    }
+  });
+
+  // Manual "Store email as PDF" action endpoint
+  app.post('/api/email/render-to-pdf', requireAuth, async (req, res) => {
+    try {
+      const { documentId, targetCategoryId } = req.body;
+      const userId = req.user!.id;
+      const userTier = req.user!.subscriptionTier || 'free';
+
+      // Validate required fields
+      if (!documentId) {
+        return res.status(400).json({
+          errorCode: 'INVALID_REQUEST',
+          message: 'documentId is required'
+        });
+      }
+
+      // Feature flag check - server-side authoritative
+      const { emailFeatureFlagService } = await import('./emailFeatureFlags.js');
+      const isEnabled = await emailFeatureFlagService.isManualEmailPdfEnabled(userId, userTier);
+      
+      if (!isEnabled) {
+        return res.status(403).json({
+          errorCode: 'FEATURE_DISABLED',
+          message: 'Manual email PDF creation is not enabled for your account'
+        });
+      }
+
+      // Load the source document
+      const document = await storage.getDocumentById(userId, documentId);
+      if (!document) {
+        return res.status(404).json({
+          errorCode: 'DOCUMENT_NOT_FOUND',
+          message: 'Document not found or access denied'
+        });
+      }
+
+      // Verify this is an email-sourced document
+      if (document.source !== 'email' || !document.emailContext?.messageId) {
+        return res.status(400).json({
+          errorCode: 'EMAIL_CONTEXT_MISSING',
+          message: 'Document is not an email attachment or missing email context'
+        });
+      }
+
+      // Extract email context for PDF creation
+      const emailContext = document.emailContext as any;
+      const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+
+      // Log user action
+      console.log(`[ANALYTICS] email_pdf_create_clicked: { docId: ${documentId}, messageId: ${emailContext.messageId}, userId: ${userId} }`);
+
+      // Prepare input for email body PDF service
+      const renderInput = {
+        tenantId: userId,
+        messageId: emailContext.messageId,
+        subject: emailContext.subject || null,
+        from: emailContext.from || 'Unknown Sender',
+        to: emailContext.to || ['unknown@recipient.com'],
+        receivedAt: emailContext.receivedAt || new Date().toISOString(),
+        html: emailContext.bodyHtml || null,
+        text: emailContext.bodyPlain || null,
+        ingestGroupId: emailContext.ingestGroupId || null,
+        categoryId: targetCategoryId || null,
+        tags: ['email', 'manual']
+      };
+
+      const renderStartTime = Date.now();
+      const result = await renderAndCreateEmailBodyPdf(renderInput);
+      const renderTime = Date.now() - renderStartTime;
+
+      // Link email body PDF with sibling attachments
+      let linkedCount = 0;
+      try {
+        // Find all documents from the same email (same messageId or ingestGroupId)
+        const allUserDocs = await storage.getDocuments(userId);
+        const siblingDocs = allUserDocs.filter(doc => 
+          doc.source === 'email' && 
+          doc.emailContext &&
+          typeof doc.emailContext === 'object' &&
+          'messageId' in doc.emailContext &&
+          doc.emailContext.messageId === emailContext.messageId &&
+          doc.id !== result.documentId // Don't link to itself
+        );
+
+        // Create bidirectional references between email body PDF and attachments
+        for (const siblingDoc of siblingDocs) {
+          // Add reference from email body PDF to attachment (source relation)
+          await storage.addDocumentReference(result.documentId, {
+            type: 'email',
+            relation: 'source', 
+            documentId: siblingDoc.id,
+            metadata: { messageId: emailContext.messageId }
+          });
+
+          // Add reference from attachment to email body PDF (related relation)
+          await storage.addDocumentReference(siblingDoc.id, {
+            type: 'email',
+            relation: 'related',
+            documentId: result.documentId,
+            metadata: { messageId: emailContext.messageId }
+          });
+
+          linkedCount++;
+        }
+
+        console.log(`[ANALYTICS] references_linked: { emailBodyDocId: ${result.documentId}, attachmentCount: ${linkedCount} }`);
+      } catch (linkError) {
+        console.warn('Failed to create document references:', linkError);
+        // Don't fail the whole operation if linking fails
+      }
+
+      // Log success analytics
+      console.log(`[ANALYTICS] email_pdf_created: { newDocId: ${result.documentId}, messageId: ${emailContext.messageId}, created: ${result.created}, renderMs: ${renderTime}, sizeBytes: estimated }`);
+
+      res.json({
+        documentId: result.documentId,
+        created: result.created,
+        linkedCount,
+        name: result.name
+      });
+
+    } catch (error: any) {
+      console.error('Manual email PDF creation failed:', error);
+      
+      // Log failure analytics
+      const documentId = req.body.documentId;
+      const messageId = req.body.messageId || 'unknown';
+      console.log(`[ANALYTICS] email_pdf_create_failed: { docId: ${documentId}, messageId: ${messageId}, errorCode: ${error.code || 'UNKNOWN_ERROR'} }`);
+
+      // Map service errors to API error codes
+      if (error.code === 'EMAIL_BODY_MISSING') {
+        return res.status(400).json({
+          errorCode: 'EMAIL_CONTEXT_MISSING',
+          message: 'Email content not available for PDF creation'
+        });
+      }
+
+      if (error.code === 'EMAIL_TOO_LARGE_AFTER_COMPRESSION') {
+        return res.status(413).json({
+          errorCode: 'EMAIL_TOO_LARGE_AFTER_COMPRESSION',
+          message: 'Email content too large to convert to PDF'
+        });
+      }
+
+      if (error.code === 'EMAIL_RENDER_FAILED') {
+        return res.status(500).json({
+          errorCode: 'EMAIL_RENDER_FAILED',
+          message: 'Failed to render email content to PDF'
+        });
+      }
+
+      res.status(500).json({
+        errorCode: 'INTERNAL_ERROR',
+        message: 'Failed to create email PDF'
+      });
+    }
+  });
+
+  // Document references endpoint
+  app.get('/api/documents/:id/references', requireAuth, async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ error: 'Invalid document ID' });
+      }
+
+      // Get the document to ensure user has access
+      const document = await storage.getDocumentById(userId, documentId);
+      if (!document) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      // Parse references from document
+      let references = [];
+      if (document.references) {
+        try {
+          const parsedRefs = typeof document.references === 'string' 
+            ? JSON.parse(document.references) 
+            : document.references;
+          references = Array.isArray(parsedRefs) ? parsedRefs : [];
+        } catch (error) {
+          console.warn('Failed to parse document references:', error);
+        }
+      }
+
+      res.json({ references });
+    } catch (error) {
+      console.error('Failed to fetch document references:', error);
+      res.status(500).json({ error: 'Failed to fetch document references' });
+    }
+  });
+
+  // Batch document summary endpoint for references UI
+  app.post('/api/documents/batch-summary', requireAuth, async (req, res) => {
+    try {
+      const { documentIds } = req.body;
+      const userId = req.user!.id;
+
+      if (!Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Limit batch size to prevent abuse
+      if (documentIds.length > 50) {
+        return res.status(400).json({ error: 'Batch size too large (max 50)' });
+      }
+
+      // Get all user documents and filter by requested IDs
+      const allUserDocs = await storage.getDocuments(userId);
+      const requestedDocs = allUserDocs.filter(doc => 
+        documentIds.includes(doc.id)
+      );
+
+      // Return summary information only
+      const summaries = requestedDocs.map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        fileName: doc.fileName || doc.name,
+        mimeType: doc.mimeType,
+        fileSize: doc.fileSize,
+        source: doc.source || 'upload',
+        uploadedAt: doc.uploadedAt,
+        // Check if this looks like an email body PDF
+        isEmailBodyPdf: doc.source === 'email' && (
+          doc.name?.includes('Email -') || 
+          (doc.emailContext && typeof doc.emailContext === 'object' && 'bodyHash' in doc.emailContext)
+        ),
+        bodyHash: doc.emailContext && typeof doc.emailContext === 'object' && 'bodyHash' in doc.emailContext
+          ? (doc.emailContext as any).bodyHash 
+          : undefined
+      }));
+
+      res.json(summaries);
+    } catch (error) {
+      console.error('Failed to fetch batch document summaries:', error);
+      res.status(500).json({ error: 'Failed to fetch document summaries' });
+    }
+  });
+
   // CORE-002: Enhanced Health Check Endpoint
   app.get('/api/health', enhancedHealthCheck);
 
@@ -2987,23 +3533,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🔄 Resetting StorageService to use new GCS credentials...');
       StorageService.reset();
-      
+
       const storage = storageProvider();
       const testKey = `test/${Date.now()}/test-file.txt`;
       const testContent = Buffer.from('GCS Test File - ' + new Date().toISOString());
-      
+
       console.log('🧪 Testing GCS upload...');
       await storage.upload(testContent, testKey, 'text/plain');
-      
+
       console.log('🧪 Testing GCS download...');
       const downloadedContent = await storage.download(testKey);
-      
+
       console.log('🧪 Testing GCS signed URL...');
       const signedUrl = await storage.getSignedUrl(testKey, 300);
-      
+
       console.log('🧪 Testing GCS delete...');
       await storage.delete(testKey);
-      
+
       res.json({
         success: true,
         message: 'GCS functionality fully operational with new credentials',
@@ -3017,7 +3563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         signedUrlGenerated: !!signedUrl,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error('GCS test failed:', error);
       res.status(500).json({
@@ -3035,6 +3581,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Advanced scanning routes
   app.use('/api/scanning', advancedScanningRoutes);
+
+  // Setup multi-page scan upload routes
+  setupMultiPageScanUpload(app);
 
   // LLM usage analytics routes (admin only)
   app.use('/api/admin/llm-usage', llmUsageRoutes);
@@ -3058,8 +3607,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/user-assets', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
-      // Validate the request with the discriminated union schema from the frontend
+
+      console.log("[DEBUG USER-ASSETS] Raw request body:", JSON.stringify(req.body, null, 2));
+
+      // Validate request body using the discriminated union schema from the frontend
       // This will check that house assets have address/postcode and car assets have make/model/year
       const houseSchema = z.object({
         type: z.literal("house"),
@@ -3080,13 +3631,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const assetSchema = z.discriminatedUnion("type", [houseSchema, carSchema]);
       const validatedData = assetSchema.parse(req.body);
-      
+      console.log("[DEBUG USER-ASSETS] Validated data:", JSON.stringify(validatedData, null, 2));
+
       const assetData = { ...validatedData, userId };
       const asset = await storage.createUserAsset(assetData);
       res.json(asset);
     } catch (error) {
       console.error("Error creating user asset:", error);
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG USER-ASSETS] Zod validation error details:", JSON.stringify(error.errors, null, 2));
         res.status(400).json({ message: "Invalid asset data", errors: error.errors });
       } else {
         res.status(500).json({ message: "Failed to create user asset" });
@@ -3098,11 +3651,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const assetId = parseInt(req.params.id);
-      
+
       if (isNaN(assetId)) {
         return res.status(400).json({ message: "Invalid asset ID" });
       }
-      
+
       await storage.deleteUserAsset(assetId, userId);
       res.json({ message: "Asset deleted successfully" });
     } catch (error) {
@@ -3111,20 +3664,1524 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ROOT ROUTE: Only define fallback for production mode
+  // In development, Vite middleware handles all frontend routing
+
+  // DEBUG ROUTE: Test deployment connectivity with enhanced diagnostics
+  app.get('/debug', (req, res) => {
+    console.log('📞 /debug endpoint called from routes.ts');
+    console.log('🔧 Environment:', process.env.NODE_ENV);
+    console.log('🔧 Deployment timestamp:', process.env.DEPLOYMENT_TIMESTAMP || 'not-set');
+    res.send('✅ App is live - ' + new Date().toISOString());
+  });
+
+  // ENHANCED DEBUG: More detailed server status
+  app.get('/api/status', (req, res) => {
+    console.log('📞 /api/status endpoint called');
+    res.json({
+      status: 'OK',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      port: process.env.PORT || '5000',
+      routes: {
+        emailIngest: 'active',
+        debug: 'active'
+      }
+    });
+  });
+
+  // Simple GET endpoint for /api/email-ingest (no security requirements for Mailgun route validation)
+  // DEPLOYMENT UPDATE v4: Email ingestion endpoint active with enhanced diagnostics
+  app.get('/api/email-ingest', (req, res) => { 
+    console.log('📞 /api/email-ingest GET endpoint called from routes.ts');
+    console.log('🔧 Route registration confirmed for email ingestion');
+    res.status(200).send('✅ Email Ingest Live - ' + new Date().toISOString()); 
+  });
+  app.head('/api/email-ingest', (req, res) => { 
+    console.log('🧪 Email ingest HEAD route accessed');
+    res.sendStatus(200); 
+  });
+
+  // Minimal test endpoint to isolate server issues
+  app.post('/api/email-test-minimal', async (req: any, res) => {
+    console.log('🧪 MINIMAL TEST: Route hit successfully');
+    res.status(200).json({ 
+      message: 'Minimal endpoint working', 
+      timestamp: new Date().toISOString() 
+    });
+  });
+
+  // Debug route to test webhook processing without full security (REMOVE IN PRODUCTION)
+  app.post('/api/email-ingest-debug', 
+    (req, res, next) => {
+      console.log('🧪 DEBUG: Email ingest debug route accessed');
+      console.log('🧪 DEBUG Content-Type:', req.get('Content-Type'));
+      console.log('🧪 DEBUG User-Agent:', req.get('User-Agent'));
+      console.log('🧪 DEBUG Body:', req.body);
+      next();
+    },
+    async (req: any, res) => {
+      try {
+        res.status(200).json({
+          message: 'Debug endpoint working',
+          contentType: req.get('Content-Type'),
+          userAgent: req.get('User-Agent'),
+          hasBody: !!req.body,
+          bodyKeys: req.body ? Object.keys(req.body) : [],
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('❌ DEBUG ENDPOINT ERROR:', error);
+        res.status(500).json({ error: 'Debug endpoint error', details: error instanceof Error ? error.message : String(error) });
+      }
+    }
+  );
+
+  // EMERGENCY FIX: Simplified email ingest handler bypassing all middleware
+  app.use('/api/email-ingest-simple', (req, res, next) => {
+    // Skip all global middleware for this route
+    next();
+  });
+  
+  app.post('/api/email-ingest-simple',
+    async (req: any, res) => {
+      try {
+        console.log('🚀 SIMPLE EMAIL INGEST: Request received');
+        console.log('📧 Body data:', Object.keys(req.body || {}));
+        console.log('📧 Raw body:', req.body);
+        
+        // Basic email data extraction
+        const { recipient, sender, subject, 'body-plain': bodyPlain, 'body-html': bodyHtml } = req.body;
+        
+        if (!recipient || !sender || !subject) {
+          return res.status(400).json({ error: 'Missing required email fields' });
+        }
+        
+        console.log(`📧 Processing email: ${subject} from ${sender} to ${recipient}`);
+        
+        // Extract user ID from recipient  
+        const userMatch = recipient.match(/upload\+([a-zA-Z0-9\-]+)@/);
+        if (!userMatch) {
+          return res.status(400).json({ error: 'Invalid recipient format' });
+        }
+        
+        const userId = userMatch[1];
+        console.log(`👤 User ID extracted: ${userId}`);
+        
+        // Check if email body PDF feature is enabled
+        const isEmailPdfEnabled = true; // Force enable for testing
+        console.log(`🎛️ Email PDF feature enabled: ${isEmailPdfEnabled} (forced for testing)`);
+        
+        if (isEmailPdfEnabled && (bodyPlain || bodyHtml)) {
+          console.log('📄 Creating email body PDF...');
+          
+          try {
+            const emailBodyDocument = await createEmailBodyDocument({
+              subject: subject || 'Untitled Email',
+              sender: sender || 'unknown@sender.com',
+              recipient: recipient || 'unknown@recipient.com',
+              bodyHtml: bodyHtml || '',
+              bodyText: bodyPlain || '',
+              userId,
+              messageId: req.body['Message-Id'] || `auto-${Date.now()}`,
+              timestamp: new Date().toISOString()
+            });
+            
+            console.log(`✅ Email body PDF created: Document ID ${emailBodyDocument.id}`);
+            
+            return res.status(200).json({
+              message: 'Email body PDF created successfully',
+              documentId: emailBodyDocument.id,
+              filename: emailBodyDocument.fileName
+            });
+          } catch (pdfError) {
+            console.error('❌ Email body PDF creation failed:', pdfError);
+            return res.status(500).json({
+              error: 'Failed to create email body PDF',
+              details: pdfError instanceof Error ? pdfError.message : String(pdfError)
+            });
+          }
+        } else {
+          return res.status(200).json({
+            message: 'Email processed - no attachments, PDF creation not enabled or no content',
+            reason: !isEmailPdfEnabled ? 'feature_disabled' : 'no_content'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Simple email ingest error:', error);
+        res.status(500).json({
+          error: 'Internal server error',
+          details: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  );
+
+  // TICKET: EMERGENCY FIX - Completely minimal endpoint to restore email functionality
+  // This bypasses all middleware to identify what's causing the blocking
+  app.post('/api/email-ingest', async (req: any, res) => {
+    console.log('🚀 EMERGENCY MINIMAL ENDPOINT: Direct handler - no middleware');
+    console.log('📨 Headers received:', Object.keys(req.headers));
+    console.log('📦 Body type:', typeof req.body);
+    console.log('📦 Body keys:', Object.keys(req.body || {}));
+    
+    try {
+      // Quick test response to prove endpoint works
+      const testData = {
+        timestamp: req.body.timestamp || 'missing',
+        recipient: req.body.recipient || 'missing', 
+        sender: req.body.sender || 'missing',
+        subject: req.body.subject || 'missing'
+      };
+      
+      console.log('✅ EMERGENCY ENDPOINT SUCCESS - basic parsing works');
+      console.log('📧 Test data:', testData);
+      
+      // Return success to prove the endpoint is reachable
+      res.status(200).json({
+        success: true,
+        message: 'Emergency minimal endpoint working',
+        received: testData,
+        note: 'This proves the main endpoint can receive requests - middleware was the blocker'
+      });
+      
+    } catch (error) {
+      console.error('❌ Emergency endpoint error:', error);
+      res.status(500).json({
+        error: 'Emergency endpoint failed',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+      // TICKET 4: Validate and filter attachments with comprehensive checks
+      const attachmentValidation = validateEmailAttachments(message.attachments);
+
+      // Check if we should process email body as PDF (no valid attachments)
+      if (!attachmentValidation.hasValidAttachments) {
+        console.log('🔍 No valid attachments found, checking for email body PDF feature flag...');
+        
+        // Check feature flag before processing email body
+        let shouldCreateEmailBodyPdf = false;
+        try {
+          const { emailFeatureFlagService } = await import('./emailFeatureFlags.js');
+          shouldCreateEmailBodyPdf = await emailFeatureFlagService.isAutoNoAttachmentsEnabled(
+            userId,
+            user.subscriptionTier as 'free' | 'premium'
+          );
+          console.log(`🚩 EMAIL_PDF_AUTO_NO_ATTACHMENTS feature flag: ${shouldCreateEmailBodyPdf ? 'ENABLED' : 'DISABLED'} for user ${userId} (${user.subscriptionTier})`);
+        } catch (flagError) {
+          console.error('❌ Failed to check EMAIL_PDF_AUTO_NO_ATTACHMENTS feature flag:', flagError);
+          // Default to false if flag check fails
+          shouldCreateEmailBodyPdf = false;
+        }
+        
+        // Try to create email body PDF if email has content and feature is enabled
+        if ((message.bodyHtml || message.bodyPlain) && shouldCreateEmailBodyPdf) {
+          try {
+            console.log('📧 TICKET 3: Processing email body as PDF for email without attachments (using worker)');
+            console.log('📧 Email body content available:', {
+              hasHtml: !!message.bodyHtml,
+              hasPlain: !!message.bodyPlain,
+              htmlLength: message.bodyHtml?.length || 0,
+              plainLength: message.bodyPlain?.length || 0
+            });
+            
+            // Use worker for email body PDF creation if available
+            let useWorkerFallback = false;
+            console.log('🔧 emailRenderWorker exists:', !!emailRenderWorker);
+            if (emailRenderWorker) {
+              try {
+                console.log('🎯 Attempting to enqueue render job...');
+                const jobId = await emailRenderWorker.enqueueRenderJob({
+                  messageId: message.messageId || `msg_${Date.now()}`,
+                  tenantId: userId,
+                  from: message.sender,
+                  to: [message.recipient],
+                  subject: message.subject,
+                  receivedAt: new Date().toISOString(),
+                  html: message.bodyHtml || null,
+                  text: message.bodyPlain || null,
+                  ingestGroupId: requestId || Date.now().toString(),
+                  route: 'auto_no_attachments'
+                }, 0);
+                
+                console.log(`✅ TICKET 3: Queued email body PDF job: ${jobId} for message: ${message.messageId}`);
+                
+                return res.status(200).json({
+                  success: true,
+                  message: 'Email body queued for PDF conversion',
+                  jobId,
+                  documentsCreated: 0, // Will be created asynchronously
+                  emailBodyPdf: 'queued'
+                });
+              } catch (workerError) {
+                console.warn(`⚠️ Worker failed to queue job: ${workerError.message}, falling back to inline`);
+                console.error('⚠️ WORKER ERROR DETAILS:', {
+                  name: workerError.name,
+                  message: workerError.message,
+                  stack: workerError.stack?.split('\n').slice(0, 3)
+                });
+                useWorkerFallback = true;
+              }
+            }
+            
+            if (!emailRenderWorker || useWorkerFallback) {
+              // Fallback to inline creation if worker unavailable
+              console.warn('⚠️ Worker not available - falling back to inline email body PDF creation');
+              const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+              
+              const emailBodyInput = {
+                tenantId: userId,
+                messageId: message.messageId || `msg_${Date.now()}`,
+                subject: message.subject,
+                from: message.sender,
+                to: [message.recipient],
+                receivedAt: new Date().toISOString(),
+                html: message.bodyHtml,
+                text: message.bodyPlain,
+                ingestGroupId: requestId || Date.now().toString(),
+                tags: ['email']
+              };
+              
+              console.log('🔧 FALLBACK: Calling renderAndCreateEmailBodyPdf with:', {
+                tenantId: emailBodyInput.tenantId,
+                subject: emailBodyInput.subject,
+                hasHtml: !!emailBodyInput.html,
+                hasText: !!emailBodyInput.text
+              });
+              const result = await renderAndCreateEmailBodyPdf(emailBodyInput);
+              console.log('🔧 FALLBACK: Result from renderAndCreateEmailBodyPdf:', result);
+              const documentId = result.created ? result.documentId : null;
+              
+              if (documentId) {
+                console.log(`✅ TICKET 3: Created email body PDF document: ${documentId} (fallback)`);
+                return res.status(200).json({
+                  success: true,
+                  message: 'Email body converted to PDF successfully',
+                  documentId,
+                  documentsCreated: 1,
+                  emailBodyPdf: true
+                });
+              }
+            }
+          } catch (emailBodyError) {
+            console.error('❌ TICKET 3: Email body PDF creation failed:', emailBodyError);
+            console.error('❌ ERROR DETAILS:', {
+              name: emailBodyError.name,
+              message: emailBodyError.message,
+              stack: emailBodyError.stack?.split('\n').slice(0, 5),
+              workerAvailable: !!emailRenderWorker,
+              hasHtml: !!message.bodyHtml,
+              hasPlain: !!message.bodyPlain
+            });
+            // Continue with normal attachment validation error
+          }
+        } else {
+          console.log('🚫 Email body PDF creation conditions not met:', {
+            hasContent: !!(message.bodyHtml || message.bodyPlain),
+            featureEnabled: shouldCreateEmailBodyPdf,
+            htmlLength: message.bodyHtml?.length || 0,
+            plainLength: message.bodyPlain?.length || 0
+          });
+        }
+
+        // TICKET 6: Log attachment validation failures
+        EmailUploadLogger.logAttachmentError({
+          sender: message.sender,
+          recipient: message.recipient,
+          subject: message.subject,
+          attachmentCount: message.attachments.length,
+          validCount: attachmentValidation.validAttachments.length,
+          invalidAttachments: attachmentValidation.invalidAttachments.map(att => `${att.filename} (${att.error})`),
+          requestId
+        });
+
+        return res.status(400).json({
+          error: 'No valid attachments found',
+          details: 'Emails must contain at least one valid attachment (PDF, JPG, PNG, WebP, DOCX ≤10MB) or email body content',
+          invalidAttachments: attachmentValidation.invalidAttachments,
+          summary: attachmentValidation.summary
+        });
+      }
+
+      // Log validation results
+      console.log('✅ Attachment validation completed:', {
+        validCount: attachmentValidation.validAttachments.length,
+        invalidCount: attachmentValidation.invalidAttachments.length,
+        summary: attachmentValidation.summary
+      });
+
+      // Log warnings for valid attachments
+      attachmentValidation.validAttachments.forEach(attachment => {
+        if (attachment.warnings?.length) {
+          console.warn('⚠️ Attachment warnings for', attachment.filename, ':', attachment.warnings);
+        }
+      });
+
+      // Log invalid attachments for debugging
+      if (attachmentValidation.invalidAttachments.length > 0) {
+        console.warn('⚠️ Invalid attachments skipped:', attachmentValidation.invalidAttachments);
+      }
+
+      // TICKET 5: Integrate with document ingestion pipeline
+      const processedDocuments: any[] = [];
+      const documentErrors: any[] = [];
+
+      // Process each valid attachment through the document pipeline
+      for (const attachment of attachmentValidation.validAttachments) {
+        const attachmentStartTime = Date.now();
+        try {
+          console.log(`📧 Processing email attachment: ${attachment.filename} (${attachment.size} bytes)`);
+          console.log('📧 userId type and value:', typeof userId, userId);
+
+          // Generate document metadata for email ingestion
+          const documentName = attachment.filename.replace(/\.[^/.]+$/, ""); // Remove extension
+          const finalMimeType = attachment.contentType;
+
+          // Prepare document data for validation
+          const documentDataToValidate = {
+            userId: userId, // Add the userId field
+            name: documentName,
+            fileName: attachment.filename,
+            filePath: '', // Will be set after upload
+            fileSize: attachment.size,
+            mimeType: finalMimeType,
+            tags: ['email-imported'], // Tag to identify email-imported documents
+            uploadSource: 'email', // Mark as email upload
+            status: 'pending' // Start as pending
+          };
+
+          console.log('📧 Document data before validation:', JSON.stringify(documentDataToValidate, null, 2));
+
+          // Validate document data using existing schema
+          const documentData = insertDocumentSchema.parse(documentDataToValidate);
+
+          // Create initial document record
+          const document = await storage.createDocument(documentData);
+          console.log(`📄 Created document record ${document.id} for ${attachment.filename}`);
+
+          // Generate storage key using existing convention
+          const storageKey = StorageService.generateFileKey(userId, document.id.toString(), attachment.filename);
+
+          // Upload to cloud storage
+          let cloudStorageKey = '';
+          try {
+            const storageService = storageProvider();
+            cloudStorageKey = await storageService.upload(attachment.buffer, storageKey, finalMimeType);
+            console.log(`☁️ Uploaded ${attachment.filename} to GCS: ${cloudStorageKey}`);
+          } catch (storageError) {
+            // TICKET 6: Log storage upload failures
+            EmailUploadLogger.logStorageError({
+              userId,
+              fileName: attachment.filename,
+              sender: message.sender,
+              recipient: message.recipient,
+              subject: message.subject,
+              documentId: document.id,
+              errorMessage: `GCS upload failed: ${storageError instanceof Error ? storageError.message : 'Unknown storage error'}`,
+              requestId,
+              error: storageError instanceof Error ? storageError : undefined
+            });
+
+            await storage.deleteDocument(document.id, userId); // Cleanup document record
+            documentErrors.push({
+              filename: attachment.filename,
+              error: 'Failed to upload to cloud storage'
+            });
+            continue;
+          }
+
+          // Generate encryption metadata (following existing pattern)
+          let encryptedDocumentKey = '';
+          let encryptionMetadata = '';
+
+          try {
+            const documentKey = EncryptionService.generateDocumentKey();
+            encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
+
+            encryptionMetadata = JSON.stringify({
+              storageType: 'cloud',
+              storageKey: cloudStorageKey,
+              encrypted: true,
+              algorithm: 'AES-256-GCM',
+              source: 'email',
+              sender: message.sender,
+              subject: message.subject,
+              processedAt: new Date().toISOString()
+            });
+          } catch (encryptionError) {
+            console.error('❌ Encryption setup failed for', attachment.filename, ':', encryptionError);
+
+            // Cleanup cloud storage
+            try {
+              const storageService = storageProvider();
+              await storageService.delete(cloudStorageKey);
+            } catch (cleanupError) {
+              console.error('Failed to cleanup cloud storage after encryption error:', cleanupError);
+            }
+
+            await storage.deleteDocument(document.id, userId);
+            documentErrors.push({
+              filename: attachment.filename,
+              error: 'Failed to setup document encryption'
+            });
+            continue;
+          }
+
+          // Update document with cloud storage and encryption details
+          const updateData = {
+            filePath: cloudStorageKey, // Store cloud storage key as file path
+            gcsPath: cloudStorageKey,
+            encryptedDocumentKey,
+            encryptionMetadata,
+            isEncrypted: true,
+            status: 'active'
+          };
+
+          await storage.updateDocument(document.id, userId, updateData);
+          console.log(`✅ Updated document ${document.id} with cloud storage metadata`);
+
+          // Process OCR and AI insights if applicable
+          if (supportsOCR(finalMimeType) || isPDFFile(finalMimeType)) {
+            try {
+              const { ocrQueue } = await import('./ocrQueue.js');
+
+              await ocrQueue.addJob({
+                documentId: document.id,
+                fileName: attachment.filename,
+                filePathOrGCSKey: cloudStorageKey,
+                mimeType: finalMimeType,
+                userId,
+                priority: 3 // Higher priority for email imports
+              });
+
+              console.log(`🔍 Queued OCR job for email document ${document.id}`);
+
+              // Generate tag suggestions based on filename and email context
+              const emailTags = ['email-imported'];
+              if (message.subject) {
+                emailTags.push(...message.subject.toLowerCase().split(/\s+/).filter(word => word.length > 3).slice(0, 3));
+              }
+
+              const tagSuggestions = await tagSuggestionService.suggestTags(
+                attachment.filename,
+                `Email from: ${message.sender}\nSubject: ${message.subject}\n${message.bodyPlain?.substring(0, 500) || ''}`,
+                finalMimeType,
+                emailTags
+              );
+
+              // Update document with enhanced tags
+              const combinedTags = [...emailTags];
+              tagSuggestions.suggestedTags.forEach(suggestion => {
+                if (suggestion.confidence >= 0.6 && !combinedTags.includes(suggestion.tag)) {
+                  combinedTags.push(suggestion.tag);
+                }
+              });
+
+              await storage.updateDocumentTags(document.id, userId, combinedTags);
+              console.log(`🏷️ Updated document ${document.id} with ${combinedTags.length} tags`);
+
+            } catch (ocrError) {
+              console.error(`OCR processing failed for document ${document.id}:`, ocrError);
+              // Document is still valid even if OCR fails
+            }
+          } else {
+            // For non-OCR files, generate basic summary from email context
+            try {
+              const emailSummary = `Document received via email from ${message.sender}. Subject: "${message.subject}". Original filename: ${attachment.filename}`;
+              await storage.updateDocumentOCRAndSummary(document.id, userId, '', emailSummary);
+              console.log(`📝 Generated email-based summary for document ${document.id}`);
+            } catch (summaryError) {
+              console.error(`Failed to generate summary for document ${document.id}:`, summaryError);
+            }
+          }
+
+          // TICKET 6: Log successful document creation
+          const attachmentProcessingTime = Date.now() - attachmentStartTime;
+          EmailUploadLogger.logSuccess({
+            userId,
+            documentId: document.id,
+            fileName: attachment.filename,
+            sender: message.sender,
+            recipient: message.recipient,
+            subject: message.subject,
+            fileSize: attachment.size,
+            storageKey: cloudStorageKey,
+            mimeType: finalMimeType,
+            processingTimeMs: attachmentProcessingTime,
+            requestId
+          });
+
+          processedDocuments.push({
+            documentId: document.id,
+            filename: attachment.filename,
+            size: attachment.size,
+            storageKey: cloudStorageKey,
+            status: 'processed'
+          });
+
+        } catch (documentError) {
+          // TICKET 6: Log document processing failures
+          EmailUploadLogger.logProcessingError({
+            userId,
+            fileName: attachment.filename,
+            sender: message.sender,
+            recipient: message.recipient,
+            subject: message.subject,
+            errorMessage: documentError instanceof Error ? documentError.message : 'Unknown processing error',
+            requestId,
+            error: documentError instanceof Error ? documentError : undefined
+          });
+
+          documentErrors.push({
+            filename: attachment.filename,
+            error: documentError instanceof Error ? documentError.message : 'Unknown processing error'
+          });
+        }
+      }
+
+      // TICKET 6: Log processing summary
+      const totalProcessingTime = Date.now() - processingStartTime;
+      EmailUploadLogger.logProcessingSummary({
+        userId,
+        sender: message.sender,
+        recipient: message.recipient,
+        subject: message.subject,
+        totalAttachments: attachmentValidation.validAttachments.length,
+        successfulDocuments: processedDocuments.length,
+        failedDocuments: documentErrors.length,
+        totalProcessingTimeMs: totalProcessingTime,
+        requestId
+      });
+
+      // TICKET 5: V2 Auto-create Email-Body PDF alongside attachments (Feature Flag)
+      let emailBodyPdfResult: { documentId?: number; created: boolean; linkedCount?: number } | null = null;
+      
+      if (processedDocuments.length > 0) {
+        // Check feature flag for EMAIL_BODY_PDF_AUTO_WITH_ATTACHMENTS
+        try {
+          const featureFlagEnabled = await featureFlagService.isFeatureEnabled(
+            'EMAIL_BODY_PDF_AUTO_WITH_ATTACHMENTS',
+            { userId, userTier: user.subscriptionTier as 'free' | 'premium' },
+            false // Don't log feature flag checks for high-volume webhooks
+          );
+
+          if (featureFlagEnabled && (message.bodyHtml || message.bodyPlain)) {
+            console.log('🚀 TICKET 5: V2 Auto-create Email-Body PDF feature enabled - creating email body PDF alongside attachments');
+            
+            try {
+              const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+              
+              const emailBodyInput = {
+                tenantId: userId,
+                messageId: message.messageId,
+                subject: message.subject,
+                from: message.sender,
+                to: [message.recipient],
+                receivedAt: new Date().toISOString(),
+                html: message.bodyHtml,
+                text: message.bodyPlain,
+                ingestGroupId: requestId || Date.now().toString(),
+                tags: ['email']
+              };
+              
+              const result = await renderAndCreateEmailBodyPdf(emailBodyInput);
+              const bodyPdfDocId = result.created ? result.documentId : null;
+
+              if (bodyPdfDocId) {
+                console.log(`✅ V2 Created email body PDF document: ${bodyPdfDocId} alongside ${processedDocuments.length} attachments`);
+                
+                // Link email body PDF with all attachments bidirectionally
+                let linkedCount = 0;
+                try {
+                  const attachmentDocumentIds = processedDocuments.map(doc => doc.documentId);
+                  
+                  // Get current references for email body PDF
+                  const emailBodyDoc = await storage.getDocument(bodyPdfDocId, userId);
+                  const currentEmailBodyRefs = emailBodyDoc?.documentReferences ? JSON.parse(emailBodyDoc.documentReferences) : [];
+                  
+                  // Add attachment references to email body PDF
+                  for (const attachmentDocId of attachmentDocumentIds) {
+                    // Check if reference already exists to avoid duplicates
+                    const refExists = currentEmailBodyRefs.some((ref: any) => 
+                      ref.type === 'email' && ref.relation === 'attachment' && ref.documentId === attachmentDocId
+                    );
+                    
+                    if (!refExists) {
+                      currentEmailBodyRefs.push({
+                        type: 'email',
+                        relation: 'attachment',
+                        documentId: attachmentDocId,
+                        createdAt: new Date().toISOString()
+                      });
+                      linkedCount++;
+                    }
+                    
+                    // Add source reference to attachment document
+                    const attachmentDoc = await storage.getDocument(attachmentDocId, userId);
+                    const currentAttachmentRefs = attachmentDoc?.documentReferences ? JSON.parse(attachmentDoc.documentReferences) : [];
+                    
+                    // Check if source reference already exists
+                    const sourceRefExists = currentAttachmentRefs.some((ref: any) => 
+                      ref.type === 'email' && ref.relation === 'source' && ref.documentId === bodyPdfDocId
+                    );
+                    
+                    if (!sourceRefExists) {
+                      currentAttachmentRefs.push({
+                        type: 'email',
+                        relation: 'source',
+                        documentId: bodyPdfDocId,
+                        createdAt: new Date().toISOString()
+                      });
+                      
+                      // Update attachment document with source reference
+                      await storage.updateDocument(attachmentDocId, userId, {
+                        documentReferences: JSON.stringify(currentAttachmentRefs)
+                      });
+                    }
+                  }
+                  
+                  // Update email body PDF with attachment references
+                  await storage.updateDocument(bodyPdfDocId, userId, {
+                    documentReferences: JSON.stringify(currentEmailBodyRefs)
+                  });
+                  
+                  console.log(`🔗 V2 Linked email body PDF ${bodyPdfDocId} with ${linkedCount} attachment documents`);
+                  
+                  // Analytics for V2 feature
+                  console.log(`📊 email_ingest_body_pdf_generated: route=auto_with_attachments, userId=${userId}, documentId=${bodyPdfDocId}, created=true`);
+                  console.log(`📊 references_linked: emailBodyDocId=${bodyPdfDocId}, attachmentCount=${attachmentDocumentIds.length}, route=auto_with_attachments`);
+                  
+                } catch (linkingError) {
+                  console.error('❌ V2 Reference linking failed:', linkingError);
+                  // Email body PDF still created successfully, linking failure is non-critical
+                }
+
+                emailBodyPdfResult = { 
+                  documentId: bodyPdfDocId, 
+                  created: true, 
+                  linkedCount 
+                };
+              }
+              
+            } catch (emailBodyError) {
+              console.error('❌ V2 Email body PDF creation failed (non-critical):', emailBodyError);
+              
+              // Analytics for failure
+              const errorCode = emailBodyError instanceof Error && emailBodyError.message.includes('EMAIL_TOO_LARGE') ? 'EMAIL_TOO_LARGE_AFTER_COMPRESSION' :
+                              emailBodyError instanceof Error && emailBodyError.message.includes('EMAIL_BODY_MISSING') ? 'EMAIL_BODY_MISSING' :
+                              'EMAIL_RENDER_FAILED';
+                              
+              console.log(`📊 email_ingest_body_pdf_failed: route=auto_with_attachments, errorCode=${errorCode}`);
+              
+              // V2 behavior: Don't fail the entire ingestion if email body PDF fails
+              // Attachments have already been processed successfully
+            }
+          } else if (featureFlagEnabled) {
+            console.log('🚀 TICKET 5: V2 feature enabled but no email body content available');
+          } else {
+            console.log('🚀 TICKET 5: V2 Auto-create Email-Body PDF feature disabled for user');
+          }
+        } catch (featureFlagError) {
+          console.error('❌ V2 Feature flag check failed:', featureFlagError);
+          // Continue without email body PDF creation
+        }
+      }
+
+      // Record email processing in the database
+      try {
+        await storage.createEmailForward({
+          userId,
+          fromEmail: message.sender,
+          subject: message.subject,
+          emailBody: message.bodyPlain || '',
+          hasAttachments: processedDocuments.length > 0,
+          attachmentCount: attachmentValidation.validAttachments.length,
+          documentsCreated: processedDocuments.length + (emailBodyPdfResult?.created ? 1 : 0),
+          status: documentErrors.length === 0 ? 'processed' : 'partial',
+          errorMessage: documentErrors.length > 0 ? JSON.stringify(documentErrors) : null
+        });
+      } catch (emailRecordError) {
+        console.error('Failed to record email processing:', emailRecordError);
+      }
+
+      // Return success with processing results
+      const response: any = {
+        message: 'Email processed successfully',
+        data: {
+          recipient: message.recipient,
+          sender: message.sender,
+          subject: message.subject,
+          userId,
+          processedDocuments,
+          documentErrors,
+          summary: `${processedDocuments.length} attachments created${emailBodyPdfResult?.created ? ', 1 email body PDF created' : ''}${documentErrors.length ? `, ${documentErrors.length} errors` : ''}`,
+          validAttachmentsCount: attachmentValidation.validAttachments.length,
+          invalidAttachmentsCount: attachmentValidation.invalidAttachments.length
+        }
+      };
+
+      // TICKET 5: Include email body PDF result in response
+      if (emailBodyPdfResult) {
+        response.data.emailBodyPdf = emailBodyPdfResult;
+      }
+
+      res.status(200).json(response);
+
+    } catch (error) {
+      // TICKET 6: Log critical system errors with full stack trace
+      console.error('❌ CRITICAL ERROR IN EMAIL INGESTION:');
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('❌ Request details:', {
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        body: req.body ? Object.keys(req.body) : 'no body',
+        files: req.files ? req.files.length : 0
+      });
+
+      EmailUploadLogger.logError({
+        errorType: 'system',
+        errorCode: 'WEBHOOK_PROCESSING_FAILED',
+        errorMessage: `Critical error in email webhook processing: ${error instanceof Error ? error.message : 'Unknown system error'}`,
+        sender: 'unknown',
+        recipient: 'unknown',
+        subject: 'unknown',
+        requestId,
+        error: error instanceof Error ? error : undefined
+      });
+
+      captureError(error as Error, req);
+      res.status(500).json({ 
+        error: 'Internal server error processing email',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+        requestId
+      });
+    }
+  });
+
+  // TICKET 8: Worker health check endpoint
+  app.get('/api/worker-health', async (_req, res) => {
+    try {
+      if (!workerHealthChecker) {
+        return res.status(503).json({
+          status: 'unavailable',
+          message: 'Worker health checker not initialized'
+        });
+      }
+
+      const healthStatus = await workerHealthChecker.getHealthStatus();
+      const httpStatus = healthStatus.status === 'healthy' ? 200 :
+                        healthStatus.status === 'degraded' ? 200 : 503;
+
+      res.status(httpStatus).json(healthStatus);
+    } catch (error) {
+      console.error('Worker health check failed:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // TICKET 9: Email context backfill endpoint
+  app.post('/api/admin/backfill-email-context', requireAuth, async (req, res) => {
+    try {
+      // Admin-only endpoint
+      if (req.user?.role !== 'admin' && req.user?.email !== 'simontaylor66@googlemail.com') {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Admin access required for email context backfill'
+        });
+      }
+
+      const { EmailContextBackfillService } = await import('./backfillEmailContext.js');
+      const backfillService = new EmailContextBackfillService();
+
+      const { userId, dryRun } = req.body;
+      
+      // Set dry run mode from request
+      if (typeof dryRun === 'boolean') {
+        process.env.BACKFILL_DRY_RUN = dryRun ? '1' : '0';
+      }
+
+      console.log(`🚀 TICKET 9: Starting email context backfill (userId: ${userId || 'all'}, dryRun: ${dryRun})`);
+      
+      const metrics = await backfillService.backfillEmailContext(userId);
+
+      res.json({
+        success: true,
+        message: 'Email context backfill completed',
+        metrics,
+        dryRun: process.env.BACKFILL_DRY_RUN === '1'
+      });
+
+    } catch (error) {
+      console.error('❌ TICKET 9: Email context backfill failed:', error);
+      res.status(500).json({
+        error: 'Backfill failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : undefined
+      });
+    }
+  });
+
+  // TICKET 9: Get backfill status/preview
+  app.get('/api/admin/backfill-email-context/preview', requireAuth, async (req, res) => {
+    try {
+      // Admin-only endpoint  
+      if (req.user?.role !== 'admin' && req.user?.email !== 'simontaylor66@googlemail.com') {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'Admin access required for backfill preview'
+        });
+      }
+
+      const { userId } = req.query;
+      const lookbackDays = parseInt(req.query.lookbackDays as string || '60');
+
+      // Find legacy documents that would be processed
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - lookbackDays);
+
+      const allDocs = await storage.getDocuments('');
+      const legacyDocs = allDocs.filter((doc: any) => {
+        const isEmailSource = doc.uploadSource === 'email';
+        const missingEmailContext = !doc.emailContext || !doc.emailContext.messageId;
+        const withinWindow = new Date(doc.createdAt) >= sinceDate;
+        const matchesUser = !userId || doc.userId === userId;
+
+        return isEmailSource && missingEmailContext && withinWindow && matchesUser;
+      });
+
+      const previewDocs = legacyDocs.slice(0, 10).map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        createdAt: doc.createdAt,
+        userId: doc.userId,
+        hasEmailContext: !!doc.emailContext?.messageId
+      }));
+
+      res.json({
+        success: true,
+        preview: {
+          totalLegacyDocuments: legacyDocs.length,
+          lookbackDays,
+          sinceDate: sinceDate.toISOString(),
+          sampleDocuments: previewDocs
+        },
+        config: {
+          lookbackDays: parseInt(process.env.BACKFILL_LOOKBACK_DAYS || '60'),
+          windowMinutes: parseInt(process.env.BACKFILL_WINDOW_MINUTES || '5'),
+          batchSize: parseInt(process.env.BACKFILL_BATCH_SIZE || '10'),
+          dryRun: process.env.BACKFILL_DRY_RUN === '1'
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ TICKET 9: Backfill preview failed:', error);
+      res.status(500).json({
+        error: 'Preview failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Debug route for production testing
   app.get("/debug", (_req, res) => {
-    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(root&&root.innerHTML!=='React mount here'){u('react-status','React OK','success')}else{u('react-status','React FAILED (WHITE SCREEN)','error')}},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
   });
 
   // ANDROID-303: OCR Error Handling and Analytics Routes
   setupOCRErrorRoutes(app);
-  
+
   // Add Canny JWT routes
   const cannyRoutes = await import('./routes/cannyRoutes.js');
   app.use('/api', cannyRoutes.default);
 
-  app.use(sentryErrorHandler());
+  // ===== VEHICLE MANAGEMENT ROUTES (TICKET 1 & 2) =====
 
-  const httpServer = createServer(app);
-  return httpServer;
-}
+  // Import DVLA service and vehicle schema
+  const { dvlaLookupService } = await import('./dvlaLookupService');
+  const { insertVehicleSchema } = await import('@shared/schema');
+
+  // TICKET 6: DVLA lookup endpoint for Add Vehicle Modal
+  app.post('/api/vehicles/lookup', requireAuth, async (req: any, res) => {
+    try {
+      const { vrn } = req.body;
+
+      if (!vrn) {
+        return res.status(400).json({ 
+          success: false,
+          error: "VRN is required" 
+        });
+      }
+
+      // Perform DVLA lookup
+      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
+
+      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+        return res.json({
+          success: true,
+          vehicle: dvlaLookupResult.vehicle
+        });
+      } else {
+        return res.json({
+          success: false,
+          error: dvlaLookupResult.error?.message || 'DVLA lookup failed',
+          vehicle: null
+        });
+      }
+    } catch (error) {
+      console.error("Error in DVLA lookup:", error);
+      res.status(500).json({ 
+        success: false,
+        error: "Internal server error during DVLA lookup" 
+      });
+    }
+  });
+
+  // Get all vehicles for the authenticated user
+  app.get('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicles = await storage.getVehicles(userId);
+      
+      // Always return an array, even if empty
+      const result = Array.isArray(vehicles) ? vehicles : [];
+      return res.status(200).json(result);
+      
+    } catch (error: any) {
+      console.error(`[${req.cid || 'no-cid'}] vehicles_fetch_error:`, error);
+      
+      // Handle specific error types
+      if (error.code === 'DB_TIMEOUT') {
+        return res.status(503).json({ 
+          code: 'DB_TIMEOUT', 
+          message: 'Temporary database issue', 
+          cid: req.cid 
+        });
+      }
+      
+      return res.status(500).json({ 
+        code: 'VEHICLES_FETCH_FAILED', 
+        message: 'Failed to fetch vehicles', 
+        cid: req.cid 
+      });
+    }
+  });
+
+  // Get a specific vehicle
+  app.get('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      const vehicle = await storage.getVehicle(vehicleId, userId);
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error fetching vehicle:", error);
+      res.status(500).json({ message: "Failed to fetch vehicle" });
+    }
+  });
+
+  // TICKET 7: Update vehicle notes
+  app.put('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+      const { notes } = req.body;
+
+      // Check if vehicle exists and belongs to user
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Update only the notes field
+      const updatedVehicle = await storage.updateVehicle(vehicleId, userId, { notes });
+
+      res.json(updatedVehicle);
+    } catch (error) {
+      console.error("Error updating vehicle:", error);
+      res.status(500).json({ message: "Failed to update vehicle" });
+    }
+  });
+
+  // TICKET 8: Refresh DVLA data for existing vehicle
+  app.post('/api/vehicles/:id/refresh-dvla', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      // Check if vehicle exists and belongs to user
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Only refresh if vehicle was originally from DVLA
+      if (existingVehicle.source !== 'dvla') {
+        return res.status(400).json({ 
+          message: "Cannot refresh DVLA data for manually entered vehicles" 
+        });
+      }
+
+      // Perform DVLA lookup
+      const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
+
+      if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+        // Update vehicle with fresh DVLA data, preserving user notes
+        const updatedVehicleData = {
+          ...dvlaLookupResult.vehicle,
+          notes: existingVehicle.notes, // Preserve existing notes
+          dvlaLastRefreshed: new Date(),
+        };
+
+        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, updatedVehicleData);
+
+        res.json({
+          success: true,
+          message: "DVLA data refreshed successfully",
+          vehicle: updatedVehicle
+        });
+      } else {
+        // Handle DVLA lookup failures
+        const errorMessage = dvlaLookupResult.error?.message || 'DVLA lookup failed';
+        const statusCode = dvlaLookupResult.error?.status || 500;
+
+        res.status(statusCode).json({
+          success: false,
+          message: errorMessage,
+          error: dvlaLookupResult.error
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing DVLA data:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Internal server error during DVLA refresh" 
+      });
+    }
+  });
+
+  // TICKET 3: Create a new vehicle with DVLA enrichment
+  app.post('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+
+      console.log(`[${req.cid || 'no-cid'}] Raw request body:`, JSON.stringify(req.body, null, 2));
+
+      // Validate request body using TICKET 3 schema
+      const validatedData = createVehicleSchema.parse(req.body);
+      console.log(`[${req.cid || 'no-cid'}] Validated input data:`, JSON.stringify(validatedData, null, 2));
+      const { vrn, notes, ...manualFields } = validatedData;
+
+      // Check if vehicle already exists for this user
+      const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
+      if (existingVehicle) {
+        return res.status(409).json({ 
+          code: 'DUPLICATE_VRM',
+          message: "Vehicle with this VRN already exists",
+          vehicle: existingVehicle,
+          cid: req.cid
+        });
+      }
+
+      // Create vehicle immediately with manual data - don't block on DVLA lookup
+      const vehicleData = {
+        userId,
+        vrn,
+        notes: notes || null,
+        source: 'manual',
+        // Use manual fields if provided
+        ...manualFields,
+      };
+
+      let dvlaFields: string[] = [];
+      let userEditableFields = ['notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour'];
+
+      // Debug logging for validation issues
+      console.log(`[${req.cid || 'no-cid'}] Creating vehicle with data:`, JSON.stringify(vehicleData, null, 2));
+
+      // Create the vehicle immediately
+      const createdVehicle = await storage.createVehicle(vehicleData);
+
+      // Async DVLA enrichment + Vehicle Insights (don't block response)
+      setImmediate(async () => {
+        try {
+          // Attempt DVLA lookup in background
+          const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
+          
+          if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
+            // Update vehicle with DVLA data
+            const dvlaVehicle = dvlaLookupResult.vehicle;
+            const dvlaUpdateData = {
+              ...dvlaVehicle,
+              source: 'dvla' as const,
+              dvlaLastRefreshed: new Date(),
+              // Convert string dates to Date objects  
+              taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
+              motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
+              // Preserve user notes
+              notes: createdVehicle.notes,
+            };
+            
+            await storage.updateVehicle(createdVehicle.id, userId, dvlaUpdateData);
+            console.log(`[${req.cid || 'no-cid'}] DVLA enrichment completed for ${vrn}`);
+            
+            // Update DVLA fields for async response
+            dvlaFields = [
+              'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+              'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+              'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+            ];
+            userEditableFields = ['notes'];
+          }
+
+          // Generate Vehicle Insights
+          if (createdVehicle) {
+            const insightResult = await vehicleInsightService.generateVehicleInsights(createdVehicle);
+            if (insightResult.success && insightResult.insights.length > 0) {
+              await vehicleInsightService.saveVehicleInsights(createdVehicle, insightResult.insights);
+              console.log(`[${req.cid || 'no-cid'}] Generated ${insightResult.insights.length} vehicle insights for ${vrn}`);
+            }
+          }
+        } catch (error) {
+          console.error(`[${req.cid || 'no-cid'}] Error in background DVLA/insights processing:`, error);
+        }
+      });
+
+      // TICKET 3 response format - immediate response with manual data
+      const response = {
+        vehicle: createdVehicle,
+        dvlaEnriched: false, // Initially false, will be updated async
+        dvlaFields,
+        userEditableFields,
+        message: "Vehicle created successfully. DVLA data will be added automatically if available."
+      };
+
+      res.status(201).json(response);
+    } catch (error: any) {
+      console.error(`[${req.cid || 'no-cid'}] Error creating vehicle:`, error);
+      
+      if (error.name === 'ZodError') {
+        console.error(`[${req.cid || 'no-cid'}] Zod validation error details:`, JSON.stringify(error.errors, null, 2));
+        return res.status(400).json({ 
+          code: 'VALIDATION_ERROR',
+          message: "Validation error", 
+          errors: error.errors.map((err: any) => ({
+            path: err.path.join('.'),
+            message: err.message,
+            received: err.received
+          })),
+          cid: req.cid
+        });
+      }
+      
+      // Handle database constraint errors
+      if (error.code === '23505') { // PostgreSQL unique constraint violation
+        return res.status(409).json({ 
+          code: 'DUPLICATE_VRM',
+          message: "Vehicle with this VRN already exists",
+          cid: req.cid
+        });
+      }
+      
+      return res.status(500).json({ 
+        code: 'VEHICLE_CREATE_FAILED',
+        message: "Failed to create vehicle",
+        cid: req.cid
+      });
+    }
+  });
+
+  // TICKET 3: Update a vehicle (only user-editable fields)
+  app.put('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      // Get existing vehicle to check source
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // TICKET 3 requirement: Only non-DVLA fields are user-editable
+      if (existingVehicle.source === 'dvla') {
+        // For DVLA-enriched vehicles, only allow user field updates
+        const validatedData = updateVehicleUserFieldsSchema.parse(req.body);
+
+        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
+          ...validatedData,
+          updatedAt: new Date(),
+        });
+
+        const response = {
+          vehicle: updatedVehicle,
+          dvlaEnriched: true,
+          dvlaFields: [
+            'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+            'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+            'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+          ],
+          userEditableFields: ['notes'],
+          message: "Only user-editable fields updated. DVLA fields are read-only."
+        };
+
+        res.json(response);
+      } else {
+        // For manual vehicles, allow full updates
+        const requestData = req.body;
+        // Convert Date objects to strings for database storage
+        const dataForStorage = {
+          ...requestData,
+          taxDueDate: requestData.taxDueDate instanceof Date ? requestData.taxDueDate.toISOString().split('T')[0] : requestData.taxDueDate,
+          motExpiryDate: requestData.motExpiryDate instanceof Date ? requestData.motExpiryDate.toISOString().split('T')[0] : requestData.motExpiryDate
+        };
+
+        const validatedData = insertVehicleSchema.partial().parse(dataForStorage);
+
+        const updatedVehicle = await storage.updateVehicle(vehicleId, userId, validatedData);
+
+        const response = {
+          vehicle: updatedVehicle,
+          dvlaEnriched: false,
+          dvlaFields: [],
+          userEditableFields: [
+            'notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
+            'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
+            'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
+          ]
+        };
+
+        res.json(response);
+      }
+    } catch (error: any) {
+      console.error("Error updating vehicle:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update vehicle" });
+    }
+  });
+
+  // Delete a vehicle
+  app.delete('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      await storage.deleteVehicle(vehicleId, userId);
+      res.json({ message: "Vehicle deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+      res.status(500).json({ message: "Failed to delete vehicle" });
+    }
+  });
+
+  // ===== DVLA LOOKUP ROUTES (TICKET 2) =====
+
+  // Lookup vehicle data from DVLA by VRN
+  app.post('/api/vehicles/dvla-lookup', requireAuth, async (req: any, res) => {
+    try {
+      const { vrn } = req.body;
+
+      if (!vrn || typeof vrn !== 'string') {
+        return res.status(400).json({ message: "VRN is required" });
+      }
+
+      const result = await dvlaLookupService.lookupVehicleByVRN(vrn);
+
+      if (!result.success) {
+        return res.status(result.error?.status || 500).json({
+          message: result.error?.message || "DVLA lookup failed",
+          code: result.error?.code
+        });
+      }
+
+      res.json({
+        success: true,
+        vehicle: result.vehicle
+      });
+    } catch (error) {
+      console.error("Error in DVLA lookup:", error);
+      res.status(500).json({ message: "Internal server error during DVLA lookup" });
+    }
+  });
+
+  // Create vehicle from DVLA lookup data
+  app.post('/api/vehicles/from-dvla', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { vrn } = req.body;
+
+      if (!vrn || typeof vrn !== 'string') {
+        return res.status(400).json({ message: "VRN is required" });
+      }
+
+      // Check if vehicle already exists for this user
+      const existingVehicle = await storage.getVehicleByVRN(vrn, userId);
+      if (existingVehicle) {
+        return res.status(409).json({ 
+          message: "Vehicle with this VRN already exists",
+          vehicle: existingVehicle
+        });
+      }
+
+      // Perform DVLA lookup
+      const lookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
+
+      if (!lookupResult.success) {
+        return res.status(lookupResult.error?.status || 500).json({
+          message: lookupResult.error?.message || "DVLA lookup failed",
+          code: lookupResult.error?.code
+        });
+      }
+
+      // Create vehicle with DVLA data and proper date conversion
+      const dvlaVehicle = lookupResult.vehicle!;
+      const vehicle = await storage.createVehicle({
+        ...dvlaVehicle,
+        userId,
+        vrn: dvlaVehicle.vrn || vrn,
+        source: 'dvla' as const,
+        dvlaLastRefreshed: new Date(),
+        // Convert Date objects to strings for database storage
+        taxDueDate: dvlaVehicle.taxDueDate ? ((dvlaVehicle.taxDueDate as any) instanceof Date ? (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0] : dvlaVehicle.taxDueDate as string) : null,
+        motExpiryDate: dvlaVehicle.motExpiryDate ? ((dvlaVehicle.motExpiryDate as any) instanceof Date ? (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0] : dvlaVehicle.motExpiryDate as string) : null,
+      });
+
+      res.status(201).json({
+        success: true,
+        vehicle,
+        message: "Vehicle created successfully from DVLA data"
+      });
+    } catch (error: any) {
+      console.error("Error creating vehicle from DVLA:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create vehicle from DVLA data" });
+    }
+  });
+
+  // Refresh existing vehicle with latest DVLA data
+  app.post('/api/vehicles/:id/refresh-dvla', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      // Get existing vehicle
+      const existingVehicle = await storage.getVehicle(vehicleId, userId);
+      if (!existingVehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Perform DVLA lookup
+      const lookupResult = await dvlaLookupService.lookupVehicleByVRN(existingVehicle.vrn);
+
+      if (!lookupResult.success) {
+        return res.status(lookupResult.error?.status || 500).json({
+          message: lookupResult.error?.message || "DVLA lookup failed",
+          code: lookupResult.error?.code
+        });
+      }
+
+      // Update vehicle with fresh DVLA data and proper date conversion
+      const dvlaVehicle = lookupResult.vehicle!;
+      const updatedVehicle = await storage.updateVehicle(vehicleId, userId, {
+        ...dvlaVehicle,
+        source: 'dvla' as const,
+        dvlaLastRefreshed: new Date(),
+        // Convert Date objects to strings for database storage
+        taxDueDate: (dvlaVehicle.taxDueDate as any) instanceof Date ? (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0] : dvlaVehicle.taxDueDate as string,
+        motExpiryDate: (dvlaVehicle.motExpiryDate as any) instanceof Date ? (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0] : dvlaVehicle.motExpiryDate as string,
+      });
+
+      // TICKET 4: Generate insights after DVLA refresh
+      let vehicleInsights = null;
+      try {
+        if (updatedVehicle && (updatedVehicle.motExpiryDate || updatedVehicle.taxDueDate)) {
+          console.log(`[TICKET 4] Generating insights after DVLA refresh for ${updatedVehicle.vrn}`);
+          const insightResult = await vehicleInsightService.generateVehicleInsights(updatedVehicle);
+
+          if (insightResult.success && insightResult.insights.length > 0) {
+            await vehicleInsightService.saveVehicleInsights(updatedVehicle, insightResult.insights);
+            vehicleInsights = insightResult.insights;
+          }
+
+          const insightCount = vehicleInsights?.length || 0;
+          if (insightCount > 0) {
+            console.log(`[TICKET 4] Generated ${insightCount} insights after refresh for ${updatedVehicle.vrn}`);
+          }
+        }
+      } catch (error) {
+        console.error(`[TICKET 4] Failed to generate insights after refresh:`, error);
+      }
+
+      res.json({
+        success: true,
+        vehicle: updatedVehicle,
+        message: "Vehicle updated with latest DVLA data",
+        ...(vehicleInsights && { vehicleInsights })
+      });
+    } catch (error) {
+      console.error("Error refreshing vehicle from DVLA:", error);
+      res.status(500).json({ message: "Failed to refresh vehicle data" });
+    }
+  });
+
+  // Check DVLA API availability
+  app.get('/api/vehicles/dvla-status', requireAuth, async (req: any, res) => {
+    try {
+      const isAvailable = await dvlaLookupService.checkDVLAAvailability();
+      res.json({ 
+        available: isAvailable,
+        message: isAvailable ? "DVLA API is available" : "DVLA API is not available"
+      });
+    } catch (error) {
+      console.error("Error checking DVLA status:", error);
+      res.status(500).json({ message: "Failed to check DVLA status" });
+    }
+  });
+
+    // ✅ Debug route to confirm deployment
+    app.get("/debug", (_req, res) => {
+      res.send(`✅ App is live - ${new Date().toISOString()}`);
+    });
+
+    // ✅ Email ingest webhook GET (for Mailgun verification)
+    app.get("/api/email-ingest", (req, res) => {
+      res.send("✅ Email Ingest GET Confirmed");
+    });
+
+    // NOTE: POST /api/email-ingest is handled earlier in the file with full functionality
+
+    // Keep API route protection for unhandled routes
+    app.use('/api/*', (req, res, next) => {
+      console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
+      res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
+    });
+
+    app.use(sentryErrorHandler());
+
+    const httpServer = createServer(app);
+    return httpServer;
+  }

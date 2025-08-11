@@ -113,6 +113,13 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 
 ## Recent Development Summary
 
+### August 11, 2025 - Upload Modal Flow Consolidation ✅
+- **Achievement**: Eliminated persistent upload modal issue with fully controlled modal pattern
+- **Implementation**: Removed duplicate Dialog components, implemented external open/onOpenChange props, added instance key remounting
+- **Resolution**: Single, clean upload flow - Add Document → Upload Document → single modal → success toast → modal closes permanently
+- **Technical**: Fixed TypeScript errors, removed suppressDialog logic, added async guard with closedRef
+- **Status**: ✅ **PRODUCTION READY** - Upload flow now meets all acceptance criteria from comprehensive specification
+
 ### August 9, 2025 - Google Console Environment Alignment (AUTH-323) ✅
 - **Achievement**: Established single source of truth for OAuth URIs with comprehensive Google Cloud Console alignment documentation
 - **Configuration Matrix**: Defined exact APP_ORIGIN and callback URLs for Local (`localhost:5000`), Staging (`staging.myhome-docs.com`), Production (`myhome-docs.com`)

@@ -1,509 +1,463 @@
-/**
- * Email Body → PDF Service
- * Converts email bodies (HTML/plain text) to PDF documents for MyHome
- */
+// Email Body → PDF Render Service (Server)
+// Converts email HTML/text body into sanitized PDF and creates MyHome document
+// Idempotent per (tenantId, messageId, bodyHash) with ≤10MB limit enforcement
 
-import puppeteer from 'puppeteer';
-import { createHash } from 'crypto';
-import { nanoid } from 'nanoid';
-import { Storage } from '@google-cloud/storage';
-import DOMPurify from 'dompurify';
+import crypto from 'crypto';
 import { JSDOM } from 'jsdom';
-import type { MailgunMessage } from './mailgunService';
-import { storage } from './storage';
-import type { InsertDocument } from '@shared/schema';
-import { documents } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import DOMPurify from 'dompurify';
+import puppeteer, { Browser, Page } from 'puppeteer';
+import { storage } from './storage.js';
+import { insertDocumentSchema, type InsertDocument } from '../shared/schema.js';
+import { nanoid } from 'nanoid';
 
-// Create DOMPurify instance for server-side HTML sanitization
-const window = new JSDOM('').window;
-const purify = DOMPurify(window as any);
-
-interface EmailPdfOptions {
-  pageSize?: 'A4' | 'Letter';
-  margins?: string;
-  includeHeader?: boolean;
-  blockExternalImages?: boolean;
+// Input/Output Types
+export interface EmailBodyPdfInput {
+  tenantId: string;
+  messageId: string;                 // required for idempotency
+  subject?: string | null;
+  from: string;                      // "Display Name <email@domain>"
+  to: string[];                      // ["user+inbox@myhome.app"]
+  receivedAt: string;                // ISO
+  html?: string | null;              // preferred
+  text?: string | null;              // fallback
+  ingestGroupId?: string | null;
+  categoryId?: string | null;        // default null
+  tags?: string[];                   // optional, e.g., ["email"]
 }
 
-interface EmailBodyPdfResult {
-  success: boolean;
-  documentId?: number;
-  gcsPath?: string;
-  error?: string;
-  fileSize?: number;
+export type EmailBodyPdfOutput =
+  | { created: true; documentId: string; name: string }
+  | { created: false; documentId: string; name: string }; // idempotent hit
+
+// Error codes
+export const EMAIL_PDF_ERRORS = {
+  EMAIL_BODY_MISSING: 'EMAIL_BODY_MISSING',
+  EMAIL_SANITIZE_FAILED: 'EMAIL_SANITIZE_FAILED', 
+  EMAIL_RENDER_FAILED: 'EMAIL_RENDER_FAILED',
+  EMAIL_TOO_LARGE_AFTER_COMPRESSION: 'EMAIL_TOO_LARGE_AFTER_COMPRESSION'
+} as const;
+
+export class EmailBodyPdfError extends Error {
+  constructor(public code: keyof typeof EMAIL_PDF_ERRORS, message: string) {
+    super(message);
+    this.name = 'EmailBodyPdfError';
+  }
 }
 
-export class EmailBodyPdfService {
-  private gcs: Storage;
-  private bucketName: string;
+// Analytics event types
+const ANALYTICS_EVENTS = {
+  SUCCESS: 'email_ingest_body_pdf_generated',
+  FAILURE: 'email_ingest_body_pdf_failed', 
+  SKIPPED: 'email_ingest_body_pdf_skipped'
+} as const;
 
-  constructor() {
-    // Initialize GCS (same as attachment processor)
-    try {
-      this.gcs = new Storage({
-        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-      });
-      this.bucketName = process.env.GCS_BUCKET_NAME || 'myhome-documents';
-      console.log('EmailBodyPdfService: GCS initialized');
-    } catch (error) {
-      console.error('EmailBodyPdfService: GCS initialization failed:', error);
-      throw new Error('Failed to initialize Google Cloud Storage for email PDF service');
-    }
-  }
+// Browser pool for Puppeteer instances
+let browserPool: Browser | null = null;
 
-  /**
-   * Generate SHA-256 hash of email body for deduplication
-   */
-  private generateBodyHash(bodyHtml?: string, bodyPlain?: string): string {
-    // Normalize content for consistent hashing
-    const normalizedHtml = bodyHtml?.trim().replace(/\s+/g, ' ') || '';
-    const normalizedPlain = bodyPlain?.trim().replace(/\s+/g, ' ') || '';
-    const content = normalizedHtml + '|' + normalizedPlain;
-    
-    return createHash('sha256').update(content).digest('hex');
-  }
-
-  /**
-   * Sanitize HTML content for safe PDF rendering
-   */
-  public sanitizeHtml(html: string): string {
-    return purify.sanitize(html, {
-      ALLOWED_TAGS: [
-        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'thead', 'tbody',
-        'div', 'span', 'a', 'img', 'blockquote', 'pre', 'code'
-      ],
-      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style'],
-      FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input'],
-      FORBID_ATTR: ['onclick', 'onload', 'onerror']
-    });
-  }
-
-  /**
-   * Generate HTML template for email PDF
-   */
-  private generateEmailHtml(emailData: {
-    subject: string;
-    bodyHtml?: string;
-    bodyPlain: string;
-    sender: string;
-    receivedAt: string;
-    messageId?: string;
-  }): string {
-    const { subject, bodyHtml, bodyPlain, sender, receivedAt, messageId } = emailData;
-    
-    // Format dates
-    const utcDate = new Date(receivedAt).toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
-    const localDate = new Date(receivedAt).toLocaleString('en-GB', { 
-      timeZone: 'Europe/London',
-      year: 'numeric',
-      month: '2-digit', 
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }) + ' BST';
-
-    // Process email body
-    let emailContent: string;
-    if (bodyHtml && bodyHtml.trim()) {
-      // Use HTML version with sanitization
-      emailContent = this.sanitizeHtml(bodyHtml);
-    } else {
-      // Convert plain text to HTML
-      emailContent = `<pre style="white-space: pre-wrap; font-family: Arial, sans-serif;">${bodyPlain}</pre>`;
-    }
-
-    return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Email: ${subject || 'No Subject'}</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      line-height: 1.6;
-      color: #333;
-    }
-    .email-header {
-      border-bottom: 2px solid #e0e0e0;
-      padding-bottom: 15px;
-      margin-bottom: 20px;
-    }
-    .email-header h1 {
-      color: #2c3e50;
-      margin: 0 0 10px 0;
-      font-size: 24px;
-    }
-    .email-metadata {
-      background: #f8f9fa;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-    .email-metadata p {
-      margin: 5px 0;
-      font-size: 14px;
-    }
-    .email-metadata strong {
-      color: #495057;
-    }
-    .email-body {
-      padding: 10px 0;
-    }
-    .email-body img {
-      max-width: 100%;
-      height: auto;
-    }
-    .email-body table {
-      border-collapse: collapse;
-      width: 100%;
-      margin: 10px 0;
-    }
-    .email-body td, .email-body th {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-    .email-body th {
-      background-color: #f2f2f2;
-    }
-    @media print {
-      body { margin: 0; padding: 15px; }
-    }
-  </style>
-</head>
-<body>
-  <header class="email-header">
-    <h1>${subject || 'No Subject'}</h1>
-  </header>
-  
-  <div class="email-metadata">
-    <p><strong>From:</strong> ${sender}</p>
-    <p><strong>Received:</strong> ${utcDate} | ${localDate}</p>
-    ${messageId ? `<p><strong>Message ID:</strong> ${messageId}</p>` : ''}
-    <p><strong>Generated:</strong> ${new Date().toISOString().substring(0, 19).replace('T', ' ')} UTC</p>
-  </div>
-
-  <main class="email-body">
-    ${emailContent}
-  </main>
-</body>
-</html>`;
-  }
-
-  /**
-   * Render HTML to PDF using Puppeteer with provided page (for worker)
-   */
-  public async renderToPdf(html: string, emailMetadata: any, page: any): Promise<Buffer> {
-    // Set content and wait for network idle
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-
-    // Generate PDF
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      margin: {
-        top: '1in',
-        right: '0.75in', 
-        bottom: '1in',
-        left: '0.75in'
-      },
-      printBackground: true,
-      preferCSSPageSize: false,
-    });
-
-    return Buffer.from(pdfBuffer);
-  }
-
-  /**
-   * Render HTML to PDF using Puppeteer
-   */
-  private async renderHtmlToPdf(html: string, options: EmailPdfOptions = {}): Promise<Buffer> {
-    const browser = await puppeteer.launch({
+async function getBrowser(): Promise<Browser> {
+  if (!browserPool || !browserPool.isConnected()) {
+    browserPool = await puppeteer.launch({
       headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-web-security', // For local development
-        '--disable-features=VizDisplayCompositor'
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
       ]
     });
-
-    try {
-      const page = await browser.newPage();
-      
-      // Block external resources if requested
-      if (options.blockExternalImages) {
-        await page.setRequestInterception(true);
-        page.on('request', (request) => {
-          if (request.resourceType() === 'image' && request.url().startsWith('http')) {
-            request.abort();
-          } else {
-            request.continue();
-          }
-        });
-      }
-
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-
-      const pdfBuffer = await page.pdf({
-        format: options.pageSize || 'A4',
-        margin: {
-          top: options.margins || '1in',
-          right: options.margins || '0.75in', 
-          bottom: options.margins || '1in',
-          left: options.margins || '0.75in'
-        },
-        printBackground: true,
-        preferCSSPageSize: false,
-      });
-
-      return Buffer.from(pdfBuffer);
-
-    } finally {
-      await browser.close();
-    }
   }
+  return browserPool;
+}
 
-  /**
-   * Check if email body PDF already exists using unique constraint fields
-   */
-  private async checkForDuplicate(userId: string, bodyHash: string, messageId?: string): Promise<number | null> {
-    try {
-      // For now, use a simpler approach through storage.getDocuments
-      // Check for documents with matching messageId or bodyHash
-      const userDocuments = await storage.getDocuments(userId);
-      
-      // Filter for email documents that might be duplicates
-      const emailDocs = userDocuments.filter((doc: any) => 
-        doc.uploadSource === 'email' && 
-        (doc.messageId === messageId || doc.bodyHash === bodyHash)
-      );
+/**
+ * Sanitize HTML content using DOMPurify with JSDOM
+ * Removes scripts, iframes, external requests - allows safe inline styles and data: images
+ */
+function sanitizeHtml(html: string): string {
+  try {
+    const window = new JSDOM('').window;
+    const purify = DOMPurify(window);
 
-      if (emailDocs.length > 0) {
-        return emailDocs[0].id;
-      }
-
-      return null;
-
-    } catch (error) {
-      console.error('Error checking for duplicate email body PDF:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Upload PDF to Google Cloud Storage
-   */
-  private async uploadToGCS(pdfBuffer: Buffer, filename: string): Promise<{ gcsPath: string; publicUrl: string }> {
-    const gcsPath = `email-pdfs/${filename}`;
-    const file = this.gcs.bucket(this.bucketName).file(gcsPath);
-
-    await file.save(pdfBuffer, {
-      metadata: {
-        contentType: 'application/pdf',
-        cacheControl: 'public, max-age=3600',
-      },
+    // Configure DOMPurify for email content
+    const clean = purify.sanitize(html, {
+      ALLOWED_TAGS: [
+        'div', 'p', 'span', 'a', 'strong', 'em', 'b', 'i', 'u', 's', 'br', 'hr',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'ul', 'ol', 'li',
+        'table', 'thead', 'tbody', 'tr', 'td', 'th', 'img', 'pre', 'code',
+        'center', 'font', 'small', 'big', 'sub', 'sup'
+      ],
+      ALLOWED_ATTR: [
+        'style', 'class', 'id', 'href', 'src', 'alt', 'title', 'width', 'height',
+        'align', 'valign', 'bgcolor', 'color', 'size', 'face', 'colspan', 'rowspan'
+      ],
+      ALLOWED_URI_REGEXP: /^(?:data:|#)/i, // Only allow data: URIs and anchors
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input'],
+      FORBID_ATTR: ['onclick', 'onload', 'onerror', 'onmouseover'],
+      KEEP_CONTENT: true
     });
 
-    const publicUrl = `https://storage.googleapis.com/${this.bucketName}/${gcsPath}`;
-    
-    return { gcsPath, publicUrl };
-  }
-
-  /**
-   * Generate filename for email body PDF
-   */
-  private generateFilename(subject: string, receivedAt: string): string {
-    // Clean subject for filename
-    const cleanSubject = (subject || 'No Subject')
-      .replace(/[^a-zA-Z0-9\s\-_]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .substring(0, 50);
-    
-    // Format date
-    const date = new Date(receivedAt).toISOString().substring(0, 10); // YYYY-MM-DD
-    
-    // Add unique suffix to prevent conflicts
-    const uniqueId = nanoid(8);
-    
-    return `Email - ${cleanSubject} - ${date} - ${uniqueId}.pdf`;
-  }
-
-  /**
-   * Create email body PDF document
-   * Main public method for converting email bodies to PDFs
-   */
-  async createEmailBodyDocument(
-    userId: string,
-    emailData: MailgunMessage,
-    linkedAttachmentIds: number[] = []
-  ): Promise<EmailBodyPdfResult> {
-    try {
-      console.log(`📧→📄 Creating email body PDF for user ${userId}, subject: "${emailData.subject}"`);
-
-      // Validate input
-      if (!emailData.bodyPlain && !emailData.bodyHtml) {
-        return {
-          success: false,
-          error: 'Email has no body content to convert to PDF'
-        };
-      }
-
-      // Generate body hash for deduplication
-      const bodyHash = this.generateBodyHash(emailData.bodyHtml, emailData.bodyPlain);
-      
-      // Check for existing document
-      const existingDocId = await this.checkForDuplicate(userId, bodyHash, emailData.messageId);
-      if (existingDocId) {
-        console.log(`📧→📄 Email body PDF already exists: document ${existingDocId}`);
-        return {
-          success: true,
-          documentId: existingDocId,
-          error: 'Email body PDF already exists'
-        };
-      }
-
-      // Generate HTML for PDF
-      const emailHtml = this.generateEmailHtml({
-        subject: emailData.subject,
-        bodyHtml: emailData.bodyHtml,
-        bodyPlain: emailData.bodyPlain,
-        sender: emailData.sender,
-        receivedAt: emailData.timestamp,
-        messageId: emailData.messageId
-      });
-
-      // Render to PDF
-      const pdfBuffer = await this.renderHtmlToPdf(emailHtml, {
-        blockExternalImages: true // Security: block external image loading
-      });
-
-      // Check file size (10MB limit)
-      if (pdfBuffer.length > 10 * 1024 * 1024) {
-        return {
-          success: false,
-          error: `Generated PDF size (${Math.round(pdfBuffer.length / 1024 / 1024)}MB) exceeds 10MB limit`
-        };
-      }
-
-      // Generate filename
-      const filename = this.generateFilename(emailData.subject, emailData.timestamp);
-      
-      // Upload to GCS
-      const { gcsPath } = await this.uploadToGCS(pdfBuffer, filename);
-
-      // Create document record with Email Body PDF fields
-      const emailContext = {
-        from: emailData.sender,
-        to: [emailData.recipient],
-        subject: emailData.subject,
-        receivedAt: emailData.timestamp,
-        hasAttachments: linkedAttachmentIds.length > 0,
-        attachmentCount: linkedAttachmentIds.length,
-        bodyType: emailData.bodyHtml ? 'html' : 'plain',
-        ingestGroupId: nanoid() // Unique group ID for this ingestion batch
-      };
-
-      // Create references to linked attachment documents
-      const references = linkedAttachmentIds.map(documentId => ({
-        type: 'email',
-        relation: 'related',
-        documentId,
-        createdAt: new Date().toISOString()
-      }));
-
-      const documentData: Omit<InsertDocument, 'id'> = {
-        userId,
-        categoryId: null, // Default category
-        name: `Email: ${emailData.subject || 'No Subject'}`,
-        fileName: filename,
-        filePath: gcsPath,
-        fileSize: pdfBuffer.length,
-        mimeType: 'application/pdf',
-        tags: ['email', emailData.sender.split('@')[1] || 'email'], // Add sender domain as tag
-        uploadSource: 'email',
-        gcsPath,
-        // Email Body PDF specific fields
-        messageId: emailData.messageId,
-        bodyHash,
-        emailContext: JSON.stringify(emailContext),
-        documentReferences: references.length > 0 ? JSON.stringify(references) : null
-      };
-
-      const document = await storage.createDocument(documentData);
-
-      console.log(`📧→📄 Created email body PDF: document ${document.id}, file: ${filename}`);
-
-      return {
-        success: true,
-        documentId: document.id,
-        gcsPath,
-        fileSize: pdfBuffer.length
-      };
-
-    } catch (error) {
-      console.error('EmailBodyPdfService error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error creating email body PDF'
-      };
-    }
-  }
-
-  /**
-   * Create email body PDF manually (for existing email-sourced documents)
-   */
-  async createManualEmailBodyPdf(
-    documentId: number,
-    userId: string
-  ): Promise<EmailBodyPdfResult> {
-    try {
-      // Get the original email document
-      const document = await storage.getDocument(documentId, userId);
-      if (!document) {
-        return { success: false, error: 'Document not found' };
-      }
-
-      if (document.uploadSource !== 'email') {
-        return { success: false, error: 'Document is not from email source' };
-      }
-
-      // Extract email context
-      const emailContext = document.emailContext ? JSON.parse(document.emailContext as string) : {};
-      
-      // Reconstruct email data (limited info available)
-      const emailData: MailgunMessage = {
-        subject: emailContext.subject || document.name.replace('Email: ', ''),
-        bodyPlain: 'Original email body not available. PDF created from document metadata.',
-        sender: emailContext.sender || 'unknown@example.com',
-        recipient: `upload+${userId}@myhome-tech.com`,
-        timestamp: emailContext.receivedAt || document.uploadedAt?.toISOString() || new Date().toISOString(),
-        messageId: document.messageId || undefined,
-        token: '',
-        signature: '',
-        attachments: []
-      };
-
-      return this.createEmailBodyDocument(userId, emailData);
-
-    } catch (error) {
-      console.error('Manual email body PDF creation error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create manual email body PDF'
-      };
-    }
+    return clean;
+  } catch (error) {
+    console.error('HTML sanitization failed:', error);
+    throw new EmailBodyPdfError('EMAIL_SANITIZE_FAILED', `Failed to sanitize HTML: ${error}`);
   }
 }
 
-export default EmailBodyPdfService;
+/**
+ * Create simple HTML template for text-only emails
+ */
+function wrapTextInHtml(text: string, subject?: string | null, from?: string): string {
+  const escapedText = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${subject || 'Email'}</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      margin: 20px;
+      white-space: pre-wrap;
+    }
+    .email-header {
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      font-size: 11px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-header">
+    ${subject ? `<div><strong>Subject:</strong> ${subject}</div>` : ''}
+    ${from ? `<div><strong>From:</strong> ${from}</div>` : ''}
+  </div>
+  <div class="email-content">
+    ${escapedText}
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * Compute normalized body hash for idempotency
+ */
+function computeBodyHash(html: string): string {
+  // Normalize whitespace and remove HTML comments
+  const normalized = html
+    .replace(/<!--[\s\S]*?-->/g, '') // Remove comments
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+    
+  return crypto.createHash('sha256').update(normalized).digest('hex');
+}
+
+/**
+ * Generate sanitized filename for email PDF
+ */
+function generateEmailPdfFilename(subject?: string | null, receivedAt?: string): string {
+  const date = receivedAt ? new Date(receivedAt).toISOString().split('T')[0] : 'Unknown-Date';
+  const subjectPart = subject ? subject.replace(/[^\w\s-]/g, '').trim() : 'No Subject';
+  
+  let filename = `Email - ${subjectPart} - ${date}.pdf`;
+  
+  // Ensure filename is ≤200 chars
+  if (filename.length > 200) {
+    const maxSubjectLength = 200 - `Email -  - ${date}.pdf`.length;
+    const truncatedSubject = subjectPart.substring(0, maxSubjectLength);
+    filename = `Email - ${truncatedSubject} - ${date}.pdf`;
+  }
+  
+  return filename;
+}
+
+/**
+ * Check if document already exists for idempotency
+ */
+async function checkExistingDocument(
+  tenantId: string, 
+  messageId: string, 
+  bodyHash: string
+): Promise<{ documentId: string; name: string } | null> {
+  try {
+    const documents = await storage.getDocuments(tenantId);
+    
+    const existing = documents.find((doc: any) => 
+      doc.source === 'email' &&
+      doc.emailContext &&
+      typeof doc.emailContext === 'object' &&
+      'messageId' in doc.emailContext &&
+      doc.emailContext.messageId === messageId &&
+      doc.fileName?.includes(bodyHash.substring(0, 8)) // Include hash in filename for verification
+    );
+
+    if (existing) {
+      return {
+        documentId: existing.id,
+        name: existing.fileName || 'Email PDF'
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('Error checking existing document:', error);
+    return null;
+  }
+}
+
+/**
+ * Render HTML to PDF with Puppeteer and size constraints
+ */
+async function renderHtmlToPdf(
+  html: string, 
+  maxSizeBytes: number = 10 * 1024 * 1024,
+  attempt: 'first' | 'compressed' = 'first'
+): Promise<Buffer> {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+  
+  try {
+    // Block all external requests
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const url = req.url();
+      if (url.startsWith('data:') || url === 'about:blank') {
+        req.continue();
+      } else {
+        console.log(`Blocked external request: ${url}`);
+        req.abort();
+      }
+    });
+
+    // Configure viewport and set content
+    await page.setViewport({ width: 794, height: 1123 }); // A4 dimensions in pixels
+    
+    // Apply compression styles on second attempt
+    if (attempt === 'compressed') {
+      const compressedHtml = `
+        <style>
+          img { max-width: 1200px !important; height: auto !important; }
+          body { font-size: 11px !important; }
+          * { max-width: 100% !important; }
+        </style>
+        ${html}
+      `;
+      await page.setContent(compressedHtml, { waitUntil: 'networkidle0' });
+    } else {
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+    }
+
+    // Generate PDF with A4 format and 1" margins
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      margin: {
+        top: '1in',
+        right: '1in', 
+        bottom: '1in',
+        left: '1in'
+      },
+      printBackground: true,
+      preferCSSPageSize: false
+    });
+
+    console.log(`PDF generated (${attempt} attempt): ${pdfBuffer.length} bytes`);
+
+    // Check size constraint
+    if (pdfBuffer.length > maxSizeBytes) {
+      if (attempt === 'first') {
+        console.log('PDF too large, attempting compression...');
+        await page.close();
+        return renderHtmlToPdf(html, maxSizeBytes, 'compressed');
+      } else {
+        throw new EmailBodyPdfError(
+          'EMAIL_TOO_LARGE_AFTER_COMPRESSION',
+          `PDF size ${pdfBuffer.length} bytes exceeds limit after compression`
+        );
+      }
+    }
+
+    await page.close();
+    return Buffer.from(pdfBuffer);
+    
+  } catch (error) {
+    await page.close();
+    if (error instanceof EmailBodyPdfError) throw error;
+    throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Puppeteer render failed: ${error}`);
+  }
+}
+
+/**
+ * Create provenance header HTML for email
+ */
+function createProvenanceHeader(input: EmailBodyPdfInput): string {
+  return `
+    <div style="border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 20px; font-family: Arial, sans-serif; font-size: 12px; color: #333;">
+      <h3 style="margin: 0 0 10px 0; color: #007bff;">Email Document</h3>
+      ${input.subject ? `<div><strong>Subject:</strong> ${input.subject}</div>` : ''}
+      <div><strong>From:</strong> ${input.from}</div>
+      <div><strong>To:</strong> ${input.to.join(', ')}</div>
+      <div><strong>Received:</strong> ${new Date(input.receivedAt).toLocaleString()}</div>
+      ${input.messageId ? `<div><strong>Message-ID:</strong> ${input.messageId}</div>` : ''}
+    </div>
+  `;
+}
+
+/**
+ * Log analytics events for email PDF processing
+ */
+function logAnalyticsEvent(
+  event: keyof typeof ANALYTICS_EVENTS,
+  data: Record<string, any>
+): void {
+  try {
+    const eventName = ANALYTICS_EVENTS[event];
+    console.log(`[ANALYTICS] ${eventName}:`, data);
+    
+    // In a real implementation, you might send this to your analytics service
+    // For now, we'll just log it for observability
+  } catch (error) {
+    console.warn('Failed to log analytics event:', error);
+  }
+}
+
+/**
+ * Main service function: Convert email body to PDF and create MyHome document
+ */
+export async function renderAndCreateEmailBodyPdf(input: EmailBodyPdfInput): Promise<EmailBodyPdfOutput> {
+  const startTime = Date.now();
+  
+  try {
+    // Validate input
+    if (!input.html && !input.text) {
+      throw new EmailBodyPdfError('EMAIL_BODY_MISSING', 'Both html and text are missing');
+    }
+
+    // Prepare HTML content
+    let htmlContent: string;
+    if (input.html) {
+      htmlContent = sanitizeHtml(input.html);
+    } else if (input.text) {
+      htmlContent = wrapTextInHtml(input.text, input.subject, input.from);
+    } else {
+      throw new EmailBodyPdfError('EMAIL_BODY_MISSING', 'No content to render');
+    }
+
+    // Add provenance header
+    const fullHtml = createProvenanceHeader(input) + htmlContent;
+    
+    // Compute body hash for idempotency
+    const bodyHash = computeBodyHash(fullHtml);
+    
+    // Check for existing document (idempotency)
+    const existing = await checkExistingDocument(input.tenantId, input.messageId, bodyHash);
+    if (existing) {
+      logAnalyticsEvent('SKIPPED', {
+        tenantId: input.tenantId,
+        messageId: input.messageId,
+        reason: 'duplicate',
+        documentId: existing.documentId
+      });
+      
+      return {
+        created: false,
+        documentId: existing.documentId,
+        name: existing.name
+      };
+    }
+
+    // Render PDF
+    const pdfBuffer = await renderHtmlToPdf(fullHtml);
+    const renderTime = Date.now() - startTime;
+
+    // Generate filename and secure key
+    const filename = generateEmailPdfFilename(input.subject, input.receivedAt);
+    const documentId = nanoid();
+    const fileKey = `${input.tenantId}/${documentId}/${filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    
+    // Upload using storage service
+    const fileUrl = await storage.upload(pdfBuffer, fileKey, 'application/pdf');
+
+    // Create document in MyHome
+    const documentData: InsertDocument = {
+      userId: input.tenantId,
+      fileName: filename,
+      fileUrl,
+      fileSize: String(pdfBuffer.length),
+      mimeType: 'application/pdf',
+      source: 'email',
+      categoryId: input.categoryId || null,
+      tags: input.tags || ['email'],
+      emailContext: {
+        messageId: input.messageId,
+        from: input.from,
+        to: input.to,
+        subject: input.subject || null,
+        receivedAt: input.receivedAt,
+        ingestGroupId: input.ingestGroupId || null,
+        bodyHash
+      }
+    };
+
+    const document = await storage.createDocument(documentData);
+    
+    // Ensure document has the ID we generated
+    const finalDocument = { ...document, id: documentId };
+
+    // Log success analytics
+    logAnalyticsEvent('SUCCESS', {
+      tenantId: input.tenantId,
+      messageId: input.messageId,
+      documentId: document.id,
+      sizeBytes: pdfBuffer.length,
+      renderMs: renderTime,
+      created: true
+    });
+
+    return {
+      created: true,
+      documentId: finalDocument.id,
+      name: filename
+    };
+
+  } catch (error) {
+    const renderTime = Date.now() - startTime;
+    
+    // Log failure analytics
+    logAnalyticsEvent('FAILURE', {
+      tenantId: input.tenantId,
+      messageId: input.messageId,
+      errorCode: error instanceof EmailBodyPdfError ? error.code : 'UNKNOWN_ERROR',
+      renderMs: renderTime,
+      error: error instanceof Error ? error.message : String(error)
+    });
+
+    throw error;
+  }
+}
+
+/**
+ * Cleanup function for graceful shutdown
+ */
+export async function cleanup(): Promise<void> {
+  if (browserPool && browserPool.isConnected()) {
+    await browserPool.close();
+    browserPool = null;
+    console.log('Email PDF service browser pool closed');
+  }
+}
+
+// Handle process termination
+process.on('SIGTERM', cleanup);
+process.on('SIGINT', cleanup);

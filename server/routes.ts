@@ -32,7 +32,7 @@ import cors from 'cors';
 import passport from './passport';
 import authRoutes from './authRoutes';
 import { parseMailgunWebhook, verifyMailgunSignature, extractUserIdFromRecipient, validateEmailAttachments } from './mailgunService';
-import EmailBodyPdfService from './emailBodyPdfService';
+// EmailBodyPdfService will be imported dynamically when needed
 import { emailRenderWorker } from './emailRenderWorker';
 import { workerHealthChecker } from './workerHealthCheck';
 import { setupMultiPageScanUpload } from './routes/multiPageScanUpload';
@@ -3350,6 +3350,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user search analytics:", error);
       res.status(500).json({ message: "Failed to fetch search analytics" });
+    }
+  });
+
+  // Email Body PDF render endpoint
+  app.post('/api/email/render-body-to-pdf', requireAuth, async (req, res) => {
+    try {
+      // Feature flag check - server-side authoritative
+      const { emailFeatureFlagService } = await import('./emailFeatureFlags.js');
+      const isEnabled = await emailFeatureFlagService.isManualEmailPdfEnabled(
+        req.user!.id, 
+        req.user!.subscriptionTier || 'free'
+      );
+      
+      if (!isEnabled) {
+        return res.status(403).json({
+          error: 'Feature not available',
+          message: 'Manual email PDF creation is not enabled for your account'
+        });
+      }
+
+      const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+      
+      // Validate request body
+      const input = req.body;
+      if (!input.messageId || !input.from || !input.to || !input.receivedAt) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'Missing required fields: messageId, from, to, receivedAt'
+        });
+      }
+
+      if (!input.html && !input.text) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'Either html or text content is required'
+        });
+      }
+
+      // Set tenantId from authenticated user
+      input.tenantId = req.user!.id;
+
+      const result = await renderAndCreateEmailBodyPdf(input);
+
+      res.json({
+        success: true,
+        ...result,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error('Email body PDF render failed:', error);
+      
+      if (error.code) {
+        return res.status(400).json({
+          error: 'Email processing failed',
+          code: error.code,
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to process email body PDF'
+      });
     }
   });
 

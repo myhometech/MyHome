@@ -1,7 +1,7 @@
 import { Worker, Queue, Job } from 'bullmq';
 import Redis from 'ioredis';
 import puppeteer, { Browser, Page } from 'puppeteer';
-import { EmailBodyPdfService } from './emailBodyPdfService';
+import { renderAndCreateEmailBodyPdf } from './emailBodyPdfService.js';
 import { storage } from './storage';
 
 // TICKET 8: Email Body PDF Rendering Worker with Concurrency Control

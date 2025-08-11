@@ -952,13 +952,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document> {
-    // Upload PDF to GCS first
-    const { Storage } = await import('@google-cloud/storage');
-    const gcs = new Storage({
-      keyFilename: process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS,
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'myhome-467408',
-    });
-    const bucketName = process.env.GCS_BUCKET_NAME || 'myhometech-storage';
+    console.log('📧 Creating email body document - using configured StorageService');
+    
+    // Use the configured StorageService instead of creating a new GCS instance
+    const { StorageService } = await import('./storage/StorageService');
+    const storageProvider = StorageService.getProvider();
     
     // Generate filename
     const cleanSubject = (emailData.subject || 'No Subject')
@@ -971,16 +969,33 @@ export class DatabaseStorage implements IStorage {
     const { nanoid } = await import('nanoid');
     const uniqueId = nanoid(8);
     const filename = `Email-Body-${cleanSubject}-${date}-${uniqueId}.pdf`;
-    const gcsPath = `${userId}/email-pdfs/${filename}`;
     
-    // Upload to GCS
-    const file = gcs.bucket(bucketName).file(gcsPath);
-    await file.save(pdfBuffer, {
-      metadata: {
-        contentType: 'application/pdf',
-        cacheControl: 'public, max-age=3600',
-      },
-    });
+    console.log(`📧→☁️  Uploading ${filename} (${Math.round(pdfBuffer.length / 1024)}KB) using StorageService...`);
+    
+    let gcsPath: string;
+    try {
+      // Upload using the configured StorageService
+      const uploadResult = await storageProvider.upload(
+        pdfBuffer,
+        filename,
+        {
+          contentType: 'application/pdf',
+          userId: userId,
+          metadata: {
+            source: 'email-body-pdf',
+            messageId: emailData.messageId,
+            subject: emailData.subject,
+          }
+        }
+      );
+      
+      console.log(`✅ StorageService upload successful: ${uploadResult.key}`);
+      gcsPath = uploadResult.key; // Use the key returned by storage service
+      
+    } catch (error) {
+      console.error(`❌ StorageService upload failed for ${filename}:`, error);
+      throw new Error(`Failed to upload email PDF to cloud storage: ${error.message}`);
+    }
 
     // Prepare email context
     const emailContext = {

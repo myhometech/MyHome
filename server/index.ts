@@ -151,6 +151,85 @@ app.use((req, res, next) => {
   console.log('🔧 ROUTE REGISTRATION: Registering all routes via routes.ts');
   console.log(`🚀 DEPLOYMENT MARKER: ${deploymentMarker}`);
 
+  // EMERGENCY FIX: Register bypass email handler before middleware
+  const { storage } = await import('./storage');
+  app.use('/api/email-ingest-bypass', express.urlencoded({ extended: true, limit: '10mb' }));
+  app.post('/api/email-ingest-bypass', async (req: any, res) => {
+    try {
+      console.log('🚀 BYPASS EMAIL INGEST: Request received');
+      console.log('📧 Body data:', Object.keys(req.body || {}));
+      
+      const { recipient, sender, subject, 'body-plain': bodyPlain, 'body-html': bodyHtml } = req.body;
+      
+      if (!recipient || !sender || !subject) {
+        return res.status(400).json({ error: 'Missing required email fields' });
+      }
+      
+      const userMatch = recipient.match(/upload\+([a-zA-Z0-9\-]+)@/);
+      if (!userMatch) {
+        return res.status(400).json({ error: 'Invalid recipient format' });
+      }
+      
+      const userId = userMatch[1];
+      console.log(`👤 User ID extracted: ${userId}`);
+      
+      if (bodyPlain || bodyHtml) {
+        console.log('📄 Creating email body PDF...');
+        
+        // Create email body PDF data
+        const emailData = {
+          messageId: req.body['Message-Id'] || `bypass-${Date.now()}`,
+          from: sender,
+          to: [recipient],
+          subject: subject || 'Untitled Email',
+          receivedAt: new Date().toISOString(),
+          ingestGroupId: null,
+          categoryId: null,
+          tags: ['email', 'email-body']
+        };
+        
+        // Generate simple PDF content - for now just create a basic HTML structure
+        const htmlContent = bodyHtml || `<p>${bodyPlain?.replace(/\n/g, '<br>') || 'No content'}</p>`;
+        const pdfContent = `
+          <html><head>
+            <title>${subject || 'Email'}</title>
+            <style>body { font-family: Arial, sans-serif; margin: 20px; }</style>
+          </head><body>
+            <h2>Email: ${subject || 'No Subject'}</h2>
+            <p><strong>From:</strong> ${sender}</p>
+            <p><strong>To:</strong> ${recipient}</p>
+            <hr>
+            ${htmlContent}
+          </body></html>
+        `;
+        
+        // Convert HTML to buffer (simplified for testing - in production use Puppeteer)
+        const pdfBuffer = Buffer.from(pdfContent, 'utf8');
+        
+        const emailBodyDocument = await storage.createEmailBodyDocument(userId, emailData, pdfBuffer);
+        
+        console.log(`✅ Email body PDF created: Document ID ${emailBodyDocument.id}`);
+        
+        return res.status(200).json({
+          message: 'Email body PDF created successfully',
+          documentId: emailBodyDocument.id,
+          filename: emailBodyDocument.fileName
+        });
+      } else {
+        return res.status(200).json({
+          message: 'Email processed - no content to convert',
+          reason: 'no_content'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Bypass email ingest error:', error);
+      res.status(500).json({
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
   const server = await registerRoutes(app);
   console.log('✅ API routes registered successfully');

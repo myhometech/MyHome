@@ -205,7 +205,7 @@ async function checkExistingDocument(
 
     if (existing) {
       return {
-        documentId: existing.id,
+        documentId: String(existing.id),
         name: existing.fileName || 'Email PDF'
       };
     }
@@ -386,34 +386,21 @@ export async function renderAndCreateEmailBodyPdf(input: EmailBodyPdfInput): Pro
     const documentId = nanoid();
     const fileKey = `${input.tenantId}/${documentId}/${filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     
-    // Upload using storage service
-    const fileUrl = await storage.upload(pdfBuffer, fileKey, 'application/pdf');
-
-    // Create document in MyHome
-    const documentData: InsertDocument = {
-      userId: input.tenantId,
-      fileName: filename,
-      fileUrl,
-      fileSize: String(pdfBuffer.length),
-      mimeType: 'application/pdf',
-      source: 'email',
-      categoryId: input.categoryId || null,
+    // Use the specialized email body document creation method
+    const emailData = {
+      messageId: input.messageId,
+      from: input.from,
+      to: input.to,
+      subject: input.subject || null,
+      receivedAt: input.receivedAt,
+      ingestGroupId: input.ingestGroupId || null,
+      bodyHash,
+      filename,
       tags: input.tags || ['email'],
-      emailContext: {
-        messageId: input.messageId,
-        from: input.from,
-        to: input.to,
-        subject: input.subject || null,
-        receivedAt: input.receivedAt,
-        ingestGroupId: input.ingestGroupId || null,
-        bodyHash
-      }
+      categoryId: input.categoryId || null
     };
 
-    const document = await storage.createDocument(documentData);
-    
-    // Ensure document has the ID we generated
-    const finalDocument = { ...document, id: documentId };
+    const document = await storage.createEmailBodyDocument(input.tenantId, emailData, pdfBuffer);
 
     // Log success analytics
     logAnalyticsEvent('SUCCESS', {
@@ -427,7 +414,7 @@ export async function renderAndCreateEmailBodyPdf(input: EmailBodyPdfInput): Pro
 
     return {
       created: true,
-      documentId: finalDocument.id,
+      documentId: String(document.id),
       name: filename
     };
 

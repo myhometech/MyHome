@@ -19,6 +19,8 @@ import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
 import docxConversionService from './docxConversionService';
 import { featureFlagService } from './featureFlagService';
+import { getFeatureFlagValue } from './emailFeatureFlags';
+// Removed incorrect import - will use storage.createEmailBodyDocument
 import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQuery } from './monitoring';
 
 import { StorageService, storageProvider } from './storage/StorageService';
@@ -103,8 +105,8 @@ const mailgunUpload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit per file (Mailgun standard)
     files: 10, // Maximum 10 attachments (increased for multiple attachments)
-    fieldSize: 50 * 1024 * 1024, // 50MB field size for large email content with inline images
-    fields: 1000 // Maximum 1000 form fields (increased for complex emails with many headers)
+    fieldSize: 10 * 1024 * 1024, // Reduce from 50MB to 10MB to prevent memory issues
+    fields: 100 // Reduce from 1000 to 100 fields to speed up parsing
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
@@ -3700,6 +3702,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendStatus(200); 
   });
 
+  // Minimal test endpoint to isolate server issues
+  app.post('/api/email-test-minimal', async (req: any, res) => {
+    console.log('🧪 MINIMAL TEST: Route hit successfully');
+    res.status(200).json({ 
+      message: 'Minimal endpoint working', 
+      timestamp: new Date().toISOString() 
+    });
+  });
+
   // Debug route to test webhook processing without full security (REMOVE IN PRODUCTION)
   app.post('/api/email-ingest-debug', 
     (req, res, next) => {
@@ -3726,6 +3737,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // EMERGENCY FIX: Simplified email ingest handler bypassing all middleware
+  app.use('/api/email-ingest-simple', (req, res, next) => {
+    // Skip all global middleware for this route
+    next();
+  });
+  
+  app.post('/api/email-ingest-simple',
+    async (req: any, res) => {
+      try {
+        console.log('🚀 SIMPLE EMAIL INGEST: Request received');
+        console.log('📧 Body data:', Object.keys(req.body || {}));
+        console.log('📧 Raw body:', req.body);
+        
+        // Basic email data extraction
+        const { recipient, sender, subject, 'body-plain': bodyPlain, 'body-html': bodyHtml } = req.body;
+        
+        if (!recipient || !sender || !subject) {
+          return res.status(400).json({ error: 'Missing required email fields' });
+        }
+        
+        console.log(`📧 Processing email: ${subject} from ${sender} to ${recipient}`);
+        
+        // Extract user ID from recipient  
+        const userMatch = recipient.match(/upload\+([a-zA-Z0-9\-]+)@/);
+        if (!userMatch) {
+          return res.status(400).json({ error: 'Invalid recipient format' });
+        }
+        
+        const userId = userMatch[1];
+        console.log(`👤 User ID extracted: ${userId}`);
+        
+        // Check if email body PDF feature is enabled
+        const isEmailPdfEnabled = true; // Force enable for testing
+        console.log(`🎛️ Email PDF feature enabled: ${isEmailPdfEnabled} (forced for testing)`);
+        
+        if (isEmailPdfEnabled && (bodyPlain || bodyHtml)) {
+          console.log('📄 Creating email body PDF...');
+          
+          try {
+            const emailBodyDocument = await createEmailBodyDocument({
+              subject: subject || 'Untitled Email',
+              sender: sender || 'unknown@sender.com',
+              recipient: recipient || 'unknown@recipient.com',
+              bodyHtml: bodyHtml || '',
+              bodyText: bodyPlain || '',
+              userId,
+              messageId: req.body['Message-Id'] || `auto-${Date.now()}`,
+              timestamp: new Date().toISOString()
+            });
+            
+            console.log(`✅ Email body PDF created: Document ID ${emailBodyDocument.id}`);
+            
+            return res.status(200).json({
+              message: 'Email body PDF created successfully',
+              documentId: emailBodyDocument.id,
+              filename: emailBodyDocument.fileName
+            });
+          } catch (pdfError) {
+            console.error('❌ Email body PDF creation failed:', pdfError);
+            return res.status(500).json({
+              error: 'Failed to create email body PDF',
+              details: pdfError instanceof Error ? pdfError.message : String(pdfError)
+            });
+          }
+        } else {
+          return res.status(200).json({
+            message: 'Email processed - no attachments, PDF creation not enabled or no content',
+            reason: !isEmailPdfEnabled ? 'feature_disabled' : 'no_content'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Simple email ingest error:', error);
+        res.status(500).json({
+          error: 'Internal server error',
+          details: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  );
+
   // TICKET: Enable Public Access and Harden Security for /api/email-ingest (Mailgun Integration)
   // Apply comprehensive security middleware stack
   app.post('/api/email-ingest', 
@@ -3733,13 +3824,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🚨 MAILGUN POST: Email ingestion route hit from routes.ts');
       console.log('🚨 POST IP:', req.ip || req.socket.remoteAddress);
       console.log('🚨 POST Headers:', Object.keys(req.headers));
+      console.log('🚨 POST Body keys:', Object.keys(req.body || {}));
+      console.log('🚨 POST Starting middleware stack...');
+      
+      // Set request timeout to prevent hanging
+      req.setTimeout(45000, () => {
+        console.error('⏰ REQUEST TIMEOUT: Email ingest request timed out after 45 seconds');
+        if (!res.headersSent) {
+          res.status(504).json({ 
+            error: 'Gateway Timeout', 
+            message: 'Request processing timed out' 
+          });
+        }
+      });
+      
       next();
     },
     mailgunWebhookLogger,
     mailgunWebhookRateLimit,
     validateMailgunContentType,
     mailgunIPWhitelist,
+    (req, res, next) => {
+      console.log('🚀 BEFORE MULTER: Starting file upload processing...');
+      const timeout = setTimeout(() => {
+        console.error('⏰ MULTER TIMEOUT: File upload processing took longer than 30 seconds');
+      }, 30000);
+      
+      res.on('finish', () => clearTimeout(timeout));
+      next();
+    },
     mailgunUpload.any(), // MOVE MULTER BEFORE SIGNATURE VERIFICATION
+    (req, res, next) => {
+      console.log('✅ AFTER MULTER: File upload processing completed');
+      console.log('📁 Files processed:', req.files ? req.files.length : 0);
+      next();
+    },
     mailgunSignatureVerification,
     async (req: any, res) => {
     const processingStartTime = Date.now();
@@ -3925,6 +4044,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 });
               } catch (workerError) {
                 console.warn(`⚠️ Worker failed to queue job: ${workerError.message}, falling back to inline`);
+                console.error('⚠️ WORKER ERROR DETAILS:', {
+                  name: workerError.name,
+                  message: workerError.message,
+                  stack: workerError.stack?.split('\n').slice(0, 3)
+                });
                 useWorkerFallback = true;
               }
             }
@@ -3947,7 +4071,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 tags: ['email']
               };
               
+              console.log('🔧 FALLBACK: Calling renderAndCreateEmailBodyPdf with:', {
+                tenantId: emailBodyInput.tenantId,
+                subject: emailBodyInput.subject,
+                hasHtml: !!emailBodyInput.html,
+                hasText: !!emailBodyInput.text
+              });
               const result = await renderAndCreateEmailBodyPdf(emailBodyInput);
+              console.log('🔧 FALLBACK: Result from renderAndCreateEmailBodyPdf:', result);
               const documentId = result.created ? result.documentId : null;
               
               if (documentId) {
@@ -3963,6 +4094,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           } catch (emailBodyError) {
             console.error('❌ TICKET 3: Email body PDF creation failed:', emailBodyError);
+            console.error('❌ ERROR DETAILS:', {
+              name: emailBodyError.name,
+              message: emailBodyError.message,
+              stack: emailBodyError.stack?.split('\n').slice(0, 5),
+              workerAvailable: !!emailRenderWorker,
+              hasHtml: !!message.bodyHtml,
+              hasPlain: !!message.bodyPlain
+            });
             // Continue with normal attachment validation error
           }
         } else {

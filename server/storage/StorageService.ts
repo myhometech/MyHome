@@ -91,18 +91,24 @@ export class StorageService {
     let credentials;
     if (process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS) {
       try {
-        // Parse the new JSON credentials from the environment variable
+        // Fix: Check if env contains JSON or file path
         const credentialsStr = process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS.trim();
         
-        // Check if it's an XML error (invalid credentials)
-        if (credentialsStr.startsWith('<?xml') || credentialsStr.includes('<Error>')) {
+        // If it starts with '{', it's JSON content - but we want to use file path instead
+        if (credentialsStr.startsWith('{')) {
+          console.log('🔧 NEW_GOOGLE_APPLICATION_CREDENTIALS contains JSON, using service account file instead');
+          keyFilename = './server/google-service-account.json';
+          credentials = undefined; // Don't use credentials, use keyFilename
+        } else if (credentialsStr.startsWith('<?xml') || credentialsStr.includes('<Error>')) {
           console.error('❌ NEW_GOOGLE_APPLICATION_CREDENTIALS contains an error response, falling back to old credentials');
           throw new Error('Invalid credentials format');
+        } else {
+          // It's a file path, use it as keyFilename
+          keyFilename = credentialsStr;
+          credentials = undefined;
         }
-        
-        credentials = JSON.parse(credentialsStr);
-        // Extract project ID from credentials if not provided
-        if (!projectId && credentials.project_id) {
+        // Extract project ID from file if not provided (and we have credentials)
+        if (!projectId && credentials?.project_id) {
           projectId = credentials.project_id;
         }
         console.log('✅ Using NEW_GOOGLE_APPLICATION_CREDENTIALS with project:', projectId);

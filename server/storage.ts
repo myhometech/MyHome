@@ -952,53 +952,80 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document> {
-    console.log('📧 Creating email body document - using direct GCS upload');
+    console.log('📧 Creating email body document - using Mailgun-specific GCS configuration');
     
-    // Use direct GCS instance to avoid StorageService wrapper issues
+    // Use Mailgun-specific GCS credentials and bucket
     const { GCSStorage } = await import('./storage/GCSStorage');
-    const storageProvider = new GCSStorage(
-      process.env.GCS_BUCKET_NAME || 'myhometech-storage',
-      process.env.GCS_PROJECT_ID,
-      process.env.GCS_KEY_FILENAME
-    );
+    const storageConfig = {
+      bucketName: process.env.MAILGUN_GCS_BUCKET || 'myhometech-storage',
+      projectId: undefined, // Will be set from credentials
+      credentials: undefined as any,
+      keyFilename: undefined as string | undefined
+    };
+
+    // Parse Mailgun-specific credentials
+    if (process.env.MAILGUN_GCS_CREDENTIALS_JSON) {
+      try {
+        const credentials = JSON.parse(process.env.MAILGUN_GCS_CREDENTIALS_JSON);
+        storageConfig.credentials = credentials;
+        storageConfig.projectId = credentials.project_id;
+        console.log('✅ Using Mailgun-specific GCS credentials');
+      } catch (error) {
+        console.error('❌ Failed to parse MAILGUN_GCS_CREDENTIALS_JSON:', error);
+        throw new Error('Invalid Mailgun GCS credentials JSON format');
+      }
+    } else {
+      // Fallback to default GCS configuration
+      console.log('⚠️ MAILGUN_GCS_CREDENTIALS_JSON not found, falling back to default GCS config');
+      storageConfig.projectId = process.env.GCS_PROJECT_ID;
+      if (process.env.GCS_KEY_FILENAME) {
+        storageConfig.keyFilename = process.env.GCS_KEY_FILENAME;
+      }
+    }
+
+    const storageProvider = new GCSStorage(storageConfig);
     
-    // Generate filename
-    const cleanSubject = (emailData.subject || 'No Subject')
-      .replace(/[^a-zA-Z0-9\s\-_]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .substring(0, 50);
-    
-    const date = new Date(emailData.receivedAt).toISOString().substring(0, 10);
+    // Generate filename with proper email title format and object key structure
+    const title = emailData.filename || `Email-Body-${emailData.subject || 'No Subject'}-${new Date(emailData.receivedAt).toISOString().substring(0, 10)}.pdf`;
+    const timestamp = new Date(emailData.receivedAt).toISOString().replace(/[:.]/g, '');
     const { nanoid } = await import('nanoid');
-    const uniqueId = nanoid(8);
-    const filename = `Email-Body-${cleanSubject}-${date}-${uniqueId}.pdf`;
+    const messageId = emailData.messageId || `auto-${Date.now()}`;
+    const shortHash = nanoid(8);
     
-    console.log(`📧→☁️  Uploading ${filename} (${Math.round(pdfBuffer.length / 1024)}KB) using StorageService...`);
+    // Object key format: emails/{userId}/{timestamp}-{messageId}.pdf (with hash if needed)
+    const filename = `${timestamp}-${messageId}${messageId.includes('auto-') ? '' : `-${shortHash}`}.pdf`;
+    const objectKey = `emails/${userId}/${filename}`;
+    
+    console.log(`📧→☁️  Uploading ${objectKey} (${Math.round(pdfBuffer.length / 1024)}KB) with Mailgun credentials...`);
     
     let gcsPath: string;
     try {
-      // Upload using the configured StorageService - returns the key/path directly  
-      console.log(`🔍 StorageProvider type: ${storageProvider.constructor.name}`);
-      const uploadResult = await storageProvider.upload(
+      // Upload using Mailgun-specific GCS configuration with metadata
+      console.log(`🔍 Using StorageProvider: ${storageProvider.constructor.name}`);
+      const uploadResult = await (storageProvider as any).uploadWithMetadata(
         pdfBuffer,
-        filename,
-        'application/pdf'
+        objectKey,
+        'application/pdf',
+        {
+          contentDisposition: `inline; filename="${title}"`,
+          cacheControl: 'public, max-age=3600',
+          metadata: {
+            source: 'mailgun-email-ingest',
+            userId: userId,
+            messageId: emailData.messageId || 'auto-generated',
+            subject: emailData.subject || 'No Subject',
+            from: emailData.from || 'Unknown Sender',
+            uploadedAt: new Date().toISOString()
+          }
+        }
       );
       
-      console.log(`✅ StorageService upload result (type: ${typeof uploadResult}):`, uploadResult);
-      
-      // Check if uploadResult is falsy and use filename as fallback
-      if (!uploadResult) {
-        console.log('⚠️ Upload result was falsy, using filename as fallback');
-        gcsPath = filename;
-      } else {
-        gcsPath = uploadResult;
-      }
+      console.log(`✅ Mailgun GCS upload result:`, uploadResult);
+      gcsPath = uploadResult;
       
     } catch (error) {
-      console.error(`❌ StorageService upload failed for ${filename}:`, error);
-      throw new Error(`Failed to upload email PDF to cloud storage: ${error.message}`);
+      console.error(`❌ Mailgun GCS upload failed for ${objectKey}:`, error);
+      throw new Error(`Failed to upload email PDF to Mailgun GCS storage: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     // Prepare email context
@@ -1015,7 +1042,7 @@ export class DatabaseStorage implements IStorage {
     const documentData: InsertDocument = {
       userId,
       categoryId: emailData.categoryId || null,
-      name: `Email Body: ${emailData.subject || 'No Subject'}`,
+      name: title,
       fileName: filename,
       filePath: gcsPath,
       gcsPath,

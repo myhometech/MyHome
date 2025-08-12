@@ -92,6 +92,38 @@ export class GCSStorage implements StorageProvider {
   }
 
   /**
+   * Enhanced upload with custom metadata for Mailgun email PDFs
+   */
+  async uploadWithMetadata(file: Buffer, key: string, mimeType: string, options: {
+    contentDisposition?: string;
+    cacheControl?: string;
+    metadata?: Record<string, string>;
+  } = {}): Promise<string> {
+    try {
+      const bucket = this.storage.bucket(this.bucketName);
+      const gcsFile = bucket.file(key);
+
+      // Upload with enhanced metadata
+      await gcsFile.save(file, {
+        metadata: {
+          contentType: mimeType,
+          contentDisposition: options.contentDisposition || 'attachment',
+          cacheControl: options.cacheControl || 'private, max-age=3600',
+          metadata: options.metadata || {}
+        },
+        public: false, // Ensure private access
+        validation: 'md5'
+      });
+
+      console.log(`File uploaded to GCS with metadata: ${key}`);
+      return key; // Return the key as the storage identifier
+    } catch (error: any) {
+      console.error('GCS upload with metadata error:', error);
+      throw new Error(`Failed to upload file to GCS: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
+  /**
    * MEMORY OPTIMIZED: Upload file stream to Google Cloud Storage
    */
   async uploadStream(fileStream: NodeJS.ReadableStream, key: string, mimeType: string): Promise<string> {

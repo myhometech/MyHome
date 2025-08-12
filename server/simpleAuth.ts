@@ -4,21 +4,14 @@ import type { Express, RequestHandler } from "express";
 import { AuthService } from "./authService";
 
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+  // Use memory store for development - no external dependencies
 
   const isProd = process.env.NODE_ENV === 'production';
 
   return session({
     name: 'mh.sid',
     secret: process.env.SESSION_SECRET || "simple-auth-secret-key-for-development",
-    store: sessionStore,
+    // Using default memory store for development
     resave: false,
     saveUninitialized: false,
     cookie: {

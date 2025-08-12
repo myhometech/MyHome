@@ -77,13 +77,15 @@ async function detectChromiumBuildId(cacheDir: string): Promise<string | null> {
 }
 
 async function resolveExecutablePath(): Promise<string> {
-  // 1) Prefer Puppeteer's Chrome if present (matches your working ls result)
+  // 1) Prefer Puppeteer's Chrome if present
   try {
     const chromePath = puppeteer.executablePath();
     await access(chromePath);
     console.log('✅ Using Puppeteer Chrome:', chromePath);
     return chromePath;
-  } catch (_) { /* fall through */ }
+  } catch (_) {
+    console.log('⚠️ Puppeteer Chrome not found, trying alternatives...');
+  }
 
   // 2) Use env‑pinned Chromium build if provided
   const pinned = process.env.PPTR_CHROMIUM_BUILD_ID;
@@ -98,7 +100,7 @@ async function resolveExecutablePath(): Promise<string> {
     }
   }
 
-  // 3) Auto‑detect installed Chromium buildId from cache (e.g., 1500082)
+  // 3) Auto‑detect installed Chromium buildId from cache
   const detected = await detectChromiumBuildId(CACHE_DIR);
   if (detected) {
     try {
@@ -111,7 +113,24 @@ async function resolveExecutablePath(): Promise<string> {
     }
   }
 
-  // 4) Last resort: try stable mapping (installed via postinstall)
+  // 4) Runtime installation fallback
+  console.log('🔄 No browser found, attempting runtime installation...');
+  try {
+    const { install } = await import('@puppeteer/browsers');
+    const installResult = await install({
+      browser: 'chrome' as any,
+      buildId: 'stable',
+      cacheDir: CACHE_DIR
+    });
+    
+    await access(installResult.executablePath);
+    console.log('✅ Runtime Chrome installation successful:', installResult.executablePath);
+    return installResult.executablePath;
+  } catch (installError) {
+    console.error('❌ Runtime installation failed:', installError);
+  }
+
+  // 5) Final fallback: try stable Chromium
   try {
     const p = computeExecutablePath({ browser: 'chromium' as BrowserType, buildId: 'stable', cacheDir: CACHE_DIR });
     await access(p);
@@ -119,8 +138,8 @@ async function resolveExecutablePath(): Promise<string> {
     return p;
   } catch {
     throw new EmailBodyPdfError('EMAIL_RENDER_FAILED',
-      `No browser executable found. Checked Puppeteer Chrome and Chromium in ${CACHE_DIR}. ` +
-      `Set PPTR_CHROMIUM_BUILD_ID to a known build (e.g., 1500082) and reinstall.`
+      `No browser executable found after all attempts. Checked Puppeteer Chrome and Chromium in ${CACHE_DIR}. ` +
+      `Runtime installation also failed. Set PPTR_CHROMIUM_BUILD_ID to a known build (e.g., 1500082) and reinstall.`
     );
   }
 }

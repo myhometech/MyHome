@@ -77,6 +77,9 @@ async function detectChromiumBuildId(cacheDir: string): Promise<string | null> {
 }
 
 async function resolveExecutablePath(): Promise<string> {
+  const isServerless = process.env.REPLIT_DEPLOYMENT || process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME;
+  console.log(`🔍 Browser resolution starting (serverless: ${!!isServerless})`);
+
   // 1) Prefer Puppeteer's Chrome if present
   try {
     const chromePath = puppeteer.executablePath();
@@ -87,7 +90,31 @@ async function resolveExecutablePath(): Promise<string> {
     console.log('⚠️ Puppeteer Chrome not found, trying alternatives...');
   }
 
-  // 2) Use env‑pinned Chromium build if provided
+  // 2) For serverless environments, try system Chrome first
+  if (isServerless) {
+    console.log('🌐 Serverless environment detected, checking system Chrome paths...');
+    const systemPaths = [
+      '/opt/chrome/chrome',              // AWS Lambda Layer
+      '/usr/bin/google-chrome',          // Standard Linux
+      '/usr/bin/google-chrome-stable',   // Ubuntu/Debian
+      '/usr/bin/chromium-browser',       // Chromium package
+      '/usr/bin/chromium',               // Alternative Chromium
+      process.env.CHROME_BIN,            // Heroku/buildpack
+    ].filter((path): path is string => Boolean(path));
+
+    for (const systemPath of systemPaths) {
+      try {
+        await access(systemPath);
+        console.log(`✅ Using system Chrome: ${systemPath}`);
+        return systemPath;
+      } catch {
+        // Continue to next path
+      }
+    }
+    console.log('❌ No system Chrome found in serverless environment');
+  }
+
+  // 3) Use env‑pinned Chromium build if provided
   const pinned = process.env.PPTR_CHROMIUM_BUILD_ID;
   if (pinned) {
     try {
@@ -100,7 +127,7 @@ async function resolveExecutablePath(): Promise<string> {
     }
   }
 
-  // 3) Auto‑detect installed Chromium buildId from cache
+  // 4) Auto‑detect installed Chromium buildId from cache
   const detected = await detectChromiumBuildId(CACHE_DIR);
   if (detected) {
     try {
@@ -113,34 +140,39 @@ async function resolveExecutablePath(): Promise<string> {
     }
   }
 
-  // 4) Runtime installation fallback
-  console.log('🔄 No browser found, attempting runtime installation...');
-  try {
-    const { install } = await import('@puppeteer/browsers');
-    const installResult = await install({
-      browser: 'chrome' as any,
-      buildId: 'stable',
-      cacheDir: CACHE_DIR
-    });
-    
-    await access(installResult.executablePath);
-    console.log('✅ Runtime Chrome installation successful:', installResult.executablePath);
-    return installResult.executablePath;
-  } catch (installError) {
-    console.error('❌ Runtime installation failed:', installError);
+  // 5) Runtime installation fallback (skip in strict serverless)
+  if (!isServerless) {
+    console.log('🔄 Local environment - attempting runtime installation...');
+    try {
+      const { install } = await import('@puppeteer/browsers');
+      const installResult = await install({
+        browser: 'chrome' as any,
+        buildId: 'stable',
+        cacheDir: CACHE_DIR
+      });
+      
+      await access(installResult.executablePath);
+      console.log('✅ Runtime Chrome installation successful:', installResult.executablePath);
+      return installResult.executablePath;
+    } catch (installError) {
+      console.error('❌ Runtime installation failed:', installError);
+    }
+  } else {
+    console.log('⚠️ Skipping runtime installation in serverless environment');
   }
 
-  // 5) Final fallback: try stable Chromium
+  // 6) Final fallback: try stable Chromium
   try {
     const p = computeExecutablePath({ browser: 'chromium' as BrowserType, buildId: 'stable', cacheDir: CACHE_DIR });
     await access(p);
     console.log('✅ Using stable Chromium build:', p);
     return p;
   } catch {
-    throw new EmailBodyPdfError('EMAIL_RENDER_FAILED',
-      `No browser executable found after all attempts. Checked Puppeteer Chrome and Chromium in ${CACHE_DIR}. ` +
-      `Runtime installation also failed. Set PPTR_CHROMIUM_BUILD_ID to a known build (e.g., 1500082) and reinstall.`
-    );
+    const errorMessage = isServerless 
+      ? `No browser executable found in serverless environment. System paths checked: /usr/bin/google-chrome, /usr/bin/chromium. Chrome needs to be installed in the deployment environment.`
+      : `No browser executable found after all attempts. Checked Puppeteer Chrome and Chromium in ${CACHE_DIR}. Runtime installation also failed. Set PPTR_CHROMIUM_BUILD_ID to a known build (e.g., 1500082) and reinstall.`;
+    
+    throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', errorMessage);
   }
 }
 
@@ -149,20 +181,37 @@ async function getBrowser(): Promise<Browser> {
     try {
       const executablePath = await resolveExecutablePath();
       
+      const isServerless = process.env.REPLIT_DEPLOYMENT || process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME;
+      
+      const launchArgs = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-accelerated-2d-canvas',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
+      ];
+
+      // Add serverless-specific optimizations
+      if (isServerless) {
+        launchArgs.push(
+          '--single-process',           // Reduce memory usage
+          '--disable-features=TranslateUI',
+          '--disable-ipc-flooding-protection',
+          '--memory-pressure-off'
+        );
+      }
+      
       browserPool = await puppeteer.launch({
         headless: true,
         executablePath,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox', 
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-accelerated-2d-canvas'
-        ]
+        args: launchArgs
       });
-      console.log('✅ Puppeteer browser launched successfully at:', executablePath);
+      console.log(`✅ Puppeteer browser launched successfully (${isServerless ? 'serverless' : 'local'}) at:`, executablePath);
     } catch (error) {
       console.error('❌ Failed to launch Puppeteer browser:', error);
       throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Browser launch failed: ${error instanceof Error ? error.message : String(error)}`);

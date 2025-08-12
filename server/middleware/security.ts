@@ -30,7 +30,8 @@ const contentSecurityPolicy = {
       "'self'",
       "'unsafe-inline'",
       "https://fonts.googleapis.com", 
-      "https://cdn.jsdelivr.net"
+      "https://cdn.jsdelivr.net",
+      "https://cdnjs.cloudflare.com"
     ],
     fontSrc: [
       "'self'",

@@ -6,9 +6,7 @@ import crypto from 'crypto';
 import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import DOMPurify from 'dompurify';
-import puppeteer, { Browser, Page } from 'puppeteer';
-import { computeExecutablePath, Browser as BrowserType } from '@puppeteer/browsers';
-import { access, readdir } from 'node:fs/promises';
+import { launchBrowser } from './puppeteerBootstrap.js';
 import { storage } from './storage.js';
 import { insertDocumentSchema, type InsertDocument } from '../shared/schema.js';
 import { nanoid } from 'nanoid';
@@ -54,145 +52,11 @@ const ANALYTICS_EVENTS = {
   SKIPPED: 'email_ingest_body_pdf_skipped'
 } as const;
 
-// Browser pool for Puppeteer instances
-let browserPool: Browser | null = null;
+// Removed browser pool - using launchBrowser() for each request
 
-const CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/home/runner/.cache/puppeteer';
+// Removed detectChromiumBuildId - using bootstrap system instead
 
-// Discover an installed Chromium buildId by reading the cache dir.
-// Looks for: /home/runner/.cache/puppeteer/chromium/linux-<buildId>
-async function detectChromiumBuildId(cacheDir: string): Promise<string | null> {
-  const chromiumDir = path.join(cacheDir, 'chromium');
-  try {
-    const entries = await readdir(chromiumDir, { withFileTypes: true });
-    // Prefer linux-<digits> folders; pick the newest if multiple
-    const candidates = entries
-      .filter(e => e.isDirectory() && /^linux-\d+$/.test(e.name))
-      .map(e => e.name.replace('linux-', ''))
-      .sort((a, b) => Number(b) - Number(a));
-    return candidates[0] || null;
-  } catch {
-    return null;
-  }
-}
-
-async function resolveExecutablePath(): Promise<string> {
-  console.log('🎯 puppeteer.executable', { path: puppeteer.executablePath() });
-  
-  // 1) Check actual Chrome installation in workspace
-  const workspaceChromePaths = [
-    '/home/runner/workspace/chrome/linux-139.0.7258.66/chrome-linux64/chrome',
-    '/home/runner/workspace/chrome/linux-138.0.7204.157/chrome-linux64/chrome',
-  ];
-  
-  for (const chromePath of workspaceChromePaths) {
-    try {
-      await access(chromePath);
-      console.log('✅ Using workspace Chrome:', chromePath);
-      return chromePath;
-    } catch {
-      // Continue to next path
-    }
-  }
-
-  // 2) Try Puppeteer's default Chrome path
-  try {
-    const chromePath = puppeteer.executablePath();
-    await access(chromePath);
-    console.log('✅ Using Puppeteer Chrome:', chromePath);
-    return chromePath;
-  } catch (error) {
-    console.log('⚠️ Puppeteer Chrome not accessible:', error);
-  }
-
-  // 3) Check cache directory for any Chrome installations
-  const cacheDir = process.env.PUPPETEER_CACHE_DIR || '/home/runner/.cache/puppeteer';
-  try {
-    const chromeDir = path.join(cacheDir, 'chrome');
-    const entries = await readdir(chromeDir, { withFileTypes: true });
-    const chromeDirs = entries
-      .filter(e => e.isDirectory() && e.name.startsWith('linux-'))
-      .sort((a, b) => b.name.localeCompare(a.name)); // Get newest version
-    
-    for (const dir of chromeDirs) {
-      const chromePath = path.join(chromeDir, dir.name, 'chrome-linux64', 'chrome');
-      try {
-        await access(chromePath);
-        console.log('✅ Using cached Chrome:', chromePath);
-        return chromePath;
-      } catch {
-        // Continue to next version
-      }
-    }
-  } catch (error) {
-    console.log('⚠️ Could not scan cache directory:', error);
-  }
-
-  // 4) Fallback: Environment override
-  const envExecutable = process.env.PUPPETEER_EXECUTABLE_PATH;
-  if (envExecutable) {
-    try {
-      await access(envExecutable);
-      console.log(`✅ Using environment executable: ${envExecutable}`);
-      return envExecutable;
-    } catch (error) {
-      console.warn(`⚠️ Environment executable not accessible: ${envExecutable}`, error);
-    }
-  }
-
-  // 5) System Chrome paths
-  const systemPaths = [
-    '/opt/chrome/chrome',              // AWS Lambda Layer
-    '/usr/bin/google-chrome',          // Standard Linux
-    '/usr/bin/google-chrome-stable',   // Ubuntu/Debian
-    '/usr/bin/chromium-browser',       // Chromium package
-    '/usr/bin/chromium',               // Alternative Chromium
-    process.env.CHROME_BIN,            // Heroku/buildpack
-  ].filter((path): path is string => Boolean(path));
-
-  for (const systemPath of systemPaths) {
-    try {
-      await access(systemPath);
-      console.log(`✅ Using system Chrome: ${systemPath}`);
-      return systemPath;
-    } catch {
-      // Continue to next path
-    }
-  }
-
-  // All paths exhausted
-  throw new EmailBodyPdfError('EMAIL_RENDER_FAILED',
-    `No browser executable found after checking all paths. Last attempted Puppeteer path: ${puppeteer.executablePath()}. ` +
-    `Install Chrome via: npx @puppeteer/browsers install chrome@stable`
-  );
-}
-
-async function getBrowser(): Promise<Browser> {
-  if (!browserPool || !browserPool.isConnected()) {
-    try {
-      const executablePath = await resolveExecutablePath();
-      
-      // RCA Fix: Standard Puppeteer launch args (proven stable)
-      browserPool = await puppeteer.launch({
-        headless: 'new',
-        executablePath,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox', 
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-first-run',
-          '--no-zygote'
-        ]
-      });
-      console.log('✅ Puppeteer browser launched successfully at:', executablePath);
-    } catch (error) {
-      console.error('❌ Failed to launch Puppeteer browser:', error);
-      throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Browser launch failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-  return browserPool;
-}
+// Removed old browser resolution code - using bootstrap system
 
 /**
  * Sanitize HTML content using DOMPurify with JSDOM
@@ -347,7 +211,7 @@ async function renderHtmlToPdf(
   maxSizeBytes: number = 10 * 1024 * 1024,
   attempt: 'first' | 'compressed' = 'first'
 ): Promise<Buffer> {
-  const browser = await getBrowser();
+  const browser = await launchBrowser();
   const page = await browser.newPage();
   
   try {
@@ -401,6 +265,7 @@ async function renderHtmlToPdf(
       if (attempt === 'first') {
         console.log('PDF too large, attempting compression...');
         await page.close();
+        await browser.close();
         return renderHtmlToPdf(html, maxSizeBytes, 'compressed');
       } else {
         throw new EmailBodyPdfError(
@@ -411,10 +276,12 @@ async function renderHtmlToPdf(
     }
 
     await page.close();
+    await browser.close();
     return Buffer.from(pdfBuffer);
     
   } catch (error) {
     await page.close();
+    await browser.close();
     if (error instanceof EmailBodyPdfError) throw error;
     throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Puppeteer render failed: ${error}`);
   }

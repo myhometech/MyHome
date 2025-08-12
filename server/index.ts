@@ -17,9 +17,7 @@ if (global.gc) {
   const afterGC = process.memoryUsage().heapUsed / 1024 / 1024;
   console.log(`🧹 Startup GC: ${beforeGC.toFixed(1)}MB → ${afterGC.toFixed(1)}MB (freed ${(beforeGC - afterGC).toFixed(1)}MB)`);
 } else {
-  console.warn('❌ Manual GC not available - memory optimizations severely limited');
-  console.warn('   Current command:', process.argv.join(' '));
-  console.warn('   NODE_OPTIONS:', process.env.NODE_OPTIONS || 'not set');
+  console.log('ℹ️ Manual GC not available - using standard memory management');
 }
 
 // Initialize error tracking and monitoring first

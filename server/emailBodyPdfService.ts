@@ -77,20 +77,58 @@ async function detectChromiumBuildId(cacheDir: string): Promise<string | null> {
 }
 
 async function resolveExecutablePath(): Promise<string> {
-  // RCA Fix: Standardize on Puppeteer's Chrome only - remove computeExecutablePath usage
   console.log('🎯 puppeteer.executable', { path: puppeteer.executablePath() });
   
-  // 1) Primary: Use Puppeteer's Chrome (guaranteed by package installation)
+  // 1) Check actual Chrome installation in workspace
+  const workspaceChromePaths = [
+    '/home/runner/workspace/chrome/linux-139.0.7258.66/chrome-linux64/chrome',
+    '/home/runner/workspace/chrome/linux-138.0.7204.157/chrome-linux64/chrome',
+  ];
+  
+  for (const chromePath of workspaceChromePaths) {
+    try {
+      await access(chromePath);
+      console.log('✅ Using workspace Chrome:', chromePath);
+      return chromePath;
+    } catch {
+      // Continue to next path
+    }
+  }
+
+  // 2) Try Puppeteer's default Chrome path
   try {
     const chromePath = puppeteer.executablePath();
     await access(chromePath);
     console.log('✅ Using Puppeteer Chrome:', chromePath);
     return chromePath;
   } catch (error) {
-    console.error('❌ Puppeteer Chrome not accessible:', error);
+    console.log('⚠️ Puppeteer Chrome not accessible:', error);
   }
 
-  // 2) Fallback: Environment override (for custom deployments)
+  // 3) Check cache directory for any Chrome installations
+  const cacheDir = process.env.PUPPETEER_CACHE_DIR || '/home/runner/.cache/puppeteer';
+  try {
+    const chromeDir = path.join(cacheDir, 'chrome');
+    const entries = await readdir(chromeDir, { withFileTypes: true });
+    const chromeDirs = entries
+      .filter(e => e.isDirectory() && e.name.startsWith('linux-'))
+      .sort((a, b) => b.name.localeCompare(a.name)); // Get newest version
+    
+    for (const dir of chromeDirs) {
+      const chromePath = path.join(chromeDir, dir.name, 'chrome-linux64', 'chrome');
+      try {
+        await access(chromePath);
+        console.log('✅ Using cached Chrome:', chromePath);
+        return chromePath;
+      } catch {
+        // Continue to next version
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ Could not scan cache directory:', error);
+  }
+
+  // 4) Fallback: Environment override
   const envExecutable = process.env.PUPPETEER_EXECUTABLE_PATH;
   if (envExecutable) {
     try {
@@ -102,7 +140,7 @@ async function resolveExecutablePath(): Promise<string> {
     }
   }
 
-  // 3) System Chrome paths (for serverless environments)
+  // 5) System Chrome paths
   const systemPaths = [
     '/opt/chrome/chrome',              // AWS Lambda Layer
     '/usr/bin/google-chrome',          // Standard Linux
@@ -124,8 +162,8 @@ async function resolveExecutablePath(): Promise<string> {
 
   // All paths exhausted
   throw new EmailBodyPdfError('EMAIL_RENDER_FAILED',
-    `No browser executable found. Puppeteer Chrome not accessible at: ${puppeteer.executablePath()}. ` +
-    `Ensure Chrome is installed via: npx puppeteer browsers install chrome@stable`
+    `No browser executable found after checking all paths. Last attempted Puppeteer path: ${puppeteer.executablePath()}. ` +
+    `Install Chrome via: npx @puppeteer/browsers install chrome@stable`
   );
 }
 

@@ -20,12 +20,12 @@ class SessionCleanupService {
 
   private async cleanupExpiredSessions(): Promise<void> {
     try {
-      const { db } = await import('./db-connection.js');
+      const { pool } = await import('./db.js');
       
       const cutoffTime = new Date(Date.now() - this.MAX_SESSION_AGE);
       
       // Clean up expired sessions from PostgreSQL
-      const result = await db.execute(`
+      const result = await pool.query(`
         DELETE FROM sessions 
         WHERE expire < $1 OR 
               (data->>'lastActivity')::bigint < $2
@@ -50,12 +50,12 @@ class SessionCleanupService {
     console.log('🆘 Emergency session cleanup initiated');
     
     try {
-      const { db } = await import('./db-connection.js');
+      const { pool } = await import('./db.js');
       
       // More aggressive cleanup - remove sessions older than 2 hours
       const cutoffTime = new Date(Date.now() - 2 * 60 * 60 * 1000);
       
-      const result = await db.execute(`
+      const result = await pool.query(`
         DELETE FROM sessions 
         WHERE expire < $1 OR 
               (data->>'lastActivity')::bigint < $2

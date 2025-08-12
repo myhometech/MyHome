@@ -6,6 +6,8 @@ import crypto from 'crypto';
 import { JSDOM } from 'jsdom';
 import DOMPurify from 'dompurify';
 import puppeteer, { Browser, Page } from 'puppeteer';
+import { access } from 'node:fs/promises';
+import { install, computeExecutablePath } from '@puppeteer/browsers';
 import { storage } from './storage.js';
 import { insertDocumentSchema, type InsertDocument } from '../shared/schema.js';
 import { nanoid } from 'nanoid';
@@ -54,12 +56,43 @@ const ANALYTICS_EVENTS = {
 // Browser pool for Puppeteer instances
 let browserPool: Browser | null = null;
 
+/**
+ * Ensure Chrome executable is available, install if missing (runtime fallback)
+ */
+async function ensureChromeExecutable(): Promise<string> {
+  const cacheDir = process.env.PUPPETEER_CACHE_DIR || "/home/runner/.cache/puppeteer";
+  let execPath = puppeteer.executablePath(); // path Puppeteer expects
+  
+  try {
+    await access(execPath); // verify it exists
+    console.log('✅ Chrome executable found at:', execPath);
+    return execPath;
+  } catch {
+    console.log('⚠️ Chrome binary missing, installing runtime fallback...');
+    try {
+      // Binary missing → install Chrome into cacheDir
+      const { executablePath } = await install({
+        browser: "chrome" as any,
+        cacheDir,
+        buildId: "stable"
+      });
+      console.log('✅ Chrome installed successfully at:', executablePath);
+      return executablePath;
+    } catch (installError) {
+      console.error('❌ Runtime Chrome installation failed:', installError);
+      throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Chrome installation failed: ${installError instanceof Error ? installError.message : String(installError)}`);
+    }
+  }
+}
+
 async function getBrowser(): Promise<Browser> {
   if (!browserPool || !browserPool.isConnected()) {
     try {
+      const executablePath = await ensureChromeExecutable();
+      
       browserPool = await puppeteer.launch({
-        headless: "new",
-        executablePath: puppeteer.executablePath(),
+        headless: true,
+        executablePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox', 
@@ -70,7 +103,7 @@ async function getBrowser(): Promise<Browser> {
           '--disable-accelerated-2d-canvas'
         ]
       });
-      console.log('✅ Puppeteer browser launched successfully');
+      console.log('✅ Puppeteer browser launched successfully with Chrome at:', executablePath);
     } catch (error) {
       console.error('❌ Failed to launch Puppeteer browser:', error);
       throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Browser launch failed: ${error instanceof Error ? error.message : String(error)}`);

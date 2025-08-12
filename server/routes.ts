@@ -3913,25 +3913,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`👤 User ID extracted: ${userId}`);
 
-        // Handle emails WITH attachments - delegate to existing attachment flow
-        if (hasAttachments && req.files && req.files.length > 0) {
-          console.log(`📎 Processing ${req.files.length} attachments via existing attachment flow...`);
-          
-          // Log for analytics as specified
-          console.log(`mailgun.verified=true, docId=pending, pdf.bytes=0, hasAttachments=true, contentType=${req.get('Content-Type')}`);
-          
-          // Return success - let existing attachment processing handle the files
-          return res.status(200).json({
-            message: 'Email with attachments received - processing via attachment flow',
-            attachmentCount: req.files.length,
-            hasAttachments: true,
-            messageId,
-            userId
-          });
-        }
-
-        // Handle emails WITHOUT attachments - create email body PDF
-        console.log('📄 Processing email without attachments - creating email body PDF...');
+        // Parse attachment types - distinguish file attachments from inline assets
+        const files = req.files || [];
+        const attachmentFiles = files.filter((f: any) => f.fieldname?.startsWith('attachment-'));
+        const inlineFiles = files.filter((f: any) => f.fieldname?.startsWith('inline-'));
+        const hasFileAttachments = attachmentFiles.length > 0;
+        const hasInlineAssets = inlineFiles.length > 0;
+        
+        console.log(`📎 Attachment analysis: ${attachmentFiles.length} file attachments, ${inlineFiles.length} inline assets`);
+        
+        // Always create email body PDF regardless of attachments
+        console.log('📄 Creating email body PDF (always runs regardless of attachments)...');
         
         // Prefer stripped-html, fallback to body-html, then body-plain as specified
         let emailContent = strippedHtml || bodyHtml || bodyPlain;
@@ -3945,13 +3937,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         try {
-          // Generate title using specified format: "Email – {FromShort} – {SubjectOr"No Subject"} – YYYY-MM-DD"
+          // Generate title using TEXT-FIRST format: "{Subject or Fallback} – Email – {FromShort} – YYYY-MM-DD"
           const fromShort = extractFromShort(sender);
           const subjectForTitle = subject?.trim() || 'No Subject';
           const isoDate = new Date().toISOString().slice(0, 10);
-          const emailTitle = truncateTitle(`Email – ${fromShort} – ${subjectForTitle} – ${isoDate}`, 70);
+          const emailTitle = truncateTitle(`${subjectForTitle} – Email – ${fromShort} – ${isoDate}`, 70);
           
-          console.log(`📝 Generated title: "${emailTitle}"`);
+          console.log(`📝 Generated title (text-first format): "${emailTitle}"`);
           
           const result = await renderAndCreateEmailBodyPdf({
             tenantId: userId,
@@ -3964,20 +3956,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             text: bodyPlain || null,
             ingestGroupId: null,
             categoryId: null,
-            tags: ['email']
+            tags: ['email', 'email-body']
           });
           
-          // Log analytics as specified in requirements
-          console.log(`mailgun.verified=true, docId=${result.documentId}, pdf.bytes=${result.created ? 'pending' : 0}, hasAttachments=false, contentType=${req.get('Content-Type')}`);
+          // Enhanced analytics - include attachment info
+          console.log(`mailgun.verified=true, docId=${result.documentId}, pdf.bytes=${result.created ? 'created' : 'exists'}, hasFileAttachments=${hasFileAttachments}, hasInlineAssets=${hasInlineAssets}, contentType=${req.get('Content-Type')}`);
           
           console.log(`✅ Email body PDF created: Document ID ${result.documentId}, Created: ${result.created}`);
+          
+          // Handle file attachments separately if present
+          let attachmentResults = [];
+          if (hasFileAttachments) {
+            console.log(`📎 Processing ${attachmentFiles.length} file attachments separately...`);
+            // TODO: Implement file attachment processing
+            // For now, just log that they would be processed
+            attachmentResults = attachmentFiles.map((file: any) => ({
+              filename: file.originalname,
+              size: file.size,
+              type: file.mimetype,
+              status: 'pending_implementation'
+            }));
+          }
           
           return res.status(200).json({
             message: 'Email body PDF created successfully',
             documentId: result.documentId,
             filename: result.name,
             created: result.created,
-            hasAttachments: false,
+            hasFileAttachments,
+            hasInlineAssets,
+            attachmentResults,
             messageId,
             title: emailTitle
           });
@@ -3985,13 +3993,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (pdfError) {
           console.error('❌ Email body PDF creation failed:', pdfError);
           
-          // Log failure analytics
-          console.log(`mailgun.verified=true, docId=failed, pdf.bytes=0, hasAttachments=false, contentType=${req.get('Content-Type')}, error=${pdfError instanceof Error ? pdfError.message : String(pdfError)}`);
+          // Log failure analytics with attachment info
+          console.log(`mailgun.verified=true, docId=failed, pdf.bytes=0, hasFileAttachments=${hasFileAttachments}, hasInlineAssets=${hasInlineAssets}, contentType=${req.get('Content-Type')}, error=${pdfError instanceof Error ? pdfError.message : String(pdfError)}`);
           
           return res.status(500).json({
             error: 'Failed to create email body PDF',
             details: pdfError instanceof Error ? pdfError.message : String(pdfError),
-            messageId
+            messageId,
+            hasFileAttachments,
+            hasInlineAssets
           });
         }
         

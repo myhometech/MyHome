@@ -55,6 +55,32 @@ import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "dri
 import type { Request, Response, NextFunction } from "express";
 type AuthenticatedRequest = Request & { user?: any };
 
+// Helper function to extract short sender name (display name if present, else domain)
+function extractFromShort(sender: string): string {
+  if (!sender) return 'Unknown Sender';
+  
+  // Check for display name in format "Display Name <email@domain.com>"
+  const displayNameMatch = sender.match(/^([^<]+)<.*>$/);
+  if (displayNameMatch) {
+    return displayNameMatch[1].trim();
+  }
+  
+  // No display name, extract domain from email
+  const emailMatch = sender.match(/@([^@]+)$/);
+  if (emailMatch) {
+    return emailMatch[1]; // Return domain
+  }
+  
+  // Fallback to first 20 chars of sender
+  return sender.length > 20 ? sender.substring(0, 20) + '...' : sender;
+}
+
+// Helper function to truncate title to specified max length
+function truncateTitle(title: string, maxLength: number): string {
+  if (title.length <= maxLength) return title;
+  return title.substring(0, maxLength - 3) + '...';
+}
+
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -3821,18 +3847,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // MAIN MAILGUN WEBHOOK ENDPOINT - Fixed for multipart/form-data handling
-  // This handles both emails with and without attachments
+  // MAIN MAILGUN WEBHOOK ENDPOINT - Properly secured with full validation
+  // This handles both emails with and without attachments, supporting both form-encoded and multipart data
   app.post('/api/email-ingest', 
-    mailgunUpload.any(), // Handle multipart/form-data with file uploads
+    // Apply security middleware stack in correct order
+    mailgunIPWhitelist,
+    mailgunWebhookRateLimit,
+    mailgunWebhookLogger,
+    validateMailgunContentType,
+    mailgunUpload.any(), // Handle multipart/form-data with file uploads and form-encoded data
+    mailgunSignatureVerification,
     async (req: any, res) => {
-      console.log('🚀 MAIN MAILGUN WEBHOOK: Processing request');
+      console.log('🚀 MAIN MAILGUN WEBHOOK: Processing authenticated request');
       console.log('📨 Content-Type:', req.get('Content-Type'));
       console.log('📦 Body keys:', Object.keys(req.body || {}));
       console.log('📎 Files:', req.files ? req.files.length : 0);
       
       try {
-        // Extract basic email data from multipart form
+        // Extract email data - works for both multipart and form-encoded
         const { 
           timestamp, 
           token, 
@@ -3842,9 +3874,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           subject, 
           'body-plain': bodyPlain, 
           'body-html': bodyHtml,
-          'Message-Id': messageId 
+          'stripped-html': strippedHtml,
+          'Message-Id': messageId,
+          'attachment-count': attachmentCountStr
         } = req.body;
 
+        // Parse attachment count
+        const attachmentCount = parseInt(attachmentCountStr || '0');
+        const hasAttachments = attachmentCount > 0 || (req.files && req.files.length > 0);
+        
         // Basic validation
         if (!recipient || !sender) {
           console.error('❌ Missing required email fields:', { recipient: !!recipient, sender: !!sender });
@@ -3852,79 +3890,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         console.log(`📧 Processing email: ${subject || 'No Subject'} from ${sender} to ${recipient}`);
+        console.log(`📎 Attachment count: ${attachmentCount}, Has files: ${req.files ? req.files.length : 0}`);
         
-        // Extract user ID from recipient  
-        const userMatch = recipient.match(/upload\+([a-zA-Z0-9\-]+)@/);
+        // Extract user ID from recipient using the pattern from specification  
+        const userMatch = recipient.match(/upload\+([^@]+)@/i);
         if (!userMatch) {
           console.error('❌ Invalid recipient format:', recipient);
-          return res.status(400).json({ error: 'Invalid recipient format - must contain user ID' });
+          return res.status(400).json({ 
+            error: 'Invalid recipient format',
+            message: 'Recipient must contain user ID in format upload+{userId}@domain'
+          });
         }
         
         const userId = userMatch[1];
         console.log(`👤 User ID extracted: ${userId}`);
 
-        // Handle attachments if present
-        const attachments = req.files || [];
-        if (attachments.length > 0) {
-          console.log(`📎 Processing ${attachments.length} attachments via normal flow...`);
-          // For emails with attachments, use existing attachment processing flow
-          // This endpoint will primarily handle the webhook, then delegate to attachment processor
+        // Handle emails WITH attachments - delegate to existing attachment flow
+        if (hasAttachments && req.files && req.files.length > 0) {
+          console.log(`📎 Processing ${req.files.length} attachments via existing attachment flow...`);
+          
+          // Log for analytics as specified
+          console.log(`mailgun.verified=true, docId=pending, pdf.bytes=0, hasAttachments=true, contentType=${req.get('Content-Type')}`);
+          
+          // Return success - let existing attachment processing handle the files
           return res.status(200).json({
             message: 'Email with attachments received - processing via attachment flow',
-            attachmentCount: attachments.length,
-            hasAttachments: true
+            attachmentCount: req.files.length,
+            hasAttachments: true,
+            messageId,
+            userId
           });
         }
 
-        // Handle emails without attachments - create email body PDF
-        const isEmailPdfEnabled = true; // Feature flag check can be added later
-        console.log(`🎛️ Email PDF feature enabled: ${isEmailPdfEnabled}`);
+        // Handle emails WITHOUT attachments - create email body PDF
+        console.log('📄 Processing email without attachments - creating email body PDF...');
         
-        if (isEmailPdfEnabled && (bodyPlain || bodyHtml)) {
-          console.log('📄 Creating email body PDF for email without attachments...');
+        // Prefer stripped-html, fallback to body-html, then body-plain as specified
+        let emailContent = strippedHtml || bodyHtml || bodyPlain;
+        
+        if (!emailContent) {
+          console.warn('⚠️ No email content available for PDF creation');
+          return res.status(400).json({
+            error: 'No email content',
+            message: 'No body-plain, body-html, or stripped-html content found for PDF creation'
+          });
+        }
+        
+        try {
+          // Generate title using specified format: "Email – {FromShort} – {SubjectOr"No Subject"} – YYYY-MM-DD"
+          const fromShort = extractFromShort(sender);
+          const subjectForTitle = subject?.trim() || 'No Subject';
+          const isoDate = new Date().toISOString().slice(0, 10);
+          const emailTitle = truncateTitle(`Email – ${fromShort} – ${subjectForTitle} – ${isoDate}`, 70);
           
-          try {
-            const result = await renderAndCreateEmailBodyPdf({
-              tenantId: userId,
-              messageId: messageId || `webhook-${Date.now()}`,
-              subject: subject || 'Untitled Email',
-              from: sender,
-              to: [recipient],
-              receivedAt: new Date().toISOString(),
-              html: bodyHtml || null,
-              text: bodyPlain || null,
-              ingestGroupId: null,
-              categoryId: null,
-              tags: ['email']
-            });
-            
-            console.log(`✅ Email body PDF created: Document ID ${result.documentId}, Created: ${result.created}`);
-            
-            return res.status(200).json({
-              message: 'Email body PDF created successfully',
-              documentId: result.documentId,
-              filename: result.name,
-              created: result.created,
-              hasAttachments: false
-            });
-          } catch (pdfError) {
-            console.error('❌ Email body PDF creation failed:', pdfError);
-            return res.status(500).json({
-              error: 'Failed to create email body PDF',
-              details: pdfError instanceof Error ? pdfError.message : String(pdfError)
-            });
-          }
-        } else {
-          console.log('⚠️ Email processed but no PDF created - feature disabled or no content');
+          console.log(`📝 Generated title: "${emailTitle}"`);
+          
+          const result = await renderAndCreateEmailBodyPdf({
+            tenantId: userId,
+            messageId: messageId || `mailgun-${Date.now()}`,
+            subject: emailTitle, // Use formatted title
+            from: sender,
+            to: [recipient],
+            receivedAt: new Date().toISOString(),
+            html: strippedHtml || bodyHtml || null,
+            text: bodyPlain || null,
+            ingestGroupId: null,
+            categoryId: null,
+            tags: ['email']
+          });
+          
+          // Log analytics as specified in requirements
+          console.log(`mailgun.verified=true, docId=${result.documentId}, pdf.bytes=${result.created ? 'pending' : 0}, hasAttachments=false, contentType=${req.get('Content-Type')}`);
+          
+          console.log(`✅ Email body PDF created: Document ID ${result.documentId}, Created: ${result.created}`);
+          
           return res.status(200).json({
-            message: 'Email processed - no attachments, PDF creation not enabled or no content',
-            reason: !isEmailPdfEnabled ? 'feature_disabled' : 'no_content',
-            hasAttachments: false
+            message: 'Email body PDF created successfully',
+            documentId: result.documentId,
+            filename: result.name,
+            created: result.created,
+            hasAttachments: false,
+            messageId,
+            title: emailTitle
+          });
+          
+        } catch (pdfError) {
+          console.error('❌ Email body PDF creation failed:', pdfError);
+          
+          // Log failure analytics
+          console.log(`mailgun.verified=true, docId=failed, pdf.bytes=0, hasAttachments=false, contentType=${req.get('Content-Type')}, error=${pdfError instanceof Error ? pdfError.message : String(pdfError)}`);
+          
+          return res.status(500).json({
+            error: 'Failed to create email body PDF',
+            details: pdfError instanceof Error ? pdfError.message : String(pdfError),
+            messageId
           });
         }
         
       } catch (error) {
         console.error('❌ Main webhook error:', error);
+        
+        // Log error analytics
+        console.log(`mailgun.verified=unknown, docId=error, pdf.bytes=0, hasAttachments=unknown, contentType=${req.get('Content-Type')}, error=${error instanceof Error ? error.message : String(error)}`);
+        
         res.status(500).json({
           error: 'Webhook processing failed',
           details: error instanceof Error ? error.message : String(error)

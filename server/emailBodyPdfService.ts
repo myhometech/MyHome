@@ -3,11 +3,12 @@
 // Idempotent per (tenantId, messageId, bodyHash) with ≤10MB limit enforcement
 
 import crypto from 'crypto';
+import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import DOMPurify from 'dompurify';
 import puppeteer, { Browser, Page } from 'puppeteer';
-import { computeExecutablePath } from '@puppeteer/browsers';
-import { access } from 'node:fs/promises';
+import { computeExecutablePath, Browser as BrowserType } from '@puppeteer/browsers';
+import { access, readdir } from 'node:fs/promises';
 import { storage } from './storage.js';
 import { insertDocumentSchema, type InsertDocument } from '../shared/schema.js';
 import { nanoid } from 'nanoid';
@@ -56,52 +57,78 @@ const ANALYTICS_EVENTS = {
 // Browser pool for Puppeteer instances
 let browserPool: Browser | null = null;
 
-/**
- * Get executable path with fallback strategy (single source of truth)
- * 1. Try Chromium from @puppeteer/browsers (build-time installed)
- * 2. Fallback to puppeteer-managed Chrome if needed
- */
-async function getExecutablePath(): Promise<string> {
-  const cacheDir = process.env.PUPPETEER_CACHE_DIR || "/home/runner/.cache/puppeteer";
-  
+const CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || '/home/runner/.cache/puppeteer';
+
+// Discover an installed Chromium buildId by reading the cache dir.
+// Looks for: /home/runner/.cache/puppeteer/chromium/linux-<buildId>
+async function detectChromiumBuildId(cacheDir: string): Promise<string | null> {
+  const chromiumDir = path.join(cacheDir, 'chromium');
   try {
-    // Primary: Use Chromium from @puppeteer/browsers (latest build)
-    const chromiumPath = computeExecutablePath({
-      browser: "chromium" as any,
-      buildId: "latest",
-      cacheDir,
-    });
-    
-    await access(chromiumPath);
-    console.log('✅ Using Chromium executable at:', chromiumPath);
-    return chromiumPath;
-    
-  } catch (chromiumError) {
-    console.warn('⚠️ Chromium path not accessible, trying Puppeteer fallback:', chromiumError);
-    
+    const entries = await readdir(chromiumDir, { withFileTypes: true });
+    // Prefer linux-<digits> folders; pick the newest if multiple
+    const candidates = entries
+      .filter(e => e.isDirectory() && /^linux-\d+$/.test(e.name))
+      .map(e => e.name.replace('linux-', ''))
+      .sort((a, b) => Number(b) - Number(a));
+    return candidates[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveExecutablePath(): Promise<string> {
+  // 1) Prefer Puppeteer's Chrome if present (matches your working ls result)
+  try {
+    const chromePath = puppeteer.executablePath();
+    await access(chromePath);
+    console.log('✅ Using Puppeteer Chrome:', chromePath);
+    return chromePath;
+  } catch (_) { /* fall through */ }
+
+  // 2) Use env‑pinned Chromium build if provided
+  const pinned = process.env.PPTR_CHROMIUM_BUILD_ID;
+  if (pinned) {
     try {
-      // Fallback: Puppeteer-managed Chrome
-      const puppeteerPath = puppeteer.executablePath();
-      await access(puppeteerPath);
-      console.log('✅ Using Puppeteer Chrome at:', puppeteerPath);
-      return puppeteerPath;
-      
-    } catch (puppeteerError) {
-      console.error('❌ No browser executable found');
-      console.error('Chromium error:', chromiumError);
-      console.error('Puppeteer error:', puppeteerError);
-      
-      throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', 
-        `No browser executable found. Chromium: ${chromiumError instanceof Error ? chromiumError.message : String(chromiumError)}`
-      );
+      const p = computeExecutablePath({ browser: 'chromium' as BrowserType, buildId: pinned, cacheDir: CACHE_DIR });
+      await access(p);
+      console.log('✅ Using pinned Chromium build:', p);
+      return p;
+    } catch (error) {
+      console.warn(`⚠️ Pinned Chromium build ${pinned} not accessible:`, error);
     }
+  }
+
+  // 3) Auto‑detect installed Chromium buildId from cache (e.g., 1500082)
+  const detected = await detectChromiumBuildId(CACHE_DIR);
+  if (detected) {
+    try {
+      const p = computeExecutablePath({ browser: 'chromium' as BrowserType, buildId: detected, cacheDir: CACHE_DIR });
+      await access(p);
+      console.log('✅ Using auto-detected Chromium build:', p);
+      return p;
+    } catch (error) {
+      console.warn(`⚠️ Auto-detected Chromium build ${detected} not accessible:`, error);
+    }
+  }
+
+  // 4) Last resort: try stable mapping (installed via postinstall)
+  try {
+    const p = computeExecutablePath({ browser: 'chromium' as BrowserType, buildId: 'stable', cacheDir: CACHE_DIR });
+    await access(p);
+    console.log('✅ Using stable Chromium build:', p);
+    return p;
+  } catch {
+    throw new EmailBodyPdfError('EMAIL_RENDER_FAILED',
+      `No browser executable found. Checked Puppeteer Chrome and Chromium in ${CACHE_DIR}. ` +
+      `Set PPTR_CHROMIUM_BUILD_ID to a known build (e.g., 1500082) and reinstall.`
+    );
   }
 }
 
 async function getBrowser(): Promise<Browser> {
   if (!browserPool || !browserPool.isConnected()) {
     try {
-      const executablePath = await getExecutablePath();
+      const executablePath = await resolveExecutablePath();
       
       browserPool = await puppeteer.launch({
         headless: true,
@@ -504,7 +531,7 @@ process.on('SIGINT', cleanup);
 
 // Startup self-check: Verify executable path on boot (async to avoid blocking startup)
 setTimeout(() => {
-  getExecutablePath()
-    .then(p => console.log('🎯 puppeteer.executable', { path: p }))
-    .catch(err => console.error('❌ puppeteer.executable_missing', { msg: err.message }));
+  resolveExecutablePath()
+    .then((p: string) => console.log('🎯 puppeteer.executable', { path: p }))
+    .catch((err: Error) => console.error('❌ puppeteer.executable_missing', { msg: err.message }));
 }, 1000);

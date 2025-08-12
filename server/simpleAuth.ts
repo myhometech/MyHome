@@ -14,7 +14,7 @@ export function getSession() {
   });
 
   const isProd = process.env.NODE_ENV === 'production';
-  
+
   return session({
     name: 'mh.sid',
     secret: process.env.SESSION_SECRET || "simple-auth-secret-key-for-development",

@@ -11,6 +11,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Suppress cross-origin stylesheet warnings */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}
+
 @layer utilities {
   .line-clamp-2 {
     overflow: hidden;

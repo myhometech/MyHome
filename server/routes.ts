@@ -3785,13 +3785,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`📧 Processing email: ${subject} from ${sender} to ${recipient}`);
         
-        // Extract user ID from recipient  
-        const userMatch = recipient.match(/upload\+([a-zA-Z0-9\-]+)@/);
-        if (!userMatch) {
-          return res.status(400).json({ error: 'Invalid recipient format' });
+        // Extract user ID from recipient using proper parsing logic
+        const { extractUserIdFromRecipient } = await import('./mailgunService');
+        console.log(`🧪 DEBUG: About to parse recipient: ${recipient}`);
+        const parseResult = extractUserIdFromRecipient(recipient);
+        console.log(`🧪 DEBUG: Parse result:`, parseResult);
+        
+        const { userId, error: recipientError } = parseResult;
+        
+        if (!userId || recipientError) {
+          console.error(`❌ Invalid recipient format: ${recipient}`, recipientError);
+          return res.status(400).json({ 
+            error: 'Invalid recipient format', 
+            details: recipientError,
+            recipient: recipient
+          });
         }
         
-        const userId = userMatch[1];
         console.log(`👤 User ID extracted: ${userId}`);
         
         // Check if email body PDF feature is enabled

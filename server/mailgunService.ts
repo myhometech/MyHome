@@ -166,6 +166,8 @@ export function verifyMailgunSignature(
  */
 export function extractUserIdFromRecipient(recipient: string): { userId: string | null; error?: string } {
   try {
+    console.log(`🧪 [MAILGUN] extractUserIdFromRecipient called with: "${recipient}"`);
+    
     if (!recipient || typeof recipient !== 'string') {
       return {
         userId: null,
@@ -193,8 +195,8 @@ export function extractUserIdFromRecipient(recipient: string): { userId: string 
       const userId = subaddressMatch[1];
       const domain = subaddressMatch[2];
 
-      // Validate user ID format (alphanumeric, hyphens, underscores)
-      if (!/^[a-z0-9\-_]+$/.test(userId)) {
+      // Validate user ID format (alphanumeric, hyphens, underscores - case insensitive)
+      if (!/^[a-zA-Z0-9\-_]+$/.test(userId)) {
         return {
           userId: null,
           error: `Invalid user ID format in subaddress: ${userId}. Must contain only letters, numbers, hyphens, and underscores`
@@ -215,8 +217,8 @@ export function extractUserIdFromRecipient(recipient: string): { userId: string 
     if (productionMatch) {
       const userId = productionMatch[1];
 
-      // Validate user ID format (alphanumeric, hyphens, underscores)
-      if (!/^[a-z0-9\-_]+$/.test(userId)) {
+      // Validate user ID format (alphanumeric, hyphens, underscores - case insensitive)
+      if (!/^[a-zA-Z0-9\-_]+$/.test(userId)) {
         return {
           userId: null,
           error: `Invalid user ID format in production format: ${userId}. Must contain only letters, numbers, hyphens, and underscores`

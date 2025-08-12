@@ -3898,17 +3898,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`📧 Processing email: ${subject || 'No Subject'} from ${sender} to ${recipient}`);
         console.log(`📎 Attachment count: ${attachmentCount}, Has files: ${req.files ? req.files.length : 0}`);
         
-        // Extract user ID from recipient using the pattern from specification  
-        const userMatch = recipient.match(/upload\+([^@]+)@/i);
-        if (!userMatch) {
-          console.error('❌ Invalid recipient format:', recipient);
+        // Extract user ID from recipient using proper parsing logic
+        const { extractUserIdFromRecipient } = await import('./mailgunService');
+        const { userId, error: recipientError } = extractUserIdFromRecipient(recipient);
+        
+        if (!userId || recipientError) {
+          console.error(`❌ Invalid recipient format: ${recipient}`, recipientError);
           return res.status(400).json({ 
-            error: 'Invalid recipient format',
-            message: 'Recipient must contain user ID in format upload+{userId}@domain'
+            error: 'Invalid recipient format', 
+            details: recipientError,
+            recipient: recipient
           });
         }
         
-        const userId = userMatch[1];
         console.log(`👤 User ID extracted: ${userId}`);
 
         // Handle emails WITH attachments - delegate to existing attachment flow

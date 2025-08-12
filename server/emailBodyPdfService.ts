@@ -56,18 +56,25 @@ let browserPool: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (!browserPool || !browserPool.isConnected()) {
-    browserPool = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu'
-      ]
-    });
+    try {
+      browserPool = await puppeteer.launch({
+        headless: "new",
+        executablePath: puppeteer.executablePath(),
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox', 
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-accelerated-2d-canvas'
+        ]
+      });
+      console.log('✅ Puppeteer browser launched successfully');
+    } catch (error) {
+      console.error('❌ Failed to launch Puppeteer browser:', error);
+      throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Browser launch failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   return browserPool;
 }

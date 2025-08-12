@@ -3937,13 +3937,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         try {
-          // Generate title using TEXT-FIRST format: "{Subject or Fallback} – Email – {FromShort} – YYYY-MM-DD"
+          // Generate title using format: "Email – {FromShort} – {SubjectOr"No Subject"} – YYYY-MM-DD"
           const fromShort = extractFromShort(sender);
           const subjectForTitle = subject?.trim() || 'No Subject';
           const isoDate = new Date().toISOString().slice(0, 10);
-          const emailTitle = truncateTitle(`${subjectForTitle} – Email – ${fromShort} – ${isoDate}`, 70);
+          const emailTitle = truncateTitle(`Email – ${fromShort} – ${subjectForTitle} – ${isoDate}`, 70);
           
-          console.log(`📝 Generated title (text-first format): "${emailTitle}"`);
+          console.log(`📝 Generated title: "${emailTitle}"`);
           
           const result = await renderAndCreateEmailBodyPdf({
             tenantId: userId,
@@ -3968,14 +3968,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let attachmentResults = [];
           if (hasFileAttachments) {
             console.log(`📎 Processing ${attachmentFiles.length} file attachments separately...`);
-            // TODO: Implement file attachment processing
-            // For now, just log that they would be processed
-            attachmentResults = attachmentFiles.map((file: any) => ({
-              filename: file.originalname,
-              size: file.size,
-              type: file.mimetype,
-              status: 'pending_implementation'
-            }));
+            try {
+              const { attachmentStorageService } = await import('./attachmentStorageService.js');
+              const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+              attachmentResults = await attachmentStorageService.storeMultipleAttachments(
+                attachmentFiles,
+                userId,
+                messageId || `mailgun-${Date.now()}`,
+                timestamp
+              );
+              console.log(`📁 Stored ${attachmentResults.filter(r => r.success).length}/${attachmentFiles.length} attachments`);
+            } catch (attachmentError) {
+              console.error('⚠️ Attachment storage failed:', attachmentError);
+              attachmentResults = attachmentFiles.map((file: any) => ({
+                success: false,
+                filename: file.originalname,
+                size: file.size,
+                error: 'storage_failed'
+              }));
+            }
           }
           
           return res.status(200).json({
@@ -3996,7 +4007,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Log failure analytics with attachment info
           console.log(`mailgun.verified=true, docId=failed, pdf.bytes=0, hasFileAttachments=${hasFileAttachments}, hasInlineAssets=${hasInlineAssets}, contentType=${req.get('Content-Type')}, error=${pdfError instanceof Error ? pdfError.message : String(pdfError)}`);
           
-          return res.status(500).json({
+          // Return 200 with failure flag instead of 500 to prevent webhook retries
+          return res.status(200).json({
+            ok: false,
+            reason: 'pdf_render_failed',
             error: 'Failed to create email body PDF',
             details: pdfError instanceof Error ? pdfError.message : String(pdfError),
             messageId,

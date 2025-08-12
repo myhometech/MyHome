@@ -7,6 +7,7 @@ import { JSDOM } from 'jsdom';
 import DOMPurify from 'dompurify';
 import puppeteer, { Browser, Page } from 'puppeteer';
 import { computeExecutablePath } from '@puppeteer/browsers';
+import { access } from 'node:fs/promises';
 import { storage } from './storage.js';
 import { insertDocumentSchema, type InsertDocument } from '../shared/schema.js';
 import { nanoid } from 'nanoid';
@@ -56,29 +57,51 @@ const ANALYTICS_EVENTS = {
 let browserPool: Browser | null = null;
 
 /**
- * Get Chromium executable path (installed at build time via postinstall)
+ * Get executable path with fallback strategy (single source of truth)
+ * 1. Try Chromium from @puppeteer/browsers (build-time installed)
+ * 2. Fallback to puppeteer-managed Chrome if needed
  */
-function getChromiumExecutable(): string {
+async function getExecutablePath(): Promise<string> {
   const cacheDir = process.env.PUPPETEER_CACHE_DIR || "/home/runner/.cache/puppeteer";
   
   try {
+    // Primary: Use Chromium from @puppeteer/browsers (latest build)
     const chromiumPath = computeExecutablePath({
       browser: "chromium" as any,
       buildId: "latest",
       cacheDir,
     });
+    
+    await access(chromiumPath);
     console.log('✅ Using Chromium executable at:', chromiumPath);
     return chromiumPath;
-  } catch (error) {
-    console.error('❌ Failed to compute Chromium executable path:', error);
-    throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Chromium path resolution failed: ${error instanceof Error ? error.message : String(error)}`);
+    
+  } catch (chromiumError) {
+    console.warn('⚠️ Chromium path not accessible, trying Puppeteer fallback:', chromiumError);
+    
+    try {
+      // Fallback: Puppeteer-managed Chrome
+      const puppeteerPath = puppeteer.executablePath();
+      await access(puppeteerPath);
+      console.log('✅ Using Puppeteer Chrome at:', puppeteerPath);
+      return puppeteerPath;
+      
+    } catch (puppeteerError) {
+      console.error('❌ No browser executable found');
+      console.error('Chromium error:', chromiumError);
+      console.error('Puppeteer error:', puppeteerError);
+      
+      throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', 
+        `No browser executable found. Chromium: ${chromiumError instanceof Error ? chromiumError.message : String(chromiumError)}`
+      );
+    }
   }
 }
 
 async function getBrowser(): Promise<Browser> {
   if (!browserPool || !browserPool.isConnected()) {
     try {
-      const executablePath = getChromiumExecutable();
+      const executablePath = await getExecutablePath();
       
       browserPool = await puppeteer.launch({
         headless: true,
@@ -93,7 +116,7 @@ async function getBrowser(): Promise<Browser> {
           '--disable-accelerated-2d-canvas'
         ]
       });
-      console.log('✅ Puppeteer browser launched successfully with Chromium at:', executablePath);
+      console.log('✅ Puppeteer browser launched successfully at:', executablePath);
     } catch (error) {
       console.error('❌ Failed to launch Puppeteer browser:', error);
       throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Browser launch failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -478,3 +501,10 @@ export async function cleanup(): Promise<void> {
 // Handle process termination
 process.on('SIGTERM', cleanup);
 process.on('SIGINT', cleanup);
+
+// Startup self-check: Verify executable path on boot (async to avoid blocking startup)
+setTimeout(() => {
+  getExecutablePath()
+    .then(p => console.log('🎯 puppeteer.executable', { path: p }))
+    .catch(err => console.error('❌ puppeteer.executable_missing', { msg: err.message }));
+}, 1000);

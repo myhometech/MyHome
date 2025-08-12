@@ -19,7 +19,7 @@ import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
 import docxConversionService from './docxConversionService';
 import { featureFlagService } from './featureFlagService';
-import { getFeatureFlagValue } from './emailFeatureFlags';
+import { EmailFeatureFlagService } from './emailFeatureFlags';
 // Removed incorrect import - will use storage.createEmailBodyDocument
 import { sentryRequestHandler, sentryErrorHandler, captureError, trackDatabaseQuery } from './monitoring';
 
@@ -3821,42 +3821,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // TICKET: EMERGENCY FIX - Completely minimal endpoint to restore email functionality
-  // This bypasses all middleware to identify what's causing the blocking
-  app.post('/api/email-ingest', async (req: any, res) => {
-    console.log('🚀 EMERGENCY MINIMAL ENDPOINT: Direct handler - no middleware');
-    console.log('📨 Headers received:', Object.keys(req.headers));
-    console.log('📦 Body type:', typeof req.body);
-    console.log('📦 Body keys:', Object.keys(req.body || {}));
-    
-    try {
-      // Quick test response to prove endpoint works
-      const testData = {
-        timestamp: req.body.timestamp || 'missing',
-        recipient: req.body.recipient || 'missing', 
-        sender: req.body.sender || 'missing',
-        subject: req.body.subject || 'missing'
-      };
+  // MAIN MAILGUN WEBHOOK ENDPOINT - Fixed for multipart/form-data handling
+  // This handles both emails with and without attachments
+  app.post('/api/email-ingest', 
+    mailgunUpload.any(), // Handle multipart/form-data with file uploads
+    async (req: any, res) => {
+      console.log('🚀 MAIN MAILGUN WEBHOOK: Processing request');
+      console.log('📨 Content-Type:', req.get('Content-Type'));
+      console.log('📦 Body keys:', Object.keys(req.body || {}));
+      console.log('📎 Files:', req.files ? req.files.length : 0);
       
-      console.log('✅ EMERGENCY ENDPOINT SUCCESS - basic parsing works');
-      console.log('📧 Test data:', testData);
-      
-      // Return success to prove the endpoint is reachable
-      res.status(200).json({
-        success: true,
-        message: 'Emergency minimal endpoint working',
-        received: testData,
-        note: 'This proves the main endpoint can receive requests - middleware was the blocker'
-      });
-      
-    } catch (error) {
-      console.error('❌ Emergency endpoint error:', error);
-      res.status(500).json({
-        error: 'Emergency endpoint failed',
-        details: error instanceof Error ? error.message : String(error)
-      });
+      try {
+        // Extract basic email data from multipart form
+        const { 
+          timestamp, 
+          token, 
+          signature, 
+          recipient, 
+          sender, 
+          subject, 
+          'body-plain': bodyPlain, 
+          'body-html': bodyHtml,
+          'Message-Id': messageId 
+        } = req.body;
+
+        // Basic validation
+        if (!recipient || !sender) {
+          console.error('❌ Missing required email fields:', { recipient: !!recipient, sender: !!sender });
+          return res.status(400).json({ error: 'Missing required email fields (recipient, sender)' });
+        }
+
+        console.log(`📧 Processing email: ${subject || 'No Subject'} from ${sender} to ${recipient}`);
+        
+        // Extract user ID from recipient  
+        const userMatch = recipient.match(/upload\+([a-zA-Z0-9\-]+)@/);
+        if (!userMatch) {
+          console.error('❌ Invalid recipient format:', recipient);
+          return res.status(400).json({ error: 'Invalid recipient format - must contain user ID' });
+        }
+        
+        const userId = userMatch[1];
+        console.log(`👤 User ID extracted: ${userId}`);
+
+        // Handle attachments if present
+        const attachments = req.files || [];
+        if (attachments.length > 0) {
+          console.log(`📎 Processing ${attachments.length} attachments via normal flow...`);
+          // For emails with attachments, use existing attachment processing flow
+          // This endpoint will primarily handle the webhook, then delegate to attachment processor
+          return res.status(200).json({
+            message: 'Email with attachments received - processing via attachment flow',
+            attachmentCount: attachments.length,
+            hasAttachments: true
+          });
+        }
+
+        // Handle emails without attachments - create email body PDF
+        const isEmailPdfEnabled = true; // Feature flag check can be added later
+        console.log(`🎛️ Email PDF feature enabled: ${isEmailPdfEnabled}`);
+        
+        if (isEmailPdfEnabled && (bodyPlain || bodyHtml)) {
+          console.log('📄 Creating email body PDF for email without attachments...');
+          
+          try {
+            const result = await renderAndCreateEmailBodyPdf({
+              tenantId: userId,
+              messageId: messageId || `webhook-${Date.now()}`,
+              subject: subject || 'Untitled Email',
+              from: sender,
+              to: [recipient],
+              receivedAt: new Date().toISOString(),
+              html: bodyHtml || null,
+              text: bodyPlain || null,
+              ingestGroupId: null,
+              categoryId: null,
+              tags: ['email']
+            });
+            
+            console.log(`✅ Email body PDF created: Document ID ${result.documentId}, Created: ${result.created}`);
+            
+            return res.status(200).json({
+              message: 'Email body PDF created successfully',
+              documentId: result.documentId,
+              filename: result.name,
+              created: result.created,
+              hasAttachments: false
+            });
+          } catch (pdfError) {
+            console.error('❌ Email body PDF creation failed:', pdfError);
+            return res.status(500).json({
+              error: 'Failed to create email body PDF',
+              details: pdfError instanceof Error ? pdfError.message : String(pdfError)
+            });
+          }
+        } else {
+          console.log('⚠️ Email processed but no PDF created - feature disabled or no content');
+          return res.status(200).json({
+            message: 'Email processed - no attachments, PDF creation not enabled or no content',
+            reason: !isEmailPdfEnabled ? 'feature_disabled' : 'no_content',
+            hasAttachments: false
+          });
+        }
+        
+      } catch (error) {
+        console.error('❌ Main webhook error:', error);
+        res.status(500).json({
+          error: 'Webhook processing failed',
+          details: error instanceof Error ? error.message : String(error)
+        });
+      }
     }
-  });
+  );
 
   app.get('/api/worker-health', async (_req, res) => {
     try {

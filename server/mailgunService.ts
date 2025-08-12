@@ -166,8 +166,6 @@ export function verifyMailgunSignature(
  */
 export function extractUserIdFromRecipient(recipient: string): { userId: string | null; error?: string } {
   try {
-    console.log(`🧪 [MAILGUN] extractUserIdFromRecipient called with: "${recipient}"`);
-    
     if (!recipient || typeof recipient !== 'string') {
       return {
         userId: null,

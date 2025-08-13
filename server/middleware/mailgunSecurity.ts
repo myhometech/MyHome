@@ -104,8 +104,9 @@ export function mailgunSignatureVerification(req: Request, res: Response, next: 
     console.log('🔍 Request body keys:', Object.keys(req.body || {}));
     
     // For development, skip signature verification temporarily
-    if (process.env.NODE_ENV === 'development') {
-      console.log('⚠️ DEVELOPMENT MODE: Skipping signature verification');
+    // Also skip if NODE_ENV is undefined (common in Replit development)
+    if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+      console.log(`⚠️ DEVELOPMENT MODE (NODE_ENV=${process.env.NODE_ENV}): Skipping signature verification`);
       return next();
     }
 

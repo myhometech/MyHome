@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer';
 import { PDFDocument, rgb } from 'pdf-lib';
 import sharp from 'sharp';
 import { resourceTracker } from './resourceTracker';
@@ -458,66 +457,11 @@ export class PDFConversionService {
   }
 
   /**
-   * Generate PDF from HTML using Puppeteer
+   * Generate PDF from HTML - Puppeteer method removed, now uses CloudConvert
    */
   private async generatePDFFromHTML(htmlContent: string, outputPath: string): Promise<void> {
-    let browser;
-    
-    try {
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process'
-        ]
-      });
-
-      const page = await browser.newPage();
-      
-      // Set content and wait for images to load with timeout
-      await page.setContent(htmlContent, {
-        waitUntil: 'networkidle0',
-        timeout: 30000
-      });
-      
-      // Wait for images to fully load
-      await page.waitForFunction(() => {
-        const images = Array.from(document.images);
-        return images.every(img => img.complete);
-      }, { timeout: 10000 }).catch(() => {
-        console.log('Image loading timeout, proceeding with PDF generation');
-      });
-
-      // Generate PDF with A4 settings and proper compatibility
-      await page.pdf({
-        path: outputPath,
-        format: 'A4',
-        margin: {
-          top: '10mm',
-          right: '10mm',
-          bottom: '10mm',
-          left: '10mm'
-        },
-        printBackground: true,
-        preferCSSPageSize: false, // Use format setting instead
-        tagged: false, // Disable tagged PDF for better compatibility
-        displayHeaderFooter: false,
-        omitBackground: false,
-        timeout: 30000, // 30 second timeout
-        width: '210mm', // A4 width
-        height: '297mm' // A4 height
-      });
-
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
-    }
+    console.error('❌ Puppeteer PDF generation has been removed - use CloudConvert API instead');
+    throw new Error('HTML to PDF generation via Puppeteer is no longer supported - migrate to CloudConvert API');
   }
 
   /**

@@ -1,12 +1,13 @@
 // Email Body → PDF Render Service (Server)
 // Converts email HTML/text body into sanitized PDF and creates MyHome document
 // Idempotent per (tenantId, messageId, bodyHash) with ≤10MB limit enforcement
+// Now uses CloudConvert exclusively for HTML-to-PDF conversion
 
 import crypto from 'crypto';
 import path from 'node:path';
 import { JSDOM } from 'jsdom';
 import DOMPurify from 'dompurify';
-import { launchBrowser } from './puppeteerBootstrap.js';
+import { CloudConvertService } from './cloudConvertService.js';
 import { storage } from './storage.js';
 import { insertDocumentSchema, type InsertDocument } from '../shared/schema.js';
 import { nanoid } from 'nanoid';
@@ -52,11 +53,7 @@ const ANALYTICS_EVENTS = {
   SKIPPED: 'email_ingest_body_pdf_skipped'
 } as const;
 
-// Removed browser pool - using launchBrowser() for each request
-
-// Removed detectChromiumBuildId - using bootstrap system instead
-
-// Removed old browser resolution code - using bootstrap system
+// CloudConvert service instance for HTML-to-PDF conversion
 
 /**
  * Sanitize HTML content using DOMPurify with JSDOM
@@ -204,68 +201,43 @@ async function checkExistingDocument(
 }
 
 /**
- * Render HTML to PDF with Puppeteer and size constraints
+ * Render HTML to PDF with CloudConvert and size constraints
  */
 async function renderHtmlToPdf(
   html: string, 
   maxSizeBytes: number = 10 * 1024 * 1024,
   attempt: 'first' | 'compressed' = 'first'
 ): Promise<Buffer> {
-  const browser = await launchBrowser();
-  const page = await browser.newPage();
-  
   try {
-    // Block all external requests
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const url = req.url();
-      if (url.startsWith('data:') || url === 'about:blank') {
-        req.continue();
-      } else {
-        console.log(`Blocked external request: ${url}`);
-        req.abort();
-      }
-    });
-
-    // Configure viewport and set content
-    await page.setViewport({ width: 794, height: 1123 }); // A4 dimensions in pixels
-    
     // Apply compression styles on second attempt
-    if (attempt === 'compressed') {
-      const compressedHtml = `
-        <style>
-          img { max-width: 1200px !important; height: auto !important; }
-          body { font-size: 11px !important; }
-          * { max-width: 100% !important; }
-        </style>
-        ${html}
-      `;
-      await page.setContent(compressedHtml, { waitUntil: 'networkidle0' });
-    } else {
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-    }
+    const htmlContent = attempt === 'compressed' ? `
+      <style>
+        img { max-width: 1200px !important; height: auto !important; }
+        body { font-size: 11px !important; }
+        * { max-width: 100% !important; }
+      </style>
+      ${html}
+    ` : html;
 
-    // Generate PDF with A4 format and 1" margins
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      margin: {
-        top: '1in',
-        right: '1in', 
-        bottom: '1in',
-        left: '1in'
-      },
+    const cloudConvert = new CloudConvertService();
+    
+    // Configure CloudConvert for HTML-to-PDF conversion
+    const convertOptions = {
+      pageSize: 'A4' as const,
+      marginMm: 25, // ~1 inch margins
       printBackground: true,
-      preferCSSPageSize: false
-    });
+      engine: 'chrome' as const
+    };
 
-    console.log(`PDF generated (${attempt} attempt): ${pdfBuffer.length} bytes`);
+    // Convert HTML to PDF using CloudConvert
+    const pdfBuffer = await cloudConvert.convertHtmlToPdf(htmlContent, convertOptions);
+    
+    console.log(`PDF generated via CloudConvert (${attempt} attempt): ${pdfBuffer.length} bytes`);
 
     // Check size constraint
     if (pdfBuffer.length > maxSizeBytes) {
       if (attempt === 'first') {
         console.log('PDF too large, attempting compression...');
-        await page.close();
-        await browser.close();
         return renderHtmlToPdf(html, maxSizeBytes, 'compressed');
       } else {
         throw new EmailBodyPdfError(
@@ -274,16 +246,14 @@ async function renderHtmlToPdf(
         );
       }
     }
-
-    await page.close();
-    await browser.close();
-    return Buffer.from(pdfBuffer);
     
+    return pdfBuffer;
+
   } catch (error) {
-    await page.close();
-    await browser.close();
-    if (error instanceof EmailBodyPdfError) throw error;
-    throw new EmailBodyPdfError('EMAIL_RENDER_FAILED', `Puppeteer render failed: ${error}`);
+    throw new EmailBodyPdfError(
+      'EMAIL_RENDER_FAILED',
+      `CloudConvert PDF rendering failed: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -424,18 +394,9 @@ export async function renderAndCreateEmailBodyPdf(input: EmailBodyPdfInput): Pro
 }
 
 /**
- * Cleanup function for graceful shutdown
+ * Cleanup function for graceful shutdown (no-op for CloudConvert)
  */
 export async function cleanup(): Promise<void> {
-  if (browserPool && browserPool.isConnected()) {
-    await browserPool.close();
-    browserPool = null;
-    console.log('Email PDF service browser pool closed');
-  }
+  // CloudConvert service cleanup if needed
+  console.log('Email PDF service cleaned up');
 }
-
-// Handle process termination
-process.on('SIGTERM', cleanup);
-process.on('SIGINT', cleanup);
-
-// Startup self-check removed: Bootstrap system now handles executable path verification

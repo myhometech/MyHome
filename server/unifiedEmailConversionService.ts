@@ -2,12 +2,12 @@
  * TICKET 4: Unified Email Conversion Service
  * 
  * This service handles both email body and attachment conversion through a unified pipeline
- * using either CloudConvert or Puppeteer based on the PDF_CONVERTER_ENGINE feature flag.
+ * using CloudConvert exclusively for email conversion processing.
  */
 
 import { CloudConvertService, ConvertInput, ConvertResult, CloudConvertError, ConversionReason } from './cloudConvertService.js';
 import { metricsService, measureConversion, type ConversionEngine, type ConversionType, type EmailConversionSummary } from './metricsService.js';
-import { renderAndCreateEmailBodyPdf, EmailBodyPdfInput } from './emailBodyPdfService.js';
+// Legacy Puppeteer imports removed - now CloudConvert only
 import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import { storage } from './storage.js';
@@ -69,7 +69,7 @@ export interface ConversionResult {
     userVisibleStatus?: string; // TICKET 6: User-friendly status message
   }>;
   cloudConvertJobId?: string;
-  conversionEngine: 'cloudconvert' | 'puppeteer';
+  conversionEngine: 'cloudconvert';
   decisionReasons?: string[];
 }
 
@@ -111,7 +111,7 @@ export class UnifiedEmailConversionService {
       if (bodyEngine === 'cloudconvert') {
         result = await this.convertWithCloudConvert(input, convertAttachments);
       } else {
-        result = await this.convertWithPuppeteer(input, convertAttachments);
+        throw new Error('CloudConvert API key required for email conversion');
       }
       
       // Add decision reasons to result
@@ -137,7 +137,7 @@ export class UnifiedEmailConversionService {
     const hasApiKey = !!process.env.CLOUDCONVERT_API_KEY;
     
     if (pdfEngine === 'cloudconvert' && !hasApiKey) {
-      console.warn('⚠️ PDF_CONVERTER_ENGINE=cloudconvert but no CLOUDCONVERT_API_KEY found, falling back to Puppeteer');
+      console.error('❌ PDF_CONVERTER_ENGINE=cloudconvert but no CLOUDCONVERT_API_KEY found - email conversion failed');
       return false;
     }
     
@@ -186,10 +186,10 @@ export class UnifiedEmailConversionService {
       if (error instanceof CloudConvertError) {
         await this.logCloudConvertError(error, input);
         
-        // For configuration errors, still try Puppeteer but log the alert
+        // For configuration errors, fail fast
         if (error.conversionReason === 'error' && error.code === 'CONFIGURATION_ERROR') {
-          console.log('🔄 Configuration error detected, falling back to Puppeteer...');
-          return await this.convertWithPuppeteer(input);
+          console.error('❌ CloudConvert configuration error - email conversion failed');
+          throw new Error('CloudConvert configuration error: check API key and credentials');
         }
         
         // For other errors, try to process attachments as originals only
@@ -199,86 +199,18 @@ export class UnifiedEmailConversionService {
         return result;
       }
       
-      // For non-CloudConvert errors, fallback to Puppeteer
-      console.log('🔄 Falling back to Puppeteer conversion...');
-      return await this.convertWithPuppeteer(input);
+      // For non-CloudConvert errors, fail the conversion
+      console.error('❌ CloudConvert service unavailable - email conversion failed');
+      throw error;
     }
   }
 
   /**
-   * TICKET 4: Convert email using existing Puppeteer pathway (fallback)
+   * Legacy Puppeteer conversion method - now deprecated and removed
    */
   private async convertWithPuppeteer(input: UnifiedConversionInput, convertAttachments: boolean = false): Promise<ConversionResult> {
-    const result: ConversionResult = {
-      attachmentResults: [],
-      conversionEngine: 'puppeteer'
-    };
-
-    try {
-      // Create email body PDF using existing Puppeteer service
-      const emailBodyInput: EmailBodyPdfInput = {
-        tenantId: input.tenantId,
-        messageId: input.emailMetadata.messageId || `mailgun-${Date.now()}`,
-        subject: this.generateEmailTitle(input.emailMetadata),
-        from: input.emailMetadata.from,
-        to: input.emailMetadata.to,
-        receivedAt: input.emailMetadata.receivedAt,
-        html: input.emailContent.strippedHtml || input.emailContent.bodyHtml || null,
-        text: input.emailContent.bodyPlain || null,
-        ingestGroupId: null,
-        categoryId: input.categoryId,
-        tags: [...(input.tags || []), 'email', 'email-body']
-      };
-
-      const emailBodyResult = await renderAndCreateEmailBodyPdf(emailBodyInput);
-      
-      result.emailBodyPdf = {
-        documentId: emailBodyResult.documentId,
-        filename: emailBodyResult.name,
-        created: emailBodyResult.created
-      };
-
-      console.log(`✅ Puppeteer email body PDF: Document ID ${emailBodyResult.documentId}`);
-
-      // Process attachments using existing enhanced processor (only if flag enabled)
-      if (input.attachments.length > 0) {
-        console.log(`📁 Processing ${input.attachments.length} attachments - conversion enabled: ${convertAttachments}`);
-        
-        const { enhancedAttachmentProcessor } = await import('./enhancedAttachmentProcessor.js');
-        
-        const processingResult = await enhancedAttachmentProcessor.processEmailAttachments(
-          input.attachments,
-          input.tenantId,
-          {
-            from: input.emailMetadata.from,
-            subject: input.emailMetadata.subject || 'No Subject',
-            messageId: input.emailMetadata.messageId || `mailgun-${Date.now()}`,
-            timestamp: input.emailMetadata.receivedAt
-          },
-          convertAttachments // Pass conversion flag to processor
-        );
-
-        // Convert enhanced processor result to our expected format
-        result.attachmentResults = processingResult.processedAttachments.map((processed: any) => ({
-          success: processed.success || false,
-          filename: processed.originalFilename || processed.filename || 'unknown',
-          documentId: processed.originalDocumentId || processed.documentId,
-          converted: processed.converted || false,
-          classification: processed.classification || 'unknown',
-          error: processed.error
-        }));
-        
-        const successCount = result.attachmentResults.filter(r => r.success).length;
-        const conversionCount = result.attachmentResults.filter(r => r.converted).length;
-        console.log(`📁 Puppeteer processed ${successCount}/${input.attachments.length} attachments (${conversionCount} converted)`);
-      }
-
-      return result;
-
-    } catch (error) {
-      console.error('❌ Puppeteer conversion failed:', error);
-      throw error;
-    }
+    console.error('❌ Puppeteer conversion method called but no longer supported');
+    throw new Error('Puppeteer email conversion has been removed - use CloudConvert only');
   }
 
   /**

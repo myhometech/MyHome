@@ -8,7 +8,7 @@
 import * as Sentry from '@sentry/node';
 
 // Metric types for structured logging and Sentry breadcrumbs
-export type ConversionEngine = 'cloudconvert' | 'puppeteer';
+export type ConversionEngine = 'cloudconvert';
 export type ConversionType = 'body' | 'attachment';
 export type ConversionErrorReason = 
   | 'configuration_error'

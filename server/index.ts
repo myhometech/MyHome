@@ -78,7 +78,7 @@ if (!isDeployment) {
 let backupService: any = null;
 
 // TICKET 8: Initialize Email Render Worker
-import { initializeEmailRenderWorker } from './emailRenderWorker';
+import { emailRenderWorker } from './emailRenderWorker';
 import { initializeWorkerHealthChecker } from './workerHealthCheck';
 
 const app = express();
@@ -243,9 +243,8 @@ app.use((req, res, next) => {
   // TICKET 8: Initialize Email Render Worker
   try {
     console.log('🎬 Initializing Email Render Worker...');
-    await initializeEmailRenderWorker();
-    const { emailRenderWorker } = await import('./emailRenderWorker');
-    initializeWorkerHealthChecker(emailRenderWorker);
+    const worker = await emailRenderWorker.initialize();
+    initializeWorkerHealthChecker(worker);
     console.log('✅ Email Render Worker initialized successfully');
   } catch (error: any) {
     console.error('❌ Email Render Worker initialization failed:', error.message);

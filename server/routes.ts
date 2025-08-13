@@ -54,11 +54,7 @@ import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "dri
 // Import proper types
 import type { Request, Response, NextFunction } from "express";
 
-// Initialize Puppeteer browser at startup  
-import { ensureBrowserAtBoot } from './puppeteerBootstrap.js';
-ensureBrowserAtBoot()
-  .then(p => console.log("puppeteer.ready", { path: p }))
-  .catch(e => console.error("puppeteer.init_failed", { msg: e.message }));
+// CloudConvert initialization - no browser setup needed
 type AuthenticatedRequest = Request & { user?: any };
 
 // Helper function to extract short sender name (display name if present, else domain)

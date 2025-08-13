@@ -81,9 +81,13 @@ export class UnifiedEmailConversionService {
     try {
       if (process.env.CLOUDCONVERT_API_KEY) {
         this.cloudConvertService = new CloudConvertService();
+        console.log('✅ CloudConvert service ready for email conversions');
+      } else {
+        console.warn('⚠️ CloudConvert API key not configured - PDF conversions will be skipped');
       }
     } catch (error) {
-      console.warn('⚠️ CloudConvert service initialization failed:', error);
+      console.error('❌ CloudConvert service initialization failed:', error);
+      console.warn('📝 PDF conversion will be disabled for email processing');
     }
   }
 

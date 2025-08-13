@@ -55,24 +55,26 @@ import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "dri
 import type { Request, Response, NextFunction } from "express";
 
 // CloudConvert initialization - no browser setup needed
+import cloudConvertHealthRoutes from './routes/cloudConvertHealth.js';
+
 type AuthenticatedRequest = Request & { user?: any };
 
 // Helper function to extract short sender name (display name if present, else domain)
 function extractFromShort(sender: string): string {
   if (!sender) return 'Unknown Sender';
-  
+
   // Check for display name in format "Display Name <email@domain.com>"
   const displayNameMatch = sender.match(/^([^<]+)<.*>$/);
   if (displayNameMatch) {
     return displayNameMatch[1].trim();
   }
-  
+
   // No display name, extract domain from email
   const emailMatch = sender.match(/@([^@]+)$/);
   if (emailMatch) {
     return emailMatch[1]; // Return domain
   }
-  
+
   // Fallback to first 20 chars of sender
   return sender.length > 20 ? sender.substring(0, 20) + '...' : sender;
 }
@@ -553,7 +555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
       const search = req.query.search as string;
       const expiryFilter = req.query.expiryFilter as 'expired' | 'expiring-soon' | 'this-month' | undefined;
-      
+
       // TICKET 7: Email metadata filters and sorting
       const filters: any = {};
       if (req.query['filter[source]']) {
@@ -577,9 +579,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filters['email.receivedAt'].lte = req.query['filter[email.receivedAt][lte]'];
         }
       }
-      
+
       const sort = req.query.sort as string;
-      
+
       const documents = await storage.getDocuments(userId, categoryId, search, expiryFilter, Object.keys(filters).length ? filters : undefined, sort);
       res.json(documents);
     } catch (error) {
@@ -3258,7 +3260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.user!.id, 
         req.user!.subscriptionTier || 'free'
       );
-      
+
       if (!isEnabled) {
         return res.status(403).json({
           error: 'Feature not available',
@@ -3267,7 +3269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
-      
+
       // Validate request body
       const input = req.body;
       if (!input.messageId || !input.from || !input.to || !input.receivedAt) {
@@ -3297,7 +3299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error: any) {
       console.error('Email body PDF render failed:', error);
-      
+
       if (error.code) {
         return res.status(400).json({
           error: 'Email processing failed',
@@ -3331,7 +3333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Feature flag check - server-side authoritative
       const { emailFeatureFlagService } = await import('./emailFeatureFlags.js');
       const isEnabled = await emailFeatureFlagService.isManualEmailPdfEnabled(userId, userTier);
-      
+
       if (!isEnabled) {
         return res.status(403).json({
           errorCode: 'FEATURE_DISABLED',
@@ -3435,7 +3437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error: any) {
       console.error('Manual email PDF creation failed:', error);
-      
+
       // Log failure analytics
       const documentId = req.body.documentId;
       const messageId = req.body.messageId || 'unknown';
@@ -3770,27 +3772,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Skip all global middleware for this route
     next();
   });
-  
+
   app.post('/api/email-ingest-simple',
     async (req: any, res) => {
       try {
         console.log('🚀 SIMPLE EMAIL INGEST: Request received');
         console.log('📧 Body data:', Object.keys(req.body || {}));
         console.log('📧 Raw body:', req.body);
-        
+
         // Basic email data extraction
         const { recipient, sender, subject, 'body-plain': bodyPlain, 'body-html': bodyHtml } = req.body;
-        
+
         if (!recipient || !sender || !subject) {
           return res.status(400).json({ error: 'Missing required email fields' });
         }
-        
+
         console.log(`📧 Processing email: ${subject} from ${sender} to ${recipient}`);
-        
+
         // Extract user ID from recipient using proper parsing logic
         const { extractUserIdFromRecipient } = await import('./mailgunService');
         const { userId, error: recipientError } = extractUserIdFromRecipient(recipient);
-        
+
         if (!userId || recipientError) {
           console.error(`❌ Invalid recipient format: ${recipient}`, recipientError);
           return res.status(400).json({ 
@@ -3799,16 +3801,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recipient: recipient
           });
         }
-        
+
         console.log(`👤 User ID extracted: ${userId}`);
-        
+
         // Check if email body PDF feature is enabled
         const isEmailPdfEnabled = true; // Force enable for testing
         console.log(`🎛️ Email PDF feature enabled: ${isEmailPdfEnabled} (forced for testing)`);
-        
+
         if (isEmailPdfEnabled && (bodyPlain || bodyHtml)) {
           console.log('📄 Creating email body PDF...');
-          
+
           try {
             const result = await renderAndCreateEmailBodyPdf({
               tenantId: userId,
@@ -3823,9 +3825,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               categoryId: null,
               tags: ['email']
             });
-            
+
             console.log(`✅ Email body PDF created: Document ID ${result.documentId}, Created: ${result.created}`);
-            
+
             return res.status(200).json({
               message: 'Email body PDF created successfully',
               documentId: result.documentId,
@@ -3870,7 +3872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('📨 Content-Type:', req.get('Content-Type'));
       console.log('📦 Body keys:', Object.keys(req.body || {}));
       console.log('📎 Files:', req.files ? req.files.length : 0);
-      
+
       try {
         // Extract email data - works for both multipart and form-encoded
         const { 
@@ -3890,7 +3892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Parse attachment count
         const attachmentCount = parseInt(attachmentCountStr || '0');
         const hasAttachments = attachmentCount > 0 || (req.files && req.files.length > 0);
-        
+
         // Basic validation
         if (!recipient || !sender) {
           console.error('❌ Missing required email fields:', { recipient: !!recipient, sender: !!sender });
@@ -3899,11 +3901,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log(`📧 Processing email: ${subject || 'No Subject'} from ${sender} to ${recipient}`);
         console.log(`📎 Attachment count: ${attachmentCount}, Has files: ${req.files ? req.files.length : 0}`);
-        
+
         // Extract user ID from recipient using proper parsing logic
         const { extractUserIdFromRecipient } = await import('./mailgunService');
         const { userId, error: recipientError } = extractUserIdFromRecipient(recipient);
-        
+
         if (!userId || recipientError) {
           console.error(`❌ Invalid recipient format: ${recipient}`, recipientError);
           return res.status(400).json({ 
@@ -3912,7 +3914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recipient: recipient
           });
         }
-        
+
         console.log(`👤 User ID extracted: ${userId}`);
 
         // Parse attachment types - distinguish file attachments from inline assets
@@ -3921,15 +3923,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const inlineFiles = files.filter((f: any) => f.fieldname?.startsWith('inline-'));
         const hasFileAttachments = attachmentFiles.length > 0;
         const hasInlineAssets = inlineFiles.length > 0;
-        
+
         console.log(`📎 Attachment analysis: ${attachmentFiles.length} file attachments, ${inlineFiles.length} inline assets`);
-        
+
         // TICKET 4: Use unified conversion service with feature flag support
         console.log('📄 Processing email with unified conversion service...');
-        
+
         // Prefer stripped-html, fallback to body-html, then body-plain as specified
         let emailContent = strippedHtml || bodyHtml || bodyPlain;
-        
+
         if (!emailContent) {
           console.warn('⚠️ No email content available for PDF creation');
           return res.status(400).json({
@@ -3937,11 +3939,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: 'No body-plain, body-html, or stripped-html content found for PDF creation'
           });
         }
-        
+
         try {
           // Import unified conversion service
           const { unifiedEmailConversionService } = await import('./unifiedEmailConversionService.js');
-          
+
           // Convert multer files to AttachmentData format
           const attachmentData = attachmentFiles.map((file: any) => ({
             filename: file.originalname,
@@ -3972,17 +3974,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Process email with unified service (feature flag handled internally)
           const result = await unifiedEmailConversionService.convertEmail(conversionInput);
-          
+
           // Enhanced analytics - include conversion engine info
           const conversionEngine = result.conversionEngine;
           const cloudConvertJobId = result.cloudConvertJobId;
           const successCount = result.attachmentResults.filter(r => r.success).length;
           const conversionCount = result.attachmentResults.filter(r => r.converted).length;
-          
+
           console.log(`mailgun.verified=true, engine=${conversionEngine}, docId=${result.emailBodyPdf?.documentId}, pdf.bytes=${result.emailBodyPdf?.created ? 'created' : 'exists'}, hasFileAttachments=${hasFileAttachments}, hasInlineAssets=${hasInlineAssets}, cloudConvertJobId=${cloudConvertJobId || 'none'}, contentType=${req.get('Content-Type')}`);
-          
+
           console.log(`✅ Email processed via ${conversionEngine}: Body PDF ${result.emailBodyPdf?.documentId}, ${successCount}/${attachmentFiles.length} attachments (${conversionCount} converted)`);
-          
+
           // Trigger OCR for all created documents
           const allDocumentIds = [
             ...(result.emailBodyPdf ? [result.emailBodyPdf.documentId] : []),
@@ -3992,7 +3994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (allDocumentIds.length > 0) {
             try {
               const { ocrQueue } = await import('./ocrQueue.js');
-              
+
               for (const documentId of allDocumentIds) {
                 const document = await storage.getDocumentById(documentId);
                 if (document) {
@@ -4006,13 +4008,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   });
                 }
               }
-              
+
               console.log(`📝 OCR jobs queued for ${allDocumentIds.length} documents`);
             } catch (ocrError) {
               console.error('⚠️ OCR queue failed:', ocrError);
             }
           }
-          
+
           return res.status(200).json({
             message: 'Email processed successfully',
             conversionEngine,
@@ -4024,13 +4026,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             messageId,
             title: emailTitle
           });
-          
+
         } catch (pdfError) {
           console.error('❌ Email body PDF creation failed:', pdfError);
-          
+
           // Log failure analytics with attachment info
           console.log(`mailgun.verified=true, docId=failed, pdf.bytes=0, hasFileAttachments=${hasFileAttachments}, hasInlineAssets=${hasInlineAssets}, contentType=${req.get('Content-Type')}, error=${pdfError instanceof Error ? pdfError.message : String(pdfError)}`);
-          
+
           // Return 200 with failure flag instead of 500 to prevent webhook retries
           return res.status(200).json({
             ok: false,
@@ -4042,13 +4044,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             hasInlineAssets
           });
         }
-        
+
       } catch (error) {
         console.error('❌ Main webhook error:', error);
-        
+
         // Log error analytics
         console.log(`mailgun.verified=unknown, docId=error, pdf.bytes=0, hasAttachments=unknown, contentType=${req.get('Content-Type')}, error=${error instanceof Error ? error.message : String(error)}`);
-        
+
         res.status(500).json({
           error: 'Webhook processing failed',
           details: error instanceof Error ? error.message : String(error)
@@ -4096,14 +4098,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const backfillService = new EmailContextBackfillService();
 
       const { userId, dryRun } = req.body;
-      
+
       // Set dry run mode from request
       if (typeof dryRun === 'boolean') {
         process.env.BACKFILL_DRY_RUN = dryRun ? '1' : '0';
       }
 
       console.log(`🚀 TICKET 9: Starting email context backfill (userId: ${userId || 'all'}, dryRun: ${dryRun})`);
-      
+
       const metrics = await backfillService.backfillEmailContext(userId);
 
       res.json({
@@ -4243,14 +4245,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const vehicles = await storage.getVehicles(userId);
-      
+
       // Always return an array, even if empty
       const result = Array.isArray(vehicles) ? vehicles : [];
       return res.status(200).json(result);
-      
+
     } catch (error: any) {
       console.error(`[${req.cid || 'no-cid'}] vehicles_fetch_error:`, error);
-      
+
       // Handle specific error types
       if (error.code === 'DB_TIMEOUT') {
         return res.status(503).json({ 
@@ -4259,7 +4261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cid: req.cid 
         });
       }
-      
+
       return res.status(500).json({ 
         code: 'VEHICLES_FETCH_FAILED', 
         message: 'Failed to fetch vehicles', 
@@ -4413,7 +4415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Attempt DVLA lookup in background
           const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
-          
+
           if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
             // Update vehicle with DVLA data
             const dvlaVehicle = dvlaLookupResult.vehicle;
@@ -4427,10 +4429,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Preserve user notes
               notes: createdVehicle.notes,
             };
-            
+
             await storage.updateVehicle(createdVehicle.id, userId, dvlaUpdateData);
             console.log(`[${req.cid || 'no-cid'}] DVLA enrichment completed for ${vrn}`);
-            
+
             // Update DVLA fields for async response
             dvlaFields = [
               'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
@@ -4465,7 +4467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(response);
     } catch (error: any) {
       console.error(`[${req.cid || 'no-cid'}] Error creating vehicle:`, error);
-      
+
       if (error.name === 'ZodError') {
         console.error(`[${req.cid || 'no-cid'}] Zod validation error details:`, JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ 
@@ -4479,7 +4481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cid: req.cid
         });
       }
-      
+
       // Handle database constraint errors
       if (error.code === '23505') { // PostgreSQL unique constraint violation
         return res.status(409).json({ 
@@ -4488,7 +4490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cid: req.cid
         });
       }
-      
+
       return res.status(500).json({ 
         code: 'VEHICLE_CREATE_FAILED',
         message: "Failed to create vehicle",
@@ -4771,6 +4773,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
       res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
     });
+
+    // OCR error handling routes
+    app.use('/api', ocrErrorRoutes);
+
+    // CloudConvert health check
+    app.use('/api', cloudConvertHealthRoutes);
 
     app.use(sentryErrorHandler());
 

@@ -91,12 +91,15 @@ export class CloudConvertService implements ICloudConvertService {
     };
 
     if (!this.config.apiKey) {
+      console.error('🚨 CloudConvert API key is missing. Set CLOUDCONVERT_API_KEY environment variable.');
       throw new CloudConvertError('MISSING_API_KEY', 'CLOUDCONVERT_API_KEY environment variable is required');
     }
 
     this.baseUrl = this.config.sandbox 
       ? 'https://api.sandbox.cloudconvert.com/v2'
       : 'https://api.cloudconvert.com/v2';
+
+    console.log(`✅ CloudConvert service initialized (${this.config.sandbox ? 'sandbox' : 'production'} mode)`);
   }
 
   async convertToPdf(inputs: ConvertInput[]): Promise<ConvertResult> {

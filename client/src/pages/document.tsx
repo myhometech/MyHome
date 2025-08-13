@@ -101,6 +101,13 @@ export default function DocumentPage() {
             // Refresh document data when updated
             window.location.reload();
           }}
+          onDownload={() => {
+            // Create download link for the current document
+            const link = window.document.createElement('a');
+            link.href = `/api/documents/${document.id}/download`;
+            link.download = document.fileName;
+            link.click();
+          }}
         />
       </div>
     </div>

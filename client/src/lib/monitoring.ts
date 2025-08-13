@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/react';
 // Initialize Sentry for frontend error tracking
 export function initializeFrontendSentry() {
   if (!import.meta.env.VITE_SENTRY_DSN) {
-    console.log('✅ Sentry error tracking initialized for frontend');
+    console.log('✅ Sentry error tracking initialized for frontend (no DSN configured)');
     return;
   }
 

@@ -82,6 +82,12 @@ function Router() {
           <Route path="/admin">
             {() => { setLocation("/login"); return null; }}
           </Route>
+          <Route path="/document/:id">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/documents">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
 
         </>
       ) : (

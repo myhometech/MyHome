@@ -5,13 +5,13 @@ export function useAuth() {
   const { data: user, isLoading, error } = useQuery({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: (failureCount, error) => {
+    retry: (failureCount, error: any) => {
       // Log auth failures for debugging
-      console.log('[AUTH DEBUG] Query failed:', { failureCount, error, status: error?.status });
+      console.log('[AUTH DEBUG] Query failed:', { failureCount, error });
       return failureCount < 2; // Retry once
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (was cacheTime in older versions)
   });
 
   // Debug logging

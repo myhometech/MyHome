@@ -96,7 +96,7 @@ export class CloudConvertService implements ICloudConvertService {
       apiKey: process.env.CLOUDCONVERT_API_KEY || '',
       sandbox: process.env.CLOUDCONVERT_SANDBOX === 'true',
       region: process.env.CLOUDCONVERT_REGION || 'auto',
-      timeoutMs: parseInt(process.env.CLOUDCONVERT_TIMEOUT_MS || '30000')
+      timeoutMs: parseInt(process.env.CLOUDCONVERT_TIMEOUT_MS || '120000')
     };
 
     if (!this.config.apiKey) {
@@ -513,7 +513,13 @@ export class CloudConvertService implements ICloudConvertService {
     const startTime = Date.now();
 
     while (Date.now() - startTime < maxWaitTime) {
-      const job = await this.makeRequest('GET', `/jobs/${jobId}?include=tasks`);
+      const response = await this.makeRequest('GET', `/jobs/${jobId}?include=tasks`);
+      
+      // Handle nested response structure (same fix as in createJob)
+      let job = response;
+      if (response.data && typeof response.data === 'object' && response.data.status) {
+        job = response.data;
+      }
       
       if (job.status === 'finished') {
         return job;
@@ -541,7 +547,8 @@ export class CloudConvertService implements ICloudConvertService {
       }
 
       const fileInfo = task.result.files[0];
-      const response = await this.makeRequest('GET', fileInfo.url, null, { returnResponse: true });
+      // CloudConvert URLs are signed URLs - use direct fetch without auth headers
+      const response = await fetch(fileInfo.url);
       
       if (!response.ok) {
         throw new CloudConvertError('DOWNLOAD_FAILED', `Failed to download file: ${response.status}`, job.id, task.id);

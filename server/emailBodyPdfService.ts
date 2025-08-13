@@ -438,9 +438,4 @@ export async function cleanup(): Promise<void> {
 process.on('SIGTERM', cleanup);
 process.on('SIGINT', cleanup);
 
-// Startup self-check: Verify executable path on boot (async to avoid blocking startup)
-setTimeout(() => {
-  resolveExecutablePath()
-    .then((p: string) => console.log('🎯 puppeteer.executable', { path: p }))
-    .catch((err: Error) => console.error('❌ puppeteer.executable_missing', { msg: err.message }));
-}, 1000);
+// Startup self-check removed: Bootstrap system now handles executable path verification

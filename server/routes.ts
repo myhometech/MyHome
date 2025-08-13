@@ -3928,8 +3928,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`📎 Attachment analysis: ${attachmentFiles.length} file attachments, ${inlineFiles.length} inline assets`);
         
-        // Always create email body PDF regardless of attachments
-        console.log('📄 Creating email body PDF (always runs regardless of attachments)...');
+        // TICKET 4: Use unified conversion service with feature flag support
+        console.log('📄 Processing email with unified conversion service...');
         
         // Prefer stripped-html, fallback to body-html, then body-plain as specified
         let emailContent = strippedHtml || bodyHtml || bodyPlain;
@@ -3943,85 +3943,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         try {
-          // Generate title using format: "Email – {FromShort} – {SubjectOr"No Subject"} – YYYY-MM-DD"
-          const fromShort = extractFromShort(sender);
-          const subjectForTitle = subject?.trim() || 'No Subject';
-          const isoDate = new Date().toISOString().slice(0, 10);
-          const emailTitle = truncateTitle(`Email – ${fromShort} – ${subjectForTitle} – ${isoDate}`, 70);
+          // Import unified conversion service
+          const { unifiedEmailConversionService } = await import('./unifiedEmailConversionService.js');
           
-          console.log(`📝 Generated title: "${emailTitle}"`);
-          
-          const result = await renderAndCreateEmailBodyPdf({
+          // Convert multer files to AttachmentData format
+          const attachmentData = attachmentFiles.map((file: any) => ({
+            filename: file.originalname,
+            content: file.buffer.toString('base64'),
+            contentType: file.mimetype,
+            size: file.size
+          }));
+
+          // Prepare conversion input
+          const conversionInput = {
             tenantId: userId,
-            messageId: messageId || `mailgun-${Date.now()}`,
-            subject: emailTitle, // Use formatted title
-            from: sender,
-            to: [recipient],
-            receivedAt: new Date().toISOString(),
-            html: strippedHtml || bodyHtml || null,
-            text: bodyPlain || null,
-            ingestGroupId: null,
+            emailContent: {
+              strippedHtml,
+              bodyHtml,
+              bodyPlain
+            },
+            attachments: attachmentData,
+            emailMetadata: {
+              from: sender,
+              to: [recipient],
+              subject: subject || undefined,
+              messageId: messageId || `mailgun-${Date.now()}`,
+              receivedAt: new Date().toISOString()
+            },
             categoryId: null,
-            tags: ['email', 'email-body']
-          });
+            tags: ['email']
+          };
+
+          // Process email with unified service (feature flag handled internally)
+          const result = await unifiedEmailConversionService.convertEmail(conversionInput);
           
-          // Enhanced analytics - include attachment info
-          console.log(`mailgun.verified=true, docId=${result.documentId}, pdf.bytes=${result.created ? 'created' : 'exists'}, hasFileAttachments=${hasFileAttachments}, hasInlineAssets=${hasInlineAssets}, contentType=${req.get('Content-Type')}`);
+          // Enhanced analytics - include conversion engine info
+          const conversionEngine = result.conversionEngine;
+          const cloudConvertJobId = result.cloudConvertJobId;
+          const successCount = result.attachmentResults.filter(r => r.success).length;
+          const conversionCount = result.attachmentResults.filter(r => r.converted).length;
           
-          console.log(`✅ Email body PDF created: Document ID ${result.documentId}, Created: ${result.created}`);
+          console.log(`mailgun.verified=true, engine=${conversionEngine}, docId=${result.emailBodyPdf?.documentId}, pdf.bytes=${result.emailBodyPdf?.created ? 'created' : 'exists'}, hasFileAttachments=${hasFileAttachments}, hasInlineAssets=${hasInlineAssets}, cloudConvertJobId=${cloudConvertJobId || 'none'}, contentType=${req.get('Content-Type')}`);
           
-          // TICKET 3: Handle file attachments with enhanced classification & routing
-          let attachmentResults = [];
-          if (hasFileAttachments) {
-            console.log(`📎 Processing ${attachmentFiles.length} file attachments with classification & routing...`);
+          console.log(`✅ Email processed via ${conversionEngine}: Body PDF ${result.emailBodyPdf?.documentId}, ${successCount}/${attachmentFiles.length} attachments (${conversionCount} converted)`);
+          
+          // Trigger OCR for all created documents
+          const allDocumentIds = [
+            ...(result.emailBodyPdf ? [result.emailBodyPdf.documentId] : []),
+            ...result.attachmentResults.filter(r => r.documentId).map(r => r.documentId!)
+          ];
+
+          if (allDocumentIds.length > 0) {
             try {
-              const { enhancedAttachmentProcessor } = await import('./enhancedAttachmentProcessor.js');
+              const { ocrQueue } = await import('./ocrQueue.js');
               
-              // Convert multer files to AttachmentData format
-              const attachmentData = attachmentFiles.map((file: any) => ({
-                filename: file.originalname,
-                content: file.buffer.toString('base64'),
-                contentType: file.mimetype,
-                size: file.size
-              }));
-
-              const emailMetadata = {
-                from: sender,
-                subject: subject || 'No Subject',
-                messageId: messageId || `mailgun-${Date.now()}`,
-                timestamp: new Date().toISOString()
-              };
-
-              attachmentResults = await enhancedAttachmentProcessor.processEmailAttachments(
-                attachmentData,
-                userId,
-                emailMetadata
-              );
+              for (const documentId of allDocumentIds) {
+                const document = await storage.getDocumentById(documentId);
+                if (document) {
+                  await ocrQueue.addJob({
+                    documentId,
+                    fileName: document.fileName,
+                    filePathOrGCSKey: document.filePath,
+                    mimeType: document.mimeType,
+                    userId,
+                    priority: 5
+                  });
+                }
+              }
               
-              const successCount = attachmentResults.filter(r => r.success).length;
-              const conversionCount = attachmentResults.filter(r => r.converted).length;
-              console.log(`📁 Processed ${successCount}/${attachmentFiles.length} attachments (${conversionCount} converted to PDF)`);
-              
-            } catch (attachmentError) {
-              console.error('⚠️ Enhanced attachment processing failed:', attachmentError);
-              attachmentResults = attachmentFiles.map((file: any) => ({
-                success: false,
-                filename: file.originalname,
-                size: file.size,
-                error: 'enhanced_processing_failed',
-                classification: 'unknown'
-              }));
+              console.log(`📝 OCR jobs queued for ${allDocumentIds.length} documents`);
+            } catch (ocrError) {
+              console.error('⚠️ OCR queue failed:', ocrError);
             }
           }
           
           return res.status(200).json({
-            message: 'Email body PDF created successfully',
-            documentId: result.documentId,
-            filename: result.name,
-            created: result.created,
+            message: 'Email processed successfully',
+            conversionEngine,
+            cloudConvertJobId,
+            emailBodyPdf: result.emailBodyPdf,
             hasFileAttachments,
             hasInlineAssets,
-            attachmentResults,
+            attachmentResults: result.attachmentResults,
             messageId,
             title: emailTitle
           });

@@ -85,6 +85,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 ### Email Processing
 - **Email to PDF**: System for creating PDFs from email bodies (HTML sanitization, Puppeteer rendering) with bidirectional document references. Includes feature-flagged auto-creation for emails with attachments and a worker system for scalable PDF rendering (BullMQ, Puppeteer). **COMPREHENSIVE PATH RESOLUTION COMPLETE** - Implemented robust multi-tier browser executable detection with Chrome installation and Chromium auto-detection, eliminating startup failures and ensuring reliable PDF generation.
 - **CloudConvert Integration**: Multi-format document conversion service supporting HTML→PDF, Office→PDF, and Image→PDF conversions with robust error handling, retry logic, and engine selection (Chrome for HTML, LibreOffice for Office docs, ImageMagick for images).
+- **TICKET 4 COMPLETE**: Unified email conversion service with `PDF_CONVERTER_ENGINE` feature flag. When flag=cloudconvert, replaces Puppeteer email body PDF creation with CloudConvert processing. Supports unified ConvertInput array for email body + attachments, graceful fallback to Puppeteer, and maintains full backward compatibility. Enhanced analytics include conversion engine tracking.
 - **Email Metadata**: Exposure and filtering system for enhanced document discovery, including backfill for legacy attachments using Mailgun Events API.
 - **Worker Configuration**: Redis-based background worker with BullMQ for scalable PDF processing, with inline fallback when Redis unavailable.
 

@@ -10,6 +10,7 @@ import { metricsService, measureConversion, type ConversionEngine, type Conversi
 // Legacy Puppeteer imports removed - now CloudConvert only
 import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
+import { createHash } from 'crypto';
 import { storage } from './storage.js';
 import { insertDocumentSchema } from '../shared/schema.js';
 import { decideEngines, type EngineDecisionContext } from './emailEngineDecision.js';
@@ -686,8 +687,8 @@ export class UnifiedEmailConversionService {
    * TICKET 5: Calculate SHA-256 hash for content tracking
    */
   private calculateSha256(content: string | Buffer): string {
-    // Use built-in Node.js crypto module
-    const hash = require('crypto').createHash('sha256');
+    // Use imported crypto module with ES6 syntax
+    const hash = createHash('sha256');
     hash.update(content);
     return hash.digest('hex');
   }

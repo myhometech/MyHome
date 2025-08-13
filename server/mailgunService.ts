@@ -197,7 +197,8 @@ export function extractUserIdFromRecipient(recipient: string): { userId: string 
       const domain = subaddressMatch[2];
 
       // Validate user ID format (alphanumeric, hyphens, underscores - case insensitive)
-      if (!/^[a-zA-Z0-9\-_]+$/.test(userId)) {
+      // Support UUIDs with dashes: 52349659-c169-4705-b8bc-855cca484f29
+      if (!/^[a-zA-Z0-9_-]+$/.test(userId)) {
         return {
           userId: null,
           error: `Invalid user ID format in subaddress: ${userId}. Must contain only letters, numbers, hyphens, and underscores`
@@ -219,7 +220,8 @@ export function extractUserIdFromRecipient(recipient: string): { userId: string 
       const userId = productionMatch[1];
 
       // Validate user ID format (alphanumeric, hyphens, underscores - case insensitive)
-      if (!/^[a-zA-Z0-9\-_]+$/.test(userId)) {
+      // Support UUIDs with dashes: 52349659-c169-4705-b8bc-855cca484f29
+      if (!/^[a-zA-Z0-9_-]+$/.test(userId)) {
         return {
           userId: null,
           error: `Invalid user ID format in production format: ${userId}. Must contain only letters, numbers, hyphens, and underscores`

@@ -3904,7 +3904,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Extract user ID from recipient using proper parsing logic
         const { extractUserIdFromRecipient } = await import('./mailgunService');
+        console.log(`🔍 DEBUG: About to extract from recipient: "${recipient}"`);
         const { userId, error: recipientError } = extractUserIdFromRecipient(recipient);
+        console.log(`🔍 DEBUG: Extraction result - UserId: "${userId}", Error: "${recipientError}"`);
 
         if (!userId || recipientError) {
           console.error(`❌ Invalid recipient format: ${recipient}`, recipientError);
@@ -3957,6 +3959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Prepare conversion input
           const conversionInput = {
+            userId: userId,  // Add missing userId field
             tenantId: userId,
             emailContent: {
               strippedHtml,

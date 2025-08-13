@@ -46,6 +46,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Database**: PostgreSQL (configured for Neon serverless).
 - **Schema**: Users, Sessions, Categories, Documents tables.
 - **Recent Enhancement (TICKET 3)**: Documents table extended with conversion tracking fields (conversion_status, source_document_id, original_mime_type, conversion_job_id, conversion_metadata) for email attachment processing.
+- **TICKET 5 COMPLETE**: Enhanced provenance tracking with new fields: conversion_engine ('cloudconvert'|'puppeteer'|null), conversion_input_sha256 (SHA-256 content hash), conversion_reason (conversion outcome), derived_from_document_id (document derivation chain), and source ('manual'|'email'|'api') for comprehensive audit trails.
 
 ### File Management
 - **Storage**: Google Cloud Storage (`myhometech-storage` bucket) with AES-256-GCM encryption.

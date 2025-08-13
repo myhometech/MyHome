@@ -257,6 +257,11 @@ export class EnhancedAttachmentProcessor {
       uploadSource: 'email',
       status: 'active',
       conversionStatus,
+      // TICKET 5: Enhanced provenance tracking  
+      conversionEngine: null,
+      conversionReason: null,
+      conversionInputSha256: null,
+      source: 'email',
       emailContext: {
         from: emailMetadata.from,
         subject: emailMetadata.subject,
@@ -312,6 +317,12 @@ export class EnhancedAttachmentProcessor {
       originalMimeType,
       conversionJobId: jobId,
       conversionMetadata: metadata,
+      // TICKET 5: Enhanced provenance tracking
+      conversionEngine: 'cloudconvert',
+      conversionReason: 'ok',
+      conversionInputSha256: this.calculateSha256(decodedContent),
+      derivedFromDocumentId: originalDocument.documentId,
+      source: 'email',
       emailContext: {
         from: emailMetadata.from,
         subject: emailMetadata.subject,
@@ -458,6 +469,16 @@ export class EnhancedAttachmentProcessor {
     }
     
     return `${size.toFixed(1)} ${units[unitIndex]}`;
+  }
+
+  /**
+   * TICKET 5: Calculate SHA-256 hash for content tracking
+   */
+  private calculateSha256(content: Buffer): string {
+    const crypto = require('crypto');
+    const hash = crypto.createHash('sha256');
+    hash.update(content);
+    return hash.digest('hex');
   }
 }
 

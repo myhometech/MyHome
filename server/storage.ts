@@ -1076,7 +1076,12 @@ export class DatabaseStorage implements IStorage {
       messageId: emailData.messageId,
       emailContext: JSON.stringify(emailContext),
       status: 'completed',
-      ocrProcessed: false
+      ocrProcessed: false,
+      // TICKET 5: Enhanced provenance tracking
+      conversionEngine: 'puppeteer',
+      conversionReason: 'ok',
+      conversionInputSha256: emailData.bodyHash, // Use body hash as SHA-256
+      source: 'email'
     };
 
     const [document] = await this.db

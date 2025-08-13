@@ -500,6 +500,11 @@ export class UnifiedEmailConversionService {
         convertedAt: new Date().toISOString(),
         jobMeta: file.meta
       },
+      // TICKET 5: Enhanced provenance tracking
+      conversionEngine: 'cloudconvert' as const,
+      conversionReason: 'ok' as const,
+      conversionInputSha256: this.calculateSha256(input.emailContent.strippedHtml || ''),
+      source: 'email' as const,
       emailContext: {
         from: input.emailMetadata.from,
         subject: input.emailMetadata.subject,
@@ -535,6 +540,9 @@ export class UnifiedEmailConversionService {
       tags: [...(input.tags || []), 'email', 'attachment'],
       source: 'email',
       conversionStatus: 'not_applicable' as const,
+      // TICKET 5: Enhanced provenance tracking
+      conversionEngine: null,
+      conversionReason: null,
       emailContext: {
         from: input.emailMetadata.from,
         subject: input.emailMetadata.subject,
@@ -572,7 +580,7 @@ export class UnifiedEmailConversionService {
       userId: parseInt(input.tenantId),
       categoryId: input.categoryId || null,
       tags: [...(input.tags || []), 'email', 'attachment', 'converted'],
-      source: 'email',
+      source: 'email' as const,
       conversionStatus: 'completed' as const,
       sourceDocumentId,
       originalMimeType: originalAttachment.contentType,
@@ -583,6 +591,11 @@ export class UnifiedEmailConversionService {
         convertedAt: new Date().toISOString(),
         jobMeta: file.meta
       },
+      // TICKET 5: Enhanced provenance tracking
+      conversionEngine: 'cloudconvert' as const,
+      conversionReason: 'ok' as const,
+      conversionInputSha256: this.calculateSha256(Buffer.from(originalAttachment.content, 'base64')),
+      derivedFromDocumentId: sourceDocumentId,
       emailContext: {
         from: input.emailMetadata.from,
         subject: input.emailMetadata.subject,
@@ -593,6 +606,16 @@ export class UnifiedEmailConversionService {
 
     const validatedData = insertDocumentSchema.parse(documentData);
     return await storage.createDocument(validatedData);
+  }
+
+  /**
+   * TICKET 5: Calculate SHA-256 hash for content tracking
+   */
+  private calculateSha256(content: string | Buffer): string {
+    const crypto = require('crypto');
+    const hash = crypto.createHash('sha256');
+    hash.update(content);
+    return hash.digest('hex');
   }
 }
 

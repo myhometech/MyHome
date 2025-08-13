@@ -108,6 +108,13 @@ export const documents = pgTable("documents", {
   originalMimeType: varchar("original_mime_type", { length: 100 }), // Original MIME type before conversion (for converted documents)
   conversionJobId: text("conversion_job_id"), // CloudConvert job ID for tracking
   conversionMetadata: jsonb("conversion_metadata"), // { engine: 'libreoffice|imagemagick|chrome', duration: number, fileSize: number }
+  
+  // TICKET 5: Enhanced provenance and conversion tracking
+  conversionEngine: varchar("conversion_engine", { length: 20 }), // 'cloudconvert' | 'puppeteer' | null
+  conversionInputSha256: text("conversion_input_sha256"), // SHA-256 hash of input content for tracking
+  conversionReason: varchar("conversion_reason", { length: 30 }), // 'ok' | 'skipped_unsupported' | 'skipped_too_large' | 'skipped_password_protected' | 'error'
+  derivedFromDocumentId: integer("derived_from_document_id").references(() => documents.id), // For converted docs, reference to original
+  source: varchar("source", { length: 20 }).default("manual"), // 'manual', 'email', 'api' (replacing uploadSource for consistency)
 }, (table) => [
   // Primary user-based indexes for common queries
   index("idx_documents_user_id").on(table.userId),
@@ -139,6 +146,11 @@ export const documents = pgTable("documents", {
   index("idx_documents_conversion_status").on(table.conversionStatus), // Filter by conversion status
   index("idx_documents_source_document").on(table.sourceDocumentId), // Find converted documents from originals
   index("idx_documents_conversion_job").on(table.conversionJobId), // Track conversion jobs
+  
+  // TICKET 5: Enhanced provenance tracking indexes
+  index("idx_documents_conversion_engine").on(table.conversionEngine), // Filter by conversion engine
+  index("idx_documents_derived_from").on(table.derivedFromDocumentId), // Find derived documents
+  index("idx_documents_conversion_reason").on(table.conversionReason), // Filter by conversion outcome
   
   // Unique constraint for email body PDF deduplication per user
   // Prevents duplicate email body PDFs for same (userId, messageId, bodyHash) when uploadSource='email'

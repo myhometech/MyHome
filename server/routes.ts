@@ -3970,27 +3970,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`✅ Email body PDF created: Document ID ${result.documentId}, Created: ${result.created}`);
           
-          // Handle file attachments separately if present
+          // TICKET 3: Handle file attachments with enhanced classification & routing
           let attachmentResults = [];
           if (hasFileAttachments) {
-            console.log(`📎 Processing ${attachmentFiles.length} file attachments separately...`);
+            console.log(`📎 Processing ${attachmentFiles.length} file attachments with classification & routing...`);
             try {
-              const { attachmentStorageService } = await import('./attachmentStorageService.js');
-              const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
-              attachmentResults = await attachmentStorageService.storeMultipleAttachments(
-                attachmentFiles,
+              const { enhancedAttachmentProcessor } = await import('./enhancedAttachmentProcessor.js');
+              
+              // Convert multer files to AttachmentData format
+              const attachmentData = attachmentFiles.map((file: any) => ({
+                filename: file.originalname,
+                content: file.buffer.toString('base64'),
+                contentType: file.mimetype,
+                size: file.size
+              }));
+
+              const emailMetadata = {
+                from: sender,
+                subject: subject || 'No Subject',
+                messageId: messageId || `mailgun-${Date.now()}`,
+                timestamp: new Date().toISOString()
+              };
+
+              attachmentResults = await enhancedAttachmentProcessor.processEmailAttachments(
+                attachmentData,
                 userId,
-                messageId || `mailgun-${Date.now()}`,
-                timestamp
+                emailMetadata
               );
-              console.log(`📁 Stored ${attachmentResults.filter(r => r.success).length}/${attachmentFiles.length} attachments`);
+              
+              const successCount = attachmentResults.filter(r => r.success).length;
+              const conversionCount = attachmentResults.filter(r => r.converted).length;
+              console.log(`📁 Processed ${successCount}/${attachmentFiles.length} attachments (${conversionCount} converted to PDF)`);
+              
             } catch (attachmentError) {
-              console.error('⚠️ Attachment storage failed:', attachmentError);
+              console.error('⚠️ Enhanced attachment processing failed:', attachmentError);
               attachmentResults = attachmentFiles.map((file: any) => ({
                 success: false,
                 filename: file.originalname,
                 size: file.size,
-                error: 'storage_failed'
+                error: 'enhanced_processing_failed',
+                classification: 'unknown'
               }));
             }
           }

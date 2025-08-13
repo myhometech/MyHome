@@ -83,10 +83,11 @@ export interface IStorage {
   // Document operations
   getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: 'expired' | 'expiring-soon' | 'this-month'): Promise<Document[]>;
   getDocument(id: number, userId: string): Promise<Document | undefined>;
+  getDocumentById(id: number): Promise<Document | undefined>; // TICKET 3: Get document by ID only
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: number, userId: string): Promise<void>;
   updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined>;
-  updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string; documentReferences?: string }): Promise<Document | undefined>;
+  updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string; documentReferences?: string; conversionStatus?: string; conversionJobId?: string; conversionMetadata?: any }): Promise<Document | undefined>;
   updateDocumentOCR(id: number, userId: string, extractedText: string): Promise<Document | undefined>;
   updateDocumentOCRAndSummary(id: number, userId: string, extractedText: string, summary: string): Promise<Document | undefined>;
   updateDocumentOCRStatus(id: number, userId: string, ocrStatus: { status: string; ocrProcessed: boolean; extractedText: string | null }): Promise<Document | undefined>;
@@ -491,6 +492,15 @@ export class DatabaseStorage implements IStorage {
     return document;
   }
 
+  // TICKET 3: Get document by ID only (for internal operations)
+  async getDocumentById(id: number): Promise<Document | undefined> {
+    const [document] = await this.db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, id));
+    return document;
+  }
+
   async createDocument(document: InsertDocument): Promise<Document> {
     const [newDocument] = await this.db.insert(documents).values(document).returning();
     return newDocument;
@@ -512,7 +522,7 @@ export class DatabaseStorage implements IStorage {
     return updatedDoc;
   }
 
-  async updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string; documentReferences?: string }): Promise<Document | undefined> {
+  async updateDocument(id: number, userId: string, updates: { name?: string; expiryDate?: string | null; filePath?: string; gcsPath?: string; encryptedDocumentKey?: string; encryptionMetadata?: string; isEncrypted?: boolean; status?: string; documentReferences?: string; conversionStatus?: string; conversionJobId?: string; conversionMetadata?: any }): Promise<Document | undefined> {
     const updateData: any = {};
 
     if (updates.name !== undefined) {
@@ -555,6 +565,19 @@ export class DatabaseStorage implements IStorage {
 
     if (updates.documentReferences !== undefined) {
       updateData.documentReferences = updates.documentReferences;
+    }
+
+    // TICKET 3: Support conversion status updates
+    if (updates.conversionStatus !== undefined) {
+      updateData.conversionStatus = updates.conversionStatus;
+    }
+
+    if (updates.conversionJobId !== undefined) {
+      updateData.conversionJobId = updates.conversionJobId;
+    }
+
+    if (updates.conversionMetadata !== undefined) {
+      updateData.conversionMetadata = updates.conversionMetadata;
     }
 
     const [updatedDoc] = await this.db

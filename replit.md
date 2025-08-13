@@ -45,12 +45,14 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **ORM**: Drizzle ORM.
 - **Database**: PostgreSQL (configured for Neon serverless).
 - **Schema**: Users, Sessions, Categories, Documents tables.
+- **Recent Enhancement (TICKET 3)**: Documents table extended with conversion tracking fields (conversion_status, source_document_id, original_mime_type, conversion_job_id, conversion_metadata) for email attachment processing.
 
 ### File Management
 - **Storage**: Google Cloud Storage (`myhometech-storage` bucket) with AES-256-GCM encryption.
 - **Supported Formats**: PDF, JPEG, PNG, WebP, HEIC, HEIF, TIFF, BMP.
 - **File Size Limits**: 10MB per file for email ingestion; 50MB for multi-page scans.
 - **OCR Processing**: Tesseract.js with intelligent image enhancement.
+- **Email Attachments**: Enhanced classification & routing system (TICKET 3) - preserves originals while converting non-PDFs to separate PDF documents, enforces 10MB limits, handles password-protected files with full traceability.
 
 ### AI Integration
 - **AI Services**: Mistral LLM client for auto-categorization, date extraction, reminder suggestions, and content analysis.

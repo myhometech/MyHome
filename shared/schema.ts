@@ -101,6 +101,13 @@ export const documents = pgTable("documents", {
   bodyHash: text("body_hash"), // SHA-256 hash of email body content
   emailContext: jsonb("email_context"), // Email metadata: { from, to, subject, receivedAt, ingestGroupId }
   documentReferences: jsonb("document_references"), // Document relations: [{ type, relation, documentId, createdAt }]
+  
+  // TICKET 3: Attachment classification and conversion tracking
+  conversionStatus: varchar("conversion_status", { length: 30 }).default("not_applicable"), // 'not_applicable', 'pending', 'completed', 'skipped_unsupported', 'skipped_too_large', 'skipped_password_protected', 'failed'
+  sourceDocumentId: integer("source_document_id").references(() => documents.id), // Reference to original document (for converted PDFs)
+  originalMimeType: varchar("original_mime_type", { length: 100 }), // Original MIME type before conversion (for converted documents)
+  conversionJobId: text("conversion_job_id"), // CloudConvert job ID for tracking
+  conversionMetadata: jsonb("conversion_metadata"), // { engine: 'libreoffice|imagemagick|chrome', duration: number, fileSize: number }
 }, (table) => [
   // Primary user-based indexes for common queries
   index("idx_documents_user_id").on(table.userId),
@@ -127,6 +134,11 @@ export const documents = pgTable("documents", {
   // TICKET 7: Email metadata search indexes
   index("idx_documents_email_context_gin").on(table.emailContext), // GIN index for JSONB queries
   index("idx_documents_upload_source").on(table.uploadSource), // Filter by source
+  
+  // TICKET 3: Attachment classification and conversion indexes
+  index("idx_documents_conversion_status").on(table.conversionStatus), // Filter by conversion status
+  index("idx_documents_source_document").on(table.sourceDocumentId), // Find converted documents from originals
+  index("idx_documents_conversion_job").on(table.conversionJobId), // Track conversion jobs
   
   // Unique constraint for email body PDF deduplication per user
   // Prevents duplicate email body PDFs for same (userId, messageId, bodyHash) when uploadSource='email'

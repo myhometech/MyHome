@@ -33,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
     
     // Capture error in Sentry with React context
     captureReactError(error, {
-      componentStack: errorInfo.componentStack,
+      componentStack: errorInfo.componentStack || '',
       route: window.location.pathname,
       userAction: 'Component rendering',
     });

@@ -114,14 +114,27 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   const queryClient = useQueryClient();
 
   // Fetch full document details
-  const { data: fullDocument, isLoading: isLoadingDetails } = useQuery<FullDocumentDetails>({
+  const { data: fullDocument, isLoading: isLoadingDetails, error: documentError } = useQuery<FullDocumentDetails>({
     queryKey: [`/api/documents/${document.id}`],
     queryFn: async (): Promise<FullDocumentDetails> => {
       const response = await fetch(`/api/documents/${document.id}`, {
         credentials: 'include'
       });
-      if (!response.ok) throw new Error('Failed to fetch document details');
+      if (response.status === 401) {
+        // Redirect to login for authentication failures
+        window.location.href = '/';
+        throw new Error('Authentication required');
+      }
+      if (!response.ok) throw new Error(`Failed to fetch document details: ${response.status}`);
       return response.json();
+    },
+    retry: (failureCount, error) => {
+      // Don't retry authentication errors
+      if (error.message.includes('Authentication required')) {
+        return false;
+      }
+      // Retry other errors up to 3 times
+      return failureCount < 3;
     }
   });
 
@@ -132,8 +145,19 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
       const response = await fetch('/api/categories', {
         credentials: 'include'
       });
-      if (!response.ok) throw new Error('Failed to fetch categories');
+      if (response.status === 401) {
+        // Don't throw error for categories when not authenticated
+        return [];
+      }
+      if (!response.ok) throw new Error(`Failed to fetch categories: ${response.status}`);
       return response.json();
+    },
+    retry: (failureCount, error) => {
+      // Don't retry authentication errors
+      if (error.message.includes('Authentication required')) {
+        return false;
+      }
+      return failureCount < 3;
     }
   });
 

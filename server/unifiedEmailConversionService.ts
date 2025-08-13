@@ -12,6 +12,7 @@ import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import { storage } from './storage.js';
 import { insertDocumentSchema } from '../shared/schema.js';
+import { decideEngines, type EngineDecisionContext } from './emailEngineDecision.js';
 
 // Initialize DOMPurify for server-side HTML sanitization
 const window = new JSDOM('').window;
@@ -43,6 +44,8 @@ export interface UnifiedConversionInput {
   emailContent: EmailContent;
   attachments: AttachmentData[];
   emailMetadata: EmailMetadata;
+  userId?: string;
+  userTier?: 'free' | 'premium';
   categoryId?: number | null;
   tags?: string[];
 }
@@ -67,6 +70,7 @@ export interface ConversionResult {
   }>;
   cloudConvertJobId?: string;
   conversionEngine: 'cloudconvert' | 'puppeteer';
+  decisionReasons?: string[];
 }
 
 export class UnifiedEmailConversionService {
@@ -86,21 +90,32 @@ export class UnifiedEmailConversionService {
   /**
    * TICKET 4: Main conversion method with feature flag support
    * TICKET 7: Enhanced with metrics tracking and email-level summaries
+   * Enhanced with engine decision service for proper flag precedence
    */
   async convertEmail(input: UnifiedConversionInput): Promise<ConversionResult> {
-    const useCloudConvert = this.shouldUseCloudConvert();
     const startTime = Date.now();
     
-    console.log(`🔄 Starting email conversion using ${useCloudConvert ? 'CloudConvert' : 'Puppeteer'} engine`);
+    // Enhanced engine decision with proper precedence: ENV > DB flags > defaults
+    const engineContext: EngineDecisionContext = {
+      userId: input.userId,
+      userTier: input.userTier || 'free'
+    };
+    
+    const { body: bodyEngine, convertAttachments, reason } = await decideEngines(engineContext);
+    
+    console.log(`🔄 Starting email conversion - Body: ${bodyEngine}, Attachments: ${convertAttachments}, Reasons: ${reason.join(', ')}`);
     
     try {
       let result: ConversionResult;
       
-      if (useCloudConvert) {
-        result = await this.convertWithCloudConvert(input);
+      if (bodyEngine === 'cloudconvert') {
+        result = await this.convertWithCloudConvert(input, convertAttachments);
       } else {
-        result = await this.convertWithPuppeteer(input);
+        result = await this.convertWithPuppeteer(input, convertAttachments);
       }
+      
+      // Add decision reasons to result
+      result.decisionReasons = reason;
       
       // TICKET 7: Record email-level conversion summary
       await this.recordEmailConversionSummary(input, result, Date.now() - startTime);
@@ -131,15 +146,16 @@ export class UnifiedEmailConversionService {
 
   /**
    * TICKET 4: Convert email using CloudConvert (new pathway)
+   * Enhanced to support selective attachment conversion
    */
-  private async convertWithCloudConvert(input: UnifiedConversionInput): Promise<ConversionResult> {
+  private async convertWithCloudConvert(input: UnifiedConversionInput, convertAttachments: boolean = true): Promise<ConversionResult> {
     if (!this.cloudConvertService) {
       throw new Error('CloudConvert service not available');
     }
 
     try {
-      // Build ConvertInput array as specified in Ticket 4
-      const convertInputs = await this.buildConvertInputArray(input);
+      // Build ConvertInput array with selective attachment conversion
+      const convertInputs = await this.buildConvertInputArray(input, convertAttachments);
       
       console.log(`📊 Built CloudConvert input array: ${convertInputs.length} items`);
       console.log(`   - Email body: ${convertInputs.filter(i => i.kind === 'html').length}`);
@@ -192,7 +208,7 @@ export class UnifiedEmailConversionService {
   /**
    * TICKET 4: Convert email using existing Puppeteer pathway (fallback)
    */
-  private async convertWithPuppeteer(input: UnifiedConversionInput): Promise<ConversionResult> {
+  private async convertWithPuppeteer(input: UnifiedConversionInput, convertAttachments: boolean = false): Promise<ConversionResult> {
     const result: ConversionResult = {
       attachmentResults: [],
       conversionEngine: 'puppeteer'
@@ -224,8 +240,10 @@ export class UnifiedEmailConversionService {
 
       console.log(`✅ Puppeteer email body PDF: Document ID ${emailBodyResult.documentId}`);
 
-      // Process attachments using existing enhanced processor
+      // Process attachments using existing enhanced processor (only if flag enabled)
       if (input.attachments.length > 0) {
+        console.log(`📁 Processing ${input.attachments.length} attachments - conversion enabled: ${convertAttachments}`);
+        
         const { enhancedAttachmentProcessor } = await import('./enhancedAttachmentProcessor.js');
         
         const processingResult = await enhancedAttachmentProcessor.processEmailAttachments(
@@ -236,7 +254,8 @@ export class UnifiedEmailConversionService {
             subject: input.emailMetadata.subject || 'No Subject',
             messageId: input.emailMetadata.messageId || `mailgun-${Date.now()}`,
             timestamp: input.emailMetadata.receivedAt
-          }
+          },
+          convertAttachments // Pass conversion flag to processor
         );
 
         // Convert enhanced processor result to our expected format
@@ -268,7 +287,7 @@ export class UnifiedEmailConversionService {
    * - 'file' inputs for non-PDF attachments (Office/Images)
    * - Exclude PDFs (they are stored as-is)
    */
-  private async buildConvertInputArray(input: UnifiedConversionInput): Promise<ConvertInput[]> {
+  private async buildConvertInputArray(input: UnifiedConversionInput, convertAttachments: boolean = true): Promise<ConvertInput[]> {
     const convertInputs: ConvertInput[] = [];
 
     // 1. Add email body as HTML input
@@ -287,8 +306,8 @@ export class UnifiedEmailConversionService {
     for (const attachment of input.attachments) {
       const classification = attachmentClassificationService.classifyAttachment(attachment);
       
-      // Include only attachments that need conversion (exclude PDFs and unsupported)
-      if (classification.action === 'convert_to_pdf') {
+      // Include attachments based on conversion flag and classification
+      if (convertAttachments && classification.action === 'convert_to_pdf') {
         convertInputs.push({
           kind: 'file',
           filename: attachment.filename,

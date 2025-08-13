@@ -57,6 +57,9 @@ export interface EmailConversionSummary {
   // Performance data
   totalDurationMs: number;
   averageDurationMs: number;
+  
+  // Engine decision reasons
+  decisionReasons?: string[];
 }
 
 class MetricsService {

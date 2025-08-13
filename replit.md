@@ -75,11 +75,12 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Memory Optimization**: Manual garbage collection, resource tracking, OCR resource cleanup.
 
 ### CloudConvert Integration (Enhanced - 2025-08-13)
-- **Service Health**: Startup healthcheck validates API key and scopes, fails fast on configuration errors with structured logging to Sentry.
-- **Job Creation**: Explicit task naming with enhanced error capture including HTTP status, CloudConvert error codes, and task summaries for improved debugging.
+- **Critical P0 Fix Applied**: Implemented robust job creation handling for "missing job.id" errors with SDK response shape tolerance (job.id or job.data.id) and comprehensive error logging per ticket specifications.
+- **Service Health**: Startup healthcheck validates API key and scopes, sets global `__CC_DISABLED__` flag on failure to prevent conversions while preserving email ingestion.
+- **Enhanced Job Creation**: Hardened `createCcHtmlJob()` with detailed HTTP status/response logging, CloudConvert error code capture, and defensive response validation treating non-objects as failures.
 - **Retry Logic**: Exponential backoff for 429/5xx errors (max 3 attempts) with comprehensive error classification.
 - **Error Handling**: Enhanced CloudConvertError class with retryable flags, structured Sentry logging, and detailed context capture.
-- **HTML-to-PDF**: Robust email body conversion pipeline using CloudConvert Chrome engine with A4 layout and print background support.
+- **HTML-to-PDF**: Robust email body conversion pipeline using CloudConvert Chrome engine with A4 layout and print background support via `convertEmailBodyHtmlToPdf()`.
 - **Monitoring**: Integrated with metricsService for conversion duration, success rates, and failure pattern tracking.
 
 ### Security & Monitoring

@@ -808,15 +808,17 @@ export class CloudConvertService implements ICloudConvertService {
 // TICKET: Enhanced healthcheck to track service health state
 let globalCloudConvertService: CloudConvertService | null = null;
 
-async function cloudConvertHealthcheck(): Promise<void> {
+export async function cloudConvertHealthcheck(): Promise<void> {
   const key = process.env.CLOUDCONVERT_API_KEY;
   if (!key) {
-    throw new CloudConvertConfigError('CLOUDCONVERT_API_KEY missing');
+    console.error('[CloudConvert] CLOUDCONVERT_API_KEY missing');
+    // Set global flag to skip conversions but keep ingestion running
+    (globalThis as any).__CC_DISABLED__ = true;
+    throw new Error('CLOUDCONVERT_API_KEY missing');
   }
 
   try {
-    // TICKET: Use /jobs endpoint instead of /users/me since API key lacks user.read scope  
-    // but has task.read and task.write permissions
+    // TICKET: Use /jobs endpoint to test the API key and permissions
     const response = await fetch('https://api.cloudconvert.com/v2/jobs?per_page=1', {
       method: 'GET',
       headers: {
@@ -829,187 +831,126 @@ async function cloudConvertHealthcheck(): Promise<void> {
       const errorData = await response.text();
       const status = response.status;
       
-      // Log structured error for triage
-      console.error('[CloudConvert] healthcheck failed', { status, errorData });
+      console.error('[CloudConvert] healthcheck FAILED', { status, data: errorData });
       
-      // Alert to Sentry for configuration issues
-      Sentry.withScope(scope => {
-        scope.setTag('service', 'cloudconvert');
-        scope.setTag('error_type', 'healthcheck_failure');
-        scope.setLevel('error');
-        scope.setContext('healthcheck_error', {
-          status,
-          errorData,
-          timestamp: new Date().toISOString(),
-          apiKey: key ? `${key.slice(0, 8)}...${key.slice(-4)}` : 'MISSING'
-        });
-        Sentry.captureMessage('CloudConvert healthcheck failed', 'error');
-      });
-
+      // Set global flag to skip conversions but keep ingestion running
+      (globalThis as any).__CC_DISABLED__ = true;
+      
       // Mark service as unhealthy
       if (globalCloudConvertService) {
         globalCloudConvertService.setHealthy(false);
       }
       
-      throw new CloudConvertConfigError(
-        `CloudConvert healthcheck failed (status=${status}): ${errorData}`,
-        status
-      );
+      throw new Error(`CloudConvert healthcheck failed (status=${status}): ${errorData}`);
     }
 
     const jobData = await response.json() as any;
     const jobCount = Array.isArray(jobData.data) ? jobData.data.length : 0;
-    console.log(`[CloudConvert] healthcheck OK, task.read/task.write permissions verified, recent jobs=${jobCount}`);
+    console.log(`[CloudConvert] healthcheck OK user=${jobCount} jobs accessible`);
     
-    // Mark service as healthy
+    // Clear disabled flag and mark service as healthy
+    (globalThis as any).__CC_DISABLED__ = false;
     if (globalCloudConvertService) {
       globalCloudConvertService.setHealthy(true);
     }
     
   } catch (error) {
-    // Mark service as unhealthy on any error
+    const status = (error as any)?.status || (error as any)?.response?.status;
+    const data = (error as any)?.response?.data;
+    console.error('[CloudConvert] healthcheck FAILED', { status, data });
+    
+    // Set global flag to skip conversions but keep ingestion running
+    (globalThis as any).__CC_DISABLED__ = true;
+    
+    // Mark service as unhealthy
     if (globalCloudConvertService) {
       globalCloudConvertService.setHealthy(false);
     }
 
-    if (error instanceof CloudConvertConfigError) {
+    if (error instanceof Error) {
       throw error;
     }
     
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[CloudConvert] healthcheck network error', { error: errorMessage });
-    
-    throw new CloudConvertConfigError(`CloudConvert healthcheck network error: ${errorMessage}`);
+    throw new Error(`CloudConvert healthcheck failed: ${String(error)}`);
   }
 }
 
 
 
 /**
- * TICKET: Enhanced job creation with explicit task naming and validation
+ * TICKET: Helper function to extract job ID from various SDK response shapes
  */
-export async function createJobHtml(html: string): Promise<any> {
-  const key = process.env.CLOUDCONVERT_API_KEY;
-  if (!key) {
-    throw new CloudConvertConfigError('CLOUDCONVERT_API_KEY missing');
+function getJobId(job: any): string | undefined {
+  if (!job || typeof job !== 'object') return undefined;
+  return job.id || job?.data?.id; // tolerate SDK/transport variations
+}
+
+/**
+ * TICKET: Enhanced job creation following ticket specifications
+ */
+export async function createCcHtmlJob(html: string) {
+  if ((globalThis as any).__CC_DISABLED__) {
+    throw new CloudConvertError('CC_DISABLED', 'CloudConvert is disabled due to failed healthcheck');
   }
+  const key = process.env.CLOUDCONVERT_API_KEY;
+  if (!key) throw new CloudConvertError('CONFIG_MISSING_KEY', 'CLOUDCONVERT_API_KEY missing');
 
   const tasks = {
-    import_html: { 
-      operation: 'import/raw', 
-      content: html, 
-      filename: 'body.html' 
-    },
-    convert_pdf: { 
-      operation: 'convert', 
-      input: 'import_html', 
-      input_format: 'html', 
-      output_format: 'pdf', 
-      engine: 'chrome',
-      pdf: { 
-        page_size: 'A4', 
-        margin: '12mm', 
-        print_background: true 
-      } 
-    },
-    export_url: { 
-      operation: 'export/url', 
-      input: 'convert_pdf' 
-    }
+    import_html: { operation: 'import/raw', content: html, filename: 'body.html' },
+    convert_pdf: { operation: 'convert', input: 'import_html', input_format: 'html', output_format: 'pdf', engine: 'chrome',
+                   pdf: { page_size: 'A4', margin: '12mm', print_background: true } },
+    export_url:  { operation: 'export/url', input: 'convert_pdf' }
   };
-
-  const taskSummary: TaskSummary[] = Object.entries(tasks).map(([name, t]: any) => ({
-    name, 
-    operation: t.operation, 
-    input: t.input
-  }));
 
   let job: any;
   try {
-    const response = await fetch('https://api.cloudconvert.com/v2/jobs', {
+    job = await fetch('https://api.cloudconvert.com/v2/jobs', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ tasks })
-    });
+    }).then(response => {
+      if (!response.ok) {
+        return response.text().then(errorData => {
+          const status = response.status;
+          let data: any = {};
+          
+          try {
+            data = JSON.parse(errorData);
+          } catch (e) {
+            // Keep as string if not valid JSON
+          }
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      const status = response.status;
-      let errorObj: any = {};
-      
-      try {
-        errorObj = JSON.parse(errorData);
-      } catch (e) {
-        // Keep as string if not valid JSON
-      }
-
-      // Log rich context for triage
-      console.error('[CloudConvert] jobs.create failed', { 
-        status, 
-        data: errorObj, 
-        taskSummary 
-      });
-
-      // Send to Sentry for alerting
-      Sentry.withScope(scope => {
-        scope.setTag('service', 'cloudconvert');
-        scope.setTag('error_type', 'job_create_failed');
-        scope.setLevel('error');
-        scope.setContext('job_create_error', {
-          status,
-          code: errorObj.code,
-          message: errorObj.message,
-          taskSummary,
-          timestamp: new Date().toISOString()
+          console.error('[CloudConvert] jobs.create error', { status, data, tasks: Object.keys(tasks) });
+          throw new CloudConvertError('JOB_CREATE_FAILED', `Job creation failed (${status}: ${data?.message || errorData})`, undefined, undefined, status, 'error', false);
         });
-        Sentry.captureMessage('CloudConvert job creation failed', 'error');
-      });
-
-      throw new CloudConvertError('JOB_CREATE_FAILED', 'Job creation failed', undefined, undefined, status, 'error', false);
-    }
-
-    job = await response.json();
-    
-  } catch (error) {
-    if (error instanceof CloudConvertError) {
-      throw error;
-    }
-    
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[CloudConvert] job creation network error', { error: errorMessage, taskSummary });
-    
-    throw new CloudConvertError('JOB_CREATE_FAILED', `Network error: ${errorMessage}`, undefined, undefined, 0, 'error', false);
-  }
-
-  // Validate response has truthy job.id
-  if (!job?.id) {
-    console.error('[CloudConvert] invalid job response', { job, taskSummary });
-    
-    Sentry.withScope(scope => {
-      scope.setTag('service', 'cloudconvert');
-      scope.setTag('error_type', 'invalid_job_response');
-      scope.setLevel('error');
-      scope.setContext('invalid_response', {
-        job,
-        taskSummary,
-        timestamp: new Date().toISOString()
-      });
-      Sentry.captureMessage('CloudConvert returned invalid job response', 'error');
+      }
+      return response.json();
     });
-    
-    throw new CloudConvertError('JOB_CREATE_FAILED', 'Invalid job response - missing job.id', undefined, undefined, 0, 'error', false);
+  } catch (e: any) {
+    const status = e?.status || e?.response?.status;
+    const data = e?.response?.data;
+    console.error('[CloudConvert] jobs.create error', { status, data, tasks: Object.keys(tasks) });
+    throw new CloudConvertError('JOB_CREATE_FAILED', `Job creation error: ${e.message}`, undefined, undefined, status, 'error', false);
   }
 
-  return job;
+  const jobId = getJobId(job);
+  if (!jobId) {
+    console.error('[CloudConvert] jobs.create invalid response', {
+      typeofJob: typeof job, hasId: !!job?.id, hasDataId: !!job?.data?.id, sample: JSON.stringify(job || {})
+    });
+    throw new CloudConvertError('JOB_CREATE_FAILED', 'Invalid response - missing job.id', undefined, undefined, undefined, 'error', false);
+  }
+
+  return { job, jobId };
 }
 
 /**
- * TICKET: Enhanced wait and download with defensive error handling
+ * TICKET: Wait and download with defensive error handling (updated to match ticket specs)
  */
-export async function waitAndDownloadFirstPdf(jobId: string): Promise<Buffer> {
+export async function waitAndDownloadFirstPdf(cc: any, jobId: string): Promise<Buffer> {
   const key = process.env.CLOUDCONVERT_API_KEY;
   if (!key) {
     throw new CloudConvertConfigError('CLOUDCONVERT_API_KEY missing');
@@ -1081,6 +1022,14 @@ export async function waitAndDownloadFirstPdf(jobId: string): Promise<Buffer> {
 }
 
 /**
+ * TICKET: Top-level conversion function as specified in ticket
+ */
+export async function convertEmailBodyHtmlToPdf(html: string): Promise<Buffer> {
+  const { job, jobId } = await createCcHtmlJob(html);
+  return waitAndDownloadFirstPdf(job, jobId);
+}
+
+/**
  * TICKET: Retry wrapper for 429/5xx with exponential backoff
  */
 export async function withRetry<T>(
@@ -1115,8 +1064,7 @@ export const isRetryableError = (error: any): boolean => {
   return status === 429 || (status >= 500 && status <= 599);
 };
 
-// Export cloudConvert healthcheck function
-export { cloudConvertHealthcheck };
+// Healthcheck function is already exported above
 
 // Create singleton instance
 export const cloudConvertService = new CloudConvertService();

@@ -75,6 +75,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Memory Optimization**: Manual garbage collection, resource tracking, OCR resource cleanup.
 
 ### CloudConvert Integration (Enhanced - 2025-08-13)
+- **Engine Version Deprecation Fix**: Removed hardcoded `engine_version: "latest"` from Chrome engine tasks to eliminate CloudConvert deprecation warnings. Implemented `CC_CHROME_ENGINE_VERSION` environment variable for optional version control - when unset, uses CloudConvert's default version.
 - **Critical P0 Fix Applied**: Implemented robust job creation handling for "missing job.id" errors with SDK response shape tolerance (job.id or job.data.id) and comprehensive error logging per ticket specifications.
 - **Service Health**: Startup healthcheck validates API key and scopes, sets global `__CC_DISABLED__` flag on failure to prevent conversions while preserving email ingestion.
 - **Enhanced Job Creation**: Hardened `createCcHtmlJob()` with detailed HTTP status/response logging, CloudConvert error code capture, and defensive response validation treating non-objects as failures.

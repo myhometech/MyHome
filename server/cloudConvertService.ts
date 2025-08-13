@@ -227,13 +227,13 @@ export class CloudConvertService implements ICloudConvertService {
 
       // Convert task with explicit naming
       if (input.kind === 'html') {
-        tasks[taskName] = {
+        const CHROME_VERSION = process.env.CC_CHROME_ENGINE_VERSION || '';
+        const convertTask: any = {
           operation: 'convert',
           input: inputTaskName,
           input_format: 'html',
           output_format: 'pdf',
           engine: 'chrome',
-          engine_version: 'latest',
           options: {
             page_size: 'A4',
             margin_top: '1in',
@@ -246,6 +246,10 @@ export class CloudConvertService implements ICloudConvertService {
             zoom: 1
           }
         };
+        if (CHROME_VERSION) {
+          convertTask.engine_version = CHROME_VERSION;
+        }
+        tasks[taskName] = convertTask;
       } else {
         // File conversion - let CloudConvert auto-detect format
         tasks[taskName] = {
@@ -895,11 +899,23 @@ export async function createCcHtmlJob(html: string) {
   const key = process.env.CLOUDCONVERT_API_KEY;
   if (!key) throw new CloudConvertError('CONFIG_MISSING_KEY', 'CLOUDCONVERT_API_KEY missing');
 
+  const CHROME_VERSION = process.env.CC_CHROME_ENGINE_VERSION || '';
+  const convertPdfTask: any = {
+    operation: 'convert',
+    input: 'import_html',
+    input_format: 'html',
+    output_format: 'pdf',
+    engine: 'chrome',
+    pdf: { page_size: 'A4', margin: '12mm', print_background: true }
+  };
+  if (CHROME_VERSION) {
+    convertPdfTask.engine_version = CHROME_VERSION;
+  }
+
   const tasks = {
     import_html: { operation: 'import/raw', content: html, filename: 'body.html' },
-    convert_pdf: { operation: 'convert', input: 'import_html', input_format: 'html', output_format: 'pdf', engine: 'chrome',
-                   pdf: { page_size: 'A4', margin: '12mm', print_background: true } },
-    export_url:  { operation: 'export/url', input: 'convert_pdf' }
+    convert_pdf: convertPdfTask,
+    export_url: { operation: 'export/url', input: 'convert_pdf' }
   };
 
   let job: any;

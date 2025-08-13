@@ -3917,6 +3917,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log(`👤 User ID extracted: ${userId}`);
 
+        // Extract email title from subject (define early for use in error handlers)
+        const emailTitle = subject || 'Untitled Email';
+
         // Parse attachment types - distinguish file attachments from inline assets
         const files = req.files || [];
         const attachmentFiles = files.filter((f: any) => f.fieldname?.startsWith('attachment-'));
@@ -4024,7 +4027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             hasInlineAssets,
             attachmentResults: result.attachmentResults,
             messageId,
-            title: emailTitle
+            title: subject || 'Untitled Email'
           });
 
         } catch (pdfError) {

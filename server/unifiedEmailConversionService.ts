@@ -6,6 +6,7 @@
  */
 
 import { CloudConvertService, ConvertInput, ConvertResult, CloudConvertError, ConversionReason } from './cloudConvertService.js';
+import { metricsService, measureConversion, type ConversionEngine, type ConversionType, type EmailConversionSummary } from './metricsService.js';
 import { renderAndCreateEmailBodyPdf, EmailBodyPdfInput } from './emailBodyPdfService.js';
 import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
@@ -84,16 +85,32 @@ export class UnifiedEmailConversionService {
 
   /**
    * TICKET 4: Main conversion method with feature flag support
+   * TICKET 7: Enhanced with metrics tracking and email-level summaries
    */
   async convertEmail(input: UnifiedConversionInput): Promise<ConversionResult> {
     const useCloudConvert = this.shouldUseCloudConvert();
+    const startTime = Date.now();
     
     console.log(`🔄 Starting email conversion using ${useCloudConvert ? 'CloudConvert' : 'Puppeteer'} engine`);
     
-    if (useCloudConvert) {
-      return await this.convertWithCloudConvert(input);
-    } else {
-      return await this.convertWithPuppeteer(input);
+    try {
+      let result: ConversionResult;
+      
+      if (useCloudConvert) {
+        result = await this.convertWithCloudConvert(input);
+      } else {
+        result = await this.convertWithPuppeteer(input);
+      }
+      
+      // TICKET 7: Record email-level conversion summary
+      await this.recordEmailConversionSummary(input, result, Date.now() - startTime);
+      
+      return result;
+      
+    } catch (error) {
+      // Record failed email conversion
+      await this.recordEmailConversionSummary(input, null, Date.now() - startTime, error);
+      throw error;
     }
   }
 
@@ -510,8 +527,8 @@ export class UnifiedEmailConversionService {
       mimeType: 'application/pdf',
       filePath: tempFilePath, // Will be updated to GCS URL by storage service
       fileSize: file.pdfBuffer.length,
-      userId: parseInt(input.tenantId),
-      categoryId: input.categoryId || null,
+      userId: input.userId,
+      categoryId: input.categoryId?.toString() || null,
       tags: [...(input.tags || []), 'email', 'email-body'],
       source: 'email',
       conversionStatus: 'completed' as const,
@@ -526,12 +543,11 @@ export class UnifiedEmailConversionService {
       conversionEngine: 'cloudconvert' as const,
       conversionReason: 'ok' as const,
       conversionInputSha256: this.calculateSha256(input.emailContent.strippedHtml || ''),
-      source: 'email' as const,
       emailContext: {
         from: input.emailMetadata.from,
         subject: input.emailMetadata.subject,
         messageId: input.emailMetadata.messageId,
-        timestamp: input.emailMetadata.receivedAt
+        receivedAt: input.emailMetadata.receivedAt
       }
     };
 
@@ -557,8 +573,8 @@ export class UnifiedEmailConversionService {
       mimeType: attachment.contentType,
       filePath: tempFilePath, // Will be updated to GCS URL by storage service
       fileSize: attachment.size,
-      userId: parseInt(input.tenantId),
-      categoryId: input.categoryId || null,
+      userId: input.userId,
+      categoryId: input.categoryId?.toString() || null,
       tags: [...(input.tags || []), 'email', 'attachment'],
       source: 'email',
       conversionStatus: 'not_applicable' as const,
@@ -569,7 +585,7 @@ export class UnifiedEmailConversionService {
         from: input.emailMetadata.from,
         subject: input.emailMetadata.subject,
         messageId: input.emailMetadata.messageId,
-        timestamp: input.emailMetadata.receivedAt
+        receivedAt: input.emailMetadata.receivedAt
       }
     };
 
@@ -599,8 +615,8 @@ export class UnifiedEmailConversionService {
       mimeType: 'application/pdf',
       filePath: tempFilePath, // Will be updated to GCS URL by storage service
       fileSize: file.pdfBuffer.length,
-      userId: parseInt(input.tenantId),
-      categoryId: input.categoryId || null,
+      userId: input.userId,
+      categoryId: input.categoryId?.toString() || null,
       tags: [...(input.tags || []), 'email', 'attachment', 'converted'],
       source: 'email' as const,
       conversionStatus: 'completed' as const,
@@ -622,7 +638,7 @@ export class UnifiedEmailConversionService {
         from: input.emailMetadata.from,
         subject: input.emailMetadata.subject,
         messageId: input.emailMetadata.messageId,
-        timestamp: input.emailMetadata.receivedAt
+        receivedAt: input.emailMetadata.receivedAt
       }
     };
 
@@ -772,6 +788,80 @@ export class UnifiedEmailConversionService {
         emailBodyPdf: fallbackResult.emailBodyPdf,
         attachmentResults: fallbackResult.attachmentResults
       };
+    }
+  }
+
+  /**
+   * TICKET 7: Record comprehensive email conversion summary for observability
+   */
+  private async recordEmailConversionSummary(
+    input: UnifiedConversionInput,
+    result: ConversionResult | null,
+    totalDurationMs: number,
+    error?: any
+  ): Promise<void> {
+    try {
+      const emailId = input.emailMetadata.messageId || `email-${Date.now()}`;
+      const attachmentCount = input.attachments.length;
+      
+      let summary: EmailConversionSummary;
+      
+      if (result && !error) {
+        // Successful conversion
+        const pdfsProduced = (result.emailBodyPdf ? 1 : 0) + 
+                           result.attachmentResults.filter(r => r.converted).length;
+        const originalsStored = result.attachmentResults.filter(r => r.success && !r.converted).length;
+        
+        // Count skipped by reason
+        const skippedCounts = {
+          password_protected: result.attachmentResults.filter(r => 
+            r.conversionStatus === 'skipped_password_protected').length,
+          unsupported: result.attachmentResults.filter(r => 
+            r.conversionStatus === 'skipped_unsupported').length,
+          too_large: result.attachmentResults.filter(r => 
+            r.conversionStatus === 'skipped_too_large').length,
+          errors: result.attachmentResults.filter(r => 
+            r.conversionStatus === 'error').length
+        };
+        
+        summary = {
+          emailId,
+          from: input.emailMetadata.from,
+          subject: input.emailMetadata.subject || 'No Subject',
+          totalAttachments: attachmentCount,
+          originalsStored: originalsStored + (result.emailBodyPdf ? 0 : 1), // Include email body if not converted
+          pdfsProduced,
+          conversionEngine: result.conversionEngine,
+          skippedCounts,
+          totalDurationMs,
+          averageDurationMs: attachmentCount > 0 ? totalDurationMs / attachmentCount : totalDurationMs
+        };
+        
+      } else {
+        // Failed conversion
+        summary = {
+          emailId,
+          from: input.emailMetadata.from,
+          subject: input.emailMetadata.subject || 'No Subject',
+          totalAttachments: attachmentCount,
+          originalsStored: 0,
+          pdfsProduced: 0,
+          conversionEngine: this.shouldUseCloudConvert() ? 'cloudconvert' : 'puppeteer',
+          skippedCounts: {
+            password_protected: 0,
+            unsupported: 0,
+            too_large: 0,
+            errors: attachmentCount // All attachments failed
+          },
+          totalDurationMs,
+          averageDurationMs: totalDurationMs
+        };
+      }
+      
+      metricsService.recordEmailSummary(summary);
+      
+    } catch (summaryError) {
+      console.error('❌ Failed to record email conversion summary:', summaryError);
     }
   }
 }

@@ -1,5 +1,6 @@
 import fetch, { FormData } from 'node-fetch';
 import { Buffer } from 'buffer';
+import { metricsService, measureConversion, type ConversionEngine, type ConversionType } from './metricsService.js';
 
 // CloudConvert Service Configuration
 interface CloudConvertConfig {
@@ -138,6 +139,42 @@ export class CloudConvertService implements ICloudConvertService {
         `CloudConvert operation failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  // TICKET 7: Metrics helper methods
+  
+  private determineConversionType(inputs: ConvertInput[]): ConversionType {
+    // If any input is HTML (email body), consider it body conversion
+    const hasHtml = inputs.some(input => input.kind === 'html');
+    return hasHtml ? 'body' : 'attachment';
+  }
+  
+  private calculateTotalInputSize(inputs: ConvertInput[]): number {
+    return inputs.reduce((total, input) => {
+      if (input.kind === 'html') {
+        return total + Buffer.from(input.html, 'utf-8').length;
+      } else {
+        return total + input.buffer.length;
+      }
+    }, 0);
+  }
+  
+  private recordConversionMetrics(inputs: ConvertInput[], files: any[], jobId: string): void {
+    // Record success metrics for each input type
+    const htmlInputs = inputs.filter(input => input.kind === 'html');
+    const fileInputs = inputs.filter(input => input.kind === 'file');
+    
+    htmlInputs.forEach(() => {
+      metricsService.recordSuccess('cloudconvert', 'body', { jobId });
+    });
+    
+    fileInputs.forEach((input) => {
+      metricsService.recordSuccess('cloudconvert', 'attachment', {
+        jobId,
+        mimeType: input.kind === 'file' ? input.mime : undefined,
+        fileSize: input.kind === 'file' ? input.buffer.length : undefined
+      });
+    });
   }
 
   private async createJob(inputs: ConvertInput[]): Promise<CloudConvertJob> {
@@ -300,6 +337,11 @@ export class CloudConvertService implements ICloudConvertService {
           );
         }
 
+        // TICKET 7: Record retry metric
+        metricsService.recordRetry('cloudconvert', 'attachment', attempt, {
+          errorReason: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
         // Exponential backoff with jitter
         const delay = Math.min(1000 * Math.pow(2, attempt - 1) + Math.random() * 1000, 10000);
         await new Promise(resolve => setTimeout(resolve, delay));

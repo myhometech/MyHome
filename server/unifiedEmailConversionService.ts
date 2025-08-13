@@ -5,7 +5,7 @@
  * using either CloudConvert or Puppeteer based on the PDF_CONVERTER_ENGINE feature flag.
  */
 
-import { CloudConvertService, ConvertInput, ConvertResult } from './cloudConvertService.js';
+import { CloudConvertService, ConvertInput, ConvertResult, CloudConvertError, ConversionReason } from './cloudConvertService.js';
 import { renderAndCreateEmailBodyPdf, EmailBodyPdfInput } from './emailBodyPdfService.js';
 import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
@@ -46,11 +46,13 @@ export interface UnifiedConversionInput {
   tags?: string[];
 }
 
+// TICKET 6: Enhanced conversion result with user-visible states
 export interface ConversionResult {
   emailBodyPdf?: {
     documentId: number;
     filename: string;
     created: boolean;
+    conversionStatus?: ConversionReason;
   };
   attachmentResults: Array<{
     success: boolean;
@@ -59,6 +61,8 @@ export interface ConversionResult {
     converted?: boolean;
     classification?: string;
     error?: string;
+    conversionStatus?: ConversionReason;
+    userVisibleStatus?: string; // TICKET 6: User-friendly status message
   }>;
   cloudConvertJobId?: string;
   conversionEngine: 'cloudconvert' | 'puppeteer';
@@ -129,8 +133,8 @@ export class UnifiedEmailConversionService {
       
       console.log(`✅ CloudConvert job ${cloudConvertResult.jobId} completed with ${cloudConvertResult.files.length} PDFs`);
 
-      // Process results and create documents
-      const result = await this.processCloudConvertResults(
+      // TICKET 6: Process results with enhanced error handling
+      const result = await this.processCloudConvertResultsWithErrorHandling(
         cloudConvertResult,
         input,
         convertInputs
@@ -143,8 +147,26 @@ export class UnifiedEmailConversionService {
       };
 
     } catch (error) {
+      // TICKET 6: Enhanced error handling - don't block original storage
       console.error('❌ CloudConvert conversion failed:', error);
-      // Fallback to Puppeteer on CloudConvert failure
+      
+      if (error instanceof CloudConvertError) {
+        await this.logCloudConvertError(error, input);
+        
+        // For configuration errors, still try Puppeteer but log the alert
+        if (error.conversionReason === 'error' && error.code === 'CONFIGURATION_ERROR') {
+          console.log('🔄 Configuration error detected, falling back to Puppeteer...');
+          return await this.convertWithPuppeteer(input);
+        }
+        
+        // For other errors, try to process attachments as originals only
+        const result = await this.processAttachmentsAsOriginalsOnly(input);
+        result.conversionEngine = 'cloudconvert'; // Still mark as intended engine
+        
+        return result;
+      }
+      
+      // For non-CloudConvert errors, fallback to Puppeteer
       console.log('🔄 Falling back to Puppeteer conversion...');
       return await this.convertWithPuppeteer(input);
     }
@@ -616,6 +638,141 @@ export class UnifiedEmailConversionService {
     const hash = crypto.createHash('sha256');
     hash.update(content);
     return hash.digest('hex');
+  }
+
+  // TICKET 6: Enhanced error handling and user-visible states
+  
+  /**
+   * TICKET 6: Log CloudConvert errors to Sentry with context
+   */
+  private async logCloudConvertError(error: CloudConvertError, input: UnifiedConversionInput): Promise<void> {
+    try {
+      const Sentry = await import('@sentry/node');
+      
+      Sentry.withScope(scope => {
+        scope.setTag('service', 'unified_email_conversion');
+        scope.setTag('error_type', 'cloudconvert_failure');
+        scope.setTag('conversion_reason', error.conversionReason || 'unknown');
+        scope.setLevel('error');
+        
+        scope.setContext('email_conversion', {
+          tenantId: input.tenantId,
+          from: input.emailMetadata.from,
+          subject: input.emailMetadata.subject,
+          attachmentCount: input.attachments.length,
+          jobId: error.jobId,
+          httpStatus: error.httpStatus,
+          errorCode: error.code,
+          isRetryable: error.isRetryable
+        });
+        
+        scope.setContext('cloudconvert_error', {
+          code: error.code,
+          message: error.message,
+          jobId: error.jobId,
+          taskId: error.taskId,
+          httpStatus: error.httpStatus,
+          conversionReason: error.conversionReason,
+          isRetryable: error.isRetryable
+        });
+        
+        Sentry.captureException(error);
+      });
+      
+      console.error(`🚨 CloudConvert error logged to Sentry: ${error.code} (${error.conversionReason})`);
+      
+    } catch (sentryError) {
+      console.error('Failed to log CloudConvert error to Sentry:', sentryError);
+    }
+  }
+
+  /**
+   * TICKET 6: Process attachments as originals only when conversion fails
+   */
+  private async processAttachmentsAsOriginalsOnly(input: UnifiedConversionInput): Promise<ConversionResult> {
+    const result: ConversionResult = {
+      attachmentResults: [],
+      conversionEngine: 'cloudconvert'
+    };
+
+    console.log(`📁 Processing ${input.attachments.length} attachments as originals only (conversion failed)`);
+
+    for (const attachment of input.attachments) {
+      try {
+        const originalDoc = await this.storeOriginalAttachment(attachment, input);
+        
+        result.attachmentResults.push({
+          success: true,
+          filename: attachment.filename,
+          documentId: originalDoc.id,
+          converted: false,
+          classification: 'stored_original_conversion_failed',
+          conversionStatus: 'error',
+          userVisibleStatus: this.getFailureUserVisibleStatus('error', attachment)
+        });
+
+        console.log(`✅ Stored original: ${attachment.filename} → Document ID ${originalDoc.id}`);
+
+      } catch (error) {
+        result.attachmentResults.push({
+          success: false,
+          filename: attachment.filename,
+          converted: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          conversionStatus: 'error',
+          userVisibleStatus: 'Processing failed'
+        });
+
+        console.error(`❌ Failed to store original: ${attachment.filename}`, error);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * TICKET 6: Map conversion reasons to user-visible status messages
+   */
+  private getFailureUserVisibleStatus(reason: ConversionReason, attachment?: AttachmentData): string {
+    switch (reason) {
+      case 'skipped_too_large':
+        return 'Conversion skipped (too large)';
+      case 'skipped_password_protected':
+        return 'Conversion skipped (password required)';
+      case 'skipped_unsupported':
+        return 'Conversion skipped (unsupported)';
+      case 'error':
+        return 'Conversion failed (temporary)';
+      default:
+        return 'Conversion status unknown';
+    }
+  }
+
+  /**
+   * TICKET 6: Enhanced CloudConvert result processing with error states
+   */
+  private async processCloudConvertResultsWithErrorHandling(
+    cloudConvertResult: ConvertResult,
+    input: UnifiedConversionInput,
+    convertInputs: ConvertInput[]
+  ): Promise<Omit<ConversionResult, 'cloudConvertJobId' | 'conversionEngine'>> {
+    try {
+      return await this.processCloudConvertResults(cloudConvertResult, input, convertInputs);
+    } catch (error) {
+      console.error('❌ Error processing CloudConvert results, falling back to originals:', error);
+      
+      // Log the processing error
+      if (error instanceof CloudConvertError) {
+        await this.logCloudConvertError(error, input);
+      }
+      
+      // Process all attachments as originals
+      const fallbackResult = await this.processAttachmentsAsOriginalsOnly(input);
+      return {
+        emailBodyPdf: fallbackResult.emailBodyPdf,
+        attachmentResults: fallbackResult.attachmentResults
+      };
+    }
   }
 }
 

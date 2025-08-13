@@ -45,16 +45,35 @@ interface CloudConvertTask {
   message?: string;
 }
 
+// TICKET 6: Enhanced error handling with mapping to conversion reasons
+export type ConversionReason = 
+  | 'ok' 
+  | 'skipped_unsupported' 
+  | 'skipped_too_large' 
+  | 'skipped_password_protected' 
+  | 'error';
+
 // Error class for CloudConvert operations
 export class CloudConvertError extends Error {
   constructor(
     public code: string,
     message: string,
     public jobId?: string,
-    public taskId?: string
+    public taskId?: string,
+    public httpStatus?: number,
+    public conversionReason?: ConversionReason,
+    public isRetryable: boolean = false
   ) {
     super(message);
     this.name = 'CloudConvertError';
+  }
+}
+
+// TICKET 6: Configuration error that requires immediate attention
+export class CloudConvertConfigError extends CloudConvertError {
+  constructor(message: string, httpStatus?: number) {
+    super('CONFIGURATION_ERROR', message, undefined, undefined, httpStatus, 'error', false);
+    this.name = 'CloudConvertConfigError';
   }
 }
 
@@ -302,9 +321,8 @@ export class CloudConvertService implements ICloudConvertService {
       }
       
       if (job.status === 'error') {
-        const errorTasks = job.tasks.filter((t: CloudConvertTask) => t.status === 'error');
-        const errorMessages = errorTasks.map((t: CloudConvertTask) => `${t.name}: ${t.message}`).join(', ');
-        throw new CloudConvertError('JOB_FAILED', `Job failed: ${errorMessages}`, jobId);
+        await this.handleJobError(job);
+        return job; // handleJobError throws, but TypeScript doesn't know that
       }
 
       await new Promise(resolve => setTimeout(resolve, pollInterval));
@@ -345,6 +363,7 @@ export class CloudConvertService implements ICloudConvertService {
     return Promise.all(downloadPromises);
   }
 
+  // TICKET 6: Enhanced request method with comprehensive error mapping and retry policy
   private async makeRequest(method: string, endpoint: string, body?: any, options: { returnResponse?: boolean } = {}): Promise<any> {
     const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`;
     
@@ -362,6 +381,7 @@ export class CloudConvertService implements ICloudConvertService {
     }
 
     const maxAttempts = 3;
+    let lastError: Error | undefined;
     
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -375,47 +395,23 @@ export class CloudConvertService implements ICloudConvertService {
           return await response.json();
         }
 
-        // Handle rate limiting
-        if (response.status === 429) {
-          if (attempt === maxAttempts) {
-            throw new CloudConvertError('RATE_LIMITED', 'Rate limit exceeded after retries');
-          }
-          
-          const retryAfter = response.headers.get('retry-after');
-          const delay = retryAfter ? parseInt(retryAfter) * 1000 : 1000 * Math.pow(2, attempt - 1);
-          console.log(`⏳ Rate limited, retrying after ${delay}ms`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-
-        // Don't retry on client errors (except 429)
-        if (response.status >= 400 && response.status < 500) {
-          const errorText = await response.text();
-          throw new CloudConvertError(
-            'API_CLIENT_ERROR',
-            `API request failed with status ${response.status}: ${errorText}`
-          );
-        }
-
-        // Retry on server errors
-        if (response.status >= 500) {
-          if (attempt === maxAttempts) {
-            const errorText = await response.text();
-            throw new CloudConvertError(
-              'API_SERVER_ERROR',
-              `API request failed after ${maxAttempts} attempts with status ${response.status}: ${errorText}`
-            );
-          }
-          
+        // TICKET 6: Comprehensive error mapping with CloudConvert-specific logic
+        const errorText = await response.text();
+        lastError = await this.mapCloudConvertError(response.status, errorText, attempt, maxAttempts);
+        
+        // Check if error is retryable
+        if (lastError instanceof CloudConvertError && lastError.isRetryable && attempt < maxAttempts) {
           const delay = 1000 * Math.pow(2, attempt - 1) + Math.random() * 1000;
-          console.log(`⏳ Server error, retrying after ${delay}ms`);
+          console.log(`⏳ Retryable error (${response.status}), attempt ${attempt}/${maxAttempts}, retrying after ${delay}ms`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
-
-        throw new Error(`Unexpected response status: ${response.status}`);
+        
+        throw lastError;
 
       } catch (error) {
+        lastError = error as Error;
+        
         if (attempt === maxAttempts) {
           if (error instanceof CloudConvertError) {
             throw error;
@@ -423,19 +419,199 @@ export class CloudConvertService implements ICloudConvertService {
           
           throw new CloudConvertError(
             'REQUEST_FAILED',
-            `Request failed after ${maxAttempts} attempts: ${error instanceof Error ? error.message : String(error)}`
+            `Request failed after ${maxAttempts} attempts: ${error instanceof Error ? error.message : String(error)}`,
+            undefined, undefined, undefined, 'error', false
           );
         }
 
-        // Exponential backoff for non-CloudConvert errors
+        // Exponential backoff for network errors only
         if (!(error instanceof CloudConvertError)) {
           const delay = 1000 * Math.pow(2, attempt - 1) + Math.random() * 1000;
+          console.log(`⏳ Network error, retrying after ${delay}ms`);
           await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          // CloudConvert errors should not be retried unless explicitly marked as retryable
+          throw error;
         }
       }
     }
 
-    throw new CloudConvertError('REQUEST_FAILED', 'Request failed after all attempts');
+    throw lastError || new CloudConvertError('REQUEST_FAILED', 'Request failed after all attempts', undefined, undefined, undefined, 'error', false);
+  }
+  // TICKET 6: Map CloudConvert errors to our conversion reasons
+  private async mapCloudConvertError(status: number, errorText: string, attempt: number, maxAttempts: number): Promise<CloudConvertError> {
+    let conversionReason: ConversionReason;
+    let isRetryable = false;
+    let code: string;
+    
+    switch (status) {
+      case 401:
+      case 403:
+        // Authentication/authorization issues - alert configuration team
+        conversionReason = 'error';
+        code = 'CONFIGURATION_ERROR';
+        await this.alertConfigurationError(status, errorText);
+        break;
+        
+      case 415:
+        // Unsupported media type
+        conversionReason = 'skipped_unsupported';
+        code = 'UNSUPPORTED_FORMAT';
+        break;
+        
+      case 422:
+        // Unprocessable entity - often password-protected files
+        conversionReason = this.detectPasswordProtected(errorText) 
+          ? 'skipped_password_protected' 
+          : 'skipped_unsupported';
+        code = conversionReason === 'skipped_password_protected' 
+          ? 'PASSWORD_PROTECTED' 
+          : 'UNPROCESSABLE_ENTITY';
+        break;
+        
+      case 413:
+        // Payload too large
+        conversionReason = 'skipped_too_large';
+        code = 'FILE_TOO_LARGE';
+        break;
+        
+      case 429:
+        // Rate limiting - retryable
+        conversionReason = 'error';
+        code = 'RATE_LIMITED';
+        isRetryable = attempt < maxAttempts;
+        break;
+        
+      case 408:
+      case 504:
+        // Timeout errors - retryable
+        conversionReason = 'error';
+        code = 'TIMEOUT';
+        isRetryable = attempt < maxAttempts;
+        break;
+        
+      case 500:
+      case 502:
+      case 503:
+        // Server errors - retryable
+        conversionReason = 'error';
+        code = 'SERVER_ERROR';
+        isRetryable = attempt < maxAttempts;
+        break;
+        
+      default:
+        conversionReason = 'error';
+        code = `HTTP_${status}`;
+        isRetryable = status >= 500 && attempt < maxAttempts;
+    }
+    
+    return new CloudConvertError(
+      code,
+      `CloudConvert API error (${status}): ${errorText}`,
+      undefined,
+      undefined,
+      status,
+      conversionReason,
+      isRetryable
+    );
+  }
+  
+  // TICKET 6: Detect password-protected files from error messages
+  private detectPasswordProtected(errorText: string): boolean {
+    const passwordKeywords = [
+      'password',
+      'protected',
+      'encrypted',
+      'locked',
+      'authentication required',
+      'permission denied'
+    ];
+    
+    const lowerErrorText = errorText.toLowerCase();
+    return passwordKeywords.some(keyword => lowerErrorText.includes(keyword));
+  }
+  
+  // TICKET 6: Alert configuration errors to operations team
+  private async alertConfigurationError(status: number, errorText: string): Promise<void> {
+    try {
+      // Import Sentry dynamically to avoid initialization issues
+      const Sentry = await import('@sentry/node');
+      
+      const configError = new CloudConvertConfigError(
+        `CloudConvert configuration error (${status}): ${errorText}`,
+        status
+      );
+      
+      // Log to Sentry with high priority
+      Sentry.withScope(scope => {
+        scope.setTag('service', 'cloudconvert');
+        scope.setTag('error_type', 'configuration');
+        scope.setLevel('error');
+        scope.setContext('cloudconvert_error', {
+          httpStatus: status,
+          errorText,
+          timestamp: new Date().toISOString(),
+          apiKey: this.config.apiKey ? '***REDACTED***' : 'MISSING'
+        });
+        Sentry.captureException(configError);
+      });
+      
+      console.error(`🚨 CloudConvert Configuration Error (${status}): ${errorText}`);
+      
+    } catch (sentryError) {
+      console.error('Failed to alert configuration error:', sentryError);
+      console.error(`🚨 CloudConvert Configuration Error (${status}): ${errorText}`);
+    }
+  }
+  
+  // TICKET 6: Enhanced job error handling with Sentry integration
+  private async handleJobError(job: CloudConvertJob): Promise<void> {
+    const errorTasks = job.tasks.filter((t: CloudConvertTask) => t.status === 'error');
+    const errorMessages = errorTasks.map((t: CloudConvertTask) => `${t.name}: ${t.message}`).join(', ');
+    
+    try {
+      // Import Sentry dynamically
+      const Sentry = await import('@sentry/node');
+      
+      // Create detailed error for Sentry
+      const jobError = new CloudConvertError(
+        'JOB_FAILED', 
+        `CloudConvert job failed: ${errorMessages}`, 
+        job.id,
+        undefined,
+        undefined,
+        'error',
+        false
+      );
+      
+      // Log to Sentry with job details
+      Sentry.withScope(scope => {
+        scope.setTag('service', 'cloudconvert');
+        scope.setTag('error_type', 'job_failure');
+        scope.setLevel('error');
+        scope.setContext('cloudconvert_job', {
+          jobId: job.id,
+          status: job.status,
+          taskCount: job.tasks.length,
+          errorTaskCount: errorTasks.length,
+          tasks: job.tasks.map(t => ({
+            id: t.id,
+            name: t.name,
+            operation: t.operation,
+            status: t.status,
+            message: t.message
+          }))
+        });
+        Sentry.captureException(jobError);
+      });
+      
+      console.error(`❌ CloudConvert job ${job.id} failed with ${errorTasks.length} error(s): ${errorMessages}`);
+      
+    } catch (sentryError) {
+      console.error('Failed to log job error to Sentry:', sentryError);
+    }
+    
+    throw new CloudConvertError('JOB_FAILED', `Job failed: ${errorMessages}`, job.id);
   }
 }
 

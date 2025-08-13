@@ -87,32 +87,40 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   
   // Add delay to prevent simultaneous requests overwhelming memory
   const [shouldFetch, setShouldFetch] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
   React.useEffect(() => {
-    const delay = Math.random() * 2000; // Random delay 0-2 seconds
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  React.useEffect(() => {
+    // Longer delay on mobile to reduce memory pressure
+    const delay = isMobile ? Math.random() * 3000 : Math.random() * 2000;
     const timer = setTimeout(() => setShouldFetch(true), delay);
     return () => clearTimeout(timer);
-  }, [documentId]);
+  }, [documentId, isMobile]);
 
   // INSIGHT-102: Fetch only primary insights (no secondary access)
   const { data: insightData, isLoading, error } = useQuery({
-    queryKey: ['/api/documents', documentId, 'insights', { tier: 'primary' }],
+    queryKey: ['/api/documents', documentId, 'insights', { tier: 'primary', mobile: isMobile }],
     queryFn: async () => {
-      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=5`);
+      const limit = isMobile ? 3 : 5; // Fewer insights on mobile
+      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`);
       if (!response.ok) throw new Error('Failed to fetch insights');
       return await response.json();
     },
-    // Aggressive caching to reduce memory pressure
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    // More aggressive caching on mobile
+    staleTime: isMobile ? 15 * 60 * 1000 : 10 * 60 * 1000,
+    gcTime: isMobile ? 20 * 60 * 1000 : 15 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    // Enable memory optimization
+    refetchOnReconnect: isMobile ? false : true, // Disable reconnect refetch on mobile
+    // Enhanced memory optimization for mobile
     select: (data) => ({
       ...data,
-      insights: data.insights?.slice(0, 5) || [] // Limit insights to reduce memory
+      insights: data.insights?.slice(0, isMobile ? 3 : 5) || []
     }),
-    // Only fetch when ready to prevent parallel overload
     enabled: shouldFetch
   });
 
@@ -259,29 +267,29 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
 
   return (
     <div className="space-y-4">
-      {/* Header with Generate Button */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Header with Generate Button - Mobile Optimized */}
+      <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3 sm:flex-row sm:gap-0' : ''}`}>
         <div className="flex items-center gap-2">
-          <Brain className="h-4 w-4 text-blue-600" />
-          <span className="text-sm font-medium">Key Insights</span>
+          <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-blue-600`} />
+          <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>Key Insights</span>
         </div>
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
-          size="sm"
+          size={isMobile ? "default" : "sm"}
           variant="outline"
-          className="text-xs sm:text-xs touch-target hover:bg-gradient-to-r hover:from-blue-50 hover:to-accent-purple/10 hover:border-accent-purple/30 transition-all duration-300 shadow-sm hover:shadow-md"
-          style={{ minHeight: '44px', minWidth: '44px' }}
+          className={`${isMobile ? 'w-full sm:w-auto text-sm' : 'text-xs'} touch-target hover:bg-gradient-to-r hover:from-blue-50 hover:to-accent-purple/10 hover:border-accent-purple/30 transition-all duration-300 shadow-sm hover:shadow-md`}
+          style={{ minHeight: '44px', minWidth: isMobile ? 'auto' : '44px' }}
         >
           {isGenerating || generateInsightsMutation.isPending ? (
             <>
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-              Generating...
+              <Loader2 className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'} animate-spin`} />
+              {isMobile ? 'Generating Insights...' : 'Generating...'}
             </>
           ) : (
             <>
-              <Brain className="mr-1 h-3 w-3" />
-              {insights.length > 0 ? 'Regenerate' : 'Generate'}
+              <Brain className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'}`} />
+              {insights.length > 0 ? (isMobile ? 'Regenerate' : 'Regenerate') : (isMobile ? 'Generate Insights' : 'Generate')}
             </>
           )}
         </Button>
@@ -324,7 +332,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className={`space-y-4 ${isMobile ? 'space-y-3' : 'space-y-4'}`}>
           {insights.filter((insight: DocumentInsight) => 
             !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
           ).map((insight: DocumentInsight, index: number) => {
@@ -335,26 +343,28 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
             return (
               <div 
                 key={insight.id} 
-                className={`group border border-gray-100 shadow-sm bg-white rounded-lg p-5 space-y-4 mb-4 insight-content hover:shadow-lg hover:border-gray-200 hover:-translate-y-1 hover:shadow-blue-100/50 transition-all duration-300 cursor-pointer border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} relative overflow-hidden`}
+                className={`group border border-gray-100 shadow-sm bg-white rounded-lg ${isMobile ? 'p-4 space-y-3 mb-3' : 'p-5 space-y-4 mb-4'} insight-content hover:shadow-lg hover:border-gray-200 ${isMobile ? 'active:scale-[0.98]' : 'hover:-translate-y-1'} hover:shadow-blue-100/50 transition-all duration-300 cursor-pointer border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} relative overflow-hidden`}
                 style={{
                   animationDelay: `${index * 100}ms`
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className={`${config.color} text-xs`}>
-                      <IconComponent className="h-3 w-3 mr-1" />
+                  <div className={`flex items-center gap-2 flex-wrap ${isMobile ? 'gap-1.5' : 'gap-2'}`}>
+                    <Badge className={`${config.color} ${isMobile ? 'text-xs px-2 py-1' : 'text-xs'}`}>
+                      <IconComponent className={`${isMobile ? 'h-3 w-3 mr-1.5' : 'h-3 w-3 mr-1'}`} />
                       {config.label}
                     </Badge>
-                    <Badge variant="outline" className={`${priorityStyle.color} text-xs`}>
-                      {priorityStyle.label}
-                    </Badge>
+                    {!isMobile && (
+                      <Badge variant="outline" className={`${priorityStyle.color} text-xs`}>
+                        {priorityStyle.label}
+                      </Badge>
+                    )}
 
                     <div className="flex items-center gap-1">
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className={`${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs'}`}>
                         {Math.round(insight.confidence * 100)}%
                       </Badge>
-                      <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                      <div className={`${isMobile ? 'w-12 h-1.5' : 'w-16 h-2'} bg-gray-200 rounded-full overflow-hidden shadow-inner`}>
                         <div 
                           className="h-full bg-gradient-to-r from-accent-purple via-primary to-accent-cyan rounded-full transition-all duration-1000 ease-out shadow-sm"
                           style={{ 
@@ -370,21 +380,24 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
                     size="sm"
                     onClick={() => handleDeleteInsight(insight.id)}
                     disabled={deleteInsightMutation.isPending}
-                    className="text-gray-500 hover:text-red-600 h-8 w-8 p-0 sm:h-6 sm:w-6 opacity-0 group-hover:opacity-100 transition-opacity touch-target"
+                    className={`text-gray-500 hover:text-red-600 ${isMobile ? 'opacity-100 h-10 w-10 p-0' : 'h-8 w-8 p-0 sm:h-6 sm:w-6 opacity-0 group-hover:opacity-100'} transition-opacity touch-target`}
                     style={{ minHeight: '44px', minWidth: '44px' }}
                   >
-                    <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
+                    <Trash2 className={`${isMobile ? 'h-4 w-4' : 'h-4 w-4 sm:h-3 sm:w-3'}`} />
                   </Button>
                 </div>
                 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2 text-sm">{insight.title}</h4>
-                  <p className="text-gray-700 text-sm leading-relaxed insight-content">{insight.content}</p>
+                  <h4 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-sm leading-tight' : 'text-sm'}`}>{insight.title}</h4>
+                  <p className={`text-gray-700 ${isMobile ? 'text-sm leading-snug' : 'text-sm leading-relaxed'} insight-content`}>{insight.content}</p>
                 </div>
                 
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Clock className="h-3 w-3" />
-                  {new Date(insight.createdAt).toLocaleDateString()} at {new Date(insight.createdAt).toLocaleTimeString()}
+                <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-xs'} text-gray-500`}>
+                  <Clock className={`${isMobile ? 'h-3 w-3' : 'h-3 w-3'}`} />
+                  {isMobile ? 
+                    new Date(insight.createdAt).toLocaleDateString() : 
+                    `${new Date(insight.createdAt).toLocaleDateString()} at ${new Date(insight.createdAt).toLocaleTimeString()}`
+                  }
                 </div>
               </div>
             );

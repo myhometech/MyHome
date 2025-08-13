@@ -59,6 +59,39 @@
     @apply text-sm sm:text-xs text-gray-600 line-clamp-3 sm:line-clamp-2 leading-tight;
   }
 
+  /* Mobile insights optimizations */
+  .mobile-insight-card {
+    @apply transform-gpu; /* Enable hardware acceleration */
+  }
+
+  /* Touch feedback for mobile insights */
+  @media (max-width: 768px) {
+    .insight-content:active {
+      transform: scale(0.98);
+      transition: transform 0.1s ease-out;
+    }
+
+    /* Optimize animations for mobile */
+    .insight-content {
+      will-change: transform;
+    }
+
+    /* Reduce motion for battery optimization */
+    @media (prefers-reduced-motion: reduce) {
+      .insight-content {
+        animation: none;
+        transition: none;
+      }
+    }
+
+    /* Improve tap targets */
+    .mobile-insight-button {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 12px;
+    }
+  }
+
   .mobile-card-metadata {
     @apply text-sm sm:text-xs text-gray-500;
   }

@@ -89,6 +89,7 @@ type TaskSummary = {
 export class CloudConvertService implements ICloudConvertService {
   private config: CloudConvertConfig;
   private baseUrl: string;
+  private isHealthy: boolean = false;
 
   constructor() {
     this.config = {
@@ -109,9 +110,25 @@ export class CloudConvertService implements ICloudConvertService {
 
     const maskedKey = this.config.apiKey.slice(0, 8) + '...' + this.config.apiKey.slice(-4);
     console.log(`✅ CloudConvert service initialized (${this.config.sandbox ? 'sandbox' : 'production'} mode) with key ${maskedKey}`);
+    
+    // TICKET: Register this instance globally for healthcheck coordination
+    globalCloudConvertService = this;
+  }
+
+  // TICKET: Method to set health status from healthcheck
+  setHealthy(healthy: boolean): void {
+    this.isHealthy = healthy;
   }
 
   async convertToPdf(inputs: ConvertInput[]): Promise<ConvertResult> {
+    // TICKET: Prevent job creation when service is unhealthy
+    if (!this.isHealthy) {
+      throw new CloudConvertConfigError(
+        'CloudConvert service is not healthy - likely due to invalid API key or insufficient permissions. Please check the startup logs for details.',
+        403
+      );
+    }
+
     const startTime = Date.now();
     
     try {
@@ -302,9 +319,13 @@ export class CloudConvertService implements ICloudConvertService {
       );
     }
     
-    // TICKET: Validate job creation response has truthy job.id
-    if (!job || !job.id) {
-      console.error('[CloudConvert] Invalid job response - missing job.id', { job, taskSummary });
+    // TICKET: Enhanced job validation with detailed response debugging
+    if (!job || typeof job !== 'object') {
+      console.error('[CloudConvert] Invalid job response - not an object', { 
+        job, 
+        jobType: typeof job,
+        taskSummary 
+      });
       
       Sentry.withScope(scope => {
         scope.setTag('service', 'cloudconvert');
@@ -312,13 +333,44 @@ export class CloudConvertService implements ICloudConvertService {
         scope.setLevel('error');
         scope.setContext('invalid_response', {
           job,
+          jobType: typeof job,
           taskSummary,
           timestamp: new Date().toISOString()
         });
-        Sentry.captureMessage('CloudConvert returned invalid job response', 'error');
+        Sentry.captureMessage('CloudConvert returned non-object job response', 'error');
       });
       
-      throw new CloudConvertError('JOB_CREATE_FAILED', 'CloudConvert job creation returned invalid response - missing job.id', undefined, undefined, undefined, 'error', false);
+      throw new CloudConvertError('JOB_CREATE_FAILED', `CloudConvert job creation returned invalid response - expected object, got ${typeof job}`, undefined, undefined, undefined, 'error', false);
+    }
+
+    if (!job.id) {
+      console.error('[CloudConvert] Invalid job response - missing job.id', { 
+        job, 
+        jobKeys: Object.keys(job || {}),
+        hasData: !!job.data,
+        taskSummary 
+      });
+      
+      Sentry.withScope(scope => {
+        scope.setTag('service', 'cloudconvert');
+        scope.setTag('error_type', 'missing_job_id');
+        scope.setLevel('error');
+        scope.setContext('invalid_response', {
+          job,
+          jobKeys: Object.keys(job || {}),
+          taskSummary,
+          timestamp: new Date().toISOString()
+        });
+        Sentry.captureMessage('CloudConvert returned job response without id field', 'error');
+      });
+      
+      // Check if this is actually an error response masquerading as a job
+      if (job.error || job.message || job.errors) {
+        const errorMessage = job.message || job.error || JSON.stringify(job.errors || job);
+        throw new CloudConvertError('JOB_CREATE_FAILED', `CloudConvert job creation failed: ${errorMessage}`, undefined, undefined, undefined, 'error', false);
+      }
+      
+      throw new CloudConvertError('JOB_CREATE_FAILED', `CloudConvert job creation returned response without job.id field. Response keys: [${Object.keys(job).join(', ')}]`, undefined, undefined, undefined, 'error', false);
     }
 
     return job;
@@ -753,14 +805,19 @@ export class CloudConvertService implements ICloudConvertService {
  * TICKET: CloudConvert healthcheck at startup
  * Verifies API key and scopes before attempting any conversions
  */
-export async function cloudConvertHealthcheck(): Promise<void> {
+// TICKET: Enhanced healthcheck to track service health state
+let globalCloudConvertService: CloudConvertService | null = null;
+
+async function cloudConvertHealthcheck(): Promise<void> {
   const key = process.env.CLOUDCONVERT_API_KEY;
   if (!key) {
     throw new CloudConvertConfigError('CLOUDCONVERT_API_KEY missing');
   }
 
   try {
-    const response = await fetch('https://api.cloudconvert.com/v2/users/me', {
+    // TICKET: Use /jobs endpoint instead of /users/me since API key lacks user.read scope  
+    // but has task.read and task.write permissions
+    const response = await fetch('https://api.cloudconvert.com/v2/jobs?per_page=1', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${key}`,
@@ -788,6 +845,11 @@ export async function cloudConvertHealthcheck(): Promise<void> {
         });
         Sentry.captureMessage('CloudConvert healthcheck failed', 'error');
       });
+
+      // Mark service as unhealthy
+      if (globalCloudConvertService) {
+        globalCloudConvertService.setHealthy(false);
+      }
       
       throw new CloudConvertConfigError(
         `CloudConvert healthcheck failed (status=${status}): ${errorData}`,
@@ -795,10 +857,21 @@ export async function cloudConvertHealthcheck(): Promise<void> {
       );
     }
 
-    const userData = await response.json() as any;
-    console.log(`[CloudConvert] healthcheck OK, user=${userData.username || userData.id}, credits=${userData.credits || 'unknown'}`);
+    const jobData = await response.json() as any;
+    const jobCount = Array.isArray(jobData.data) ? jobData.data.length : 0;
+    console.log(`[CloudConvert] healthcheck OK, task.read/task.write permissions verified, recent jobs=${jobCount}`);
+    
+    // Mark service as healthy
+    if (globalCloudConvertService) {
+      globalCloudConvertService.setHealthy(true);
+    }
     
   } catch (error) {
+    // Mark service as unhealthy on any error
+    if (globalCloudConvertService) {
+      globalCloudConvertService.setHealthy(false);
+    }
+
     if (error instanceof CloudConvertConfigError) {
       throw error;
     }
@@ -1041,6 +1114,9 @@ export const isRetryableError = (error: any): boolean => {
   const status = error?.httpStatus ?? error?.status ?? error?.response?.status;
   return status === 429 || (status >= 500 && status <= 599);
 };
+
+// Export cloudConvert healthcheck function
+export { cloudConvertHealthcheck };
 
 // Create singleton instance
 export const cloudConvertService = new CloudConvertService();

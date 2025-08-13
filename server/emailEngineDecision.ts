@@ -28,20 +28,30 @@ export interface EngineDecisionContext {
 
 /**
  * Decides which engines to use for email conversion with proper precedence:
- * 1. ENV override (PDF_CONVERTER_ENGINE) wins
+ * 1. ENV override (PDF_CONVERTER_ENGINE + CONVERT_ATTACHMENTS_ALWAYS) wins
  * 2. DB flags via featureFlagService.isFeatureEnabled()
- * 3. Default fallback (Puppeteer body, no attachment conversion)
+ * 3. Default fallback (CloudConvert for everything - Puppeteer removed)
  */
 export async function decideEngines(context: EngineDecisionContext = {}): Promise<EngineDecision> {
   const reasons: string[] = [];
   
-  // 1. Check environment variable override first (highest precedence)
+  // 1. Check environment variable overrides first (highest precedence)
   const envEngine = process.env.PDF_CONVERTER_ENGINE as Engine | undefined;
+  const forceAttachments = process.env.CONVERT_ATTACHMENTS_ALWAYS === 'true';
+  
   if (envEngine === 'cloudconvert' || envEngine === 'puppeteer') {
     reasons.push(`env:${envEngine}`);
+    
+    // If CONVERT_ATTACHMENTS_ALWAYS is set, override attachment conversion decision
+    const convertAttachments = forceAttachments ? true : (envEngine === 'cloudconvert');
+    
+    if (forceAttachments) {
+      reasons.push('env:convert_attachments_always');
+    }
+    
     return {
       body: envEngine,
-      convertAttachments: envEngine === 'cloudconvert',
+      convertAttachments,
       reason: reasons
     };
   }
@@ -78,11 +88,11 @@ export async function decideEngines(context: EngineDecisionContext = {}): Promis
     attachmentConversion = false;
   }
 
-  // 3. Return decision based on flags
+  // 3. Return decision based on flags - force CloudConvert as default
   return {
-    body: bodyUseCloudConvert ? 'cloudconvert' : 'puppeteer',
+    body: bodyUseCloudConvert ? 'cloudconvert' : 'cloudconvert', // Always CloudConvert
     convertAttachments: attachmentConversion,
-    reason: reasons
+    reason: reasons.length > 0 ? reasons : ['default:cloudconvert']
   };
 }
 

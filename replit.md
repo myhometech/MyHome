@@ -85,6 +85,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 
 ### Email Processing
 - **PUPPETEER REMOVAL COMPLETE (Aug 13, 2025)**: System now operates as CloudConvert-only architecture with zero browser dependencies. Removed 46 packages including puppeteer and @puppeteer/browsers. Comprehensive refactor of all email conversion services eliminates browser pools, executable path resolution, and headless browser management.
+- **FS DEPENDENCIES REMOVAL COMPLETE (Aug 13, 2025)**: Eliminated all filesystem dependencies from email ingestion storage flow. Removed `require('fs')` calls from `unifiedEmailConversionService.ts` and implemented Buffer-based storage directly to GCS. Now supports non-Node runtime environments where "Dynamic require of 'fs' is not supported".
 - **CloudConvert-Only Email Processing**: Pure CloudConvert API implementation for all email document conversions. HTML→PDF email body creation and multi-format attachment conversion (Office→PDF, Image→PDF) with robust error handling, retry logic, and engine selection (Chrome for HTML, LibreOffice for Office docs, ImageMagick for images).
 - **TICKET 4 COMPLETE**: Unified email conversion service operates exclusively through CloudConvert with PDF_CONVERTER_ENGINE=cloudconvert environment override. No fallback mechanisms remain - system fails fast when CloudConvert unavailable. Enhanced analytics track CloudConvert-only conversion performance.
 - **TICKET 6 COMPLETE**: Enhanced error handling, retries, and user-visible states for CloudConvert operations. Implements 3x exponential backoff retry policy, comprehensive error mapping (401/403→configuration_error, 422→skipped_password_protected, 415→skipped_unsupported, timeout→retried), and user-friendly status badges. Features Sentry integration with CloudConvert job tracking, ensures failures don't block original storage.
@@ -92,6 +93,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **EMAIL ENGINE DECISION SYSTEM**: Database-backed feature flags enforce CloudConvert-only operation with PDF_CONVERTER_ENGINE environment override taking precedence. EMAIL_BODY_PDF_USE_CLOUDCONVERT and EMAIL_ATTACHMENT_CONVERT_TO_PDF flags maintain CloudConvert preferences with per-user rollout capabilities and comprehensive observability.
 - **Email Metadata**: Exposure and filtering system for enhanced document discovery, including backfill for legacy attachments using Mailgun Events API.
 - **Worker Configuration**: CloudConvert-based background worker with BullMQ for scalable PDF processing, with inline fallback when Redis unavailable. No browser management or executable detection required.
+- **Buffer-Based Storage Architecture**: Email ingestion now uses direct Buffer-to-GCS upload pattern eliminating temporary filesystem operations. Supports email bodies, original attachments, and converted attachments with proper metadata tracking and object key structure.
 
 ### UI Flows
 - **Upload Modal**: Consolidated and streamlined upload modal flow.

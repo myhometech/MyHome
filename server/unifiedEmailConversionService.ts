@@ -460,6 +460,7 @@ export class UnifiedEmailConversionService {
 
   /**
    * TICKET 4: Create document for email body PDF
+   * Fixed to use Buffer-based storage without filesystem dependencies
    */
   private async createEmailBodyDocument(
     file: { filename: string; pdfBuffer: Buffer; meta: Record<string, any> },
@@ -468,21 +469,16 @@ export class UnifiedEmailConversionService {
   ) {
     const fileName = this.generateEmailTitle(input.emailMetadata) + '.pdf';
     
-    // Use storage service for file upload (like existing email body PDF service)
-    const tempFilePath = `/tmp/${Date.now()}-${fileName}`;
-    require('fs').writeFileSync(tempFilePath, file.pdfBuffer);
-    
-    // Create document record first, then upload will happen via normal document flow
-    const documentData = {
-      fileName,
-      mimeType: 'application/pdf',
-      filePath: tempFilePath, // Will be updated to GCS URL by storage service
-      fileSize: file.pdfBuffer.length,
-      userId: input.userId,
-      categoryId: input.categoryId?.toString() || null,
+    // Use storage service createEmailBodyDocument which handles Buffer-based GCS storage
+    const emailData = {
+      filename: fileName,
+      subject: input.emailMetadata.subject,
+      messageId: input.emailMetadata.messageId,
+      receivedAt: input.emailMetadata.receivedAt,
+      from: input.emailMetadata.from,
       tags: [...(input.tags || []), 'email', 'email-body'],
-      source: 'email',
-      conversionStatus: 'completed' as const,
+      categoryId: input.categoryId,
+      // Enhanced provenance for CloudConvert
       conversionJobId: jobId,
       conversionMetadata: {
         engine: 'cloudconvert',
@@ -490,44 +486,64 @@ export class UnifiedEmailConversionService {
         convertedAt: new Date().toISOString(),
         jobMeta: file.meta
       },
-      // TICKET 5: Enhanced provenance tracking
       conversionEngine: 'cloudconvert' as const,
       conversionReason: 'ok' as const,
-      conversionInputSha256: this.calculateSha256(input.emailContent.strippedHtml || ''),
-      emailContext: {
-        from: input.emailMetadata.from,
-        subject: input.emailMetadata.subject,
-        messageId: input.emailMetadata.messageId,
-        receivedAt: input.emailMetadata.receivedAt
-      }
+      conversionInputSha256: this.calculateSha256(input.emailContent.strippedHtml || '')
     };
 
-    const validatedData = insertDocumentSchema.parse(documentData);
-    return await storage.createDocument(validatedData);
+    // Use existing storage method that handles Buffer → GCS upload directly
+    return await storage.createEmailBodyDocument(input.userId!, emailData, file.pdfBuffer);
   }
 
   /**
    * TICKET 4: Store original attachment without conversion
+   * Fixed to use Buffer-based storage without filesystem dependencies
    */
   private async storeOriginalAttachment(
     attachment: AttachmentData,
     input: UnifiedConversionInput
   ) {
-    // Write to temp file for storage service to handle
-    const tempFilePath = `/tmp/${Date.now()}-${attachment.filename}`;
     const buffer = Buffer.from(attachment.content, 'base64');
-    require('fs').writeFileSync(tempFilePath, buffer);
+    
+    // Use direct GCS storage via Buffer without temp files
+    const { GCSStorage } = await import('./storage/GCSStorage.js');
+    const storageConfig = this.getGCSStorageConfig();
+    const storageProvider = new GCSStorage(storageConfig);
+    
+    // Generate object key for attachment
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '');
+    const { nanoid } = await import('nanoid');
+    const shortHash = nanoid(8);
+    const objectKey = `emails/${input.userId}/attachments/${timestamp}-${shortHash}-${attachment.filename}`;
+    
+    console.log(`📎→☁️  Uploading attachment ${objectKey} (${Math.round(buffer.length / 1024)}KB)...`);
+    
+    // Upload directly to GCS with metadata
+    const uploadResult = await (storageProvider as any).uploadWithMetadata(
+      objectKey,
+      buffer,
+      attachment.contentType,
+      {
+        originalFilename: attachment.filename,
+        source: 'email_attachment',
+        emailFrom: input.emailMetadata.from,
+        emailSubject: input.emailMetadata.subject,
+        messageId: input.emailMetadata.messageId,
+        receivedAt: input.emailMetadata.receivedAt
+      }
+    );
 
-    // Create document record
+    // Create document record with GCS path
     const documentData = {
       fileName: attachment.filename,
       mimeType: attachment.contentType,
-      filePath: tempFilePath, // Will be updated to GCS URL by storage service
+      filePath: uploadResult.gcsPath || uploadResult.url,
+      gcsPath: uploadResult.gcsPath,
       fileSize: attachment.size,
       userId: input.userId,
       categoryId: input.categoryId?.toString() || null,
       tags: [...(input.tags || []), 'email', 'attachment'],
-      source: 'email',
+      source: 'email' as const,
       conversionStatus: 'not_applicable' as const,
       // TICKET 5: Enhanced provenance tracking
       conversionEngine: null,
@@ -546,6 +562,7 @@ export class UnifiedEmailConversionService {
 
   /**
    * TICKET 4: Create document for converted attachment PDF
+   * Fixed to use Buffer-based storage without filesystem dependencies
    */
   private async createConvertedAttachmentDocument(
     file: { filename: string; pdfBuffer: Buffer; meta: Record<string, any> },
@@ -556,15 +573,44 @@ export class UnifiedEmailConversionService {
   ) {
     const fileName = `${originalAttachment.filename.replace(/\.[^.]+$/, '')}_converted.pdf`;
     
-    // Write to temp file for storage service to handle
-    const tempFilePath = `/tmp/${Date.now()}-${fileName}`;
-    require('fs').writeFileSync(tempFilePath, file.pdfBuffer);
+    // Use direct GCS storage via Buffer without temp files
+    const { GCSStorage } = await import('./storage/GCSStorage.js');
+    const storageConfig = this.getGCSStorageConfig();
+    const storageProvider = new GCSStorage(storageConfig);
+    
+    // Generate object key for converted attachment
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '');
+    const { nanoid } = await import('nanoid');
+    const shortHash = nanoid(8);
+    const objectKey = `emails/${input.userId}/converted/${timestamp}-${shortHash}-${fileName}`;
+    
+    console.log(`📎→📄→☁️  Uploading converted attachment ${objectKey} (${Math.round(file.pdfBuffer.length / 1024)}KB)...`);
+    
+    // Upload directly to GCS with metadata
+    const uploadResult = await (storageProvider as any).uploadWithMetadata(
+      objectKey,
+      file.pdfBuffer,
+      'application/pdf',
+      {
+        originalFilename: originalAttachment.filename,
+        convertedFilename: fileName,
+        source: 'email_attachment_converted',
+        conversionEngine: 'cloudconvert',
+        conversionJobId: jobId,
+        emailFrom: input.emailMetadata.from,
+        emailSubject: input.emailMetadata.subject,
+        messageId: input.emailMetadata.messageId,
+        receivedAt: input.emailMetadata.receivedAt,
+        sourceDocumentId: sourceDocumentId.toString()
+      }
+    );
 
-    // Create document record
+    // Create document record with GCS path
     const documentData = {
       fileName,
       mimeType: 'application/pdf',
-      filePath: tempFilePath, // Will be updated to GCS URL by storage service
+      filePath: uploadResult.gcsPath || uploadResult.url,
+      gcsPath: uploadResult.gcsPath,
       fileSize: file.pdfBuffer.length,
       userId: input.userId,
       categoryId: input.categoryId?.toString() || null,
@@ -605,6 +651,41 @@ export class UnifiedEmailConversionService {
     const hash = crypto.createHash('sha256');
     hash.update(content);
     return hash.digest('hex');
+  }
+
+  /**
+   * Get GCS storage configuration for email attachments
+   * Uses Mailgun-specific credentials or falls back to default GCS config
+   */
+  private getGCSStorageConfig() {
+    const storageConfig = {
+      bucketName: process.env.MAILGUN_GCS_BUCKET || 'myhometech-storage',
+      projectId: undefined as string | undefined,
+      credentials: undefined as any,
+      keyFilename: undefined as string | undefined
+    };
+
+    // Parse Mailgun-specific credentials first
+    if (process.env.MAILGUN_GCS_CREDENTIALS_JSON) {
+      try {
+        const credentials = JSON.parse(process.env.MAILGUN_GCS_CREDENTIALS_JSON);
+        storageConfig.credentials = credentials;
+        storageConfig.projectId = credentials.project_id;
+        console.log('✅ Using Mailgun-specific GCS credentials for attachments');
+        return storageConfig;
+      } catch (error) {
+        console.error('❌ Failed to parse MAILGUN_GCS_CREDENTIALS_JSON:', error);
+      }
+    }
+
+    // Fallback to default GCS configuration
+    console.log('⚠️ MAILGUN_GCS_CREDENTIALS_JSON not found, falling back to default GCS config');
+    storageConfig.projectId = process.env.GCS_PROJECT_ID;
+    if (process.env.GCS_KEY_FILENAME) {
+      storageConfig.keyFilename = process.env.GCS_KEY_FILENAME;
+    }
+    
+    return storageConfig;
   }
 
   // TICKET 6: Enhanced error handling and user-visible states

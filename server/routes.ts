@@ -4775,7 +4775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // OCR error handling routes
-    app.use('/api', ocrErrorRoutes);
+    setupOCRErrorRoutes(app);
 
     // CloudConvert health check
     app.use('/api', cloudConvertHealthRoutes);

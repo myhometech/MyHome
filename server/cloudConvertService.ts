@@ -92,14 +92,15 @@ export class CloudConvertService implements ICloudConvertService {
 
     if (!this.config.apiKey) {
       console.error('🚨 CloudConvert API key is missing. Set CLOUDCONVERT_API_KEY environment variable.');
-      throw new CloudConvertError('MISSING_API_KEY', 'CLOUDCONVERT_API_KEY environment variable is required');
+      throw new CloudConvertConfigError('CLOUDCONVERT_API_KEY environment variable is required');
     }
 
     this.baseUrl = this.config.sandbox 
       ? 'https://api.sandbox.cloudconvert.com/v2'
       : 'https://api.cloudconvert.com/v2';
 
-    console.log(`✅ CloudConvert service initialized (${this.config.sandbox ? 'sandbox' : 'production'} mode)`);
+    const maskedKey = this.config.apiKey.slice(0, 8) + '...' + this.config.apiKey.slice(-4);
+    console.log(`✅ CloudConvert service initialized (${this.config.sandbox ? 'sandbox' : 'production'} mode) with key ${maskedKey}`);
   }
 
   async convertToPdf(inputs: ConvertInput[]): Promise<ConvertResult> {
@@ -181,6 +182,11 @@ export class CloudConvertService implements ICloudConvertService {
   }
 
   private async createJob(inputs: ConvertInput[]): Promise<CloudConvertJob> {
+    // Validate API key before creating job
+    if (!this.config.apiKey) {
+      throw new CloudConvertConfigError('CLOUDCONVERT_API_KEY is not configured');
+    }
+
     const tasks: Record<string, any> = {};
 
     inputs.forEach((input, index) => {
@@ -240,7 +246,14 @@ export class CloudConvertService implements ICloudConvertService {
       tag: 'myhome-email-conversion'
     };
 
-    return this.makeRequest('POST', '/jobs', jobPayload);
+    const job = await this.makeRequest('POST', '/jobs', jobPayload);
+    
+    // Validate job creation success
+    if (!job || !job.id) {
+      throw new CloudConvertError('JOB_CREATE_FAILED', 'CloudConvert job creation returned invalid response');
+    }
+
+    return job;
   }
 
   private getEngineForMimeType(mime: string): string {
@@ -269,8 +282,14 @@ export class CloudConvertService implements ICloudConvertService {
   }
 
   private async uploadInputs(job: CloudConvertJob, inputs: ConvertInput[]): Promise<void> {
+    // Defensive programming: ensure tasks array exists
+    const tasks = Array.isArray(job.tasks) ? job.tasks : [];
+    if (tasks.length === 0) {
+      throw new CloudConvertError('NO_TASKS_FOUND', 'Job has no tasks available for upload');
+    }
+
     const uploadPromises = inputs.map(async (input, index) => {
-      const inputTask = job.tasks.find(t => t.name === `input_${index}`);
+      const inputTask = tasks.find(t => t.name === `input_${index}`);
       if (!inputTask || !inputTask.result) {
         throw new CloudConvertError('UPLOAD_TASK_NOT_FOUND', `Upload task not found for input ${index}`);
       }
@@ -377,7 +396,9 @@ export class CloudConvertService implements ICloudConvertService {
   }
 
   private async downloadResults(job: CloudConvertJob): Promise<Array<{ filename: string; pdfBuffer: Buffer; meta: Record<string, any> }>> {
-    const exportTasks = job.tasks.filter(t => t.operation === 'export/url' && t.status === 'finished');
+    // Defensive programming: ensure tasks array exists
+    const tasks = Array.isArray(job.tasks) ? job.tasks : [];
+    const exportTasks = tasks.filter(t => t.operation === 'export/url' && t.status === 'finished');
     
     const downloadPromises = exportTasks.map(async (task, index) => {
       if (!task.result?.files?.[0]?.url) {

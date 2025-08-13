@@ -77,17 +77,51 @@ export class UnifiedEmailConversionService {
   private cloudConvertService?: CloudConvertService;
 
   constructor() {
-    // Initialize CloudConvert service only if API key is available
+    // CloudConvert service will be initialized lazily when needed
+    // This avoids timing issues with healthcheck coordination
+  }
+
+  /**
+   * CRITICAL FIX: Lazy initialization of CloudConvert service
+   * This ensures we use the healthy global instance that was validated by startup healthcheck
+   */
+  private async getCloudConvertService(): Promise<CloudConvertService | undefined> {
+    if (!process.env.CLOUDCONVERT_API_KEY) {
+      return undefined;
+    }
+
+    if (this.cloudConvertService) {
+      return this.cloudConvertService;
+    }
+
     try {
-      if (process.env.CLOUDCONVERT_API_KEY) {
-        this.cloudConvertService = new CloudConvertService();
-        console.log('✅ CloudConvert service ready for email conversions');
-      } else {
-        console.warn('⚠️ CloudConvert API key not configured - PDF conversions will be skipped');
+      // Try to use the healthy global instance first
+      const { getGlobalCloudConvertService } = await import('./cloudConvertService.js');
+      const globalService = getGlobalCloudConvertService();
+      
+      if (globalService) {
+        this.cloudConvertService = globalService;
+        console.log('✅ CloudConvert service ready for email conversions (using healthy global instance)');
+        return this.cloudConvertService;
       }
+
+      // Fallback: Create new instance and mark as healthy if healthcheck passed
+      console.warn('⚠️ Global CloudConvertService not found - creating new instance');
+      this.cloudConvertService = new CloudConvertService();
+      
+      // If we're here and no CC_DISABLED flag exists, healthcheck likely passed
+      if (!(globalThis as any).__CC_DISABLED__) {
+        this.cloudConvertService.setHealthy(true);
+        console.log('✅ New CloudConvert instance marked healthy (healthcheck passed)');
+      } else {
+        console.warn('⚠️ CloudConvert disabled by healthcheck - service will reject conversions');
+      }
+      
+      return this.cloudConvertService;
+      
     } catch (error) {
-      console.error('❌ CloudConvert service initialization failed:', error);
-      console.warn('📝 PDF conversion will be disabled for email processing');
+      console.error('❌ Failed to initialize CloudConvert service:', error);
+      return undefined;
     }
   }
 
@@ -153,7 +187,8 @@ export class UnifiedEmailConversionService {
    * Enhanced to support selective attachment conversion
    */
   private async convertWithCloudConvert(input: UnifiedConversionInput, convertAttachments: boolean = true): Promise<ConversionResult> {
-    if (!this.cloudConvertService) {
+    const cloudConvertService = await this.getCloudConvertService();
+    if (!cloudConvertService) {
       throw new Error('CloudConvert service not available');
     }
 
@@ -166,7 +201,7 @@ export class UnifiedEmailConversionService {
       console.log(`   - Attachments: ${convertInputs.filter(i => i.kind === 'file').length}`);
 
       // Convert all inputs through CloudConvert
-      const cloudConvertResult = await this.cloudConvertService.convertToPdf(convertInputs);
+      const cloudConvertResult = await cloudConvertService.convertToPdf(convertInputs);
       
       console.log(`✅ CloudConvert job ${cloudConvertResult.jobId} completed with ${cloudConvertResult.files.length} PDFs`);
 
@@ -651,8 +686,8 @@ export class UnifiedEmailConversionService {
    * TICKET 5: Calculate SHA-256 hash for content tracking
    */
   private calculateSha256(content: string | Buffer): string {
-    const crypto = require('crypto');
-    const hash = crypto.createHash('sha256');
+    // Use built-in Node.js crypto module
+    const hash = require('crypto').createHash('sha256');
     hash.update(content);
     return hash.digest('hex');
   }

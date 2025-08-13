@@ -347,10 +347,19 @@ export class CloudConvertService implements ICloudConvertService {
       throw new CloudConvertError('JOB_CREATE_FAILED', `CloudConvert job creation returned invalid response - expected object, got ${typeof job}`, undefined, undefined, undefined, 'error', false);
     }
 
-    if (!job.id) {
+    // P0 CRITICAL FIX: Handle both direct and nested job response structures
+    let actualJob = job;
+    if (!job.id && job.data && typeof job.data === 'object' && job.data.id) {
+      console.log('[CloudConvert] P0 FIX: Job response is nested in data property, extracting...');
+      actualJob = job.data;
+    }
+
+    if (!actualJob.id) {
       console.error('[CloudConvert] Invalid job response - missing job.id', { 
         job, 
+        actualJob,
         jobKeys: Object.keys(job || {}),
+        actualJobKeys: Object.keys(actualJob || {}),
         hasData: !!job.data,
         taskSummary 
       });
@@ -361,7 +370,9 @@ export class CloudConvertService implements ICloudConvertService {
         scope.setLevel('error');
         scope.setContext('invalid_response', {
           job,
+          actualJob,
           jobKeys: Object.keys(job || {}),
+          actualJobKeys: Object.keys(actualJob || {}),
           taskSummary,
           timestamp: new Date().toISOString()
         });
@@ -369,15 +380,15 @@ export class CloudConvertService implements ICloudConvertService {
       });
       
       // Check if this is actually an error response masquerading as a job
-      if (job.error || job.message || job.errors) {
-        const errorMessage = job.message || job.error || JSON.stringify(job.errors || job);
+      if (actualJob.error || actualJob.message || actualJob.errors) {
+        const errorMessage = actualJob.message || actualJob.error || JSON.stringify(actualJob.errors || actualJob);
         throw new CloudConvertError('JOB_CREATE_FAILED', `CloudConvert job creation failed: ${errorMessage}`, undefined, undefined, undefined, 'error', false);
       }
       
-      throw new CloudConvertError('JOB_CREATE_FAILED', `CloudConvert job creation returned response without job.id field. Response keys: [${Object.keys(job).join(', ')}]`, undefined, undefined, undefined, 'error', false);
+      throw new CloudConvertError('JOB_CREATE_FAILED', `CloudConvert job creation returned response without job.id field. Response keys: [${Object.keys(actualJob).join(', ')}]`, undefined, undefined, undefined, 'error', false);
     }
 
-    return job;
+    return actualJob;
   }
 
   private getEngineForMimeType(mime: string): string {
@@ -811,6 +822,10 @@ export class CloudConvertService implements ICloudConvertService {
  */
 // TICKET: Enhanced healthcheck to track service health state
 let globalCloudConvertService: CloudConvertService | null = null;
+
+export function getGlobalCloudConvertService(): CloudConvertService | null {
+  return globalCloudConvertService;
+}
 
 export async function cloudConvertHealthcheck(): Promise<void> {
   const key = process.env.CLOUDCONVERT_API_KEY;

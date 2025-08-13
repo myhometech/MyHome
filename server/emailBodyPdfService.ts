@@ -219,18 +219,20 @@ async function renderHtmlToPdf(
       ${html}
     ` : html;
 
-    const cloudConvert = new CloudConvertService();
+    // TICKET: Use enhanced CloudConvert job creation and error handling
+    const { createJobHtml, waitAndDownloadFirstPdf, withRetry, isRetryableError } = await import('./cloudConvertService.js');
     
-    // Configure CloudConvert for HTML-to-PDF conversion
-    const convertOptions = {
-      pageSize: 'A4' as const,
-      marginMm: 25, // ~1 inch margins
-      printBackground: true,
-      engine: 'chrome' as const
-    };
-
-    // Convert HTML to PDF using CloudConvert
-    const pdfBuffer = await cloudConvert.convertHtmlToPdf(htmlContent, convertOptions);
+    // Create job with retry logic for 429/5xx errors
+    const job = await withRetry(
+      () => createJobHtml(htmlContent),
+      isRetryableError,
+      3
+    );
+    
+    console.log(`CloudConvert job created for HTML conversion: ${job.id}`);
+    
+    // Wait for completion and download PDF
+    const pdfBuffer = await waitAndDownloadFirstPdf(job.id);
     
     console.log(`PDF generated via CloudConvert (${attempt} attempt): ${pdfBuffer.length} bytes`);
 
@@ -250,6 +252,15 @@ async function renderHtmlToPdf(
     return pdfBuffer;
 
   } catch (error) {
+    // Enhanced error handling with CloudConvert error context
+    if (error instanceof Error && error.name === 'CloudConvertError') {
+      console.error('[CloudConvert] HTML to PDF conversion failed:', {
+        code: (error as any).code,
+        status: (error as any).httpStatus,
+        message: error.message
+      });
+    }
+    
     throw new EmailBodyPdfError(
       'EMAIL_RENDER_FAILED',
       `CloudConvert PDF rendering failed: ${error instanceof Error ? error.message : String(error)}`

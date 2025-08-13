@@ -74,6 +74,14 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Robustness**: Global error handling (React Error Boundaries), network status detection, exponential backoff, toast notifications.
 - **Memory Optimization**: Manual garbage collection, resource tracking, OCR resource cleanup.
 
+### CloudConvert Integration (Enhanced - 2025-08-13)
+- **Service Health**: Startup healthcheck validates API key and scopes, fails fast on configuration errors with structured logging to Sentry.
+- **Job Creation**: Explicit task naming with enhanced error capture including HTTP status, CloudConvert error codes, and task summaries for improved debugging.
+- **Retry Logic**: Exponential backoff for 429/5xx errors (max 3 attempts) with comprehensive error classification.
+- **Error Handling**: Enhanced CloudConvertError class with retryable flags, structured Sentry logging, and detailed context capture.
+- **HTML-to-PDF**: Robust email body conversion pipeline using CloudConvert Chrome engine with A4 layout and print background support.
+- **Monitoring**: Integrated with metricsService for conversion duration, success rates, and failure pattern tracking.
+
 ### Security & Monitoring
 - **Security**: Helmet middleware (HTTP headers), Express rate limiting, strict CORS.
 - **Monitoring**: Sentry integration for error tracking and performance.

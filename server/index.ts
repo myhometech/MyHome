@@ -252,6 +252,21 @@ app.use((req, res, next) => {
     initializeWorkerHealthChecker(null);
   }
 
+  // TICKET: CloudConvert healthcheck at startup
+  try {
+    console.log('🔍 Running CloudConvert healthcheck...');
+    const { cloudConvertHealthcheck } = await import('./cloudConvertService.js');
+    await cloudConvertHealthcheck();
+    console.log('✅ CloudConvert healthcheck passed - service is ready');
+  } catch (error: any) {
+    console.error('❌ CloudConvert healthcheck failed:', error.message);
+    if (error.code === 'CLOUDCONVERT_API_KEY missing') {
+      console.warn('⚠️ CloudConvert API key not configured - conversions will be skipped');
+    } else {
+      console.warn('⚠️ CloudConvert service unavailable - ingestion will store originals only');
+    }
+  }
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes

@@ -113,22 +113,92 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Error boundary effect to catch any rendering errors
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error(`💥 [FRONTEND ERROR] Global error in document viewer:`, event.error);
+      setError(`Component error: ${event.error?.message || 'Unknown error'}`);
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error(`💥 [FRONTEND ERROR] Unhandled promise rejection in document viewer:`, event.reason);
+      setError(`Promise rejection: ${event.reason?.message || 'Unknown error'}`);
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
+  // Component mount logging
+  useEffect(() => {
+    console.log(`🔄 [FRONTEND] EnhancedDocumentViewer mounted for document:`, {
+      id: document.id,
+      name: document.name,
+      mimeType: document.mimeType
+    });
+    
+    return () => {
+      console.log(`🔄 [FRONTEND] EnhancedDocumentViewer unmounting for document ${document.id}`);
+    };
+  }, [document.id, document.name, document.mimeType]);
+
   // Fetch full document details
   const { data: fullDocument, isLoading: isLoadingDetails, error: documentError } = useQuery<FullDocumentDetails>({
     queryKey: [`/api/documents/${document.id}`],
     queryFn: async (): Promise<FullDocumentDetails> => {
-      const response = await fetch(`/api/documents/${document.id}`, {
-        credentials: 'include'
-      });
-      if (response.status === 401) {
-        // Redirect to login for authentication failures
-        window.location.href = '/';
-        throw new Error('Authentication required');
+      console.log(`🔍 [FRONTEND] Fetching document details for ID ${document.id}`);
+      
+      try {
+        const response = await fetch(`/api/documents/${document.id}`, {
+          credentials: 'include'
+        });
+        
+        console.log(`📡 [FRONTEND] Response status: ${response.status}`);
+        
+        if (response.status === 401) {
+          console.log(`❌ [FRONTEND] Authentication required, redirecting to login`);
+          // Redirect to login for authentication failures
+          window.location.href = '/';
+          throw new Error('Authentication required');
+        }
+        
+        if (!response.ok) {
+          console.error(`❌ [FRONTEND] Failed to fetch document: ${response.status}`);
+          throw new Error(`Failed to fetch document details: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`✅ [FRONTEND] Document data received:`, {
+          id: data.id,
+          name: data.name,
+          hasEmailContext: !!data.emailContext,
+          emailContextType: typeof data.emailContext,
+          source: data.source,
+          uploadSource: data.uploadSource
+        });
+        
+        // Defensive handling of emailContext
+        if (data.emailContext) {
+          console.log(`📧 [FRONTEND] Email context details:`, {
+            keys: Object.keys(data.emailContext),
+            messageId: data.emailContext.messageId,
+            subject: data.emailContext.subject
+          });
+        }
+        
+        return data;
+      } catch (error) {
+        console.error(`💥 [FRONTEND] Error in document fetch:`, error);
+        throw error;
       }
-      if (!response.ok) throw new Error(`Failed to fetch document details: ${response.status}`);
-      return response.json();
     },
     retry: (failureCount, error) => {
+      console.log(`🔄 [FRONTEND] Retry attempt ${failureCount} for error:`, error.message);
       // Don't retry authentication errors
       if (error.message.includes('Authentication required')) {
         return false;

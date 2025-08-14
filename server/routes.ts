@@ -932,19 +932,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
 
+      console.log(`🔍 [DOCUMENT FETCH] Attempting to fetch document ${documentId} for user ${userId}`);
+
       if (isNaN(documentId)) {
+        console.log(`❌ [DOCUMENT FETCH] Invalid document ID: ${req.params.id}`);
         return res.status(400).json({ message: "Invalid document ID" });
       }
 
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
+        console.log(`❌ [DOCUMENT FETCH] Document ${documentId} not found for user ${userId}`);
         return res.status(404).json({ message: "Document not found" });
       }
 
-      res.json(document);
+      console.log(`✅ [DOCUMENT FETCH] Document ${documentId} found:`, {
+        id: document.id,
+        name: document.name,
+        fileName: document.fileName,
+        mimeType: document.mimeType,
+        source: document.source,
+        uploadSource: document.uploadSource,
+        hasEmailContext: !!document.emailContext,
+        emailContextType: typeof document.emailContext,
+        messageId: document.messageId
+      });
+
+      // Ensure emailContext is properly serialized
+      const serializedDocument = {
+        ...document,
+        emailContext: document.emailContext ? 
+          (typeof document.emailContext === 'string' ? 
+            JSON.parse(document.emailContext) : 
+            document.emailContext) : 
+          null
+      };
+
+      console.log(`✅ [DOCUMENT FETCH] Returning serialized document with emailContext:`, {
+        hasEmailContext: !!serializedDocument.emailContext,
+        emailContextKeys: serializedDocument.emailContext ? Object.keys(serializedDocument.emailContext) : []
+      });
+
+      res.json(serializedDocument);
     } catch (error) {
-      console.error("Error fetching document:", error);
-      res.status(500).json({ message: "Failed to fetch document" });
+      console.error(`💥 [DOCUMENT FETCH] Error fetching document ${req.params.id}:`, error);
+      console.error(`💥 [DOCUMENT FETCH] Error stack:`, error.stack);
+      res.status(500).json({ 
+        message: "Failed to fetch document",
+        error: error.message,
+        documentId: req.params.id
+      });
     }
   });
 

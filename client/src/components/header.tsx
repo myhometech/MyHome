@@ -10,6 +10,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SmartSearch } from "@/components/smart-search";
 import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
+import { MobileHamburgerMenu } from "@/components/mobile-hamburger-menu";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Document } from "@shared/schema";
 import { useState } from "react";
@@ -136,6 +137,9 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-6">
+            {/* Mobile Hamburger Menu */}
+            <MobileHamburgerMenu className="mr-2" />
+            
             <Link href="/">
               <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
                 <Home className="h-6 w-6 text-primary" />

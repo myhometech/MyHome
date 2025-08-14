@@ -33,6 +33,9 @@ import Pricing from "@/pages/pricing";
 import DocumentPage from "@/pages/document";
 import UnifiedDocuments from "@/pages/unified-documents";
 import InsightsFirstPage from "@/pages/insights-first";
+import Notifications from "@/pages/notifications";
+import Tasks from "@/pages/tasks";
+import Analytics from "@/pages/analytics";
 import { Support } from "@/pages/support";
 
 
@@ -79,6 +82,15 @@ function Router() {
           <Route path="/support">
             {() => { setLocation("/login"); return null; }}
           </Route>
+          <Route path="/notifications">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/tasks">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/analytics">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
           <Route path="/admin">
             {() => { setLocation("/login"); return null; }}
           </Route>
@@ -94,7 +106,9 @@ function Router() {
         <>
           <Route path="/" component={InsightsFirstPage} />
           <Route path="/documents" component={UnifiedDocuments} />
-
+          <Route path="/notifications" component={Notifications} />
+          <Route path="/tasks" component={Tasks} />
+          <Route path="/analytics" component={Analytics} />
           <Route path="/document/:id" component={DocumentPage} />
           <Route path="/settings" component={Settings} />
           <Route path="/support" component={Support} />

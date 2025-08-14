@@ -4,14 +4,20 @@ import type { Express, RequestHandler } from "express";
 import { AuthService } from "./authService";
 
 export function getSession() {
-  // Use memory store for development - no external dependencies
-
   const isProd = process.env.NODE_ENV === 'production';
+
+  // Use PostgreSQL for persistent sessions in both dev and production
+  const PgSession = connectPg(session);
+  const sessionStore = new PgSession({
+    conString: process.env.DATABASE_URL,
+    tableName: 'sessions',
+    createTableIfMissing: true,
+  });
 
   return session({
     name: 'mh.sid',
     secret: process.env.SESSION_SECRET || "simple-auth-secret-key-for-development",
-    // Using default memory store for development
+    store: sessionStore, // Use PostgreSQL session store
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -37,14 +43,10 @@ export const requireAuth: RequestHandler = (req: any, res: any, next: any) => {
   const user = req.user || req.session?.user;
 
   if (!user) {
-    console.log('❌ Authentication failed - no user in session or req.user');
-    console.log('❌ Session user:', req.session?.user ? 'exists' : 'missing');
-    console.log('❌ Req user:', req.user ? 'exists' : 'missing');
     return res.status(401).json({ message: "Authentication required" });
   }
 
   // Ensure req.user is set for downstream middleware
   req.user = user;
-  console.log('✅ Authentication successful for user:', user.email);
   next();
 };

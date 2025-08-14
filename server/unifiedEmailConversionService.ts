@@ -558,30 +558,33 @@ export class UnifiedEmailConversionService {
     
     console.log(`📎→☁️  Uploading attachment ${objectKey} (${Math.round(buffer.length / 1024)}KB)...`);
     
-    // Upload directly to GCS with metadata
+    // Upload directly to GCS with metadata (correct parameter order: buffer, key, mimeType, options)
     const uploadResult = await (storageProvider as any).uploadWithMetadata(
-      objectKey,
       buffer,
+      objectKey,
       attachment.contentType,
       {
-        originalFilename: attachment.filename,
-        source: 'email_attachment',
-        emailFrom: input.emailMetadata.from,
-        emailSubject: input.emailMetadata.subject,
-        messageId: input.emailMetadata.messageId,
-        receivedAt: input.emailMetadata.receivedAt
+        metadata: {
+          originalFilename: attachment.filename,
+          source: 'email_attachment',
+          emailFrom: input.emailMetadata.from,
+          emailSubject: input.emailMetadata.subject,
+          messageId: input.emailMetadata.messageId,
+          receivedAt: input.emailMetadata.receivedAt
+        }
       }
     );
 
-    // Create document record with GCS path
+    // Create document record with GCS path (uploadResult is the GCS key)
     const documentData = {
-      fileName: attachment.filename,
+      name: attachment.filename, // Display name (required field)
+      fileName: attachment.filename, // File name (also required)
       mimeType: attachment.contentType,
-      filePath: uploadResult.gcsPath || uploadResult.url,
-      gcsPath: uploadResult.gcsPath,
+      filePath: uploadResult, // The GCS key returned by uploadWithMetadata
+      gcsPath: uploadResult,
       fileSize: attachment.size,
       userId: input.userId,
-      categoryId: input.categoryId?.toString() || null,
+      categoryId: input.categoryId || null,
       tags: [...(input.tags || []), 'email', 'attachment'],
       source: 'email' as const,
       conversionStatus: 'not_applicable' as const,
@@ -596,7 +599,9 @@ export class UnifiedEmailConversionService {
       }
     };
 
+    console.log('DEBUG: Original attachment document data before validation:', JSON.stringify(documentData, null, 2));
     const validatedData = insertDocumentSchema.parse(documentData);
+    console.log('DEBUG: Validated attachment document data:', JSON.stringify(validatedData, null, 2));
     return await storage.createDocument(validatedData);
   }
 
@@ -626,31 +631,34 @@ export class UnifiedEmailConversionService {
     
     console.log(`📎→📄→☁️  Uploading converted attachment ${objectKey} (${Math.round(file.pdfBuffer.length / 1024)}KB)...`);
     
-    // Upload directly to GCS with metadata
+    // Upload directly to GCS with metadata (correct parameter order: buffer, key, mimeType, options)
     const uploadResult = await (storageProvider as any).uploadWithMetadata(
-      objectKey,
       file.pdfBuffer,
+      objectKey,
       'application/pdf',
       {
-        originalFilename: originalAttachment.filename,
-        convertedFilename: fileName,
-        source: 'email_attachment_converted',
-        conversionEngine: 'cloudconvert',
-        conversionJobId: jobId,
-        emailFrom: input.emailMetadata.from,
-        emailSubject: input.emailMetadata.subject,
-        messageId: input.emailMetadata.messageId,
-        receivedAt: input.emailMetadata.receivedAt,
-        sourceDocumentId: sourceDocumentId.toString()
+        metadata: {
+          originalFilename: originalAttachment.filename,
+          convertedFilename: fileName,
+          source: 'email_attachment_converted',
+          conversionEngine: 'cloudconvert',
+          conversionJobId: jobId,
+          emailFrom: input.emailMetadata.from,
+          emailSubject: input.emailMetadata.subject,
+          messageId: input.emailMetadata.messageId,
+          receivedAt: input.emailMetadata.receivedAt,
+          sourceDocumentId: sourceDocumentId.toString()
+        }
       }
     );
 
-    // Create document record with GCS path
+    // Create document record with GCS path (uploadResult is the GCS key)
     const documentData = {
-      fileName,
+      name: fileName, // Display name (required field)
+      fileName, // File name (also required)
       mimeType: 'application/pdf',
-      filePath: uploadResult.gcsPath || uploadResult.url,
-      gcsPath: uploadResult.gcsPath,
+      filePath: uploadResult, // The GCS key returned by uploadWithMetadata
+      gcsPath: uploadResult,
       fileSize: file.pdfBuffer.length,
       userId: input.userId,
       categoryId: input.categoryId?.toString() || null,

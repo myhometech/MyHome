@@ -3259,16 +3259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       
-      // Debug logging for body parsing issues
-      console.log('🔍 Bulk delete request debug:', {
-        hasBody: !!req.body,
-        bodyKeys: req.body ? Object.keys(req.body) : [],
-        bodyType: typeof req.body,
-        rawBody: req.body,
-        contentType: req.headers['content-type'],
-        method: req.method,
-        url: req.url
-      });
+      // Request validation
 
       // Ensure body exists and has the right structure
       if (!req.body || typeof req.body !== 'object') {

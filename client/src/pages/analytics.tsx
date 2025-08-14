@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BarChart3, TrendingUp, FileText, Clock, Upload, Eye, Users, Calendar } from "lucide-react";
+import Header from '@/components/header';
 
 export default function Analytics() {
   // Placeholder analytics data - in real implementation, this would come from an API
@@ -59,11 +60,15 @@ export default function Analytics() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#FAF4EF]">
+      <Header />
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics & Reports</h1>
-          <p className="text-gray-600">Comprehensive insights into your document management activities</p>
+          <div className="flex items-center gap-3">
+            <BarChart3 className="h-8 w-8 text-[#1E90FF]" />
+            <h1 className="text-3xl font-bold text-[#2B2F40]">Analytics & Reports</h1>
+          </div>
+          <p className="text-gray-600 mt-2">Comprehensive insights into your document management activities</p>
         </div>
 
         {/* Key Stats */}

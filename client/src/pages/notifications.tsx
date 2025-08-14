@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Mail, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import Header from '@/components/header';
 
 export default function Notifications() {
   // Placeholder notifications - in real implementation, this would come from an API
@@ -48,11 +49,15 @@ export default function Notifications() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#FAF4EF]">
+      <Header />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Notifications</h1>
-          <p className="text-gray-600">Stay updated with your document management activities</p>
+          <div className="flex items-center gap-3">
+            <Bell className="h-8 w-8 text-[#1E90FF]" />
+            <h1 className="text-3xl font-bold text-[#2B2F40]">Notifications</h1>
+          </div>
+          <p className="text-gray-600 mt-2">Stay updated with your document management activities</p>
         </div>
 
         <div className="space-y-4">

@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, FileText, Car, CheckCircle2, AlertTriangle } from "lucide-react";
+import Header from '@/components/header';
 
 export default function Tasks() {
   // Placeholder tasks - in real implementation, this would come from an API
@@ -73,11 +74,15 @@ export default function Tasks() {
   const completedTasks = tasks.filter(task => task.status === 'completed');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#FAF4EF]">
+      <Header />
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Tasks & Deadlines</h1>
-          <p className="text-gray-600">Keep track of important deadlines and document-related tasks</p>
+          <div className="flex items-center gap-3">
+            <Calendar className="h-8 w-8 text-[#1E90FF]" />
+            <h1 className="text-3xl font-bold text-[#2B2F40]">Tasks & Deadlines</h1>
+          </div>
+          <p className="text-gray-600 mt-2">Keep track of important deadlines and document-related tasks</p>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">

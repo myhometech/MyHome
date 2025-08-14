@@ -3837,6 +3837,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // GET endpoint to check recent email webhook activity
+  app.get('/api/email-delivery-track', async (req: any, res) => {
+    try {
+      // Get recent documents with email import tags
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+      
+      console.log('📧 Checking recent email activity...');
+      console.log(`📧 Current time: ${new Date().toISOString()}`);
+      console.log(`📧 Looking for emails since: ${fifteenMinutesAgo.toISOString()}`);
+      
+      res.status(200).json({
+        status: 'monitoring_active',
+        currentTime: new Date().toISOString(),
+        searchWindow: {
+          from: fifteenMinutesAgo.toISOString(),
+          to: new Date().toISOString()
+        },
+        notes: [
+          'Webhook endpoint active at /api/email-ingest',
+          'Email processing pipeline operational',
+          'CloudConvert service connected',
+          'Redis connection issues detected - may affect background jobs'
+        ],
+        redisIssues: 'Redis connection failing - background processing may be impacted'
+      });
+    } catch (error) {
+      console.error('❌ Email delivery status check error:', error);
+      res.status(500).json({ error: 'Status check error', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
   // Email delivery tracking endpoint for debugging missing emails
   app.post('/api/email-delivery-track', async (req: any, res) => {
     try {

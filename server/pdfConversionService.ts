@@ -199,12 +199,12 @@ export class PDFConversionService {
         try {
           pdfImage = await pdfDoc.embedJpg(processedImageBuffer);
         } catch (jpegError) {
-          console.log(`JPEG embedding failed for ${imagePath}, trying PNG:`, jpegError.message);
+          console.log(`JPEG embedding failed for ${imagePath}, trying PNG:`, jpegError instanceof Error ? jpegError.message : 'Unknown error');
           try {
             pdfImage = await pdfDoc.embedPng(processedImageBuffer);
           } catch (pngError) {
             console.error(`Both JPEG and PNG embedding failed for ${imagePath}:`, pngError);
-            throw new Error(`Image embedding failed: ${pngError.message}`);
+            throw new Error(`Image embedding failed: ${pngError instanceof Error ? pngError.message : 'Unknown error'}`);
           }
         }
 
@@ -501,18 +501,7 @@ export class PDFConversionService {
   /**
    * Clean up temporary files
    */
-  cleanup(filePaths: string[]): void {
-    filePaths.forEach(filePath => {
-      try {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          console.log(`Cleaned up temporary file: ${filePath}`);
-        }
-      } catch (error) {
-        console.warn(`Failed to cleanup file ${filePath}:`, error);
-      }
-    });
-  }
+
 
   /**
    * Convert email HTML content to PDF format
@@ -749,18 +738,6 @@ export class PDFConversionService {
   /**
    * Clean up temporary files if needed
    */
-  async cleanup(filePaths: string[]): Promise<void> {
-    for (const filePath of filePaths) {
-      try {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          console.log(`Cleaned up temporary file: ${filePath}`);
-        }
-      } catch (error) {
-        console.warn(`Failed to cleanup file ${filePath}:`, error);
-      }
-    }
-  }
 }
 
 export const pdfConversionService = new PDFConversionService();

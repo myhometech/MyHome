@@ -504,10 +504,9 @@ export class UnifiedEmailConversionService {
 
             console.log(`📄 [SUCCESS] PDF stored: ${attachment.filename} → Document ID ${pdfDoc.id}`);
           } else {
-          console.log(`📎 [UNHANDLED] ${attachment.filename} (action: ${classification.action}, type: ${classification.type})`);
-          
-          // Still store unhandled attachments to prevent data loss
-          if (classification.action !== 'reject') {
+            console.log(`📎 [UNHANDLED] ${attachment.filename} (action: ${classification.action}, type: ${classification.type})`);
+            
+            // Store unhandled attachments to prevent data loss
             console.log(`📎 [STORE] Storing unhandled attachment: ${attachment.filename}`);
             try {
               const doc = await this.storeOriginalAttachment(attachment, input);
@@ -533,17 +532,6 @@ export class UnifiedEmailConversionService {
                 error: storeError instanceof Error ? storeError.message : String(storeError)
               });
             }
-          } else {
-            console.log(`📎 [REJECT] ${attachment.filename} (reason: ${classification.action})`);
-            
-            result.attachmentResults.push({
-              success: false,
-              filename: attachment.filename,
-              documentId: undefined,
-              converted: false,
-              classification: `rejected_${classification.type}`,
-              error: 'Attachment type rejected by classification rules'
-            });
           }
         } catch (attachmentError) {
           console.error(`❌ [CRITICAL] Error processing attachment ${attachment.filename}:`, attachmentError);
@@ -1000,7 +988,7 @@ export class UnifiedEmailConversionService {
           totalAttachments: attachmentCount,
           originalsStored: 0,
           pdfsProduced: 0,
-          conversionEngine: this.shouldUseCloudConvert() ? 'cloudconvert' : 'puppeteer',
+          conversionEngine: 'cloudconvert' as const,
           skippedCounts: {
             password_protected: 0,
             unsupported: 0,

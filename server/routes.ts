@@ -1797,6 +1797,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete documents - MUST come before '/api/documents/:id' route
+  app.delete('/api/documents/bulk-delete', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Request validation
+
+      // Ensure body exists and has the right structure
+      if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({ 
+          message: "Invalid request body", 
+          debug: { 
+            bodyType: typeof req.body, 
+            hasBody: !!req.body,
+            contentType: req.headers['content-type'],
+            method: req.method
+          }
+        });
+      }
+
+      const { documentIds } = req.body;
+
+      if (!Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.status(400).json({ 
+          message: "Document IDs array is required",
+          debug: { 
+            documentIds: documentIds, 
+            isArray: Array.isArray(documentIds),
+            bodyKeys: Object.keys(req.body),
+            rawBody: req.body
+          }
+        });
+      }
+
+      if (documentIds.length > 50) {
+        return res.status(400).json({ message: "Maximum 50 documents can be deleted at once" });
+      }
+
+      // Validate that all IDs are numbers
+      const invalidIds = documentIds.filter(id => !Number.isInteger(id));
+      if (invalidIds.length > 0) {
+        return res.status(400).json({ 
+          message: "All document IDs must be integers",
+          invalidIds
+        });
+      }
+
+      console.log(`📋 Starting bulk delete for user ${userId}: ${documentIds.length} documents`);
+
+      const { searchOptimizationService } = await import('./searchOptimizationService');
+      const result = await searchOptimizationService.bulkDeleteDocuments(userId, documentIds);
+
+      console.log(`✅ Bulk delete completed: ${result.success} successful, ${result.failed} failed`);
+
+      res.json({
+        message: `Bulk delete completed: ${result.success} successful, ${result.failed} failed`,
+        ...result
+      });
+    } catch (error) {
+      console.error("Error in bulk delete:", error);
+      
+      // Enhanced error logging
+      if (error instanceof Error) {
+        console.error("Error details:", {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      }
+
+      res.status(500).json({ 
+        message: "Failed to perform bulk delete",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   app.delete('/api/documents/:id', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
@@ -3253,83 +3330,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Debug endpoints have been removed after successful testing
-
-  // Bulk delete documents
-  app.delete('/api/documents/bulk-delete', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      
-      // Request validation
-
-      // Ensure body exists and has the right structure
-      if (!req.body || typeof req.body !== 'object') {
-        return res.status(400).json({ 
-          message: "Invalid request body", 
-          debug: { 
-            bodyType: typeof req.body, 
-            hasBody: !!req.body,
-            contentType: req.headers['content-type'],
-            method: req.method
-          }
-        });
-      }
-
-      const { documentIds } = req.body;
-
-      if (!Array.isArray(documentIds) || documentIds.length === 0) {
-        return res.status(400).json({ 
-          message: "Document IDs array is required",
-          debug: { 
-            documentIds: documentIds, 
-            isArray: Array.isArray(documentIds),
-            bodyKeys: Object.keys(req.body),
-            rawBody: req.body
-          }
-        });
-      }
-
-      if (documentIds.length > 50) {
-        return res.status(400).json({ message: "Maximum 50 documents can be deleted at once" });
-      }
-
-      // Validate that all IDs are numbers
-      const invalidIds = documentIds.filter(id => !Number.isInteger(id));
-      if (invalidIds.length > 0) {
-        return res.status(400).json({ 
-          message: "All document IDs must be integers",
-          invalidIds
-        });
-      }
-
-      console.log(`📋 Starting bulk delete for user ${userId}: ${documentIds.length} documents`);
-
-      const { searchOptimizationService } = await import('./searchOptimizationService');
-      const result = await searchOptimizationService.bulkDeleteDocuments(userId, documentIds);
-
-      console.log(`✅ Bulk delete completed: ${result.success} successful, ${result.failed} failed`);
-
-      res.json({
-        message: `Bulk delete completed: ${result.success} successful, ${result.failed} failed`,
-        ...result
-      });
-    } catch (error) {
-      console.error("Error in bulk delete:", error);
-      
-      // Enhanced error logging
-      if (error instanceof Error) {
-        console.error("Error details:", {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        });
-      }
-
-      res.status(500).json({ 
-        message: "Failed to perform bulk delete",
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
 
   // Search analytics endpoint for admin monitoring
   app.get('/api/admin/search-analytics', requireAuth, async (req: any, res) => {

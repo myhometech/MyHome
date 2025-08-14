@@ -984,6 +984,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+
   // Document preview endpoint - optimized for fast PDF loading
   app.get('/api/documents/:id/preview', requireAuth, async (req: any, res) => {
     try {
@@ -1000,8 +1002,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // Check for legacy local files that don't exist
-      if (!document.encryptionMetadata && !fs.existsSync(document.filePath)) {
+      // Check for cloud storage documents first
+      if (document.gcsPath && document.isEncrypted) {
+        // This is a cloud storage document, handle it below
+        console.log(`📁 Cloud storage document detected: ${documentId} (path: ${document.gcsPath})`);
+      } else if (!document.encryptionMetadata && !fs.existsSync(document.filePath)) {
+        // Only check local files for non-cloud storage documents
         console.log(`Local file not found: ${document.filePath} for document ${documentId}`);
         return res.status(404).json({ 
           message: "Document file not found.",
@@ -1012,8 +1018,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
-      // Handle cloud storage documents (new system)
-      if (document.isEncrypted && document.encryptionMetadata) {
+      // Handle cloud storage documents (new system) - both encrypted and unencrypted
+      if (document.gcsPath && document.isEncrypted && !document.encryptionMetadata) {
+        // Handle cloud storage documents without encryption metadata (direct GCS storage)
+        console.log(`📁 GCS PREVIEW: Loading unencrypted document from ${document.gcsPath}`);
+        
+        const storageService = storageProvider();
+        try {
+          const fileBuffer = await storageService.download(document.gcsPath);
+          res.setHeader('Content-Type', document.mimeType);
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+          res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+          res.setHeader('Access-Control-Allow-Credentials', 'true');
+          res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+          res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+
+          // For PDFs, add headers to ensure proper display in iframe
+          if (document.mimeType === 'application/pdf') {
+            res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
+            res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+          }
+          return res.send(fileBuffer);
+        } catch (downloadError) {
+          console.error('GCS download failed for preview:', downloadError);
+          return res.status(500).json({ 
+            message: "Failed to load document preview from cloud storage",
+            error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
+          });
+        }
+      } else if (document.isEncrypted && document.encryptionMetadata) {
         try {
           const metadata = JSON.parse(document.encryptionMetadata);
 

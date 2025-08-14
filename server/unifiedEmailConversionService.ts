@@ -476,37 +476,39 @@ export class UnifiedEmailConversionService {
       console.log(`📎 Already processed: ${result.attachmentResults.length} attachments`);
       
       for (const attachment of input.attachments) {
-        console.log(`📎 Checking attachment: ${attachment.filename} (${attachment.contentType})`);
+        console.log(`📎 [BATCH] Processing attachment ${attachment.filename} (${attachment.contentType}) - ${Math.round(attachment.size / 1024)}KB`);
         
-        // Skip if already processed
-        const alreadyProcessed = result.attachmentResults.some(r => r.filename === attachment.filename);
-        if (alreadyProcessed) {
-          console.log(`📎 Skipping ${attachment.filename} - already processed`);
-          continue;
-        }
-        
-        const classification = attachmentClassificationService.classifyAttachment(attachment);
-        console.log(`📎 Classification for ${attachment.filename}: action=${classification.action}, type=${classification.type}`);
-        
-        if (classification.action === 'store_only' && classification.type === 'pdf') {
-          console.log(`📄 Processing PDF attachment: ${attachment.filename}`);
-          const pdfDoc = await this.storeOriginalAttachment(attachment, input);
+        try {
+          // Skip if already processed
+          const alreadyProcessed = result.attachmentResults.some(r => r.filename === attachment.filename);
+          if (alreadyProcessed) {
+            console.log(`📎 [SKIP] ${attachment.filename} - already processed`);
+            continue;
+          }
           
-          result.attachmentResults.push({
-            success: true,
-            filename: attachment.filename,
-            documentId: pdfDoc.id,
-            converted: false,
-            classification: 'pdf_stored_original'
-          });
+          const classification = attachmentClassificationService.classifyAttachment(attachment);
+          console.log(`📎 [CLASS] ${attachment.filename}: action=${classification.action}, type=${classification.type}`);
+          
+          if (classification.action === 'store_only' && classification.type === 'pdf') {
+            console.log(`📄 [PDF] Processing PDF attachment: ${attachment.filename}`);
+            
+            const pdfDoc = await this.storeOriginalAttachment(attachment, input);
+            
+            result.attachmentResults.push({
+              success: true,
+              filename: attachment.filename,
+              documentId: pdfDoc.id,
+              converted: false,
+              classification: 'pdf_stored_original'
+            });
 
-          console.log(`📄 PDF stored as-is: ${attachment.filename} → Document ID ${pdfDoc.id}`);
-        } else {
-          console.log(`📎 Unhandled attachment: ${attachment.filename} (action: ${classification.action}, type: ${classification.type})`);
+            console.log(`📄 [SUCCESS] PDF stored: ${attachment.filename} → Document ID ${pdfDoc.id}`);
+          } else {
+          console.log(`📎 [UNHANDLED] ${attachment.filename} (action: ${classification.action}, type: ${classification.type})`);
           
           // Still store unhandled attachments to prevent data loss
           if (classification.action !== 'reject') {
-            console.log(`📎 Storing unhandled attachment as original: ${attachment.filename}`);
+            console.log(`📎 [STORE] Storing unhandled attachment: ${attachment.filename}`);
             try {
               const doc = await this.storeOriginalAttachment(attachment, input);
               
@@ -518,9 +520,9 @@ export class UnifiedEmailConversionService {
                 classification: `unhandled_${classification.type}_${classification.action}`
               });
               
-              console.log(`📎 Unhandled attachment stored: ${attachment.filename} → Document ID ${doc.id}`);
+              console.log(`📎 [SUCCESS] Unhandled attachment stored: ${attachment.filename} → Document ID ${doc.id}`);
             } catch (storeError) {
-              console.error(`❌ Failed to store unhandled attachment ${attachment.filename}:`, storeError);
+              console.error(`❌ [ERROR] Failed to store unhandled attachment ${attachment.filename}:`, storeError);
               
               result.attachmentResults.push({
                 success: false,
@@ -532,7 +534,7 @@ export class UnifiedEmailConversionService {
               });
             }
           } else {
-            console.log(`📎 Rejecting attachment: ${attachment.filename} (reason: ${classification.action})`);
+            console.log(`📎 [REJECT] ${attachment.filename} (reason: ${classification.action})`);
             
             result.attachmentResults.push({
               success: false,
@@ -543,6 +545,18 @@ export class UnifiedEmailConversionService {
               error: 'Attachment type rejected by classification rules'
             });
           }
+        } catch (attachmentError) {
+          console.error(`❌ [CRITICAL] Error processing attachment ${attachment.filename}:`, attachmentError);
+          
+          // Add failed result to prevent silent failures
+          result.attachmentResults.push({
+            success: false,
+            filename: attachment.filename,
+            documentId: undefined,
+            converted: false,
+            classification: 'processing_failed',
+            error: attachmentError instanceof Error ? attachmentError.message : String(attachmentError)
+          });
         }
       }
 
@@ -608,11 +622,13 @@ export class UnifiedEmailConversionService {
     const storageConfig = this.getGCSStorageConfig();
     const storageProvider = new GCSStorage(storageConfig);
     
-    // Generate object key for attachment
+    // Generate object key for attachment with enhanced uniqueness
     const timestamp = new Date().toISOString().replace(/[:.]/g, '');
     const { nanoid } = await import('nanoid');
-    const shortHash = nanoid(8);
-    const objectKey = `emails/${input.userId}/attachments/${timestamp}-${shortHash}-${attachment.filename}`;
+    const shortHash = nanoid(12); // Increased from 8 to 12 for better uniqueness
+    // Add a microsecond component for better collision avoidance
+    const microseconds = Date.now().toString().slice(-6);
+    const objectKey = `emails/${input.userId}/attachments/${timestamp}-${microseconds}-${shortHash}-${attachment.filename}`;
     
     console.log(`📎→☁️  Uploading attachment ${objectKey} (${Math.round(buffer.length / 1024)}KB)...`);
     

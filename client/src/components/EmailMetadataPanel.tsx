@@ -28,6 +28,12 @@ const EmailMetadataPanel: React.FC<EmailMetadataPanelProps> = ({
 
   // Extract display name and email from "Display Name <email@domain.com>" format
   const parseEmailAddress = (address: string) => {
+    if (!address) {
+      return {
+        displayName: 'Unknown',
+        email: 'unknown@email.com'
+      };
+    }
     const match = address.match(/^(.+?)\s*<(.+?)>$/) || address.match(/^(.+)$/);
     if (match && match[2]) {
       return {
@@ -42,17 +48,27 @@ const EmailMetadataPanel: React.FC<EmailMetadataPanelProps> = ({
   };
 
   const formatDateTime = (isoString: string) => {
-    const date = new Date(isoString);
-    const utcTime = date.toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
-    const localTime = date.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-    return { utcTime, localTime };
+    if (!isoString) {
+      return { utcTime: 'Unknown', localTime: 'Unknown' };
+    }
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) {
+        return { utcTime: 'Invalid date', localTime: 'Invalid date' };
+      }
+      const utcTime = date.toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
+      const localTime = date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      return { utcTime, localTime };
+    } catch (error) {
+      return { utcTime: 'Error parsing date', localTime: 'Error parsing date' };
+    }
   };
 
   const truncateText = (text: string, maxLength: number) => {
@@ -79,17 +95,18 @@ const EmailMetadataPanel: React.FC<EmailMetadataPanelProps> = ({
     }
   };
 
-  const { displayName: fromName, email: fromEmail } = parseEmailAddress(emailContext.from);
+  const { displayName: fromName, email: fromEmail } = parseEmailAddress(emailContext.from || '');
   const { utcTime, localTime } = formatDateTime(emailContext.receivedAt);
   
-  // Handle multiple recipients
-  const primaryRecipient = emailContext.to[0] || '';
-  const additionalRecipients = emailContext.to.length - 1;
+  // Handle multiple recipients with null safety
+  const recipients = emailContext.to || [];
+  const primaryRecipient = recipients[0] || '';
+  const additionalRecipients = Math.max(0, recipients.length - 1);
 
   // Analytics - track panel view
   React.useEffect(() => {
-    console.log('📊 email_metadata_panel_viewed: messageId=', emailContext.messageId);
-  }, [emailContext.messageId]);
+    console.log('📊 email_metadata_panel_viewed: messageId=', emailContext?.messageId || 'unknown');
+  }, [emailContext?.messageId]);
 
   return (
     <Card className={`border-0 shadow-none bg-blue-50 ${className || ''}`}>
@@ -114,7 +131,7 @@ const EmailMetadataPanel: React.FC<EmailMetadataPanelProps> = ({
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{emailContext.from}</p>
+                    <p>{emailContext.from || 'Unknown sender'}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -122,8 +139,8 @@ const EmailMetadataPanel: React.FC<EmailMetadataPanelProps> = ({
                 variant="ghost"
                 size="sm"
                 className="h-5 w-5 p-0 opacity-70 hover:opacity-100"
-                onClick={() => copyToClipboard(emailContext.from, 'From address')}
-                aria-label={`Copy from address: ${emailContext.from}`}
+                onClick={() => copyToClipboard(emailContext.from || 'Unknown sender', 'From address')}
+                aria-label={`Copy from address: ${emailContext.from || 'Unknown sender'}`}
               >
                 <Copy className="w-3 h-3" />
               </Button>
@@ -152,8 +169,8 @@ const EmailMetadataPanel: React.FC<EmailMetadataPanelProps> = ({
                 variant="ghost"
                 size="sm"
                 className="h-5 w-5 p-0 opacity-70 hover:opacity-100"
-                onClick={() => copyToClipboard(emailContext.to.join(', '), 'Recipients')}
-                aria-label={`Copy recipients: ${emailContext.to.join(', ')}`}
+                onClick={() => copyToClipboard(recipients.join(', '), 'Recipients')}
+                aria-label={`Copy recipients: ${recipients.join(', ')}`}
               >
                 <Copy className="w-3 h-3" />
               </Button>
@@ -171,11 +188,11 @@ const EmailMetadataPanel: React.FC<EmailMetadataPanelProps> = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="text-sm font-medium text-gray-900 line-clamp-2 cursor-help">
-                      {emailContext.subject}
+                      {emailContext.subject || 'No subject'}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">{emailContext.subject}</p>
+                    <p className="max-w-xs">{emailContext.subject || 'No subject'}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -183,8 +200,8 @@ const EmailMetadataPanel: React.FC<EmailMetadataPanelProps> = ({
                 variant="ghost"
                 size="sm"
                 className="h-5 w-5 p-0 opacity-70 hover:opacity-100"
-                onClick={() => copyToClipboard(emailContext.subject, 'Subject')}
-                aria-label={`Copy subject: ${emailContext.subject}`}
+                onClick={() => copyToClipboard(emailContext.subject || 'No subject', 'Subject')}
+                aria-label={`Copy subject: ${emailContext.subject || 'No subject'}`}
               >
                 <Copy className="w-3 h-3" />
               </Button>

@@ -7,7 +7,7 @@ MyHome is a comprehensive document management application for homeowners, design
 Preferred communication style: Simple, everyday language.
 Project Direction: Building iOS version of MyHome document management app.
 Essential Features: Phone camera scanning for document digitization, future Google Drive integration planned.
-Interface Design: Clean insights-first layout with single document library section below AI insights, single main heading structure.
+Interface Design: Clean insights-first layout with single document library section below AI insights, single main heading structure. Mobile-optimized with compact sizing (reduced text sizes, smaller icons, tighter spacing) to prevent zoomed-in feeling.
 Document Cards: Subtle colored file type icons only (emerald for images, calm red for PDFs, blue for documents) with warm ivory backgrounds (#FAF4EF).
 Modal Interaction: Consistent viewing pattern - click to open modal, use 3-dot menu for actions (edit/delete).
 Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting colors for a homely feel: Warm Background (#FAF4EF linen/ivory), Trust Base (#2B2F40 slate blue), Sage Green (#A5C9A1), Dusty Lavender (#A1A4D6), and Soft Coral (#E28F83). Document type colors: Emerald for images, calm red (#E74C3C) for PDFs, blue for documents.

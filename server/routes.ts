@@ -3837,6 +3837,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Email delivery tracking endpoint for debugging missing emails
+  app.post('/api/email-delivery-track', async (req: any, res) => {
+    try {
+      const { 
+        subject, 
+        from, 
+        to, 
+        messageId, 
+        sentAt, 
+        attachmentCount = 0 
+      } = req.body;
+      
+      console.log(`📧 EMAIL DELIVERY TRACK: ${subject || 'No Subject'} from ${from} to ${to}`);
+      console.log(`📧 Message-ID: ${messageId}, Sent: ${sentAt}, Attachments: ${attachmentCount}`);
+      console.log(`📧 Timestamp: ${new Date().toISOString()}`);
+      
+      // Simple tracking response
+      res.status(200).json({
+        status: 'tracked',
+        subject: subject || 'No Subject',
+        messageId,
+        receivedAt: new Date().toISOString(),
+        expectedAttachments: attachmentCount,
+        note: 'Email delivery tracked - webhook monitoring active'
+      });
+    } catch (error) {
+      console.error('❌ Email delivery tracking error:', error);
+      res.status(500).json({ error: 'Tracking error', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
   // EMERGENCY FIX: Simplified email ingest handler bypassing all middleware
   app.use('/api/email-ingest-simple', (req, res, next) => {
     // Skip all global middleware for this route
@@ -3942,6 +3973,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('📨 Content-Type:', req.get('Content-Type'));
       console.log('📦 Body keys:', Object.keys(req.body || {}));
       console.log('📎 Files:', req.files ? req.files.length : 0);
+      
+      // Track webhook receipt time for debugging delivery issues
+      const webhookReceiptTime = new Date().toISOString();
+      console.log(`🕐 WEBHOOK RECEIPT: ${webhookReceiptTime}`);
 
       try {
         // Extract email data - works for both multipart and form-encoded
@@ -3971,6 +4006,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log(`📧 Processing email: ${subject || 'No Subject'} from ${sender} to ${recipient}`);
         console.log(`📎 Attachment count: ${attachmentCount}, Has files: ${req.files ? req.files.length : 0}`);
+        
+        // Enhanced attachment logging for debugging
+        if (req.files && req.files.length > 0) {
+          console.log(`📎 ATTACHMENT DEBUG: Found ${req.files.length} files`);
+          req.files.forEach((file: any, index: number) => {
+            console.log(`📎 File ${index + 1}: ${file.originalname} (${file.mimetype}, ${Math.round(file.size / 1024)}KB, field: ${file.fieldname})`);
+          });
+        } else if (attachmentCount > 0) {
+          console.warn(`⚠️ ATTACHMENT MISMATCH: Mailgun reported ${attachmentCount} attachments but no files received in webhook`);
+        }
+        
+        // Log all body fields for debugging missing attachments
+        const bodyFieldsCount = Object.keys(req.body || {}).length;
+        console.log(`📦 Body fields count: ${bodyFieldsCount}`);
+        if (bodyFieldsCount > 20) {  // If many fields, log attachment-related ones
+          const attachmentFields = Object.keys(req.body || {}).filter(key => 
+            key.startsWith('attachment-') || key.includes('content-id') || key.includes('inline')
+          );
+          if (attachmentFields.length > 0) {
+            console.log(`📎 Body attachment fields found: ${attachmentFields.length} (${attachmentFields.slice(0, 5).join(', ')}${attachmentFields.length > 5 ? '...' : ''})`);
+          }
+        }
 
         // Extract user ID from recipient using proper parsing logic
         const { extractUserIdFromRecipient } = await import('./mailgunService');

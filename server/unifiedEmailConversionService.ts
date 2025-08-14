@@ -472,10 +472,24 @@ export class UnifiedEmailConversionService {
       // Handle PDF attachments that weren't converted (store as-is)
       const { attachmentClassificationService } = await import('./attachmentClassificationService.js');
       
+      console.log(`📎 Processing remaining attachments: ${input.attachments.length} total`);
+      console.log(`📎 Already processed: ${result.attachmentResults.length} attachments`);
+      
       for (const attachment of input.attachments) {
+        console.log(`📎 Checking attachment: ${attachment.filename} (${attachment.contentType})`);
+        
+        // Skip if already processed
+        const alreadyProcessed = result.attachmentResults.some(r => r.filename === attachment.filename);
+        if (alreadyProcessed) {
+          console.log(`📎 Skipping ${attachment.filename} - already processed`);
+          continue;
+        }
+        
         const classification = attachmentClassificationService.classifyAttachment(attachment);
+        console.log(`📎 Classification for ${attachment.filename}: action=${classification.action}, type=${classification.type}`);
         
         if (classification.action === 'store_only' && classification.type === 'pdf') {
+          console.log(`📄 Processing PDF attachment: ${attachment.filename}`);
           const pdfDoc = await this.storeOriginalAttachment(attachment, input);
           
           result.attachmentResults.push({
@@ -487,8 +501,52 @@ export class UnifiedEmailConversionService {
           });
 
           console.log(`📄 PDF stored as-is: ${attachment.filename} → Document ID ${pdfDoc.id}`);
+        } else {
+          console.log(`📎 Unhandled attachment: ${attachment.filename} (action: ${classification.action}, type: ${classification.type})`);
+          
+          // Still store unhandled attachments to prevent data loss
+          if (classification.action !== 'reject') {
+            console.log(`📎 Storing unhandled attachment as original: ${attachment.filename}`);
+            try {
+              const doc = await this.storeOriginalAttachment(attachment, input);
+              
+              result.attachmentResults.push({
+                success: true,
+                filename: attachment.filename,
+                documentId: doc.id,
+                converted: false,
+                classification: `unhandled_${classification.type}_${classification.action}`
+              });
+              
+              console.log(`📎 Unhandled attachment stored: ${attachment.filename} → Document ID ${doc.id}`);
+            } catch (storeError) {
+              console.error(`❌ Failed to store unhandled attachment ${attachment.filename}:`, storeError);
+              
+              result.attachmentResults.push({
+                success: false,
+                filename: attachment.filename,
+                documentId: undefined,
+                converted: false,
+                classification: `failed_${classification.type}_${classification.action}`,
+                error: storeError instanceof Error ? storeError.message : String(storeError)
+              });
+            }
+          } else {
+            console.log(`📎 Rejecting attachment: ${attachment.filename} (reason: ${classification.action})`);
+            
+            result.attachmentResults.push({
+              success: false,
+              filename: attachment.filename,
+              documentId: undefined,
+              converted: false,
+              classification: `rejected_${classification.type}`,
+              error: 'Attachment type rejected by classification rules'
+            });
+          }
         }
       }
+
+      console.log(`📎 Final attachment processing summary: ${result.attachmentResults.length} total, ${result.attachmentResults.filter(r => r.success).length} successful`);
 
       return result;
 

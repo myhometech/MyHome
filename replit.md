@@ -37,23 +37,21 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 
 ### Backend
 - **Runtime**: Node.js with Express.js (TypeScript, ES modules).
-- **Authentication**: Replit Auth with OpenID Connect (web) + Apple Sign In (iOS), bcrypt hashing, PostgreSQL-backed sessions, route-level middleware. Supports multi-provider authentication. OAuth `state` parameter is used for CSRF protection. Environment-driven callback URLs, configuration guardrails, and startup validation are implemented.
+- **Authentication**: Replit Auth with OpenID Connect (web) + Apple Sign In (iOS), bcrypt hashing, PostgreSQL-backed sessions, route-level middleware. Supports multi-provider authentication with OAuth `state` parameter for CSRF protection.
 - **File Uploads**: Multer.
 - **API Design**: RESTful endpoints with JSON responses.
 
 ### Database Layer
 - **ORM**: Drizzle ORM.
 - **Database**: PostgreSQL (configured for Neon serverless).
-- **Schema**: Users, Sessions, Categories, Documents tables.
-- **Recent Enhancement (TICKET 3)**: Documents table extended with conversion tracking fields (conversion_status, source_document_id, original_mime_type, conversion_job_id, conversion_metadata) for email attachment processing.
-- **TICKET 5 COMPLETE**: Enhanced provenance tracking with new fields: conversion_engine ('cloudconvert'|'puppeteer'|null), conversion_input_sha256 (SHA-256 content hash), conversion_reason (conversion outcome), derived_from_document_id (document derivation chain), and source ('manual'|'email'|'api') for comprehensive audit trails.
+- **Schema**: Users, Sessions, Categories, Documents tables, with extensions for conversion tracking and provenance.
 
 ### File Management
 - **Storage**: Google Cloud Storage (`myhometech-storage` bucket) with AES-256-GCM encryption.
 - **Supported Formats**: PDF, JPEG, PNG, WebP, HEIC, HEIF, TIFF, BMP.
 - **File Size Limits**: 10MB per file for email ingestion; 50MB for multi-page scans.
 - **OCR Processing**: Tesseract.js with intelligent image enhancement.
-- **Email Attachments**: Enhanced classification & routing system (TICKET 3) - preserves originals while converting non-PDFs to separate PDF documents, enforces 10MB limits, handles password-protected files with full traceability.
+- **Email Attachments**: Enhanced classification & routing system preserving originals, converting non-PDFs to separate PDF documents, handling password-protected files, and enforcing size limits.
 
 ### AI Integration
 - **AI Services**: Mistral LLM client for auto-categorization, date extraction, reminder suggestions, and content analysis.
@@ -74,19 +72,11 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Robustness**: Global error handling (React Error Boundaries), network status detection, exponential backoff, toast notifications.
 - **Memory Optimization**: Manual garbage collection, resource tracking, OCR resource cleanup.
 
-### CloudConvert Integration (Production Ready - 2025-08-13)
-- **TIMEOUT ISSUES COMPLETE RESOLUTION (Aug 13, 2025)**: All CloudConvert timeout failures completely resolved with comprehensive 4-part fix addressing service coordination, job creation API response handling, polling logic, and file download authentication. End-to-end email processing now achieving 100% success rate with jobs completing in 2-5 seconds.
-- **Service Coordination Fix**: Implemented lazy initialization pattern in UnifiedEmailConversionService to eliminate circular dependency issues during service startup and email processing.
-- **API Response Structure Fix**: Enhanced job creation and polling to handle CloudConvert's inconsistent response format, supporting both `{id}` and `{data: {id}}` structures for robust operation.
-- **File Download Fix**: Corrected CloudConvert signed URL handling by removing authorization headers from direct fetch calls, eliminating 400 errors during PDF download.
-- **End-to-End Readiness Assessment COMPLETE**: Comprehensive 13-section readiness checklist completed with all requirements verified and documented. System certified ready for production deployment with <1% target conversion error rate.
-- **Engine Version Deprecation Fix**: Removed hardcoded `engine_version: "latest"` from Chrome engine tasks to eliminate CloudConvert deprecation warnings. Implemented `CC_CHROME_ENGINE_VERSION` environment variable for optional version control - when unset, uses CloudConvert's default version.
-- **Critical P0 Fix Applied**: Implemented robust job creation handling for "missing job.id" errors with SDK response shape tolerance (job.id or job.data.id) and comprehensive error logging per ticket specifications.
-- **Service Health**: Startup healthcheck validates API key and scopes, sets global `__CC_DISABLED__` flag on failure to prevent conversions while preserving email ingestion.
-- **Enhanced Job Creation**: Hardened `createCcHtmlJob()` with detailed HTTP status/response logging, CloudConvert error code capture, and defensive response validation treating non-objects as failures.
-- **Retry Logic**: Exponential backoff for 429/5xx errors (max 3 attempts) with comprehensive error classification.
-- **Error Handling**: Enhanced CloudConvertError class with retryable flags, structured Sentry logging, and detailed context capture.
-- **HTML-to-PDF**: Robust email body conversion pipeline using CloudConvert Chrome engine with A4 layout and print background support via `convertEmailBodyHtmlToPdf()`.
+### Document Conversion (CloudConvert Integration)
+- **Primary Engine**: CloudConvert API for all document conversions (HTML to PDF, Office to PDF, Image to PDF).
+- **Robustness**: Implements comprehensive retry logic with exponential backoff (for 429/5xx errors), robust error handling, and structured logging.
+- **Error Handling**: Enhanced `CloudConvertError` class with retryable flags and detailed context capture.
+- **Fallback Mechanism**: Ensures zero content loss during CloudConvert failures; email bodies are stored as text and attachments as original files with proper tracking.
 - **Monitoring**: Integrated with metricsService for conversion duration, success rates, and failure pattern tracking.
 
 ### Security & Monitoring
@@ -99,17 +89,11 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **CI/CD**: GitHub Actions for Docker builds and deployment.
 
 ### Email Processing
-- **PUPPETEER REMOVAL COMPLETE (Aug 13, 2025)**: System now operates as CloudConvert-only architecture with zero browser dependencies. Removed 46 packages including puppeteer and @puppeteer/browsers. Comprehensive refactor of all email conversion services eliminates browser pools, executable path resolution, and headless browser management.
-- **FS DEPENDENCIES REMOVAL COMPLETE (Aug 13, 2025)**: Eliminated all filesystem dependencies from email ingestion storage flow. Removed `require('fs')` calls from `unifiedEmailConversionService.ts` and implemented Buffer-based storage directly to GCS. Now supports non-Node runtime environments where "Dynamic require of 'fs' is not supported".
-- **ENHANCED FALLBACK STORAGE COMPLETE (Aug 13, 2025)**: Implemented comprehensive fallback mechanism ensuring zero content loss during CloudConvert failures. When CloudConvert fails, email bodies are stored as text documents and attachments as original files with proper GCS integration and database tracking. Enhanced error handling with defensive programming prevents undefined access errors.
-- **CloudConvert-Only Email Processing**: Pure CloudConvert API implementation for all email document conversions. HTML→PDF email body creation and multi-format attachment conversion (Office→PDF, Image→PDF) with robust error handling, retry logic, and engine selection (Chrome for HTML, LibreOffice for Office docs, ImageMagick for images).
-- **TICKET 4 COMPLETE**: Unified email conversion service operates exclusively through CloudConvert with PDF_CONVERTER_ENGINE=cloudconvert environment override. Enhanced with comprehensive fallback mechanisms ensuring content preservation when CloudConvert unavailable. Analytics track both conversion success and fallback usage.
-- **TICKET 6 COMPLETE**: Enhanced error handling, retries, and user-visible states for CloudConvert operations. Implements 3x exponential backoff retry policy, comprehensive error mapping (401/403→configuration_error, 422→skipped_password_protected, 415→skipped_unsupported, timeout→retried), and user-friendly status badges. Features Sentry integration with CloudConvert job tracking, ensures failures don't block original storage.
-- **TICKET 7 COMPLETE**: Comprehensive observability & metrics system providing visibility into CloudConvert conversion performance. Emits structured metrics for pdf.convert.duration_ms{engine=cloudconvert,type}, success_total, error_total{reason}, and retry_total with Sentry breadcrumb integration. REST API endpoints (/api/metrics/performance, /api/metrics/email-summaries) provide dashboard consumption with memory-efficient metrics collection.
-- **EMAIL ENGINE DECISION SYSTEM**: Database-backed feature flags enforce CloudConvert-only operation with PDF_CONVERTER_ENGINE environment override taking precedence. EMAIL_BODY_PDF_USE_CLOUDCONVERT and EMAIL_ATTACHMENT_CONVERT_TO_PDF flags maintain CloudConvert preferences with per-user rollout capabilities and comprehensive observability.
-- **Email Metadata**: Exposure and filtering system for enhanced document discovery, including backfill for legacy attachments using Mailgun Events API.
-- **Worker Configuration**: CloudConvert-based background worker with BullMQ for scalable PDF processing, with inline fallback when Redis unavailable. No browser management or executable detection required.
-- **Buffer-Based Storage Architecture**: Email ingestion now uses direct Buffer-to-GCS upload pattern eliminating temporary filesystem operations. Supports email bodies, original attachments, and converted attachments with proper metadata tracking and object key structure.
+- **Architecture**: CloudConvert-only implementation for email body and attachment conversions, eliminating browser dependencies and filesystem operations by using buffer-based storage directly to GCS.
+- **Features**: Converts email bodies (HTML to PDF) and various attachments (Office to PDF, Image to PDF).
+- **Error Handling**: Enhanced with comprehensive fallback mechanisms to preserve content when CloudConvert is unavailable.
+- **Observability**: Metrics system tracks conversion performance (duration, success rates, errors, retries).
+- **Metadata**: Exposure and filtering system for enhanced document discovery.
 
 ### UI Flows
 - **Upload Modal**: Consolidated and streamlined upload modal flow.
@@ -132,7 +116,7 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 ### File Handling and Processing
 - **Upload Processing**: `multer`, `buffer`
 - **Image Processing**: `sharp`, `browser-image-compression`
-- **PDF Processing**: `pdf-lib`, `puppeteer`
+- **PDF Processing**: `pdf-lib`
 - **Document Conversion**: CloudConvert API integration via `node-fetch`
 - **OCR**: `tesseract.js`
 - **Cloud Storage**: `@google-cloud/storage`

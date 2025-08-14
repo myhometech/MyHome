@@ -192,7 +192,7 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
             </div>
           </div>
 
-          {/* Mobile Navigation and Search */}
+          {/* Mobile Navigation - Clean single email icon only */}
           <div className="flex items-center space-x-2 md:hidden">
             <Link href="/">
               <Button 
@@ -203,46 +203,11 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 <Home className="h-4 w-4" />
               </Button>
             </Link>
-
-            {/* Mobile Email Copy Button */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="p-2" 
-                    onClick={handleCopyEmail}
-                    disabled={!user?.id}
-                  >
-                    <Mail className="h-4 w-4 text-gray-500 hover:text-blue-600" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-sm">Send files to this address — we'll upload them for you.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="p-2"
-              onClick={() => {
-                const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
-                if (searchInput) {
-                  searchInput.focus();
-                  searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-              }}
-            >
-              <Search className="h-4 w-4 text-gray-500" />
-            </Button>
           </div>
 
           {/* User Menu */}
           <div className="flex items-center space-x-2 md:space-x-4">
-            {/* Email upload copy button */}
+            {/* Single Email upload copy button */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -251,7 +216,7 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                     size="sm" 
                     className="p-2" 
                     onClick={handleCopyEmail}
-                    disabled={!user?.id}
+                    disabled={!(user as any)?.id}
                   >
                     <Mail className="h-4 w-4 text-gray-500 hover:text-blue-600" />
                   </Button>
@@ -262,7 +227,7 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
               </Tooltip>
             </TooltipProvider>
 
-            {/* Email import notification */}
+            {/* Email import notification - only when there are imported docs */}
             {importedDocsCount > 0 && (
               <div className="relative hidden md:flex">
                 <Button variant="ghost" size="sm" className="p-2 relative">
@@ -276,10 +241,6 @@ export default function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 </Button>
               </div>
             )}
-            
-            <Button variant="ghost" size="sm" className="p-2 hidden md:flex">
-              <Bell className="h-4 w-4 text-gray-500" />
-            </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

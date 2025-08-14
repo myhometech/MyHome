@@ -97,13 +97,13 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
           className={`md:hidden ${className}`}
           aria-label="Open navigation menu"
         >
-          <Menu className="h-6 w-6" />
+          <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
       
       <SheetContent 
         side="left" 
-        className="w-80 p-0 flex flex-col"
+        className="w-72 p-0 flex flex-col"
       >
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -117,45 +117,45 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
           onPanEnd={handlePanEnd}
         >
           {/* Insights - Pinned at Top */}
-          <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div className="p-3 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
             <Link href="/" onClick={handleClose}>
               <motion.div 
-                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/60 transition-colors cursor-pointer"
+                className="flex items-center space-x-2 p-2 rounded-lg hover:bg-white/60 transition-colors cursor-pointer"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <div className="relative">
-                  <Lightbulb className="h-6 w-6 text-blue-600" />
+                  <Lightbulb className="h-5 w-5 text-blue-600" />
                   <Badge 
                     variant="destructive" 
-                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                    className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 flex items-center justify-center text-xs"
                   >
                     3
                   </Badge>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Insights</h3>
-                  <p className="text-sm text-gray-500">New insights available</p>
+                  <h3 className="font-medium text-gray-900 text-sm">Insights</h3>
+                  <p className="text-xs text-gray-500">New insights available</p>
                 </div>
               </motion.div>
             </Link>
           </div>
 
           {/* Main Menu Items */}
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-3 space-y-1">
             {menuItems.map((item) => (
               <Link key={item.href} href={item.href} onClick={handleClose}>
                 <motion.div
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
+                  className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
                   whileHover={{ x: 4 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <item.icon className="h-5 w-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
-                  <span className="font-medium text-gray-700 group-hover:text-gray-900">
+                  <item.icon className="h-4 w-4 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
                     {item.label}
                   </span>
                   {item.badge && (
-                    <Badge variant="secondary" className="ml-auto">
+                    <Badge variant="secondary" className="ml-auto text-xs">
                       {item.badge}
                     </Badge>
                   )}
@@ -165,33 +165,33 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
           </nav>
 
           {/* Profile Section - Sticky Footer */}
-          <div className="sticky bottom-0 p-4 border-t bg-white">
+          <div className="sticky bottom-0 p-3 border-t bg-white">
             <Link href="/settings" onClick={handleClose}>
               <motion.div 
-                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Avatar className="h-10 w-10">
+                <Avatar className="h-8 w-8">
                   <AvatarImage src={(user as any)?.avatarUrl || ""} alt={(user as any)?.firstName || "User"} />
-                  <AvatarFallback className="bg-blue-600 text-white">
+                  <AvatarFallback className="bg-blue-600 text-white text-xs">
                     {getInitials((user as any)?.firstName, (user as any)?.lastName)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-gray-900 truncate">
                     {(user as any)?.firstName && (user as any)?.lastName 
                       ? `${(user as any).firstName} ${(user as any).lastName}`
                       : (user as any)?.email || "User"
                     }
                   </p>
-                  <p className="text-sm text-gray-500 truncate">
+                  <p className="text-xs text-gray-500 truncate">
                     {(user as any)?.email}
                   </p>
                 </div>
                 <div className="flex flex-col items-end space-y-1">
                   {getSubscriptionBadge()}
-                  <User className="h-4 w-4 text-gray-400" />
+                  <User className="h-3 w-3 text-gray-400" />
                 </div>
               </motion.div>
             </Link>

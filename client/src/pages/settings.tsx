@@ -1198,14 +1198,14 @@ export default function Settings() {
     <div className="min-h-screen bg-[#FAF4EF]">
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <SettingsIcon className="h-8 w-8 text-[#1E90FF]" />
-            <h1 className="text-3xl font-bold text-[#2B2F40]">Settings</h1>
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <SettingsIcon className="h-6 w-6 text-[#1E90FF]" />
+            <h1 className="text-2xl font-bold text-[#2B2F40]">Settings</h1>
           </div>
-          <p className="text-gray-600">Manage your account and preferences</p>
+          <p className="text-sm text-gray-600">Manage your account and preferences</p>
         </div>
 
         {/* Settings Tabs */}

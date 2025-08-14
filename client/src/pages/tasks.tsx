@@ -76,37 +76,37 @@ export default function Tasks() {
   return (
     <div className="min-h-screen bg-[#FAF4EF]">
       <Header />
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3">
-            <Calendar className="h-8 w-8 text-[#1E90FF]" />
-            <h1 className="text-3xl font-bold text-[#2B2F40]">Tasks & Deadlines</h1>
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="mb-6">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-6 w-6 text-[#1E90FF]" />
+            <h1 className="text-2xl font-bold text-[#2B2F40]">Tasks & Deadlines</h1>
           </div>
-          <p className="text-gray-600 mt-2">Keep track of important deadlines and document-related tasks</p>
+          <p className="text-sm text-gray-600 mt-1">Keep track of important deadlines and document-related tasks</p>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Pending Tasks */}
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Pending Tasks</h2>
-              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Pending Tasks</h2>
+              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
                 {pendingTasks.length} pending
               </Badge>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
               {pendingTasks.map((task) => (
                 <Card key={task.id} className="border-l-4 border-l-yellow-500 hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-3">
-                        <task.icon className="h-5 w-5 text-gray-600 mt-1" />
+                      <div className="flex items-start space-x-2">
+                        <task.icon className="h-4 w-4 text-gray-600 mt-0.5" />
                         <div>
-                          <CardTitle className="text-lg font-semibold text-gray-900 mb-1">
+                          <CardTitle className="text-sm font-semibold text-gray-900 mb-1">
                             {task.title}
                           </CardTitle>
-                          <CardDescription className="text-gray-600">
+                          <CardDescription className="text-xs text-gray-600">
                             {task.description}
                           </CardDescription>
                         </div>
@@ -116,20 +116,20 @@ export default function Tasks() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Calendar className="h-4 w-4 mr-1" />
+                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center text-xs text-gray-500">
+                          <Calendar className="h-3 w-3 mr-1" />
                           Due {task.dueDate}
                         </div>
-                        <Badge className={getPriorityColor(task.priority)}>
+                        <Badge className={`${getPriorityColor(task.priority)} text-xs`}>
                           {task.priority} priority
                         </Badge>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-500">
+                        <span className="text-xs text-gray-500">
                           {task.daysUntilDue} days remaining
                         </span>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" className="text-xs">
                           Mark Complete
                         </Button>
                       </div>
@@ -142,9 +142,9 @@ export default function Tasks() {
 
           {/* Completed Tasks */}
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Completed Tasks</h2>
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Completed Tasks</h2>
+              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
                 {completedTasks.length} completed
               </Badge>
             </div>

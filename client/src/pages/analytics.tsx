@@ -62,13 +62,13 @@ export default function Analytics() {
   return (
     <div className="min-h-screen bg-[#FAF4EF]">
       <Header />
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="h-8 w-8 text-[#1E90FF]" />
-            <h1 className="text-3xl font-bold text-[#2B2F40]">Analytics & Reports</h1>
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="mb-6">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-[#1E90FF]" />
+            <h1 className="text-2xl font-bold text-[#2B2F40]">Analytics & Reports</h1>
           </div>
-          <p className="text-gray-600 mt-2">Comprehensive insights into your document management activities</p>
+          <p className="text-sm text-gray-600 mt-1">Comprehensive insights into your document management activities</p>
         </div>
 
         {/* Key Stats */}

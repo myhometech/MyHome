@@ -51,40 +51,40 @@ export default function Notifications() {
   return (
     <div className="min-h-screen bg-[#FAF4EF]">
       <Header />
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3">
-            <Bell className="h-8 w-8 text-[#1E90FF]" />
-            <h1 className="text-3xl font-bold text-[#2B2F40]">Notifications</h1>
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="mb-6">
+          <div className="flex items-center gap-2">
+            <Bell className="h-6 w-6 text-[#1E90FF]" />
+            <h1 className="text-2xl font-bold text-[#2B2F40]">Notifications</h1>
           </div>
-          <p className="text-gray-600 mt-2">Stay updated with your document management activities</p>
+          <p className="text-sm text-gray-600 mt-1">Stay updated with your document management activities</p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {notifications.map((notification) => (
             <Card key={notification.id} className={`border-l-4 ${!notification.read ? 'bg-white shadow-md' : 'bg-gray-50'} transition-all hover:shadow-lg`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start space-x-4">
-                  <div className={`p-2 rounded-full ${notification.color} text-white flex-shrink-0`}>
-                    <notification.icon className="h-4 w-4" />
+              <CardHeader className="pb-2">
+                <div className="flex items-start space-x-3">
+                  <div className={`p-1.5 rounded-full ${notification.color} text-white flex-shrink-0`}>
+                    <notification.icon className="h-3 w-3" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-semibold text-gray-900">
+                      <CardTitle className="text-sm font-semibold text-gray-900">
                         {notification.title}
                       </CardTitle>
                       <div className="flex items-center space-x-2">
                         {!notification.read && (
-                          <Badge variant="default" className="bg-blue-600">
+                          <Badge variant="default" className="bg-blue-600 text-xs">
                             New
                           </Badge>
                         )}
-                        <span className="text-sm text-gray-500">
+                        <span className="text-xs text-gray-500">
                           {notification.timestamp}
                         </span>
                       </div>
                     </div>
-                    <CardDescription className="mt-1 text-gray-600">
+                    <CardDescription className="mt-1 text-xs text-gray-600">
                       {notification.message}
                     </CardDescription>
                   </div>

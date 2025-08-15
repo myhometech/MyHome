@@ -221,11 +221,10 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   // Cleanup effect for component unmount
   React.useEffect(() => {
     return () => {
-      // Cancel any pending mutations on unmount
-      generateInsightsMutation.reset();
-      deleteInsightMutation.reset();
+      // TanStack Query handles mutation cleanup automatically
+      // Manual reset is not needed and causes infinite loops
     };
-  }, [generateInsightsMutation, deleteInsightMutation]);
+  }, []);
 
   if (isLoading) {
     return (

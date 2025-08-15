@@ -74,10 +74,32 @@ extension Document {
             }
         } else if isPDF {
             DispatchQueue.global(qos: .userInitiated).async {
-                guard let data = try? Data(contentsOf: localPath),
-                      let provider = CGDataProvider(data: data as CFData),
-                      let pdfDocument = CGPDFDocument(provider),
-                      let page = pdfDocument.page(at: 1) else {
+                guard let data = try? Data(contentsOf: localPath) else {
+                    print("⚠️ Failed to read PDF data from local path: \(localPath)")
+                    DispatchQueue.main.async {
+                        completion(nil)
+                    }
+                    return
+                }
+                
+                guard let provider = CGDataProvider(data: data as CFData) else {
+                    print("⚠️ Failed to create CGDataProvider from PDF data")
+                    DispatchQueue.main.async {
+                        completion(nil)
+                    }
+                    return
+                }
+                
+                guard let pdfDocument = CGPDFDocument(provider) else {
+                    print("⚠️ Failed to create CGPDFDocument - PDF may be corrupted or invalid")
+                    DispatchQueue.main.async {
+                        completion(nil)
+                    }
+                    return
+                }
+                
+                guard let page = pdfDocument.page(at: 1) else {
+                    print("⚠️ Failed to get first page from PDF document")
                     DispatchQueue.main.async {
                         completion(nil)
                     }

@@ -31,9 +31,10 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 ### iOS Native
 - **Framework**: SwiftUI for iOS 16.0+.
 - **Authentication**: Sign in with Apple integration.
-- **Document Scanning**: VisionKit with `VNDocumentCameraViewController`.
+- **Document Scanning**: Genius Scan integration with enhanced error handling and PDF processing capabilities.
 - **Text Recognition**: Vision framework with `VNRecognizeTextRequest`.
 - **Storage**: Local file system + API sync with offline support.
+- **File Handling**: Enhanced PDF processing, automatic file type detection, document import from external apps, comprehensive error handling for "PDF not created" issues.
 
 ### Backend
 - **Runtime**: Node.js with Express.js (TypeScript, ES modules).

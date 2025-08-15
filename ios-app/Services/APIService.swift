@@ -84,13 +84,17 @@ class APIService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60.0 // Increase timeout for large files
         
         var formData = Data()
         
-        // Add image file
+        // Determine file type and content type
+        let (filename, contentType) = determineFileTypeAndName(data: imageData, name: name)
+        
+        // Add file
         formData.append("--\(boundary)\r\n".data(using: .utf8)!)
-        formData.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(name).jpg\"\r\n".data(using: .utf8)!)
-        formData.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        formData.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        formData.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
         formData.append(imageData)
         formData.append("\r\n".data(using: .utf8)!)
         
@@ -123,7 +127,42 @@ class APIService: ObservableObject {
         return session.dataTaskPublisher(for: request)
             .map(\.data)
             .decode(type: Document.self, decoder: jsonDecoder)
+            .catch { error -> AnyPublisher<Document, Error> in
+                print("⚠️ Upload error: \(error)")
+                return Fail(error: error).eraseToAnyPublisher()
+            }
             .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func determineFileTypeAndName(data: Data, name: String) -> (filename: String, contentType: String) {
+        // Check PDF signature
+        if data.count >= 4 {
+            let pdfSignature = Data([0x25, 0x50, 0x44, 0x46]) // %PDF
+            if data.prefix(4) == pdfSignature {
+                return ("\(name).pdf", "application/pdf")
+            }
+        }
+        
+        // Check JPEG signature
+        if data.count >= 2 {
+            let jpegSignature = Data([0xFF, 0xD8])
+            if data.prefix(2) == jpegSignature {
+                return ("\(name).jpg", "image/jpeg")
+            }
+        }
+        
+        // Check PNG signature
+        if data.count >= 8 {
+            let pngSignature = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+            if data.prefix(8) == pngSignature {
+                return ("\(name).png", "image/png")
+            }
+        }
+        
+        // Default to JPEG
+        return ("\(name).jpg", "image/jpeg")
     }
     
     func deleteDocument(id: Int) -> AnyPublisher<Void, Error> {

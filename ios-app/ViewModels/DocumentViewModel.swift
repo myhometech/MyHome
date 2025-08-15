@@ -120,7 +120,7 @@ class DocumentViewModel: ObservableObject {
         tags: [String]
     ) {
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            error = "Failed to process image"
+            error = "Failed to convert image to JPEG format. Please try scanning the document again."
             return
         }
         
@@ -138,10 +138,59 @@ class DocumentViewModel: ObservableObject {
             receiveCompletion: { [weak self] completion in
                 self?.isLoading = false
                 if case .failure(let error) = completion {
-                    self?.error = error.localizedDescription
+                    // Provide more specific error messages
+                    if error.localizedDescription.contains("PDF") {
+                        self?.error = "PDF creation failed. Please check your document quality and try again."
+                    } else if error.localizedDescription.contains("network") {
+                        self?.error = "Network error. Please check your internet connection and try again."
+                    } else {
+                        self?.error = "Upload failed: \(error.localizedDescription)"
+                    }
                 }
             },
             receiveValue: { [weak self] newDocument in
+                self?.documents.insert(newDocument, at: 0)
+                self?.documentStorage.saveDocuments(self?.documents ?? [])
+                self?.loadDocumentStats() // Refresh stats
+            }
+        )
+        .store(in: &cancellables)
+    }
+    
+    func uploadPDFDocument(
+        pdfData: Data,
+        name: String,
+        category: Category?,
+        tags: [String]
+    ) {
+        isLoading = true
+        error = nil
+        
+        print("📄 Uploading PDF document: \(name) (\(pdfData.count) bytes)")
+        
+        apiService.uploadDocument(
+            imageData: pdfData, // API service now handles PDFs too
+            name: name,
+            categoryId: category?.id,
+            tags: tags
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completion in
+                self?.isLoading = false
+                if case .failure(let error) = completion {
+                    // Provide more specific error messages for PDF uploads
+                    if error.localizedDescription.contains("PDF") {
+                        self?.error = "PDF upload failed. The PDF file may be corrupted or invalid."
+                    } else if error.localizedDescription.contains("size") {
+                        self?.error = "PDF file is too large. Please try a smaller file."
+                    } else {
+                        self?.error = "PDF upload failed: \(error.localizedDescription)"
+                    }
+                }
+            },
+            receiveValue: { [weak self] newDocument in
+                print("✅ PDF document uploaded successfully: \(newDocument.name)")
                 self?.documents.insert(newDocument, at: 0)
                 self?.documentStorage.saveDocuments(self?.documents ?? [])
                 self?.loadDocumentStats() // Refresh stats

@@ -103,7 +103,7 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
       
       <SheetContent 
         side="left" 
-        className="w-72 p-0 flex flex-col"
+        className="w-56 p-0 flex flex-col [&~div]:bg-black/20"
       >
         <motion.div
           initial={{ opacity: 0, x: -20 }}

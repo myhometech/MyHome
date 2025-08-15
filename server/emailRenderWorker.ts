@@ -36,17 +36,18 @@ interface RenderMetrics {
 export class EmailRenderWorker {
   private worker: Worker | null = null;
   private queue: Queue | null = null;
-  private redis: Redis;
+  private redis: Redis | null = null;
   private metrics: RenderMetrics;
   private readonly maxConcurrency: number;
   private isShuttingDown = false;
+  private redisConnectionProvider?: Redis;
 
   constructor(
     redisConnection?: Redis,
     maxConcurrency: number = 2
   ) {
     this.maxConcurrency = maxConcurrency;
-    this.redis = redisConnection || new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+    this.redisConnectionProvider = redisConnection;
     
     this.metrics = {
       attempts: new Map(),
@@ -72,6 +73,21 @@ export class EmailRenderWorker {
 
     try {
       console.log(`📧 Initializing CloudConvert EmailRenderWorker (concurrency: ${this.maxConcurrency})`);
+
+      // Create Redis connection with timeout and test it first
+      this.redis = this.redisConnectionProvider || new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+        connectTimeout: 2000,
+        lazyConnect: true,
+        maxRetriesPerRequest: 1,
+        retryDelayOnFailover: 100
+      });
+
+      // Test Redis connection with timeout
+      const pingTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Redis connection timeout')), 3000);
+      });
+      
+      await Promise.race([this.redis.ping(), pingTimeout]);
 
       // Create queue
       this.queue = new Queue('email-pdf-render', {
@@ -101,8 +117,15 @@ export class EmailRenderWorker {
       console.log('✅ CloudConvert EmailRenderWorker initialized successfully');
       
     } catch (error) {
-      console.error('❌ Failed to initialize EmailRenderWorker:', error);
-      throw error;
+      console.error('❌ Failed to initialize EmailRenderWorker (Redis unavailable):', error.message);
+      // Clean up partial initialization
+      if (this.redis) {
+        try {
+          await this.redis.disconnect();
+        } catch {}
+        this.redis = null;
+      }
+      throw new Error(`EmailRenderWorker initialization failed: ${error.message}`);
     }
   }
 
@@ -297,6 +320,7 @@ export class EmailRenderWorker {
 
     if (this.redis) {
       await this.redis.quit();
+      this.redis = null;
     }
 
     console.log('✅ CloudConvert EmailRenderWorker cleanup complete');

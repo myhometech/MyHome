@@ -36,6 +36,13 @@ export default function UnifiedUploadButton({
   // Guard against late async completions trying to update UI after close
   const closedRef = useRef(false);
   
+  // Track per-file upload states for bounded concurrency
+  const [uploadStates, setUploadStates] = useState<Map<string, {
+    status: 'pending' | 'uploading' | 'success' | 'error';
+    error?: string;
+    result?: any;
+  }>>(new Map());
+  
   // TICKET 7: Legacy scanner states removed
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadData, setUploadData] = useState({
@@ -103,6 +110,13 @@ export default function UnifiedUploadButton({
   // Helper to close modal - never try to set internal open state
   const close = () => {
     closedRef.current = true;
+    
+    // Clear upload states when closing
+    setUploadStates(new Map());
+    setSelectedFiles([]);
+    setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
+    setCategorySuggestion(null);
+    
     onOpenChange(false);
   };
 
@@ -158,66 +172,7 @@ export default function UnifiedUploadButton({
     },
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: async ({ file, data }: { file: File; data: any }) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("name", data.customName || data.name || file.name);
-      if (data.categoryId) formData.append("categoryId", data.categoryId);
-      if (data.tags) formData.append("tags", JSON.stringify(data.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
-      if (data.expiryDate) formData.append("expiryDate", data.expiryDate);
-
-      const response = await fetch("/api/documents", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Upload failed");
-      }
-
-      return response.json();
-    },
-    onSuccess: (result) => {
-      // Guard against late async completion after close
-      if (closedRef.current) return;
-      
-      // Show success toast
-      toast({
-        title: "Upload successful",
-        description: "Your document has been uploaded and organized.",
-      });
-      
-      // Clear state
-      setSelectedFiles([]);
-      setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
-      setCategorySuggestion(null);
-      
-      // Close modal and notify parent
-      close();
-      onSuccess(result);
-    },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Upload failed",
-        description: error.message || "Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
+  // Remove the old uploadMutation since we're handling uploads manually with bounded concurrency
 
   const handleFileSelect = async (files: File[]) => {
     // Deduplicate by name+size+lastModified before enqueue
@@ -314,30 +269,108 @@ export default function UnifiedUploadButton({
     handleFileSelect(files);
   };
 
-  const handleUpload = async () => {
-    console.log(`Starting upload of ${selectedFiles.length} files`);
+  const uploadSingleFile = async (file: File) => {
+    const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
     
-    // Process each file sequentially to ensure no files are silently skipped
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const file = selectedFiles[i];
-      console.log(`Uploading file ${i + 1}/${selectedFiles.length}: ${file.name}`);
-      
-      try {
-        await uploadMutation.mutateAsync({ 
-          file, 
-          data: {
-            ...uploadData,
-            name: uploadData.customName || file.name,
-          }
-        });
-        console.log(`✓ Successfully uploaded: ${file.name}`);
-      } catch (error) {
-        console.error(`✗ Failed to upload ${file.name}:`, error);
-        // Continue with next file even if one fails
+    // Update state to uploading
+    setUploadStates(prev => new Map(prev).set(fileKey, { status: 'uploading' }));
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("name", uploadData.customName || file.name);
+      if (uploadData.categoryId) formData.append("categoryId", uploadData.categoryId);
+      if (uploadData.tags) formData.append("tags", JSON.stringify(uploadData.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
+      if (uploadData.expiryDate) formData.append("expiryDate", uploadData.expiryDate);
+
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Upload failed");
       }
+
+      const result = await response.json();
+      
+      // Update state to success
+      setUploadStates(prev => new Map(prev).set(fileKey, { status: 'success', result }));
+      console.log(`✓ Successfully uploaded: ${file.name}`);
+      
+      return result;
+    } catch (error: any) {
+      // Update state to error
+      setUploadStates(prev => new Map(prev).set(fileKey, { 
+        status: 'error', 
+        error: error.message || "Upload failed" 
+      }));
+      console.error(`✗ Failed to upload ${file.name}:`, error);
+      throw error;
+    }
+  };
+
+  const handleUpload = async () => {
+    console.log(`Starting upload of ${selectedFiles.length} files with bounded concurrency (max 3)`);
+    
+    // Initialize upload states
+    const initialStates = new Map();
+    selectedFiles.forEach(file => {
+      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+      initialStates.set(fileKey, { status: 'pending' as const });
+    });
+    setUploadStates(initialStates);
+    
+    // Process files with bounded concurrency (3 uploads at a time)
+    const concurrencyLimit = 3;
+    const results: Array<{ file: File; success: boolean; result?: any; error?: string }> = [];
+    
+    for (let i = 0; i < selectedFiles.length; i += concurrencyLimit) {
+      const batch = selectedFiles.slice(i, i + concurrencyLimit);
+      console.log(`Processing batch ${Math.floor(i / concurrencyLimit) + 1}: ${batch.map(f => f.name).join(', ')}`);
+      
+      // Process batch concurrently
+      const batchPromises = batch.map(async (file) => {
+        try {
+          const result = await uploadSingleFile(file);
+          return { file, success: true, result };
+        } catch (error: any) {
+          return { file, success: false, error: error.message };
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
     }
     
-    console.log(`Upload process completed for ${selectedFiles.length} files`);
+    // Show final summary
+    const successCount = results.filter(r => r.success).length;
+    const errorCount = results.length - successCount;
+    
+    console.log(`Upload process completed: ${successCount} successful, ${errorCount} failed`);
+    
+    if (errorCount === 0) {
+      toast({
+        title: "All uploads successful",
+        description: `${successCount} documents uploaded successfully.`,
+      });
+      
+      // Clear state and close modal
+      setSelectedFiles([]);
+      setUploadStates(new Map());
+      setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
+      setCategorySuggestion(null);
+      close();
+      onSuccess(results.map(r => r.result));
+    } else {
+      toast({
+        title: "Some uploads failed",
+        description: `${successCount} successful, ${errorCount} failed. Check individual file status below.`,
+        variant: errorCount === results.length ? "destructive" : "default",
+      });
+    }
   };
 
   const applySuggestion = () => {
@@ -371,21 +404,50 @@ export default function UnifiedUploadButton({
             Clear All
           </Button>
         </div>
-        {selectedFiles.map((file, index) => (
-          <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">
-              📄 {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== index))}
-              className="text-xs h-6 px-2 text-red-600 hover:text-red-800"
-            >
-              Remove
-            </Button>
-          </div>
-        ))}
+        {selectedFiles.map((file, index) => {
+          const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+          const uploadState = uploadStates.get(fileKey);
+          
+          return (
+            <div key={fileKey} className="flex justify-between items-center text-sm">
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-gray-600">
+                  📄 {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                </span>
+                {uploadState && (
+                  <div className="flex items-center gap-1">
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      uploadState.status === 'pending' ? 'bg-gray-100 text-gray-600' :
+                      uploadState.status === 'uploading' ? 'bg-blue-100 text-blue-600' :
+                      uploadState.status === 'success' ? 'bg-green-100 text-green-600' :
+                      'bg-red-100 text-red-600'
+                    }`}>
+                      {uploadState.status === 'pending' && 'Queued'}
+                      {uploadState.status === 'uploading' && 'Uploading...'}
+                      {uploadState.status === 'success' && '✓ Success'}
+                      {uploadState.status === 'error' && '✗ Failed'}
+                    </span>
+                    {uploadState.status === 'error' && uploadState.error && (
+                      <span className="text-xs text-red-600 max-w-xs truncate" title={uploadState.error}>
+                        {uploadState.error}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {!uploadState || uploadState.status === 'pending' ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== index))}
+                  className="text-xs h-6 px-2 text-red-600 hover:text-red-800"
+                >
+                  Remove
+                </Button>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
       {categorySuggestion?.isVisible && (
@@ -481,10 +543,10 @@ export default function UnifiedUploadButton({
         </Button>
         <Button 
           onClick={handleUpload}
-          disabled={uploadMutation.isPending}
+          disabled={Array.from(uploadStates.values()).some(state => state.status === 'uploading')}
           className="flex-1"
         >
-          {uploadMutation.isPending ? "Uploading..." : "Upload"}
+          {Array.from(uploadStates.values()).some(state => state.status === 'uploading') ? "Uploading..." : "Upload"}
         </Button>
       </div>
     </div>

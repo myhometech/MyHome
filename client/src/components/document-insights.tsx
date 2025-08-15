@@ -86,14 +86,22 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   const queryClient = useQueryClient();
   
   // Optimized mobile detection with debouncing
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 768;
+    }
+    return false;
+  });
   
   React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     let resizeTimer: NodeJS.Timeout;
     const handleResize = () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        setIsMobile(window.innerWidth <= 768);
+        const newIsMobile = window.innerWidth <= 768;
+        setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
       }, 150); // Debounce resize events
     };
     
@@ -105,10 +113,11 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   }, []);
 
   // INSIGHT-102: Fetch only primary insights with memory optimization
+  const limit = React.useMemo(() => isMobile ? 3 : 5, [isMobile]);
+  
   const { data: insightData, isLoading, error } = useQuery({
-    queryKey: ['/api/documents', documentId, 'insights', 'primary', isMobile ? 'mobile' : 'desktop'],
+    queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
     queryFn: async () => {
-      const limit = isMobile ? 3 : 5; // Fewer insights on mobile
       const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
         signal: AbortSignal.timeout(10000) // 10s timeout to prevent hanging requests
       });
@@ -126,9 +135,9 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
       if (!data?.insights) return { insights: [] };
       return {
         ...data,
-        insights: data.insights.slice(0, isMobile ? 3 : 5)
+        insights: data.insights.slice(0, limit)
       };
-    }, [isMobile])
+    }, [limit])
   });
 
   const insights = insightData?.insights || [];

@@ -56,9 +56,9 @@ export class LLMClient {
   private requestCount: number = 0;
 
   constructor(config: Partial<LLMConfig> = {}) {
-    // Load configuration from environment with fallbacks
+    // Load configuration from environment
     const envConfig = {
-      apiKey: process.env.MISTRAL_API_KEY || process.env.OPENAI_API_KEY || '',
+      apiKey: process.env.MISTRAL_API_KEY || '',
       baseURL: process.env.MISTRAL_BASE_URL || 'https://api.together.xyz/v1',
       defaultModel: process.env.MISTRAL_MODEL_NAME || 'mistralai/Mistral-7B-Instruct-v0.1',
       ...config
@@ -67,7 +67,7 @@ export class LLMClient {
     this.config = configSchema.parse(envConfig);
     
     if (!this.config.apiKey) {
-      console.warn('⚠️ LLM Client: No API key configured. Set MISTRAL_API_KEY or OPENAI_API_KEY environment variable.');
+      console.warn('⚠️ LLM Client: No API key configured. Set MISTRAL_API_KEY environment variable.');
     } else {
       console.log(`✅ LLM Client initialized with model: ${this.config.defaultModel}`);
     }

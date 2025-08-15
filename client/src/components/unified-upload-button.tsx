@@ -220,7 +220,19 @@ export default function UnifiedUploadButton({
   });
 
   const handleFileSelect = async (files: File[]) => {
+    // Deduplicate by name+size+lastModified before enqueue
+    const createFileKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
+    const existingKeys = new Set(selectedFiles.map(createFileKey));
+    
     const validFiles = files.filter(file => {
+      const fileKey = createFileKey(file);
+      
+      // Check for duplicates first
+      if (existingKeys.has(fileKey)) {
+        console.log(`Skipping duplicate file: ${file.name}`);
+        return false;
+      }
+      
       const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
       const maxSize = 10 * 1024 * 1024; // 10MB
       
@@ -246,7 +258,8 @@ export default function UnifiedUploadButton({
     });
 
     if (validFiles.length > 0) {
-      setSelectedFiles(validFiles);
+      // Preserve existing queue logic; push each file into upload queue
+      setSelectedFiles(prev => [...prev, ...validFiles]);
       
       // Get category suggestion for first file if no category selected
       if (validFiles.length > 0 && !uploadData.categoryId) {
@@ -254,6 +267,7 @@ export default function UnifiedUploadButton({
       }
       
       // Files are loaded, ready for upload form
+      console.log(`Added ${validFiles.length} files to upload queue. Total: ${selectedFiles.length + validFiles.length}`);
     }
   };
 
@@ -301,15 +315,29 @@ export default function UnifiedUploadButton({
   };
 
   const handleUpload = async () => {
-    for (const file of selectedFiles) {
-      await uploadMutation.mutateAsync({ 
-        file, 
-        data: {
-          ...uploadData,
-          name: file.name,
-        }
-      });
+    console.log(`Starting upload of ${selectedFiles.length} files`);
+    
+    // Process each file sequentially to ensure no files are silently skipped
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      console.log(`Uploading file ${i + 1}/${selectedFiles.length}: ${file.name}`);
+      
+      try {
+        await uploadMutation.mutateAsync({ 
+          file, 
+          data: {
+            ...uploadData,
+            name: uploadData.customName || file.name,
+          }
+        });
+        console.log(`✓ Successfully uploaded: ${file.name}`);
+      } catch (error) {
+        console.error(`✗ Failed to upload ${file.name}:`, error);
+        // Continue with next file even if one fails
+      }
     }
+    
+    console.log(`Upload process completed for ${selectedFiles.length} files`);
   };
 
   const applySuggestion = () => {
@@ -331,11 +359,34 @@ export default function UnifiedUploadButton({
   // Extract the upload form content for reuse
   const uploadFormContent = (
     <div className="space-y-4">
-      {selectedFiles.map((file, index) => (
-        <div key={index} className="text-sm text-gray-600">
-          📄 {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium">Selected Files ({selectedFiles.length})</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedFiles([])}
+            className="text-xs h-6 px-2"
+          >
+            Clear All
+          </Button>
         </div>
-      ))}
+        {selectedFiles.map((file, index) => (
+          <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex justify-between items-center text-sm">
+            <span className="text-gray-600">
+              📄 {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== index))}
+              className="text-xs h-6 px-2 text-red-600 hover:text-red-800"
+            >
+              Remove
+            </Button>
+          </div>
+        ))}
+      </div>
 
       {categorySuggestion?.isVisible && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">

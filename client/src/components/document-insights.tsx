@@ -85,55 +85,63 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Add delay to prevent simultaneous requests overwhelming memory
-  const [shouldFetch, setShouldFetch] = useState(false);
+  // Optimized mobile detection with debouncing
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
   React.useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    let resizeTimer: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setIsMobile(window.innerWidth <= 768);
+      }, 150); // Debounce resize events
+    };
+    
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimer);
+    };
   }, []);
-  
-  React.useEffect(() => {
-    // Longer delay on mobile to reduce memory pressure
-    const delay = isMobile ? Math.random() * 3000 : Math.random() * 2000;
-    const timer = setTimeout(() => setShouldFetch(true), delay);
-    return () => clearTimeout(timer);
-  }, [documentId, isMobile]);
 
-  // INSIGHT-102: Fetch only primary insights (no secondary access)
+  // INSIGHT-102: Fetch only primary insights with memory optimization
   const { data: insightData, isLoading, error } = useQuery({
-    queryKey: ['/api/documents', documentId, 'insights', { tier: 'primary', mobile: isMobile }],
+    queryKey: ['/api/documents', documentId, 'insights', 'primary', isMobile ? 'mobile' : 'desktop'],
     queryFn: async () => {
       const limit = isMobile ? 3 : 5; // Fewer insights on mobile
-      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`);
+      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
+        signal: AbortSignal.timeout(10000) // 10s timeout to prevent hanging requests
+      });
       if (!response.ok) throw new Error('Failed to fetch insights');
       return await response.json();
     },
-    // More aggressive caching on mobile
-    staleTime: isMobile ? 15 * 60 * 1000 : 10 * 60 * 1000,
-    gcTime: isMobile ? 20 * 60 * 1000 : 15 * 60 * 1000,
+    // Aggressive caching with memory optimization
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
     refetchOnWindowFocus: false,
-    refetchOnReconnect: isMobile ? false : true, // Disable reconnect refetch on mobile
-    // Enhanced memory optimization for mobile
-    select: (data) => ({
-      ...data,
-      insights: data.insights?.slice(0, isMobile ? 3 : 5) || []
-    }),
-    enabled: shouldFetch
+    refetchOnReconnect: false, // Disable automatic refetching
+    retry: 1, // Limit retries to prevent memory pressure
+    // Memory-optimized data selection
+    select: React.useCallback((data) => {
+      if (!data?.insights) return { insights: [] };
+      return {
+        ...data,
+        insights: data.insights.slice(0, isMobile ? 3 : 5)
+      };
+    }, [isMobile])
   });
 
   const insights = insightData?.insights || [];
 
-  // Generate new insights mutation
+  // Generate new insights mutation with memory optimization
   const generateInsightsMutation = useMutation({
     mutationFn: async (): Promise<InsightResponse> => {
       const response = await fetch(`/api/documents/${documentId}/insights`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        signal: AbortSignal.timeout(30000) // 30s timeout
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -141,17 +149,18 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
       }
       return await response.json();
     },
-    onSuccess: (data: InsightResponse) => {
+    onSuccess: React.useCallback((data: InsightResponse) => {
       toast({
         title: "Insights Generated",
-        description: `Generated ${data.insights.length} insights in ${data.processingTime}ms`
+        description: `Generated ${data.insights.length} insights`
       });
+      // Targeted cache invalidation
       queryClient.invalidateQueries({
         queryKey: ['/api/documents', documentId, 'insights']
       });
       setIsGenerating(false);
-    },
-    onError: (error: any) => {
+    }, [documentId, toast, queryClient]),
+    onError: React.useCallback((error: any) => {
       console.error('Error generating insights:', error);
       toast({
         title: "Generation Failed",
@@ -159,17 +168,21 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
         variant: "destructive"
       });
       setIsGenerating(false);
-    }
+    }, [toast]),
+    onSettled: React.useCallback(() => {
+      setIsGenerating(false);
+    }, [])
   });
 
-  // Delete insight mutation
+  // Delete insight mutation with memory optimization
   const deleteInsightMutation = useMutation({
     mutationFn: async (insightId: string) => {
       const response = await fetch(`/api/documents/${documentId}/insights/${insightId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        signal: AbortSignal.timeout(10000) // 10s timeout
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -177,32 +190,42 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
       }
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: React.useCallback(() => {
       toast({
         title: "Insight Deleted",
         description: "The insight has been removed"
       });
+      // Targeted cache invalidation
       queryClient.invalidateQueries({
         queryKey: ['/api/documents', documentId, 'insights']
       });
-    },
-    onError: (error: any) => {
+    }, [documentId, toast, queryClient]),
+    onError: React.useCallback((error: any) => {
       toast({
         title: "Delete Failed",
         description: error.message || "Failed to delete insight",
         variant: "destructive"
       });
-    }
+    }, [toast])
   });
 
-  const handleGenerateInsights = () => {
+  const handleGenerateInsights = React.useCallback(() => {
     setIsGenerating(true);
     generateInsightsMutation.mutate();
-  };
+  }, [generateInsightsMutation]);
 
-  const handleDeleteInsight = (insightId: string) => {
+  const handleDeleteInsight = React.useCallback((insightId: string) => {
     deleteInsightMutation.mutate(insightId);
-  };
+  }, [deleteInsightMutation]);
+
+  // Cleanup effect for component unmount
+  React.useEffect(() => {
+    return () => {
+      // Cancel any pending mutations on unmount
+      generateInsightsMutation.reset();
+      deleteInsightMutation.reset();
+    };
+  }, [generateInsightsMutation, deleteInsightMutation]);
 
   if (isLoading) {
     return (

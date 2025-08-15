@@ -433,6 +433,15 @@ export default function DocumentCard({
                         </Badge>
                       </>
                     )}
+                    {insightsLoading && (
+                      <>
+                        <span>•</span>
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1">
+                          <div className="animate-spin h-2 w-2 border border-blue-400 border-t-transparent rounded-full"></div>
+                          Generating Insights
+                        </Badge>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -618,13 +627,19 @@ export default function DocumentCard({
               <span>{formatDate(document.uploadedAt)}</span>
             </div>
 
-            {supportsOCR() && document.ocrProcessed && (
-              <div className="mb-2">
+            <div className="mb-2 flex flex-wrap gap-1">
+              {supportsOCR() && document.ocrProcessed && (
                 <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                   Text Extracted
                 </Badge>
-              </div>
-            )}
+              )}
+              {insightsLoading && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1">
+                  <div className="animate-spin h-2 w-2 border border-blue-400 border-t-transparent rounded-full"></div>
+                  Generating Insights
+                </Badge>
+              )}
+            </div>
 
             {/* Important Date Display */}
             {document.expiryDate && (
@@ -738,6 +753,7 @@ export default function DocumentCard({
                 document={document}
                 onClose={() => setShowModal(false)}
                 onUpdate={onUpdate}
+                onDownload={handleDownload}
               />
             </div>
           </div>

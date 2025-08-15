@@ -36,19 +36,37 @@ export default function UnifiedUploadButton({
   // Guard against late async completions trying to update UI after close
   const closedRef = useRef(false);
   
-  // Track per-file upload states for bounded concurrency
-  const [uploadStates, setUploadStates] = useState<Map<string, {
-    status: 'pending' | 'uploading' | 'success' | 'error';
-    error?: string;
-    result?: any;
-  }>>(new Map());
+  // Enhanced per-file upload tracking with progress and error handling
+  type UploadItem = {
+    id: string;            // stable UUID generated on enqueue
+    file: File;
+    status: 'queued' | 'uploading' | 'success' | 'error' | 'canceled';
+    progress: number;      // 0–100
+    bytesUploaded: number; // running byte count
+    errorCode?: 'TIMEOUT' | 'NETWORK' | 'RATE_LIMITED' | 'VALIDATION' | 'SERVER' | 'UNKNOWN';
+    errorMessage?: string; // user-friendly text
+    serverId?: string;     // set on success
+    abortController?: AbortController; // for cancellation
+  };
+
+  const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
 
   // Reset states when modal opens fresh (no ongoing upload)
   useEffect(() => {
-    if (open && selectedFiles.length === 0) {
+    if (open && uploadItems.length === 0) {
       resetAllStates();
     }
-  }, [open]);
+  }, [open, uploadItems.length]);
+
+  // Helper function to update a specific upload item
+  const updateItem = (id: string, patch: Partial<UploadItem>) => {
+    setUploadItems(prev => prev.map(item => 
+      item.id === id ? { ...item, ...patch } : item
+    ));
+  };
+
+  // Generate stable UUID for upload items
+  const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
   
   // TICKET 7: Legacy scanner states removed
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -122,7 +140,14 @@ export default function UnifiedUploadButton({
   
   // Helper to reset all states - used for successful uploads or explicit clear
   const resetAllStates = () => {
-    setUploadStates(new Map());
+    // Cancel any ongoing uploads
+    uploadItems.forEach(item => {
+      if (item.abortController) {
+        item.abortController.abort();
+      }
+    });
+    
+    setUploadItems([]);
     setSelectedFiles([]);
     setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
     setCategorySuggestion(null);
@@ -224,17 +249,16 @@ export default function UnifiedUploadButton({
       // Preserve existing queue logic; push each file into upload queue
       setSelectedFiles(prev => [...prev, ...validFiles]);
       
-      // Initialize upload states for new files (preserve existing states)
-      setUploadStates(prev => {
-        const newStates = new Map(prev);
-        validFiles.forEach(file => {
-          const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-          if (!newStates.has(fileKey)) {
-            newStates.set(fileKey, { status: 'pending' });
-          }
-        });
-        return newStates;
-      });
+      // Create upload items for new files with deduplication
+      const newUploadItems: UploadItem[] = validFiles.map(file => ({
+        id: generateId(),
+        file,
+        status: 'queued' as const,
+        progress: 0,
+        bytesUploaded: 0
+      }));
+      
+      setUploadItems(prev => [...prev, ...newUploadItems]);
       
       // Get category suggestion for first file if no category selected
       if (validFiles.length > 0 && !uploadData.categoryId) {
@@ -289,77 +313,164 @@ export default function UnifiedUploadButton({
     handleFileSelect(files);
   };
 
-  const uploadSingleFile = async (file: File) => {
-    const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-    
-    // Update state to uploading
-    setUploadStates(prev => new Map(prev).set(fileKey, { status: 'uploading' }));
-    
-    try {
+  const uploadSingleFileWithProgress = (itemId: string): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const item = uploadItems.find(i => i.id === itemId);
+      if (!item) {
+        reject(new Error('Upload item not found'));
+        return;
+      }
+
+      const abortController = new AbortController();
+      updateItem(itemId, { status: 'uploading', abortController });
+
+      const xhr = new XMLHttpRequest();
+      
+      // Prepare form data
       const formData = new FormData();
-      formData.append("file", file);
-      formData.append("name", uploadData.customName || file.name);
+      formData.append("file", item.file);
+      formData.append("name", uploadData.customName || item.file.name);
       if (uploadData.categoryId) formData.append("categoryId", uploadData.categoryId);
       if (uploadData.tags) formData.append("tags", JSON.stringify(uploadData.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
       if (uploadData.expiryDate) formData.append("expiryDate", uploadData.expiryDate);
 
-      const response = await fetch("/api/documents", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
+      // Progress tracking
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const progress = Math.round((e.loaded / e.total) * 100);
+          updateItem(itemId, {
+            progress,
+            bytesUploaded: e.loaded
+          });
+        }
       });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Upload failed");
-      }
+      // Success handler
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const result = JSON.parse(xhr.responseText);
+            updateItem(itemId, {
+              status: 'success',
+              progress: 100,
+              bytesUploaded: item.file.size,
+              serverId: result.id
+            });
+            console.log(`✓ Successfully uploaded: ${item.file.name}`);
+            resolve(result);
+          } catch (e) {
+            const error = new Error('Invalid server response');
+            updateItem(itemId, {
+              status: 'error',
+              errorCode: 'SERVER',
+              errorMessage: 'Invalid server response'
+            });
+            reject(error);
+          }
+        } else {
+          // Map HTTP status to error codes
+          let errorCode: UploadItem['errorCode'] = 'UNKNOWN';
+          let errorMessage = 'Upload failed';
 
-      const result = await response.json();
-      
-      // Update state to success
-      setUploadStates(prev => new Map(prev).set(fileKey, { status: 'success', result }));
-      console.log(`✓ Successfully uploaded: ${file.name}`);
-      
-      return result;
-    } catch (error: any) {
-      // Update state to error
-      setUploadStates(prev => new Map(prev).set(fileKey, { 
-        status: 'error', 
-        error: error.message || "Upload failed" 
-      }));
-      console.error(`✗ Failed to upload ${file.name}:`, error);
-      throw error;
-    }
+          if (xhr.status === 408 || xhr.status === 504) {
+            errorCode = 'TIMEOUT';
+            errorMessage = 'Request timed out. Please try again.';
+          } else if (xhr.status === 429) {
+            errorCode = 'RATE_LIMITED';
+            errorMessage = 'Too many requests. Please wait and try again.';
+          } else if (xhr.status === 413) {
+            errorCode = 'VALIDATION';
+            errorMessage = 'File too large (max 10MB)';
+          } else if (xhr.status === 415) {
+            errorCode = 'VALIDATION';
+            errorMessage = 'File type not supported';
+          } else if (xhr.status >= 400 && xhr.status < 500) {
+            errorCode = 'VALIDATION';
+            try {
+              const errorResponse = JSON.parse(xhr.responseText);
+              errorMessage = errorResponse.message || `Validation error (${xhr.status})`;
+            } catch {
+              errorMessage = `Validation error (${xhr.status})`;
+            }
+          } else if (xhr.status >= 500) {
+            errorCode = 'SERVER';
+            errorMessage = 'Server error. Please try again.';
+          }
+
+          updateItem(itemId, {
+            status: 'error',
+            errorCode,
+            errorMessage
+          });
+          
+          console.error(`✗ Failed to upload ${item.file.name}: ${errorMessage}`);
+          reject(new Error(errorMessage));
+        }
+      });
+
+      // Network error handler
+      xhr.addEventListener('error', () => {
+        updateItem(itemId, {
+          status: 'error',
+          errorCode: 'NETWORK',
+          errorMessage: 'Network error. Check your connection.'
+        });
+        reject(new Error('Network error'));
+      });
+
+      // Abort handler
+      xhr.addEventListener('abort', () => {
+        updateItem(itemId, {
+          status: 'canceled',
+          errorMessage: 'Upload canceled'
+        });
+        reject(new Error('Upload canceled'));
+      });
+
+      // Timeout handler
+      xhr.addEventListener('timeout', () => {
+        updateItem(itemId, {
+          status: 'error',
+          errorCode: 'TIMEOUT',
+          errorMessage: 'Upload timed out. Please try again.'
+        });
+        reject(new Error('Upload timed out'));
+      });
+
+      // Abort signal handling
+      abortController.signal.addEventListener('abort', () => {
+        xhr.abort();
+      });
+
+      // Configure and send request
+      xhr.open('POST', '/api/documents');
+      xhr.timeout = 120000; // 2 minute timeout
+      xhr.withCredentials = true;
+      xhr.send(formData);
+    });
   };
 
   const handleUpload = async () => {
-    console.log(`Starting upload of ${selectedFiles.length} files with bounded concurrency (max 3)`);
+    const queuedItems = uploadItems.filter(item => item.status === 'queued');
+    console.log(`Starting upload of ${queuedItems.length} files with bounded concurrency (max 3)`);
     
-    // Reset only status to pending (preserve existing states structure)
-    setUploadStates(prev => {
-      const newStates = new Map();
-      selectedFiles.forEach(file => {
-        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-        newStates.set(fileKey, { status: 'pending' as const });
-      });
-      return newStates;
-    });
+    if (queuedItems.length === 0) return;
     
     // Process files with bounded concurrency (3 uploads at a time)
     const concurrencyLimit = 3;
-    const results: Array<{ file: File; success: boolean; result?: any; error?: string }> = [];
+    const results: Array<{ item: UploadItem; success: boolean; result?: any; error?: string }> = [];
     
-    for (let i = 0; i < selectedFiles.length; i += concurrencyLimit) {
-      const batch = selectedFiles.slice(i, i + concurrencyLimit);
-      console.log(`Processing batch ${Math.floor(i / concurrencyLimit) + 1}: ${batch.map(f => f.name).join(', ')}`);
+    for (let i = 0; i < queuedItems.length; i += concurrencyLimit) {
+      const batch = queuedItems.slice(i, i + concurrencyLimit);
+      console.log(`Processing batch ${Math.floor(i / concurrencyLimit) + 1}: ${batch.map(item => item.file.name).join(', ')}`);
       
       // Process batch concurrently
-      const batchPromises = batch.map(async (file) => {
+      const batchPromises = batch.map(async (item) => {
         try {
-          const result = await uploadSingleFile(file);
-          return { file, success: true, result };
+          const result = await uploadSingleFileWithProgress(item.id);
+          return { item, success: true, result };
         } catch (error: any) {
-          return { file, success: false, error: error.message };
+          return { item, success: false, error: error.message };
         }
       });
       
@@ -386,7 +497,7 @@ export default function UnifiedUploadButton({
     } else {
       toast({
         title: "Some uploads failed",
-        description: `${successCount} successful, ${errorCount} failed. Check individual file status below.`,
+        description: `${successCount} successful, ${errorCount} failed. Use retry or remove failed items.`,
         variant: errorCount === results.length ? "destructive" : "default",
       });
     }
@@ -412,14 +523,45 @@ export default function UnifiedUploadButton({
   const uploadFormContent = (
     <div className="space-y-4">
       <div className="space-y-2">
+        {/* Aggregate header with counts */}
         <div className="flex justify-between items-center">
-          <span className="text-sm font-medium">Selected Files ({selectedFiles.length})</span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">Files ({uploadItems.length})</span>
+            <div className="flex items-center gap-2 text-xs">
+              {uploadItems.filter(i => i.status === 'uploading').length > 0 && (
+                <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                  {uploadItems.filter(i => i.status === 'uploading').length} uploading
+                </span>
+              )}
+              {uploadItems.filter(i => i.status === 'success').length > 0 && (
+                <span className="bg-green-100 text-green-600 px-2 py-1 rounded">
+                  {uploadItems.filter(i => i.status === 'success').length} success
+                </span>
+              )}
+              {uploadItems.filter(i => i.status === 'error').length > 0 && (
+                <span className="bg-red-100 text-red-600 px-2 py-1 rounded">
+                  {uploadItems.filter(i => i.status === 'error').length} failed
+                </span>
+              )}
+              {uploadItems.filter(i => i.status === 'canceled').length > 0 && (
+                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  {uploadItems.filter(i => i.status === 'canceled').length} canceled
+                </span>
+              )}
+            </div>
+          </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
+              // Cancel any ongoing uploads
+              uploadItems.forEach(item => {
+                if (item.abortController) {
+                  item.abortController.abort();
+                }
+              });
               setSelectedFiles([]);
-              setUploadStates(new Map());
+              setUploadItems([]);
               setCategorySuggestion(null);
             }}
             className="text-xs h-6 px-2"
@@ -427,63 +569,123 @@ export default function UnifiedUploadButton({
             Clear All
           </Button>
         </div>
-        {selectedFiles.map((file, index) => {
-          const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-          const uploadState = uploadStates.get(fileKey);
-          
-          return (
-            <div key={fileKey} className="flex justify-between items-center text-sm">
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-gray-600">
-                  📄 {file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)
-                </span>
-                {uploadState && (
-                  <div className="flex items-center gap-1">
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      uploadState.status === 'pending' ? 'bg-gray-100 text-gray-600' :
-                      uploadState.status === 'uploading' ? 'bg-blue-100 text-blue-600' :
-                      uploadState.status === 'success' ? 'bg-green-100 text-green-600' :
-                      'bg-red-100 text-red-600'
-                    }`}>
-                      {uploadState.status === 'pending' && 'Queued'}
-                      {uploadState.status === 'uploading' && 'Uploading...'}
-                      {uploadState.status === 'success' && '✓ Success'}
-                      {uploadState.status === 'error' && '✗ Failed'}
-                    </span>
-                    {uploadState.status === 'error' && uploadState.error && (
-                      <span className="text-xs text-red-600 max-w-xs truncate" title={uploadState.error}>
-                        {uploadState.error}
-                      </span>
+
+        {/* Per-file rows with progress */}
+        {uploadItems.map((item) => (
+          <div key={item.id} className="border rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-gray-600">📄</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate" title={item.file.name}>
+                    {item.file.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {(item.file.size / 1024 / 1024).toFixed(1)} MB
+                    {item.status === 'uploading' && (
+                      <span> • {(item.bytesUploaded / 1024 / 1024).toFixed(1)} MB uploaded</span>
                     )}
                   </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    item.status === 'queued' ? 'bg-gray-100 text-gray-600' :
+                    item.status === 'uploading' ? 'bg-blue-100 text-blue-600' :
+                    item.status === 'success' ? 'bg-green-100 text-green-600' :
+                    item.status === 'error' ? 'bg-red-100 text-red-600' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {item.status === 'queued' && 'Queued'}
+                    {item.status === 'uploading' && `${item.progress}%`}
+                    {item.status === 'success' && '✓ Success'}
+                    {item.status === 'error' && '✗ Failed'}
+                    {item.status === 'canceled' && 'Canceled'}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Action buttons */}
+              <div className="flex items-center gap-1">
+                {item.status === 'uploading' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (item.abortController) {
+                        item.abortController.abort();
+                      }
+                    }}
+                    className="text-xs h-6 px-2"
+                    aria-label={`Cancel upload for ${item.file.name}`}
+                  >
+                    Cancel
+                  </Button>
+                )}
+                {item.status === 'error' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      updateItem(item.id, {
+                        status: 'queued',
+                        progress: 0,
+                        bytesUploaded: 0,
+                        errorCode: undefined,
+                        errorMessage: undefined,
+                        abortController: undefined
+                      });
+                    }}
+                    className="text-xs h-6 px-2 text-blue-600 hover:text-blue-800"
+                    aria-label={`Retry upload for ${item.file.name}`}
+                  >
+                    Retry
+                  </Button>
+                )}
+                {(item.status === 'queued' || item.status === 'error' || item.status === 'canceled') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      // Remove from both lists
+                      setUploadItems(prev => prev.filter(i => i.id !== item.id));
+                      setSelectedFiles(prev => prev.filter(f => 
+                        f !== item.file
+                      ));
+                    }}
+                    className="text-xs h-6 px-2 text-red-600 hover:text-red-800"
+                    aria-label={`Remove ${item.file.name}`}
+                  >
+                    Remove
+                  </Button>
                 )}
               </div>
-              {!uploadState || uploadState.status === 'pending' ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const fileToRemove = selectedFiles[index];
-                    const fileKey = `${fileToRemove.name}-${fileToRemove.size}-${fileToRemove.lastModified}`;
-                    
-                    // Remove from files list
-                    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-                    
-                    // Remove from upload states
-                    setUploadStates(prev => {
-                      const newStates = new Map(prev);
-                      newStates.delete(fileKey);
-                      return newStates;
-                    });
-                  }}
-                  className="text-xs h-6 px-2 text-red-600 hover:text-red-800"
-                >
-                  Remove
-                </Button>
-              ) : null}
             </div>
-          );
-        })}
+
+            {/* Progress bar for uploading files */}
+            {item.status === 'uploading' && (
+              <div className="space-y-1">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-200 ease-out"
+                    style={{ width: `${item.progress}%` }}
+                    role="progressbar"
+                    aria-valuenow={item.progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`Upload progress for ${item.file.name}: ${item.progress}%`}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Error message */}
+            {item.status === 'error' && item.errorMessage && (
+              <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded" role="alert">
+                {item.errorMessage}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
       {categorySuggestion?.isVisible && (
@@ -579,10 +781,11 @@ export default function UnifiedUploadButton({
         </Button>
         <Button 
           onClick={handleUpload}
-          disabled={Array.from(uploadStates.values()).some(state => state.status === 'uploading')}
+          disabled={uploadItems.some(item => item.status === 'uploading') || uploadItems.filter(item => item.status === 'queued').length === 0}
           className="flex-1"
         >
-          {Array.from(uploadStates.values()).some(state => state.status === 'uploading') ? "Uploading..." : "Upload"}
+          {uploadItems.some(item => item.status === 'uploading') ? "Uploading..." : 
+           uploadItems.filter(item => item.status === 'queued').length === 0 ? "No Files to Upload" : "Upload"}
         </Button>
       </div>
     </div>

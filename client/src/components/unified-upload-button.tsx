@@ -42,6 +42,13 @@ export default function UnifiedUploadButton({
     error?: string;
     result?: any;
   }>>(new Map());
+
+  // Reset states when modal opens fresh (no ongoing upload)
+  useEffect(() => {
+    if (open && selectedFiles.length === 0) {
+      resetAllStates();
+    }
+  }, [open]);
   
   // TICKET 7: Legacy scanner states removed
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -110,14 +117,15 @@ export default function UnifiedUploadButton({
   // Helper to close modal - never try to set internal open state
   const close = () => {
     closedRef.current = true;
-    
-    // Clear upload states when closing
+    onOpenChange(false);
+  };
+  
+  // Helper to reset all states - used for successful uploads or explicit clear
+  const resetAllStates = () => {
     setUploadStates(new Map());
     setSelectedFiles([]);
     setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
     setCategorySuggestion(null);
-    
-    onOpenChange(false);
   };
 
   const createCategoryMutation = useMutation({
@@ -215,6 +223,18 @@ export default function UnifiedUploadButton({
     if (validFiles.length > 0) {
       // Preserve existing queue logic; push each file into upload queue
       setSelectedFiles(prev => [...prev, ...validFiles]);
+      
+      // Initialize upload states for new files (preserve existing states)
+      setUploadStates(prev => {
+        const newStates = new Map(prev);
+        validFiles.forEach(file => {
+          const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+          if (!newStates.has(fileKey)) {
+            newStates.set(fileKey, { status: 'pending' });
+          }
+        });
+        return newStates;
+      });
       
       // Get category suggestion for first file if no category selected
       if (validFiles.length > 0 && !uploadData.categoryId) {
@@ -315,13 +335,15 @@ export default function UnifiedUploadButton({
   const handleUpload = async () => {
     console.log(`Starting upload of ${selectedFiles.length} files with bounded concurrency (max 3)`);
     
-    // Initialize upload states
-    const initialStates = new Map();
-    selectedFiles.forEach(file => {
-      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-      initialStates.set(fileKey, { status: 'pending' as const });
+    // Reset only status to pending (preserve existing states structure)
+    setUploadStates(prev => {
+      const newStates = new Map();
+      selectedFiles.forEach(file => {
+        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+        newStates.set(fileKey, { status: 'pending' as const });
+      });
+      return newStates;
     });
-    setUploadStates(initialStates);
     
     // Process files with bounded concurrency (3 uploads at a time)
     const concurrencyLimit = 3;
@@ -357,11 +379,8 @@ export default function UnifiedUploadButton({
         description: `${successCount} documents uploaded successfully.`,
       });
       
-      // Clear state and close modal
-      setSelectedFiles([]);
-      setUploadStates(new Map());
-      setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
-      setCategorySuggestion(null);
+      // Clear state and close modal only on complete success
+      resetAllStates();
       close();
       onSuccess(results.map(r => r.result));
     } else {
@@ -398,7 +417,11 @@ export default function UnifiedUploadButton({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setSelectedFiles([])}
+            onClick={() => {
+              setSelectedFiles([]);
+              setUploadStates(new Map());
+              setCategorySuggestion(null);
+            }}
             className="text-xs h-6 px-2"
           >
             Clear All
@@ -439,7 +462,20 @@ export default function UnifiedUploadButton({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== index))}
+                  onClick={() => {
+                    const fileToRemove = selectedFiles[index];
+                    const fileKey = `${fileToRemove.name}-${fileToRemove.size}-${fileToRemove.lastModified}`;
+                    
+                    // Remove from files list
+                    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+                    
+                    // Remove from upload states
+                    setUploadStates(prev => {
+                      const newStates = new Map(prev);
+                      newStates.delete(fileKey);
+                      return newStates;
+                    });
+                  }}
                   className="text-xs h-6 px-2 text-red-600 hover:text-red-800"
                 >
                   Remove

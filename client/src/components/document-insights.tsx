@@ -381,7 +381,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
               >
                 <div className="flex items-center justify-between">
                   <div className={`flex items-center gap-2 flex-wrap ${isMobile ? 'gap-1.5' : 'gap-2'}`}>
-                    <Badge className={`${config.color} ${isMobile ? 'text-xs px-2 py-1' : 'text-xs'}`}>
+                    <Badge className={`${config.color} ${isMobile ? 'text-xs px-2 py-1' : 'text-xs'} flex items-center`}>
                       <IconComponent className={`${isMobile ? 'h-3 w-3 mr-1.5' : 'h-3 w-3 mr-1'}`} />
                       {config.label}
                     </Badge>

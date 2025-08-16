@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square, Brain, ChevronDown, ChevronRight, Zap } from "lucide-react";
+import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square, Brain, ChevronDown, ChevronRight, Zap, Type } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { EnhancedDocumentViewer } from "./enhanced-document-viewer";
 import type { DocumentInsight } from "@shared/schema";
@@ -60,7 +60,9 @@ export default function DocumentCard({
 }: DocumentCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
   const [editName, setEditName] = useState(document.name);
+  const [renameName, setRenameName] = useState(document.name);
   const [editImportantDate, setEditImportantDate] = useState(document.expiryDate || "");
   const [insightsExpanded, setInsightsExpanded] = useState(false);
   const { toast } = useToast();
@@ -187,6 +189,7 @@ export default function DocumentCard({
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/documents/expiry-alerts"] });
       setIsEditing(false);
+      setIsRenaming(false);
       onUpdate?.();
     },
     onError: (error) => {
@@ -208,7 +211,9 @@ export default function DocumentCard({
       });
       setEditName(document.name);
       setEditImportantDate(document.expiryDate || "");
+      setRenameName(document.name);
       setIsEditing(false);
+      setIsRenaming(false);
     },
   });
 
@@ -216,6 +221,11 @@ export default function DocumentCard({
     setIsEditing(true);
     setEditName(document.name);
     setEditImportantDate(document.expiryDate || "");
+  };
+
+  const handleStartRename = () => {
+    setIsRenaming(true);
+    setRenameName(document.name);
   };
 
   const handleSaveEdit = () => {
@@ -239,11 +249,35 @@ export default function DocumentCard({
     setIsEditing(false);
   };
 
+  const handleSaveRename = () => {
+    if (renameName.trim() !== document.name && renameName.trim() !== "") {
+      updateDocumentMutation.mutate({ 
+        id: document.id, 
+        name: renameName.trim(), 
+        expiryDate: document.expiryDate 
+      });
+    }
+    setIsRenaming(false);
+  };
+
+  const handleCancelRename = () => {
+    setRenameName(document.name);
+    setIsRenaming(false);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSaveEdit();
     } else if (e.key === 'Escape') {
       handleCancelEdit();
+    }
+  };
+
+  const handleRenameKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveRename();
+    } else if (e.key === 'Escape') {
+      handleCancelRename();
     }
   };
 
@@ -379,7 +413,7 @@ export default function DocumentCard({
         <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4 flex-1" onClick={isEditing ? undefined : () => setShowModal(true)}>
+              <div className="flex items-center space-x-4 flex-1" onClick={(isEditing || isRenaming) ? undefined : () => setShowModal(true)}>
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getFileIconColor()}`}>
                   {getFileIcon()}
                 </div>
@@ -412,6 +446,27 @@ export default function DocumentCard({
                           <Check className="h-3 w-3" />
                         </Button>
                         <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateDocumentMutation.isPending} className="h-7 w-7 p-0">
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : isRenaming ? (
+                    <div className="space-y-2 flex-1">
+                      <div>
+                        <Input
+                          value={renameName}
+                          onChange={(e) => setRenameName(e.target.value)}
+                          onKeyDown={handleRenameKeyPress}
+                          className="text-sm h-7"
+                          autoFocus
+                          placeholder="Enter new document name"
+                        />
+                      </div>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-7 w-7 p-0">
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-7 w-7 p-0">
                           <X className="h-3 w-3" />
                         </Button>
                       </div>
@@ -457,6 +512,13 @@ export default function DocumentCard({
                     <DropdownMenuItem onClick={() => setShowModal(true)}>
                       <Eye className="h-4 w-4 mr-2" />
                       View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartRename();
+                    }}>
+                      <Type className="h-4 w-4 mr-2" />
+                      Rename
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();
@@ -554,6 +616,13 @@ export default function DocumentCard({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => {
                   e.stopPropagation();
+                  handleStartRename();
+                }}>
+                  <Type className="h-4 w-4 mr-2" />
+                  Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
                   handleStartEdit();
                 }}>
                   <Edit2 className="h-4 w-4 mr-2" />
@@ -585,7 +654,7 @@ export default function DocumentCard({
             )}
           </div>
 
-          <div onClick={isEditing ? undefined : () => setShowModal(true)}>
+          <div onClick={(isEditing || isRenaming) ? undefined : () => setShowModal(true)}>
             {isEditing ? (
               <div className="mb-2 space-y-2">
                 <div>
@@ -614,6 +683,27 @@ export default function DocumentCard({
                     <Check className="h-3 w-3" />
                   </Button>
                   <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ) : isRenaming ? (
+              <div className="mb-2 space-y-2">
+                <div>
+                  <Input
+                    value={renameName}
+                    onChange={(e) => setRenameName(e.target.value)}
+                    onKeyDown={handleRenameKeyPress}
+                    className="text-sm h-7"
+                    autoFocus
+                    placeholder="Enter new document name"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
                     <X className="h-3 w-3" />
                   </Button>
                 </div>

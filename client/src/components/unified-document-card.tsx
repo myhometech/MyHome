@@ -37,7 +37,8 @@ import {
   Zap,
   AlertCircle,
   FolderIcon,
-  Tag
+  Tag,
+  Type
 } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { EnhancedDocumentViewer } from "./enhanced-document-viewer";
@@ -156,6 +157,8 @@ export default function UnifiedDocumentCard({
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameName, setRenameName] = useState(document.name);
   const [editImportantDate, setEditImportantDate] = useState(document.expiryDate || "");
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [insightsExpanded, setInsightsExpanded] = useState(false);
@@ -303,6 +306,7 @@ export default function UnifiedDocumentCard({
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
       setIsEditing(false);
+      setIsRenaming(false);
       onUpdate?.();
     },
     onError: (error) => {
@@ -324,7 +328,9 @@ export default function UnifiedDocumentCard({
       });
       setEditName(document.name);
       setEditImportantDate(document.expiryDate || "");
+      setRenameName(document.name);
       setIsEditing(false);
+      setIsRenaming(false);
     },
   });
 
@@ -411,6 +417,35 @@ export default function UnifiedDocumentCard({
     setEditImportantDate(document.expiryDate || "");
   };
 
+  const handleStartRename = () => {
+    setIsRenaming(true);
+    setRenameName(document.name);
+  };
+
+  const handleSaveRename = () => {
+    if (renameName.trim() !== document.name && renameName.trim() !== "") {
+      updateDocumentMutation.mutate({ 
+        id: document.id, 
+        name: renameName.trim(), 
+        expiryDate: document.expiryDate 
+      });
+    }
+    setIsRenaming(false);
+  };
+
+  const handleCancelRename = () => {
+    setRenameName(document.name);
+    setIsRenaming(false);
+  };
+
+  const handleRenameKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveRename();
+    } else if (e.key === 'Escape') {
+      handleCancelRename();
+    }
+  };
+
   const handleSaveEdit = () => {
     const hasNameChange = editName.trim() !== document.name;
     const hasExpiryChange = editImportantDate !== (document.expiryDate || "");
@@ -487,6 +522,10 @@ export default function UnifiedDocumentCard({
       <Card 
         className={`group hover:shadow-md hover:scale-[1.01] transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer bg-white border-gray-200`}
         onClick={() => {
+          if (isRenaming || isEditing) {
+            // Prevent modal from opening when in edit/rename mode
+            return;
+          }
           if (bulkMode) {
             onToggleSelection?.();
           } else if (onClick) {
@@ -553,9 +592,30 @@ export default function UnifiedDocumentCard({
                       <div className={`p-2 rounded-lg ${getFileTypeIconColor()} border shadow-sm`}>
                         {getFileIcon()}
                       </div>
-                      <h3 className="font-semibold text-sm leading-tight text-gray-900 truncate flex-1">
-                        {document.name}
-                      </h3>
+                      {isRenaming ? (
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            value={renameName}
+                            onChange={(e) => setRenameName(e.target.value)}
+                            onKeyDown={handleRenameKeyPress}
+                            className="text-sm h-7"
+                            autoFocus
+                            placeholder="Enter new document name"
+                          />
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <h3 className="font-semibold text-sm leading-tight text-gray-900 truncate flex-1">
+                          {document.name}
+                        </h3>
+                      )}
                     </div>
                     {document.expiryDate && (
                       <div className="flex items-center gap-1 text-xs text-gray-600 ml-7">
@@ -568,7 +628,7 @@ export default function UnifiedDocumentCard({
               </div>
 
               {/* Actions dropdown */}
-              {!isEditing && (
+              {!isEditing && !isRenaming && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
@@ -591,6 +651,13 @@ export default function UnifiedDocumentCard({
                     }}>
                       <Eye className="h-4 w-4 mr-2" />
                       View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartRename();
+                    }}>
+                      <Type className="h-4 w-4 mr-2" />
+                      Rename
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();

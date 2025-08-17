@@ -1,6 +1,20 @@
 import Stripe from 'stripe';
 import { storage } from './storage';
-import type { insertStripeWebhookSchema } from '@shared/schema';
+import type { InsertStripeWebhook, SubscriptionTier } from '@shared/schema';
+
+// Stripe plan mapping for multi-tier plans
+const PLAN_MAPPING: Record<string, SubscriptionTier> = {
+  'price_beginner': 'beginner',
+  'price_pro': 'pro',
+  'price_duo': 'duo'
+};
+
+// Plan pricing (in pence for GBP)
+const PLAN_PRICING = {
+  beginner: { amount: 299, name: 'MyHome Beginner', description: 'Essential document management' },
+  pro: { amount: 799, name: 'MyHome Pro', description: 'Advanced document management with AI features' },
+  duo: { amount: 999, name: 'MyHome Duo', description: 'Shared workspace for up to 2 family members' }
+};
 
 // Initialize Stripe with API key
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -11,7 +25,7 @@ if (!stripeSecretKey) {
 }
 
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2020-08-27',
+  apiVersion: '2024-06-20',
 });
 
 export class StripeService {
@@ -66,9 +80,12 @@ export class StripeService {
       throw new Error('User not found');
     }
 
-    const customerId = await this.getOrCreateCustomer(userId, user.email, `${user.firstName} ${user.lastName}`);
+    const customerId = await this.getOrCreateCustomer(userId, user.email || '', `${user.firstName} ${user.lastName}`);
 
-    // Create price on-the-fly for Premium plan
+    // Get plan details from price ID or default to pro
+    const planType = PLAN_MAPPING[priceId] || 'pro';
+    const planDetails = PLAN_PRICING[planType as keyof typeof PLAN_PRICING];
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -78,21 +95,22 @@ export class StripeService {
           price_data: {
             currency: 'gbp',
             product_data: {
-              name: 'MyHome Premium',
-              description: 'Advanced document management with AI features',
+              name: planDetails.name,
+              description: planDetails.description,
             },
-            unit_amount: 499, // £4.99 in pence
+            unit_amount: planDetails.amount,
             recurring: {
               interval: 'month',
             },
           },
-          quantity: 1,
+          quantity: planType === 'duo' ? 2 : 1, // Duo plans have 2 seats
         },
       ],
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {
         userId: userId,
+        planType: planType,
       },
     });
 
@@ -184,12 +202,53 @@ export class StripeService {
 
     const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
     
+    // Determine the subscription tier from the price ID  
+    const priceId = subscription.items?.data?.[0]?.price?.id;
+    const subscriptionTier = PLAN_MAPPING[priceId] || 'pro';
+    
     await storage.updateUser(userId, {
-      subscriptionTier: 'premium',
+      subscriptionTier: subscriptionTier,
       subscriptionStatus: 'active',
       subscriptionId: subscription.id,
+      stripeSubscriptionId: subscription.id,
       subscriptionRenewalDate: new Date(subscription.current_period_end * 1000),
     });
+
+    // If this is a Duo plan, create a household
+    if (subscriptionTier === 'duo') {
+      try {
+        const user = await storage.getUser(userId);
+        if (user) {
+          const household = await storage.createHousehold({
+            id: `hh_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+            name: `${user.firstName || 'User'}'s Household`,
+            stripeSubscriptionId: subscription.id,
+            subscriptionStatus: 'active',
+            maxMembers: 2,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+
+          // Add the user as the household owner
+          await storage.createHouseholdMembership({
+            id: `uhm_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+            userId: user.id,
+            householdId: household.id,
+            role: 'owner',
+            inviteStatus: 'accepted',
+            invitedAt: new Date(),
+            joinedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+
+          console.log(`Created household ${household.id} for Duo subscription ${subscription.id}`);
+        }
+      } catch (error) {
+        console.error('Failed to create household for Duo subscription:', error);
+        // Don't fail the webhook - user can still use individual features
+      }
+    }
 
     console.log(`User ${userId} subscription activated`);
   }
@@ -246,9 +305,11 @@ export class StripeService {
       return;
     }
 
+    // Determine the subscription tier from the price ID  
+    const priceId = subscription.items?.data?.[0]?.price?.id;
     let subscriptionTier = 'free';
     if (subscription.status === 'active') {
-      subscriptionTier = 'premium'; // You can map this based on price IDs if you have multiple tiers
+      subscriptionTier = PLAN_MAPPING[priceId] || 'pro';
     }
 
     await storage.updateUser(user.id, {

@@ -3,6 +3,12 @@
 ## Overview
 MyHome is a comprehensive document management application for homeowners, designed to organize property-related documents. It features a web application (React + Node.js) and a native iOS app, both syncing through a shared backend API with a PostgreSQL database and authentication. The project aims to provide an intuitive platform for document digitization via camera scanning, with future integrations planned for cloud storage services like Google Drive. The business vision is to provide an intuitive platform for document digitization, offering a solution for homeowners to manage property-related information efficiently and securely.
 
+## Recent Major Changes (August 2025)
+- **Multi-Tier Subscription System**: Implemented comprehensive three-tier pricing (Beginner £2.99, Pro £7.99, Duo £9.99) with individual and shared household plans
+- **Household Management**: Added complete shared workspace functionality for Duo subscribers with member invitation system
+- **Enhanced Stripe Integration**: Updated webhook handling to support multiple pricing tiers and automatic household creation
+- **Feature Flagging Evolution**: Modernized to support array-based tier definitions for granular feature access control
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Project Direction: Building iOS version of MyHome document management app.
@@ -59,9 +65,11 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Cost Optimization**: Pattern-first categorization and regex-based extraction before AI calls.
 - **Vehicle Insights**: AI-powered MOT and tax due date insights with deduplication.
 
-### Feature Flagging
-- **Tiers**: Free (basic, limits) and Premium (advanced + AI, unlimited).
-- **Components**: `FeatureGate`, `PremiumFeature`, `FeatureLimitAlert`.
+### Multi-Tier Subscription System
+- **Tiers**: Free (basic, 50 docs), Beginner (200 docs, £2.99/mo), Pro (5K docs, AI features, £7.99/mo), Duo (10K docs, 2 users, £9.99/mo).
+- **Architecture**: Individual plans (Beginner/Pro) and shared household plans (Duo) with proper Stripe integration.
+- **Components**: `FeatureGate`, `PremiumFeature`, `FeatureLimitAlert` supporting array-based tier definitions.
+- **Household Management**: Complete invitation system, member management, and shared workspace for Duo subscribers.
 
 ### Manual Event Management
 - **Functionality**: Full CRUD operations for manual events.

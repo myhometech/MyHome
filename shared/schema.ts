@@ -38,7 +38,7 @@ export const users = pgTable("users", {
   authProvider: varchar("auth_provider", { length: 20 }).default("email").notNull(), // 'email', 'google', 'apple', 'twitter'
   providerId: varchar("provider_id"), // External user ID from OAuth provider (nullable)
   role: varchar("role", { length: 20 }).default("user").notNull(), // 'user' or 'admin'
-  subscriptionTier: varchar("subscription_tier", { length: 20 }).default("free").notNull(), // 'free' or 'premium'
+  subscriptionTier: varchar("subscription_tier", { length: 20 }).default("free").notNull(), // 'free', 'beginner', 'pro', or 'duo'
   stripeCustomerId: varchar("stripe_customer_id").unique(),
   subscriptionStatus: varchar("subscription_status", { length: 20 }).default("inactive"), // 'active', 'inactive', 'canceled', 'past_due'
   subscriptionId: varchar("subscription_id"),
@@ -60,19 +60,23 @@ export const users = pgTable("users", {
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  householdId: uuid("household_id").references(() => households.id, { onDelete: "cascade" }), // For Duo users
   name: varchar("name", { length: 50 }).notNull(),
   icon: varchar("icon", { length: 50 }).notNull(),
   color: varchar("color", { length: 20 }).notNull(),
 }, (table) => [
   index("idx_categories_user").on(table.userId),
-  // Unique constraint per user
+  index("idx_categories_household").on(table.householdId),
+  // Unique constraint per user or household
   unique("unique_category_per_user").on(table.userId, table.name),
+  unique("unique_category_per_household").on(table.householdId, table.name),
 ]);
 
 // Documents table
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  householdId: uuid("household_id").references(() => households.id, { onDelete: "cascade" }), // For Duo users
   categoryId: integer("category_id").references(() => categories.id),
   name: varchar("name", { length: 255 }).notNull(),
   fileName: varchar("file_name", { length: 255 }).notNull(),
@@ -285,6 +289,29 @@ export const insertEmailForwardSchema = createInsertSchema(emailForwards).omit({
   processedAt: true,
 });
 
+// Households table for Duo plan shared workspaces
+export const households = pgTable("households", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  stripeSubscriptionId: varchar("stripe_subscription_id").unique(),
+  planType: varchar("plan_type", { length: 20 }).default("duo").notNull(), // Currently only 'duo'
+  seatLimit: integer("seat_limit").default(2).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User household membership for Duo plans
+export const userHouseholdMembership = pgTable("user_household_membership", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  householdId: uuid("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 20 }).default("member").notNull(), // 'owner', 'member', 'guest'
+  joinedAt: timestamp("joined_at").defaultNow(),
+}, (table) => [
+  // Unique constraint: user can only be in one household
+  unique("unique_user_household").on(table.userId),
+  index("idx_household_members").on(table.householdId),
+]);
+
 // Stripe webhooks table for event tracking
 export const stripeWebhooks = pgTable("stripe_webhooks", {
   id: serial("id").primaryKey(),
@@ -297,6 +324,32 @@ export const stripeWebhooks = pgTable("stripe_webhooks", {
 export const insertStripeWebhookSchema = createInsertSchema(stripeWebhooks).omit({
   id: true,
   processedAt: true,
+});
+
+// Type definitions for new tables
+export type Household = typeof households.$inferSelect;
+export type InsertHousehold = typeof households.$inferInsert;
+
+export type UserHouseholdMembership = typeof userHouseholdMembership.$inferSelect;
+export type InsertUserHouseholdMembership = typeof userHouseholdMembership.$inferInsert;
+
+export type StripeWebhook = typeof stripeWebhooks.$inferSelect;
+export type InsertStripeWebhook = typeof insertStripeWebhookSchema._output;
+
+// Updated subscription tier type
+export type SubscriptionTier = "free" | "beginner" | "pro" | "duo";
+
+// Household insert schema
+export const insertHouseholdSchema = createInsertSchema(households).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// User household membership schema
+export const insertUserHouseholdMembershipSchema = createInsertSchema(userHouseholdMembership).omit({
+  id: true,
+  joinedAt: true,
 });
 
 // TICKET 1: LLM Usage Logging Table
@@ -375,6 +428,7 @@ export const documentInsights = pgTable("document_insights", {
   id: uuid("id").primaryKey().defaultRandom(),
   documentId: integer("document_id").references(() => documents.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  householdId: uuid("household_id").references(() => households.id, { onDelete: "cascade" }), // For Duo users
   insightId: varchar("insight_id").notNull(), // Unique identifier for this insight
   message: text("message").notNull(), // TICKET 4: User-facing message
   type: varchar("type", { length: 50 }).notNull(), // 'summary', 'action_items', 'key_dates', 'financial', 'expiring', etc.
@@ -399,6 +453,7 @@ export const documentInsights = pgTable("document_insights", {
   // Existing DOC-501 indexes
   index("idx_document_insights_document").on(table.documentId),
   index("idx_document_insights_user").on(table.userId),
+  index("idx_document_insights_household").on(table.householdId),
   index("idx_document_insights_type").on(table.type),
   index("idx_document_insights_priority").on(table.priority),
   unique("unique_insight_per_document").on(table.documentId, table.insightId),

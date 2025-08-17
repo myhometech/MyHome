@@ -14,6 +14,8 @@ import {
   documentInsights,
   userAssets,
   manualTrackedEvents,
+  households,
+  userHouseholdMembership,
   type User,
   type InsertUser,
   type Document,
@@ -42,6 +44,10 @@ import {
   type InsertUserAsset,
   type ManualTrackedEvent,
   type InsertManualTrackedEvent,
+  type Household,
+  type InsertHousehold,
+  type UserHouseholdMembership,
+  type InsertUserHouseholdMembership,
   vehicles,
   type Vehicle,
   type InsertVehicle,
@@ -272,6 +278,19 @@ export interface IStorage {
     trendPercentage: number;
     successRate: number;
   }>;
+
+  // Household operations for Duo plans
+  createHousehold(household: InsertHousehold): Promise<Household>;
+  getHousehold(id: string): Promise<Household | undefined>;
+  getHouseholdByStripeSubscriptionId(subscriptionId: string): Promise<Household | undefined>;
+  updateHousehold(id: string, updates: Partial<InsertHousehold>): Promise<Household | undefined>;
+
+  // Household membership operations
+  createHouseholdMembership(membership: InsertUserHouseholdMembership): Promise<UserHouseholdMembership>;
+  getHouseholdMembership(userId: string): Promise<UserHouseholdMembership | undefined>;
+  getHouseholdMembers(householdId: string): Promise<UserHouseholdMembership[]>;
+  removeHouseholdMembership(userId: string): Promise<void>;
+  getHouseholdMemberCount(householdId: string): Promise<number>;
 }
 
 
@@ -2383,6 +2402,78 @@ export class DatabaseStorage implements IStorage {
         .delete(vehicles)
         .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)));
     });
+  }
+
+  // Household operations for Duo plans
+  async createHousehold(household: InsertHousehold): Promise<Household> {
+    return safeTransaction(async (tx) => {
+      const result = await tx.insert(households).values(household).returning();
+      return result[0];
+    });
+  }
+
+  async getHousehold(id: string): Promise<Household | undefined> {
+    const result = await safeQuery(() => 
+      this.db.select().from(households).where(eq(households.id, id))
+    );
+    return Array.isArray(result) && result.length > 0 ? result[0] : undefined;
+  }
+
+  async getHouseholdByStripeSubscriptionId(subscriptionId: string): Promise<Household | undefined> {
+    const result = await safeQuery(() => 
+      this.db.select().from(households).where(eq(households.stripeSubscriptionId, subscriptionId))
+    );
+    return Array.isArray(result) && result.length > 0 ? result[0] : undefined;
+  }
+
+  async updateHousehold(id: string, updates: Partial<InsertHousehold>): Promise<Household | undefined> {
+    return safeTransaction(async (tx) => {
+      const result = await tx.update(households)
+        .set({
+          ...updates,
+          updatedAt: new Date()
+        })
+        .where(eq(households.id, id))
+        .returning();
+      return result.length > 0 ? result[0] : undefined;
+    });
+  }
+
+  // Household membership operations
+  async createHouseholdMembership(membership: InsertUserHouseholdMembership): Promise<UserHouseholdMembership> {
+    return safeTransaction(async (tx) => {
+      const result = await tx.insert(userHouseholdMembership).values(membership).returning();
+      return result[0];
+    });
+  }
+
+  async getHouseholdMembership(userId: string): Promise<UserHouseholdMembership | undefined> {
+    const result = await safeQuery(() => 
+      this.db.select().from(userHouseholdMembership).where(eq(userHouseholdMembership.userId, userId))
+    );
+    return Array.isArray(result) && result.length > 0 ? result[0] : undefined;
+  }
+
+  async getHouseholdMembers(householdId: string): Promise<UserHouseholdMembership[]> {
+    const result = await safeQuery(() => 
+      this.db.select().from(userHouseholdMembership).where(eq(userHouseholdMembership.householdId, householdId))
+    );
+    return Array.isArray(result) ? result : [];
+  }
+
+  async removeHouseholdMembership(userId: string): Promise<void> {
+    await safeTransaction(async (tx) => {
+      await tx.delete(userHouseholdMembership).where(eq(userHouseholdMembership.userId, userId));
+    });
+  }
+
+  async getHouseholdMemberCount(householdId: string): Promise<number> {
+    const result = await safeQuery(() => 
+      this.db.select({ count: sql<number>`count(*)` })
+        .from(userHouseholdMembership)
+        .where(eq(userHouseholdMembership.householdId, householdId))
+    );
+    return this.extractResult(result, 'count');
   }
 }
 

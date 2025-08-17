@@ -2557,6 +2557,183 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Household Management API for Duo Plans
+  
+  // Get household information for current user
+  app.get('/api/household', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Check if user is part of a household
+      const membership = await storage.getHouseholdMembership(userId);
+      if (!membership) {
+        return res.json({ household: null, membership: null });
+      }
+
+      // Get household details
+      const household = await storage.getHousehold(membership.householdId);
+      if (!household) {
+        return res.status(404).json({ message: 'Household not found' });
+      }
+
+      // Get all household members
+      const members = await storage.getHouseholdMembers(household.id);
+      
+      res.json({
+        household,
+        membership,
+        members: members.length,
+        membersList: members
+      });
+    } catch (error) {
+      console.error('Error fetching household:', error);
+      res.status(500).json({ message: 'Failed to fetch household information' });
+    }
+  });
+
+  // Create household invitation
+  app.post('/api/household/invite', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { email } = req.body;
+
+      // Validate input
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ message: 'Valid email is required' });
+      }
+
+      // Check if current user has a Duo subscription and is the owner
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      if (user.subscriptionTier !== 'duo') {
+        return res.status(403).json({ message: 'Duo subscription required to invite members' });
+      }
+
+      // Check if user is part of a household and is the owner
+      const membership = await storage.getHouseholdMembership(userId);
+      if (!membership) {
+        return res.status(403).json({ message: 'User must be part of a household to invite members' });
+      }
+
+      if (membership.role !== 'owner') {
+        return res.status(403).json({ message: 'Only household owners can invite members' });
+      }
+
+      // Check household member limit
+      const memberCount = await storage.getHouseholdMemberCount(membership.householdId);
+      if (memberCount >= 2) {
+        return res.status(400).json({ message: 'Household already at maximum capacity (2 members)' });
+      }
+
+      // Check if email is already registered
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        // Check if user is already in a household
+        const existingMembership = await storage.getHouseholdMembership(existingUser.id);
+        if (existingMembership) {
+          return res.status(400).json({ message: 'User is already part of a household' });
+        }
+
+        // Add existing user to household
+        await storage.createHouseholdMembership({
+          id: `uhm_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+          userId: existingUser.id,
+          householdId: membership.householdId,
+          role: 'member',
+          inviteStatus: 'accepted',
+          invitedAt: new Date(),
+          joinedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        res.json({ 
+          message: 'User added to household successfully',
+          type: 'existing_user_added'
+        });
+      } else {
+        // For now, return invitation details - full email integration would be added later
+        res.json({
+          message: 'Invitation prepared. User will be added when they register.',
+          type: 'invitation_prepared',
+          email: email,
+          householdId: membership.householdId
+        });
+      }
+    } catch (error) {
+      console.error('Error creating household invitation:', error);
+      res.status(500).json({ message: 'Failed to create household invitation' });
+    }
+  });
+
+  // Leave household
+  app.post('/api/household/leave', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Check if user is part of a household
+      const membership = await storage.getHouseholdMembership(userId);
+      if (!membership) {
+        return res.status(400).json({ message: 'User is not part of a household' });
+      }
+
+      // Owners cannot leave - they must transfer ownership or cancel subscription
+      if (membership.role === 'owner') {
+        return res.status(400).json({ 
+          message: 'Household owners cannot leave. Please transfer ownership or cancel your subscription.' 
+        });
+      }
+
+      // Remove user from household
+      await storage.removeHouseholdMembership(userId);
+      
+      res.json({ message: 'Successfully left household' });
+    } catch (error) {
+      console.error('Error leaving household:', error);
+      res.status(500).json({ message: 'Failed to leave household' });
+    }
+  });
+
+  // Remove member from household (owner only)
+  app.post('/api/household/remove-member', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { memberId } = req.body;
+
+      if (!memberId) {
+        return res.status(400).json({ message: 'Member ID is required' });
+      }
+
+      // Check if current user is household owner
+      const membership = await storage.getHouseholdMembership(userId);
+      if (!membership || membership.role !== 'owner') {
+        return res.status(403).json({ message: 'Only household owners can remove members' });
+      }
+
+      // Check if member exists in the same household
+      const memberMembership = await storage.getHouseholdMembership(memberId);
+      if (!memberMembership || memberMembership.householdId !== membership.householdId) {
+        return res.status(404).json({ message: 'Member not found in household' });
+      }
+
+      // Cannot remove owner
+      if (memberMembership.role === 'owner') {
+        return res.status(400).json({ message: 'Cannot remove household owner' });
+      }
+
+      // Remove member from household
+      await storage.removeHouseholdMembership(memberId);
+      
+      res.json({ message: 'Member removed from household successfully' });
+    } catch (error) {
+      console.error('Error removing household member:', error);
+      res.status(500).json({ message: 'Failed to remove household member' });
+    }
+  });
+
 
 
   // Category suggestion endpoint

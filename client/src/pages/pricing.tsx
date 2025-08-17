@@ -1,259 +1,239 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Check, X, Home, Crown, Lock, Zap, Shield, Users, Bot } from "lucide-react";
-import { Link } from "wouter";
-import { useFeatures } from "@/hooks/useFeatures";
-import { getFeaturesForTier, getFeaturesByCategory, FEATURES } from "@shared/features";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Check, Users, User, Crown, Sparkles } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
-const pricingTiers = [
+interface PricingPlan {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  period: string;
+  icon: any;
+  popular?: boolean;
+  features: string[];
+  limits: {
+    documents: string;
+    storage: string;
+    users: string;
+  };
+}
+
+const plans: PricingPlan[] = [
   {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    description: "Perfect for getting started with document organization",
-    icon: Home,
-    popular: false,
-    tier: 'free' as const,
+    id: 'beginner',
+    name: 'Beginner',
+    description: 'Perfect for getting started with document management',
+    price: '£2.99',
+    period: '/month',
+    icon: User,
+    features: [
+      'Document upload & storage',
+      'Basic organization',
+      'OCR text extraction',
+      'Basic search',
+      'Mobile camera scanner',
+      'Document preview',
+      'Email support'
+    ],
     limits: {
-      documents: "50 documents",
-      storage: "100MB storage", 
-      categories: "8 predefined categories",
-      features: "Basic features only"
+      documents: '200 documents',
+      storage: '500MB storage',
+      users: '1 user'
     }
   },
   {
-    name: "Premium",
-    price: "£4.99", 
-    period: "per month",
-    description: "Advanced features for power users and families",
+    id: 'pro',
+    name: 'Pro',
+    description: 'Advanced features for serious document management',
+    price: '£7.99',
+    period: '/month',
     icon: Crown,
     popular: true,
-    tier: 'premium' as const,
+    features: [
+      'Everything in Beginner',
+      'AI document summarization',
+      'AI tag suggestions',
+      'Auto-categorization',
+      'Smart reminders',
+      'Email import',
+      'Advanced scanner',
+      'Bulk operations',
+      'Priority support'
+    ],
     limits: {
-      documents: "Unlimited documents",
-      storage: "10GB storage",
-      categories: "Custom categories + tags",
-      features: "All premium features"
+      documents: '5,000 documents',
+      storage: '5GB storage',
+      users: '1 user'
+    }
+  },
+  {
+    id: 'duo',
+    name: 'Duo',
+    description: 'Shared workspace for families and couples',
+    price: '£9.99',
+    period: '/month',
+    icon: Users,
+    features: [
+      'Everything in Pro',
+      'Shared household workspace',
+      'Invite family members',
+      'Document sharing',
+      'Collaborative organization',
+      'Shared AI insights',
+      'Family document management',
+      'Premium support'
+    ],
+    limits: {
+      documents: '10,000 documents',
+      storage: '10GB storage',
+      users: '2 users'
     }
   }
 ];
 
-const categoryIcons = {
-  core: Shield,
-  advanced: Zap,
-  ai: Bot,
-  automation: Zap,
-  collaboration: Users
-};
+export default function PricingPage() {
+  const [isLoading, setIsLoading] = useState<string | null>(null);
+  const { toast } = useToast();
 
-export default function Pricing() {
-  const { userTier, isPremium } = useFeatures();
-  
-  const coreFeatures = getFeaturesByCategory('free', 'core');
-  const advancedFeatures = getFeaturesByCategory('premium', 'advanced');
-  const aiFeatures = getFeaturesByCategory('premium', 'ai');
-  const automationFeatures = getFeaturesByCategory('premium', 'automation');
-  const collaborationFeatures = getFeaturesByCategory('premium', 'collaboration');
+  const handleSubscribe = async (planId: string) => {
+    setIsLoading(planId);
+    
+    try {
+      const response = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: `price_${planId}`,
+          successUrl: `${window.location.origin}/dashboard?upgrade=success`,
+          cancelUrl: `${window.location.origin}/pricing`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const { url } = await response.json();
+      window.location.href = url;
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to start checkout process. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(null);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <Home className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold text-slate-900">MyHome</h1>
-              {isPremium && (
-                <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white">
-                  <Crown className="h-3 w-3 mr-1" />
-                  Premium
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link href="/">
-                <Button variant="ghost" className="text-slate-700 hover:text-primary">
-                  Home
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button className="bg-primary hover:bg-blue-700">
-                  Sign In
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-6xl font-bold text-slate-900 mb-6">
-            Choose Your
-            <span className="text-primary block">Perfect Plan</span>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            Choose Your Perfect Plan
           </h1>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-            Start organizing your documents today. Upgrade anytime to unlock powerful features and advanced AI capabilities.
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            From getting started to managing family documents, we have the right plan for you
           </p>
-        </div>
-
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-20">
-          {pricingTiers.map((tier, index) => (
-            <Card 
-              key={tier.name} 
-              className={`relative bg-white/70 backdrop-blur-sm border-gray-200 hover:shadow-lg transition-shadow ${tier.popular ? 'ring-2 ring-primary' : ''}`}
-            >
-              {tier.popular && (
-                <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-primary text-white">
-                  Most Popular
-                </Badge>
-              )}
-              
-              <CardHeader className="text-center pb-8">
-                <CardTitle className="text-2xl font-bold">{tier.name}</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold text-slate-900">
-                    {tier.price}
-                  </span>
-                  <span className="text-slate-600 ml-2">
-                    {tier.period}
-                  </span>
-                </div>
-                <CardDescription className="mt-4 text-base">
-                  {tier.description}
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent>
-                {/* Limits */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h4 className="font-semibold text-sm text-gray-700 mb-3">Plan Limits</h4>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex justify-between">
-                      <span>Documents:</span>
-                      <span className="font-medium">{tier.limits.documents}</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Storage:</span>
-                      <span className="font-medium">{tier.limits.storage}</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Categories:</span>
-                      <span className="font-medium">{tier.limits.categories}</span>
-                    </li>
-                  </ul>
-                </div>
-
-                {tier.name === "Free" ? (
-                  <Link href="/register">
-                    <Button className="w-full" variant="outline">
-                      Get Started Free
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button className="w-full" disabled>
-                    Coming Soon
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* FAQ Section */}
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-center text-slate-900 mb-8">
-            Frequently Asked Questions
-          </h2>
-          
-          <div className="space-y-6">
-            <Card className="bg-white/70 backdrop-blur-sm border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-lg text-slate-900">Can I upgrade or downgrade at any time?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600">
-                  Yes! You can upgrade to Pro at any time to unlock advanced features. If you downgrade from Pro to Free, 
-                  your existing documents will be preserved, but some advanced features will be limited.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/70 backdrop-blur-sm border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-lg text-slate-900">What happens to my documents if I cancel?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600">
-                  Your documents are always safe. If you cancel your Pro subscription, your account will revert to the Free plan. 
-                  You can still access all your documents, though some advanced features will be disabled.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/70 backdrop-blur-sm border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-lg text-slate-900">Is my data secure?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600">
-                  Absolutely. We use industry-standard encryption to protect your documents both in transit and at rest. 
-                  Your documents are stored securely and are only accessible by you.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/70 backdrop-blur-sm border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-lg text-slate-900">Do you offer refunds?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600">
-                  We offer a 30-day money-back guarantee for Pro subscriptions. If you're not satisfied, 
-                  contact our support team for a full refund within 30 days of your purchase.
-                </p>
-              </CardContent>
-            </Card>
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <Sparkles className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-medium text-blue-600">
+              30-day money-back guarantee on all plans
+            </span>
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="mt-20 text-center">
-          <Card className="bg-white/70 backdrop-blur-sm border-gray-200 max-w-2xl mx-auto">
-            <CardContent className="p-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">Ready to Get Organized?</h2>
-              <p className="text-slate-600 mb-6">
-                Join thousands of homeowners who trust MyHome to keep their documents organized and secure.
-              </p>
-              <div className="flex gap-4 justify-center">
-                <Link href="/register">
-                  <Button 
-                    size="lg" 
-                    className="bg-primary hover:bg-blue-700"
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {plans.map((plan) => {
+            const IconComponent = plan.icon;
+            return (
+              <Card 
+                key={plan.id} 
+                className={`relative h-full flex flex-col ${
+                  plan.popular 
+                    ? 'border-blue-500 shadow-lg scale-105' 
+                    : 'border-gray-200'
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1">
+                      Most Popular
+                    </Badge>
+                  </div>
+                )}
+                
+                <CardHeader className="text-center pb-8">
+                  <div className="w-12 h-12 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                    <IconComponent className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                  <CardDescription className="text-gray-600 mt-2">
+                    {plan.description}
+                  </CardDescription>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
+                    <span className="text-gray-600 ml-1">{plan.period}</span>
+                  </div>
+                  
+                  <div className="mt-4 space-y-1 text-sm text-gray-500">
+                    <div>{plan.limits.documents}</div>
+                    <div>{plan.limits.storage}</div>
+                    <div>{plan.limits.users}</div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="flex-1">
+                  <ul className="space-y-3">
+                    {plan.features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+
+                <CardFooter>
+                  <Button
+                    className={`w-full ${
+                      plan.popular
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-gray-900 hover:bg-gray-800'
+                    }`}
+                    onClick={() => handleSubscribe(plan.id)}
+                    disabled={isLoading === plan.id}
                   >
-                    Start Free
+                    {isLoading === plan.id ? 'Loading...' : 'Get Started'}
                   </Button>
-                </Link>
-                <Link href="/login">
-                  <Button 
-                    variant="outline"
-                    size="lg"
-                  >
-                    Sign In
-                  </Button>
-                </Link>
-              </div>
-              <div className="mt-4">
-                <p className="text-sm text-slate-500">
-                  Free forever • No credit card required • Upgrade anytime
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+                </CardFooter>
+              </Card>
+            );
+          })}
+        </div>
+
+        <div className="mt-16 text-center">
+          <h3 className="text-2xl font-semibold mb-6">Frequently Asked Questions</h3>
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h4 className="font-semibold mb-2">Can I change plans anytime?</h4>
+              <p className="text-gray-600">Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h4 className="font-semibold mb-2">How does the Duo plan work?</h4>
+              <p className="text-gray-600">The Duo plan creates a shared household workspace where you can invite one family member to collaborate on document management with shared storage and features.</p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h4 className="font-semibold mb-2">Is there a free trial?</h4>
+              <p className="text-gray-600">We offer a 30-day money-back guarantee on all paid plans, so you can try any plan risk-free.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

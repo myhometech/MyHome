@@ -1,10 +1,10 @@
-// Feature flagging system for free vs premium tiers
-export type SubscriptionTier = 'free' | 'premium';
+// Feature flagging system for multi-tier plans
+export type SubscriptionTier = 'free' | 'beginner' | 'pro' | 'duo';
 
 export interface FeatureFlag {
   name: string;
   description: string;
-  tier: SubscriptionTier;
+  tier: SubscriptionTier | SubscriptionTier[];
   category: 'core' | 'advanced' | 'ai' | 'automation' | 'collaboration';
 }
 
@@ -46,7 +46,7 @@ export const FEATURES: Record<string, FeatureFlag> = {
   OCR_TEXT_EXTRACTION: {
     name: 'OCR Text Extraction',
     description: 'Extract and search text from images and PDFs',
-    tier: 'premium',
+    tier: ['beginner', 'pro', 'duo'],
     category: 'advanced'
   },
   SMART_SEARCH: {
@@ -84,7 +84,7 @@ export const FEATURES: Record<string, FeatureFlag> = {
   AI_SUMMARIZATION: {
     name: 'AI Document Summarization',
     description: 'Get AI-powered summaries of your documents',
-    tier: 'premium',
+    tier: ['pro', 'duo'],
     category: 'ai'
   },
   AI_TAG_SUGGESTIONS: {
@@ -124,7 +124,19 @@ export const FEATURES: Record<string, FeatureFlag> = {
   DOCUMENT_SHARING: {
     name: 'Document Sharing',
     description: 'Share documents with family members',
-    tier: 'premium',
+    tier: 'duo',
+    category: 'collaboration'
+  },
+  HOUSEHOLD_WORKSPACE: {
+    name: 'Shared Household Workspace',
+    description: 'Shared document workspace for family members',
+    tier: 'duo',
+    category: 'collaboration'
+  },
+  INVITE_USERS: {
+    name: 'Invite Family Members',
+    description: 'Invite up to 2 family members to your workspace',
+    tier: 'duo',
     category: 'collaboration'
   }
 };
@@ -139,34 +151,66 @@ export const FREE_TIER_LIMITS = {
   AI_FEATURES: false
 };
 
-// Premium tier limits
-export const PREMIUM_TIER_LIMITS = {
-  MAX_DOCUMENTS: 10000,
-  MAX_STORAGE_MB: 10000, // 10GB
-  MAX_CATEGORIES: 50, // Custom categories allowed
-  MAX_TAGS_PER_DOCUMENT: 20,
+// Beginner tier limits
+export const BEGINNER_TIER_LIMITS = {
+  MAX_DOCUMENTS: 200,
+  MAX_STORAGE_MB: 500, // 500MB
+  MAX_CATEGORIES: 15, // Custom categories allowed
+  MAX_TAGS_PER_DOCUMENT: 5,
+  OCR_PROCESSING: true,
+  AI_FEATURES: false
+};
+
+// Pro tier limits
+export const PRO_TIER_LIMITS = {
+  MAX_DOCUMENTS: 5000,
+  MAX_STORAGE_MB: 5000, // 5GB
+  MAX_CATEGORIES: 30, // Custom categories allowed
+  MAX_TAGS_PER_DOCUMENT: 15,
   OCR_PROCESSING: true,
   AI_FEATURES: true
 };
+
+// Duo tier limits (shared household workspace)
+export const DUO_TIER_LIMITS = {
+  MAX_DOCUMENTS: 10000, // Shared across household
+  MAX_STORAGE_MB: 10000, // 10GB shared
+  MAX_CATEGORIES: 50, // Custom categories allowed
+  MAX_TAGS_PER_DOCUMENT: 20,
+  OCR_PROCESSING: true,
+  AI_FEATURES: true,
+  SEAT_LIMIT: 2 // Maximum users in household
+};
+
+// Legacy premium tier limits (kept for backward compatibility)
+export const PREMIUM_TIER_LIMITS = PRO_TIER_LIMITS;
 
 // Helper functions
 export function hasFeature(userTier: SubscriptionTier, featureKey: keyof typeof FEATURES): boolean {
   // TEMPORARY: All features available for now - change when ready to activate feature gating
   return true;
   
-  // Original feature gating logic (commented out for later activation):
+  // Updated feature gating logic for multi-tier plans (commented out for later activation):
   // const feature = FEATURES[featureKey];
   // if (!feature) return false;
-  // if (feature.tier === 'free') return true;
-  // return userTier === 'premium';
+  // if (Array.isArray(feature.tier)) {
+  //   return feature.tier.includes(userTier);
+  // }
+  // return feature.tier === userTier || feature.tier === 'free';
 }
 
 export function getTierLimits(tier: SubscriptionTier) {
   // TEMPORARY: Return premium limits for everyone for now - change when ready to activate limits
   return PREMIUM_TIER_LIMITS;
   
-  // Original tier limits (commented out for later activation):
-  // return tier === 'premium' ? PREMIUM_TIER_LIMITS : FREE_TIER_LIMITS;
+  // Updated tier limits for multi-tier plans (commented out for later activation):
+  // switch (tier) {
+  //   case 'free': return FREE_TIER_LIMITS;
+  //   case 'beginner': return BEGINNER_TIER_LIMITS;
+  //   case 'pro': return PRO_TIER_LIMITS;
+  //   case 'duo': return DUO_TIER_LIMITS;
+  //   default: return FREE_TIER_LIMITS;
+  // }
 }
 
 export function getFeaturesForTier(tier: SubscriptionTier): FeatureFlag[] {

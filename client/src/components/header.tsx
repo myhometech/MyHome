@@ -38,19 +38,47 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
 
   const copyEmailToClipboard = async () => {
     const emailAddress = getEmailAddress();
+    console.log('Attempting to copy email:', emailAddress);
     
     try {
+      // Check if clipboard API is available
+      if (!navigator.clipboard) {
+        throw new Error('Clipboard API not available');
+      }
+      
       await navigator.clipboard.writeText(emailAddress);
+      console.log('Email successfully copied to clipboard');
       toast({
-        title: "Email copied!",
-        description: `Forward documents to: ${emailAddress}`,
+        title: "Copied to clipboard",
+        description: "Email address copied successfully",
       });
     } catch (error) {
-      toast({
-        title: "Copy failed",
-        description: `Please copy manually: ${emailAddress}`,
-        variant: "destructive",
-      });
+      console.error('Failed to copy email:', error);
+      
+      // Fallback method for older browsers
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = emailAddress;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+        
+        toast({
+          title: "Copied to clipboard",
+          description: "Email address copied successfully",
+        });
+      } catch (fallbackError) {
+        toast({
+          title: "Copy failed",
+          description: `Please copy manually: ${emailAddress}`,
+          variant: "destructive",
+        });
+      }
     }
   };
 

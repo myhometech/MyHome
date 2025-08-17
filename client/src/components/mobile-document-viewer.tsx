@@ -126,7 +126,7 @@ function calculateAutoFitZoom(
 ): number {
   const availableWidth = containerWidth - padding;
   const availableHeight = containerHeight - padding;
-  
+
   if (mode === 'width') {
     return Math.min(availableWidth / documentWidth, 3); // Cap at 3x zoom
   } else {
@@ -150,13 +150,13 @@ export function MobileDocumentViewer({
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
   const [showControls, setShowControls] = useState(true);
-  
+
   // New state for auto-fit functionality
   const [autoFitZoom, setAutoFitZoom] = useState<number | null>(null);
   const [fitMode, setFitMode] = useState<'width' | 'height' | 'custom'>('width');
   const [hasUserZoomed, setHasUserZoomed] = useState(false);
   const [documentDimensions, setDocumentDimensions] = useState<{width: number, height: number} | null>(null);
-  
+
   const viewerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -178,7 +178,7 @@ export function MobileDocumentViewer({
   // Auto-fit zoom calculation and application
   const applyAutoFitZoom = useCallback(() => {
     if (!isMobile || hasUserZoomed || !documentDimensions || !viewerRef.current) return;
-    
+
     const containerRect = viewerRef.current.getBoundingClientRect();
     const autoZoom = calculateAutoFitZoom(
       documentDimensions.width,
@@ -188,7 +188,7 @@ export function MobileDocumentViewer({
       fitMode === 'custom' ? 'width' : fitMode,
       64 // padding for controls
     );
-    
+
     if (autoZoom !== zoom) {
       setAutoFitZoom(autoZoom);
       setZoom(autoZoom);
@@ -267,7 +267,7 @@ export function MobileDocumentViewer({
   // Add a safety timeout to prevent hanging  
   useEffect(() => {
     console.log('🔄 MobileDocumentViewer useEffect: Starting document load for:', document.id);
-    
+
     const safetyTimeout = setTimeout(() => {
       console.warn('⚠️ MobileDocumentViewer safety timeout - forcing loading to complete');
       setIsLoading(false);
@@ -275,7 +275,7 @@ export function MobileDocumentViewer({
         setError('Document loading took too long. Please try again.');
       }
     }, 5000);
-    
+
     // For images, try to load the preview
     if (document.mimeType.startsWith('image/')) {
       console.log('📸 Loading image in mobile viewer...');
@@ -298,7 +298,7 @@ export function MobileDocumentViewer({
       setIsLoading(false);
       clearTimeout(safetyTimeout);
     }
-    
+
     return () => {
       clearTimeout(safetyTimeout);
     };
@@ -709,7 +709,7 @@ export function MobileDocumentViewer({
                 >
                   <Monitor className="w-4 h-4" />
                 </Button>
-                
+
                 <Button
                   variant={fitMode === 'height' ? 'default' : 'ghost'}
                   size="sm"
@@ -733,11 +733,11 @@ export function MobileDocumentViewer({
                 >
                   <ZoomOut className="w-4 h-4" />
                 </Button>
-                
+
                 <div className="text-white text-xs px-2 py-1 bg-white/20 rounded min-w-[3rem] text-center">
                   {Math.round(zoom * 100)}%
                 </div>
-                
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -791,7 +791,7 @@ export function MobileDocumentViewer({
           overflow: hidden;
           -webkit-overflow-scrolling: touch;
         }
-        
+
         .mobile-viewer * {
           /* Prevent text selection on mobile */
           -webkit-user-select: none;
@@ -805,11 +805,11 @@ export function MobileDocumentViewer({
           .mobile-viewer ::-webkit-scrollbar {
             width: 2px;
           }
-          
+
           .mobile-viewer ::-webkit-scrollbar-track {
             background: transparent;
           }
-          
+
           .mobile-viewer ::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.3);
             border-radius: 1px;

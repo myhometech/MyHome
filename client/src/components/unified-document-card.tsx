@@ -654,6 +654,13 @@ export default function UnifiedDocumentCard({
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();
+                      handleDownload();
+                    }}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
                       handleStartRename();
                     }}>
                       <Type className="h-4 w-4 mr-2" />
@@ -665,13 +672,6 @@ export default function UnifiedDocumentCard({
                     }}>
                       <Edit2 className="h-4 w-4 mr-2" />
                       Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload();
-                    }}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();

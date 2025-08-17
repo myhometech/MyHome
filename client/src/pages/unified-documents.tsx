@@ -6,6 +6,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import Header from "@/components/header";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
+import SearchAsYouType from "@/components/search-as-you-type";
 
 import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
 import { useFeatures } from "@/hooks/useFeatures";
@@ -69,7 +70,21 @@ export default function UnifiedDocuments() {
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  
+  // Search-as-you-type handlers
+  const handleSearchChange = (query: string, results: any[]) => {
+    setSearchQuery(query);
+    setSearchResults(results);
+    setIsSearchActive(query.length > 0);
+  };
+  
+  const handleDocumentSelect = (documentId: number) => {
+    console.log('Document selected:', documentId);
+    // Could navigate to document detail or open modal
+  };
   const [sortBy, setSortBy] = useState<string>("priority"); // priority, date, name, category
   
   // TICKET 7: Email metadata filters
@@ -459,6 +474,17 @@ export default function UnifiedDocuments() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+      
+      {/* Search-as-you-type integration */}
+      <div className="container mx-auto px-4 py-4">
+        <SearchAsYouType 
+          onDocumentSelect={handleDocumentSelect}
+          onSearchChange={handleSearchChange}
+          placeholder="Search documents by title, content, tags, or email..."
+          maxResults={8}
+          className="mb-6"
+        />
+      </div>
       
       <main className="container mx-auto px-4 py-8 space-y-6">
         {/* Header Section */}

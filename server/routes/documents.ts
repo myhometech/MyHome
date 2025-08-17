@@ -388,4 +388,39 @@ router.post('/:id/analyze-for-ocr', async (req: AuthenticatedRequest, res) => {
   }
 });
 
+// Search-as-you-type endpoint with ranking and relevance
+router.get('/search', async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const { q, limit = 10 } = req.query;
+    
+    if (!q || typeof q !== 'string') {
+      return res.json({ results: [], message: 'Search query required' });
+    }
+
+    if (q.length < 2) {
+      return res.json({ results: [], message: 'Search query must be at least 2 characters' });
+    }
+
+    const results = await storage.searchDocuments(req.user.id, q, parseInt(limit as string));
+    
+    res.json({
+      results,
+      query: q,
+      count: results.length,
+      message: results.length === 0 ? 'No documents found' : `Found ${results.length} document(s)`
+    });
+
+  } catch (error) {
+    console.error('Document search error:', error);
+    res.status(500).json({
+      message: 'Failed to search documents',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;

@@ -2,18 +2,57 @@ import Stripe from 'stripe';
 import { storage } from './storage';
 import type { InsertStripeWebhook, SubscriptionTier } from '@shared/schema';
 
-// Stripe plan mapping for multi-tier plans
+// Flexible price ID mapping - configure these environment variables in Replit Secrets
 const PLAN_MAPPING: Record<string, SubscriptionTier> = {
-  'price_beginner': 'beginner',
-  'price_pro': 'pro',
-  'price_duo': 'duo'
+  [process.env.STRIPE_BEGINNER_PRICE_ID || 'price_beginner']: 'beginner',
+  [process.env.STRIPE_PRO_PRICE_ID || 'price_pro']: 'pro', 
+  [process.env.STRIPE_DUO_PRICE_ID || 'price_duo']: 'duo'
 };
 
-// Plan pricing (in pence for GBP)
-const PLAN_PRICING = {
-  beginner: { amount: 299, name: 'MyHome Beginner', description: 'Essential document management' },
-  pro: { amount: 799, name: 'MyHome Pro', description: 'Advanced document management with AI features' },
-  duo: { amount: 999, name: 'MyHome Duo', description: 'Shared workspace for up to 2 family members' }
+// Reverse mapping for tier to price ID lookup
+const TIER_TO_PRICE_ID: Record<SubscriptionTier, string> = Object.fromEntries(
+  Object.entries(PLAN_MAPPING).map(([priceId, tier]) => [tier, priceId])
+) as Record<SubscriptionTier, string>;
+
+// Default plan configuration (used if Stripe prices are not set up)
+const DEFAULT_PLAN_CONFIG = {
+  beginner: { 
+    amount: 299, // £2.99 in pence
+    currency: 'gbp',
+    name: 'MyHome Beginner', 
+    description: 'Essential document management for getting started',
+    features: {
+      documents: 200,
+      storage: '500MB',
+      users: 1,
+      ai_features: false
+    }
+  },
+  pro: { 
+    amount: 799, // £7.99 in pence
+    currency: 'gbp',
+    name: 'MyHome Pro', 
+    description: 'Advanced document management with AI features',
+    features: {
+      documents: 5000,
+      storage: '5GB',
+      users: 1,
+      ai_features: true
+    }
+  },
+  duo: { 
+    amount: 999, // £9.99 in pence
+    currency: 'gbp',
+    name: 'MyHome Duo', 
+    description: 'Shared workspace for up to 2 family members',
+    features: {
+      documents: 10000,
+      storage: '10GB', 
+      users: 2,
+      ai_features: true,
+      household: true
+    }
+  }
 };
 
 // Initialize Stripe with API key
@@ -25,7 +64,7 @@ if (!stripeSecretKey) {
 }
 
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2024-06-20',
+  apiVersion: '2023-10-16',
 });
 
 export class StripeService {
@@ -33,6 +72,76 @@ export class StripeService {
 
   constructor() {
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+  }
+
+  /**
+   * Get available pricing plans from Stripe or defaults
+   */
+  async getAvailablePlans(): Promise<Array<{
+    id: string;
+    tier: SubscriptionTier;
+    name: string;
+    description: string;
+    amount: number;
+    currency: string;
+    interval: string;
+    features: any;
+    popular?: boolean;
+  }>> {
+    const plans = [];
+
+    // Try to fetch actual Stripe prices first
+    try {
+      const prices = await stripe.prices.list({
+        active: true,
+        type: 'recurring',
+        expand: ['data.product'],
+      });
+
+      // Match Stripe prices to our tiers
+      for (const price of prices.data) {
+        const tier = PLAN_MAPPING[price.id] as keyof typeof DEFAULT_PLAN_CONFIG;
+        if (tier && price.product && typeof price.product === 'object' && !price.product.deleted) {
+          const config = DEFAULT_PLAN_CONFIG[tier];
+          if (config) {
+            plans.push({
+              id: price.id,
+              tier,
+              name: price.product.name || config.name,
+              description: price.product.description || config.description,
+              amount: price.unit_amount || 0,
+              currency: price.currency,
+              interval: price.recurring?.interval || 'month',
+              features: config.features,
+              popular: tier === 'pro' // Mark Pro as popular
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Could not fetch Stripe prices, using defaults:', error);
+    }
+
+    // Fallback to defaults if no Stripe prices found
+    if (plans.length === 0) {
+      const tiers: (keyof typeof DEFAULT_PLAN_CONFIG)[] = ['beginner', 'pro', 'duo'];
+      for (const tier of tiers) {
+        const config = DEFAULT_PLAN_CONFIG[tier];
+        plans.push({
+          id: TIER_TO_PRICE_ID[tier] || `price_${tier}`,
+          tier,
+          name: config.name,
+          description: config.description,
+          amount: config.amount,
+          currency: config.currency,
+          interval: 'month',
+          features: config.features,
+          popular: tier === 'pro'
+        });
+      }
+    }
+
+    return plans.sort((a, b) => a.amount - b.amount);
   }
 
   /**

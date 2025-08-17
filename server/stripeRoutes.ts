@@ -132,48 +132,9 @@ export async function processWebhook(req: Request, res: Response) {
  */
 export async function getSubscriptionPlans(req: Request, res: Response) {
   try {
-    const plans = [
-      {
-        id: 'free',
-        name: 'Free',
-        description: 'Basic document management',
-        price: 0,
-        currency: 'GBP',
-        interval: 'month',
-        features: [
-          'Up to 50 documents',
-          '100MB storage',
-          'Basic OCR',
-          'Category organization'
-        ],
-        limits: {
-          documents: 50,
-          storage: 100 * 1024 * 1024 // 100MB in bytes
-        }
-      },
-      {
-        id: 'premium',
-        name: 'Premium',
-        description: 'Advanced features and unlimited storage',
-        price: 4.99,
-        currency: 'GBP',
-        interval: 'month',
-        stripePriceId: 'premium_monthly', // We'll use price_data instead of predefined price ID
-        features: [
-          'Unlimited documents',
-          'Unlimited storage',
-          'Advanced AI analysis',
-          'Email forwarding',
-          'Smart content extraction',
-          'Priority support'
-        ],
-        limits: {
-          documents: -1, // unlimited
-          storage: -1 // unlimited
-        }
-      }
-    ];
-
+    // Get plans from StripeService which handles both Stripe API and defaults
+    const plans = await stripeService.getAvailablePlans();
+    
     res.json({ plans });
 
   } catch (error) {

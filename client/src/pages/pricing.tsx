@@ -1,102 +1,106 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, Users, User, Crown, Sparkles } from 'lucide-react';
+import { Check, Users, User, Crown, Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PricingPlan {
   id: string;
+  tier: string;
   name: string;
   description: string;
-  price: string;
-  period: string;
-  icon: any;
-  popular?: boolean;
-  features: string[];
-  limits: {
-    documents: string;
+  amount: number;
+  currency: string;
+  interval: string;
+  features: {
+    documents: number;
     storage: string;
-    users: string;
+    users: number;
+    ai_features: boolean;
+    household?: boolean;
   };
+  popular?: boolean;
 }
 
-const plans: PricingPlan[] = [
-  {
-    id: 'beginner',
-    name: 'Beginner',
-    description: 'Perfect for getting started with document management',
-    price: '£2.99',
-    period: '/month',
-    icon: User,
-    features: [
-      'Document upload & storage',
+const tierIcons = {
+  beginner: User,
+  pro: Crown,
+  duo: Users
+};
+
+const getFeatureList = (tier: string, features: any) => {
+  const baseFeatures = [
+    'Document upload & storage',
+    'OCR text extraction',
+    'Basic search',
+    'Mobile camera scanner',
+    'Document preview'
+  ];
+
+  const tierFeatures = {
+    beginner: [
+      ...baseFeatures,
       'Basic organization',
-      'OCR text extraction',
-      'Basic search',
-      'Mobile camera scanner',
-      'Document preview',
       'Email support'
     ],
-    limits: {
-      documents: '200 documents',
-      storage: '500MB storage',
-      users: '1 user'
-    }
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    description: 'Advanced features for serious document management',
-    price: '£7.99',
-    period: '/month',
-    icon: Crown,
-    popular: true,
-    features: [
-      'Everything in Beginner',
+    pro: [
+      ...baseFeatures,
       'AI document summarization',
-      'AI tag suggestions',
+      'AI tag suggestions', 
       'Auto-categorization',
       'Smart reminders',
       'Email import',
       'Advanced scanner',
-      'Bulk operations',
       'Priority support'
     ],
-    limits: {
-      documents: '5,000 documents',
-      storage: '5GB storage',
-      users: '1 user'
-    }
-  },
-  {
-    id: 'duo',
-    name: 'Duo',
-    description: 'Shared workspace for families and couples',
-    price: '£9.99',
-    period: '/month',
-    icon: Users,
-    features: [
-      'Everything in Pro',
+    duo: [
+      ...baseFeatures,
+      'AI document summarization',
+      'AI tag suggestions',
+      'Auto-categorization', 
+      'Smart reminders',
+      'Email import',
+      'Advanced scanner',
       'Shared household workspace',
       'Invite family members',
       'Document sharing',
-      'Collaborative organization',
-      'Shared AI insights',
-      'Family document management',
       'Premium support'
-    ],
-    limits: {
-      documents: '10,000 documents',
-      storage: '10GB storage',
-      users: '2 users'
-    }
-  }
-];
+    ]
+  };
+
+  return tierFeatures[tier as keyof typeof tierFeatures] || baseFeatures;
+};
 
 export default function PricingPage() {
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await fetch('/api/stripe/plans');
+        if (!response.ok) {
+          throw new Error('Failed to fetch plans');
+        }
+        const data = await response.json();
+        setPlans(data.plans || []);
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load pricing plans. Please refresh the page.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoadingPlans(false);
+      }
+    };
+
+    fetchPlans();
+  }, [toast]);
 
   const handleSubscribe = async (planId: string) => {
     setIsLoading(planId);
@@ -108,7 +112,7 @@ export default function PricingPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          priceId: `price_${planId}`,
+          priceId: planId,
           successUrl: `${window.location.origin}/dashboard?upgrade=success`,
           cancelUrl: `${window.location.origin}/pricing`,
         }),
@@ -131,6 +135,17 @@ export default function PricingPage() {
     }
   };
 
+  if (isLoadingPlans) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading pricing plans...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <div className="container mx-auto px-4 py-16">
@@ -151,7 +166,10 @@ export default function PricingPage() {
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan) => {
-            const IconComponent = plan.icon;
+            const IconComponent = tierIcons[plan.tier as keyof typeof tierIcons] || User;
+            const features = getFeatureList(plan.tier, plan.features);
+            const formattedPrice = plan.amount ? `£${(plan.amount / 100).toFixed(2)}` : 'Custom';
+            
             return (
               <Card 
                 key={plan.id} 
@@ -178,20 +196,20 @@ export default function PricingPage() {
                     {plan.description}
                   </CardDescription>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                    <span className="text-gray-600 ml-1">{plan.period}</span>
+                    <span className="text-4xl font-bold text-gray-900">{formattedPrice}</span>
+                    <span className="text-gray-600 ml-1">/{plan.interval}</span>
                   </div>
                   
                   <div className="mt-4 space-y-1 text-sm text-gray-500">
-                    <div>{plan.limits.documents}</div>
-                    <div>{plan.limits.storage}</div>
-                    <div>{plan.limits.users}</div>
+                    <div>{plan.features.documents === -1 ? 'Unlimited documents' : `${plan.features.documents} documents`}</div>
+                    <div>{plan.features.storage}</div>
+                    <div>{plan.features.users} user{plan.features.users > 1 ? 's' : ''}</div>
                   </div>
                 </CardHeader>
 
                 <CardContent className="flex-1">
                   <ul className="space-y-3">
-                    {plan.features.map((feature, index) => (
+                    {features.map((feature, index) => (
                       <li key={index} className="flex items-start gap-3">
                         <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                         <span className="text-gray-700">{feature}</span>

@@ -10,13 +10,12 @@ try {
   // Ignore if no processes found
 }
 
-// Start with extreme memory constraints
+// Start with reasonable memory constraints
 const server = spawn('node', [
   '--expose-gc',
-  '--max-old-space-size=256',
-  '--max-semi-space-size=16',
+  '--max-old-space-size=512',
+  '--max-semi-space-size=32',
   '--optimize-for-size',
-  '--gc_interval=10',
   'dist/index.js'
 ], {
   env: {

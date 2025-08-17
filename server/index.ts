@@ -49,14 +49,14 @@ if (global.gc) {
     const memUsage = process.memoryUsage();
     const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
 
-    // Emergency GC at 75% to prevent reaching 94%+ again
-    if (heapPercent > 75) {
+    // Emergency GC at 85% to prevent memory pressure
+    if (heapPercent > 85) {
       const before = memUsage.heapUsed / 1024 / 1024;
       global.gc();
       const after = process.memoryUsage().heapUsed / 1024 / 1024;
       console.log(`🚨 EMERGENCY GC: ${heapPercent}% → ${Math.round((after / (memUsage.heapTotal / 1024 / 1024)) * 100)}% (freed ${(before - after).toFixed(1)}MB)`);
     }
-  }, 10000); // Every 10 seconds for immediate relief
+  }, 30000); // Every 30 seconds to reduce performance impact
 } else {
   console.error('❌ CRITICAL: Cannot perform emergency GC - memory will continue to climb');
 }

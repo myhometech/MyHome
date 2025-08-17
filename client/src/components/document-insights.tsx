@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
 import { OCRErrorHandler } from './OCRErrorHandler';
 import '@/styles/insights.css';
 import { 
@@ -96,19 +94,23 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let resizeTimer: NodeJS.Timeout;
+    let resizeTimer: NodeJS.Timeout | null = null;
     const handleResize = () => {
-      clearTimeout(resizeTimer);
+      if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         const newIsMobile = window.innerWidth <= 768;
         setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
+        resizeTimer = null;
       }, 150); // Debounce resize events
     };
 
     window.addEventListener('resize', handleResize, { passive: true });
     return () => {
       window.removeEventListener('resize', handleResize);
-      clearTimeout(resizeTimer);
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+        resizeTimer = null;
+      }
     };
   }, []);
 
@@ -131,13 +133,13 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
     refetchOnReconnect: false, // Disable automatic refetching
     retry: 1, // Limit retries to prevent memory pressure
     // Memory-optimized data selection
-    select: React.useCallback((data) => {
+    select: (data) => {
       if (!data?.insights) return { insights: [] };
       return {
         ...data,
         insights: data.insights.slice(0, limit)
       };
-    }, [limit])
+    }
   });
 
   const insights = insightData?.insights || [];
@@ -227,13 +229,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
     deleteInsightMutation.mutate(insightId);
   }, [deleteInsightMutation]);
 
-  // Cleanup effect for component unmount
-  React.useEffect(() => {
-    return () => {
-      // TanStack Query handles mutation cleanup automatically
-      // Manual reset is not needed and causes infinite loops
-    };
-  }, []);
+  
 
   if (isLoading) {
     return (
@@ -275,7 +271,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
     const errorMessage = error?.message || 'Unknown error';
     const isInsightError = errorMessage.toLowerCase().includes('insight') || 
                           errorMessage.includes('INSIGHT_') ||
-                          error?.code === 'INSIGHT_ERROR';
+                          (error as any)?.code === 'INSIGHT_ERROR';
 
     return (
       <Card>
@@ -289,7 +285,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
           <OCRErrorHandler
             error={isInsightError ? 'INSIGHT_GENERATION_FAILED' : 'OCR_PROCESSING_FAILED'}
             documentName={documentName}
-            onRetryUpload={() => handleGenerateInsights()}
+            onRetryUpload={handleGenerateInsights}
           />
         </CardContent>
       </Card>

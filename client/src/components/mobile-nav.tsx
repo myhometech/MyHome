@@ -1,7 +1,11 @@
+
 import { Button } from "@/components/ui/button";
-import { Home, Camera, Search, Settings } from "lucide-react";
+import { Home, Camera, Search, User } from "lucide-react";
+import { Link, useLocation } from "wouter";
 
 export default function MobileNav() {
+  const [location] = useLocation();
+
   const handleCameraClick = () => {
     // Trigger the upload zone camera functionality
     const uploadZone = document.querySelector('[data-upload-zone]');
@@ -25,15 +29,19 @@ export default function MobileNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40 safe-area-padding">
       <div className="grid grid-cols-4 h-16">
-        <Button
-          variant="ghost"
-          className="flex flex-col items-center justify-center space-y-1 text-primary h-full rounded-none"
-        >
-          <Home className="h-5 w-5" />
-          <span className="text-xs font-medium">Home</span>
-        </Button>
+        <Link href="/">
+          <Button
+            variant="ghost"
+            className={`flex flex-col items-center justify-center space-y-1 h-full rounded-none ${
+              location === "/" ? "text-primary bg-blue-50" : "text-gray-500 hover:text-primary"
+            } transition-colors`}
+          >
+            <Home className="h-5 w-5" />
+            <span className="text-xs font-medium">Smart Tips</span>
+          </Button>
+        </Link>
         
         <Button
           variant="ghost"
@@ -41,7 +49,7 @@ export default function MobileNav() {
           className="flex flex-col items-center justify-center space-y-1 text-gray-500 hover:text-primary transition-colors h-full rounded-none"
         >
           <Camera className="h-5 w-5" />
-          <span className="text-xs">Scan</span>
+          <span className="text-xs">Add Document</span>
         </Button>
         
         <Button
@@ -53,13 +61,17 @@ export default function MobileNav() {
           <span className="text-xs">Search</span>
         </Button>
         
-        <Button
-          variant="ghost"
-          className="flex flex-col items-center justify-center space-y-1 text-gray-500 hover:text-primary transition-colors h-full rounded-none"
-        >
-          <Settings className="h-5 w-5" />
-          <span className="text-xs">Settings</span>
-        </Button>
+        <Link href="/settings">
+          <Button
+            variant="ghost"
+            className={`flex flex-col items-center justify-center space-y-1 h-full rounded-none ${
+              location === "/settings" ? "text-primary bg-blue-50" : "text-gray-500 hover:text-primary"
+            } transition-colors`}
+          >
+            <User className="h-5 w-5" />
+            <span className="text-xs">Profile</span>
+          </Button>
+        </Link>
       </div>
     </nav>
   );

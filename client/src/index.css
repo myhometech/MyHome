@@ -84,11 +84,20 @@
       }
     }
 
-    /* Improve tap targets */
+    /* Ensure all interactive elements meet touch target requirements */
+    .touch-target,
+    button,
+    [role="button"],
     .mobile-insight-button {
       min-height: 44px;
       min-width: 44px;
       padding: 12px;
+    }
+
+    /* Navigation improvements */
+    .mobile-nav-item {
+      min-height: 64px;
+      min-width: 64px;
     }
   }
 

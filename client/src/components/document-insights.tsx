@@ -84,7 +84,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // Optimized mobile detection with debouncing
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -92,10 +92,10 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
     }
     return false;
   });
-  
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     let resizeTimer: NodeJS.Timeout;
     const handleResize = () => {
       clearTimeout(resizeTimer);
@@ -104,7 +104,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
         setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
       }, 150); // Debounce resize events
     };
-    
+
     window.addEventListener('resize', handleResize, { passive: true });
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -114,7 +114,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
 
   // INSIGHT-102: Fetch only primary insights with memory optimization
   const limit = React.useMemo(() => isMobile ? 3 : 5, [isMobile]);
-  
+
   const { data: insightData, isLoading, error } = useQuery({
     queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
     queryFn: async () => {
@@ -276,7 +276,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
     const isInsightError = errorMessage.toLowerCase().includes('insight') || 
                           errorMessage.includes('INSIGHT_') ||
                           error?.code === 'INSIGHT_ERROR';
-    
+
     return (
       <Card>
         <CardHeader>
@@ -302,7 +302,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
       <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3 sm:flex-row sm:gap-0' : ''}`}>
         <div className="flex items-center gap-2">
           <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-blue-600`} />
-          <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>Key Insights</span>
+          <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>Smart Tips</span>
         </div>
         <Button 
           onClick={handleGenerateInsights} 
@@ -315,12 +315,12 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
           {isGenerating || generateInsightsMutation.isPending ? (
             <>
               <Loader2 className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'} animate-spin`} />
-              {isMobile ? 'Generating Insights...' : 'Generating...'}
+              {isMobile ? 'Finding Tips...' : 'Finding...'}
             </>
           ) : (
             <>
               <Brain className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'}`} />
-              {insights.length > 0 ? (isMobile ? 'Regenerate' : 'Regenerate') : (isMobile ? 'Generate Insights' : 'Generate')}
+              {insights.length > 0 ? (isMobile ? 'Find More Tips' : 'Find More') : (isMobile ? 'Find Important Info' : 'Find Info')}
             </>
           )}
         </Button>
@@ -370,7 +370,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
             const priorityStyle = priorityConfig[insight.priority];
             const IconComponent = config.icon;
-            
+
             return (
               <div 
                 key={insight.id} 
@@ -417,12 +417,12 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
                     <Trash2 className={`${isMobile ? 'h-4 w-4' : 'h-4 w-4 sm:h-3 sm:w-3'}`} />
                   </Button>
                 </div>
-                
+
                 <div>
                   <h4 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-sm leading-tight' : 'text-sm'}`}>{insight.title}</h4>
                   <p className={`text-gray-700 ${isMobile ? 'text-sm leading-snug' : 'text-sm leading-relaxed'} insight-content`}>{insight.content}</p>
                 </div>
-                
+
                 <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-xs'} text-gray-500`}>
                   <Clock className={`${isMobile ? 'h-3 w-3' : 'h-3 w-3'}`} />
                   {isMobile ? 

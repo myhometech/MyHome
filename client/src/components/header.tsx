@@ -146,7 +146,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={copyEmailToClipboard}
+              onClick={() => copyEmailToClipboard()}
               className="flex items-center space-x-2"
               title="Copy email address for document forwarding"
             >
@@ -159,7 +159,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
                 <Button variant="ghost" size="sm" className="flex items-center space-x-2">
                   <User className="h-4 w-4" />
                   <span className="hidden sm:inline text-sm">
-                    {(user as Record<string, any>)?.firstName || 'Profile'}
+                    {user && typeof user === 'object' && 'firstName' in user ? (user as any).firstName : 'Profile'}
                   </span>
                 </Button>
               </Link>

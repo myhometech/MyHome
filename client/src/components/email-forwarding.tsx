@@ -223,7 +223,7 @@ export function EmailForwarding() {
                             <h4 className="font-medium truncate">{email.subject}</h4>
                             <p className="text-sm text-gray-600">From: {email.fromEmail}</p>
                             <p className="text-xs text-gray-500 mt-1">
-                              {formatDate(email.processedAt as string)}
+                              {formatDate(email.processedAt ? email.processedAt.toString() : new Date().toISOString())}
                             </p>
                             {email.documentsCreated && email.documentsCreated > 0 && (
                               <p className="text-sm text-green-600 mt-1">

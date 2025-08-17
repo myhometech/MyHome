@@ -6,6 +6,7 @@ MyHome is a comprehensive document management application for homeowners, design
 ## Recent Major Changes (August 2025)
 - **Multi-Tier Subscription System**: Implemented comprehensive three-tier pricing (Beginner £2.99, Pro £7.99, Duo £9.99) with individual and shared household plans
 - **Flexible Stripe Pricing Integration**: Created dynamic pricing system that fetches real Stripe prices via API while maintaining default fallbacks for development
+- **Dynamic SubscriptionTier Architecture**: Refactored from hardcoded enum to dynamic string type, enabling new tier addition through environment configuration only (no code deployments required)
 - **Household Management**: Added complete shared workspace functionality for Duo subscribers with member invitation system
 - **Enhanced Stripe Integration**: Updated webhook handling to support multiple pricing tiers and automatic household creation
 - **Feature Flagging Evolution**: Modernized to support array-based tier definitions for granular feature access control
@@ -66,12 +67,13 @@ Color Palette: Primary Blue (HSL(207, 90%, 54%) / #1E90FF) with warm supporting 
 - **Cost Optimization**: Pattern-first categorization and regex-based extraction before AI calls.
 - **Vehicle Insights**: AI-powered MOT and tax due date insights with deduplication.
 
-### Multi-Tier Subscription System
+### Multi-Tier Subscription System  
 - **Tiers**: Free (basic, 50 docs), Beginner (200 docs, £2.99/mo), Pro (5K docs, AI features, £7.99/mo), Duo (10K docs, 2 users, £9.99/mo).
-- **Architecture**: Individual plans (Beginner/Pro) and shared household plans (Duo) with flexible Stripe integration.
+- **Dynamic Architecture**: `SubscriptionTier = string` type enables arbitrary tier names via configuration without code changes.
+- **Extensibility**: New tiers (e.g., Enterprise, Partner) can be added through environment variables only - no deployments required.
 - **Pricing**: Dynamic pricing system that fetches real Stripe prices via API with intelligent fallback to default configuration.
-- **Configuration**: Environment-based price ID mapping (STRIPE_BEGINNER_PRICE_ID, STRIPE_PRO_PRICE_ID, STRIPE_DUO_PRICE_ID) for production flexibility.
-- **Components**: `FeatureGate`, `PremiumFeature`, `FeatureLimitAlert` supporting array-based tier definitions.
+- **Configuration**: Environment-based price ID mapping (STRIPE_BEGINNER_PRICE_ID, STRIPE_PRO_PRICE_ID, STRIPE_DUO_PRICE_ID) with single source of truth in `PLAN_MAPPING`.
+- **Components**: `FeatureGate`, `PremiumFeature`, `FeatureLimitAlert` supporting array-based tier definitions for granular access control.
 - **Household Management**: Complete invitation system, member management, and shared workspace for Duo subscribers.
 
 ### Manual Event Management

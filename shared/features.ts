@@ -1,5 +1,5 @@
-// Feature flagging system for multi-tier plans
-export type SubscriptionTier = 'free' | 'beginner' | 'pro' | 'duo';
+// Dynamic subscription tier type - supports arbitrary tier names via Stripe configuration  
+export type SubscriptionTier = string;
 
 export interface FeatureFlag {
   name: string;
@@ -52,31 +52,31 @@ export const FEATURES: Record<string, FeatureFlag> = {
   SMART_SEARCH: {
     name: 'Smart Search',
     description: 'Advanced search with OCR content and smart filtering',
-    tier: 'premium',
+    tier: ['pro', 'duo'],
     category: 'advanced'
   },
   EXPIRY_MANAGEMENT: {
     name: 'Expiry Date Management',
     description: 'Track document expiry dates with alerts',
-    tier: 'premium',
+    tier: ['pro', 'duo'],
     category: 'advanced'
   },
   ADVANCED_SCANNER: {
     name: 'Advanced Camera Scanner',
     description: 'Professional document scanning with auto-enhancement',
-    tier: 'premium',
+    tier: ['beginner', 'pro', 'duo'],
     category: 'advanced'
   },
   BULK_OPERATIONS: {
     name: 'Bulk Operations',
     description: 'Batch operations on multiple documents',
-    tier: 'premium',
+    tier: ['pro', 'duo'],
     category: 'advanced'
   },
   CUSTOM_TAGS: {
     name: 'Custom Tags',
     description: 'Add custom tags to organize documents',
-    tier: 'premium',
+    tier: ['beginner', 'pro', 'duo'],
     category: 'advanced'
   },
 
@@ -90,13 +90,13 @@ export const FEATURES: Record<string, FeatureFlag> = {
   AI_TAG_SUGGESTIONS: {
     name: 'AI Tag Suggestions',
     description: 'Smart tag suggestions based on document content',
-    tier: 'premium',
+    tier: ['pro', 'duo'],
     category: 'ai'
   },
   AI_CHATBOT: {
     name: 'AI Assistant',
     description: 'Chat with AI about your documents',
-    tier: 'premium',
+    tier: ['pro', 'duo'],
     category: 'ai'
   },
 
@@ -104,19 +104,19 @@ export const FEATURES: Record<string, FeatureFlag> = {
   EMAIL_IMPORT: {
     name: 'Email Import',
     description: 'Automatically import documents from email',
-    tier: 'premium',
+    tier: ['pro', 'duo'],
     category: 'automation'
   },
   EMAIL_BODY_PDF_AUTO_WITH_ATTACHMENTS: {
     name: 'Auto Email Body PDF with Attachments',
     description: 'Automatically create email body PDF when email has attachments',
-    tier: 'premium',
+    tier: ['pro', 'duo'],
     category: 'automation'
   },
   EXPIRY_REMINDERS: {
     name: 'Smart Reminders',
     description: 'Automated reminders for renewals and deadlines',
-    tier: 'premium',
+    tier: ['pro', 'duo'],
     category: 'automation'
   },
 
@@ -124,19 +124,19 @@ export const FEATURES: Record<string, FeatureFlag> = {
   DOCUMENT_SHARING: {
     name: 'Document Sharing',
     description: 'Share documents with family members',
-    tier: 'duo',
+    tier: ['duo'],
     category: 'collaboration'
   },
   HOUSEHOLD_WORKSPACE: {
     name: 'Shared Household Workspace',
     description: 'Shared document workspace for family members',
-    tier: 'duo',
+    tier: ['duo'],
     category: 'collaboration'
   },
   INVITE_USERS: {
     name: 'Invite Family Members',
     description: 'Invite up to 2 family members to your workspace',
-    tier: 'duo',
+    tier: ['duo'],
     category: 'collaboration'
   }
 };

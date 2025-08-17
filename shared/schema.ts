@@ -336,8 +336,8 @@ export type InsertUserHouseholdMembership = typeof userHouseholdMembership.$infe
 export type StripeWebhook = typeof stripeWebhooks.$inferSelect;
 export type InsertStripeWebhook = typeof insertStripeWebhookSchema._output;
 
-// Updated subscription tier type
-export type SubscriptionTier = "free" | "beginner" | "pro" | "duo";
+// Dynamic subscription tier type - supports arbitrary tier names via Stripe configuration
+export type SubscriptionTier = string;
 
 // Household insert schema
 export const insertHouseholdSchema = createInsertSchema(households).omit({

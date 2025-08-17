@@ -3,16 +3,20 @@ import { storage } from './storage';
 import type { InsertStripeWebhook, SubscriptionTier } from '@shared/schema';
 
 // Flexible price ID mapping - configure these environment variables in Replit Secrets
-const PLAN_MAPPING: Record<string, SubscriptionTier> = {
+// Single source of truth for Stripe price ID → tier mapping
+// Adding new tiers requires only environment variable configuration
+const PLAN_MAPPING: Record<string, string> = {
   [process.env.STRIPE_BEGINNER_PRICE_ID || 'price_beginner']: 'beginner',
   [process.env.STRIPE_PRO_PRICE_ID || 'price_pro']: 'pro', 
   [process.env.STRIPE_DUO_PRICE_ID || 'price_duo']: 'duo'
+  // Future tiers can be added via environment variables without code changes
+  // Example: [process.env.STRIPE_ENTERPRISE_PRICE_ID]: 'enterprise'
 };
 
 // Reverse mapping for tier to price ID lookup
-const TIER_TO_PRICE_ID: Record<SubscriptionTier, string> = Object.fromEntries(
+const TIER_TO_PRICE_ID: Record<string, string> = Object.fromEntries(
   Object.entries(PLAN_MAPPING).map(([priceId, tier]) => [tier, priceId])
-) as Record<SubscriptionTier, string>;
+);
 
 // Default plan configuration (used if Stripe prices are not set up)
 const DEFAULT_PLAN_CONFIG = {
@@ -193,7 +197,7 @@ export class StripeService {
 
     // Get plan details from price ID or default to pro
     const planType = PLAN_MAPPING[priceId] || 'pro';
-    const planDetails = PLAN_PRICING[planType as keyof typeof PLAN_PRICING];
+    const planDetails = DEFAULT_PLAN_CONFIG[planType as keyof typeof DEFAULT_PLAN_CONFIG];
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -319,7 +323,6 @@ export class StripeService {
       subscriptionTier: subscriptionTier,
       subscriptionStatus: 'active',
       subscriptionId: subscription.id,
-      stripeSubscriptionId: subscription.id,
       subscriptionRenewalDate: new Date(subscription.current_period_end * 1000),
     });
 
@@ -330,25 +333,19 @@ export class StripeService {
         if (user) {
           const household = await storage.createHousehold({
             id: `hh_${Date.now()}_${Math.random().toString(36).substring(2)}`,
-            name: `${user.firstName || 'User'}'s Household`,
             stripeSubscriptionId: subscription.id,
-            subscriptionStatus: 'active',
-            maxMembers: 2,
+            planType: 'duo',
+            seatLimit: 2,
             createdAt: new Date(),
             updatedAt: new Date()
           });
 
           // Add the user as the household owner
           await storage.createHouseholdMembership({
-            id: `uhm_${Date.now()}_${Math.random().toString(36).substring(2)}`,
             userId: user.id,
             householdId: household.id,
             role: 'owner',
-            inviteStatus: 'accepted',
-            invitedAt: new Date(),
-            joinedAt: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date()
+            joinedAt: new Date()
           });
 
           console.log(`Created household ${household.id} for Duo subscription ${subscription.id}`);

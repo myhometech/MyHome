@@ -27,27 +27,28 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Get forwarding address for email functionality
-  const { data: forwardingInfo } = useQuery<{
-    address: string;
-    instructions: string;
-  }>({
-    queryKey: ["/api/email/forwarding-address"],
-  });
+  // Email forwarding functionality
+  const getEmailAddress = () => {
+    // Generate or use a standard email format for document forwarding
+    if (user && (user as any).id) {
+      return `myhome+${(user as any).id}@myhometech.com`;
+    }
+    return 'documents@myhometech.com';
+  };
 
   const copyEmailToClipboard = async () => {
-    if (!forwardingInfo?.address) return;
+    const emailAddress = getEmailAddress();
     
     try {
-      await navigator.clipboard.writeText(forwardingInfo.address);
+      await navigator.clipboard.writeText(emailAddress);
       toast({
         title: "Email copied!",
-        description: "Forward documents to this address",
+        description: `Forward documents to: ${emailAddress}`,
       });
     } catch (error) {
       toast({
         title: "Copy failed",
-        description: "Please copy manually: " + forwardingInfo.address,
+        description: `Please copy manually: ${emailAddress}`,
         variant: "destructive",
       });
     }
@@ -112,19 +113,17 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
 
           {/* Right side - Email and User Profile */}
           <div className="flex items-center space-x-3">
-            {/* Email forwarding button */}
-            {forwardingInfo?.address && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={copyEmailToClipboard}
-                className="flex items-center space-x-2"
-                title="Copy email address for document forwarding"
-              >
-                <Mail className="h-4 w-4" />
-                <span className="hidden sm:inline text-sm">Email</span>
-              </Button>
-            )}
+            {/* Email forwarding button - always show */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={copyEmailToClipboard}
+              className="flex items-center space-x-2"
+              title="Copy email address for document forwarding"
+            >
+              <Mail className="h-4 w-4" />
+              <span className="hidden sm:inline text-sm">Email</span>
+            </Button>
             
             {user && (
               <Link href="/settings">

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +25,7 @@ export function Header() {
                 <h1 className="text-xl font-bold text-slate-900">MyHome</h1>
               </div>
             </Link>
-            
+
             {/* Simplified Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-2">
               <Link href="/">

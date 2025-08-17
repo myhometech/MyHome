@@ -299,7 +299,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   return (
     <div className="space-y-4">
       {/* Header with Generate Button - Mobile Optimized */}
-      <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3 sm:flex-row sm:gap-0' : ''}`}>
+      <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3 sm:flex-col' : ''}`}>
         <div className="flex items-center gap-2">
           <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-blue-600`} />
           <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>Smart Tips</span>
@@ -385,15 +385,14 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
                       <IconComponent className={`${isMobile ? 'h-3 w-3 mr-1.5' : 'h-3 w-3 mr-1'}`} />
                       {config.label}
                     </Badge>
-                    {!isMobile && (
-                      <Badge variant="outline" className={`${priorityStyle.color} text-xs`}>
-                        {priorityStyle.label}
-                      </Badge>
-                    )}
+                    
+                    <Badge variant="outline" className={`${priorityStyle.color} text-xs`}>
+                      {priorityStyle.label}
+                    </Badge>
 
                     <div className="flex items-center gap-1">
                       <Badge variant="secondary" className={`${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs'}`}>
-                        {Math.round(insight.confidence * 100)}%
+                        Confidence: {Math.round(insight.confidence * 100)}%
                       </Badge>
                       <div className={`${isMobile ? 'w-12 h-1.5' : 'w-16 h-2'} bg-gray-200 rounded-full overflow-hidden shadow-inner`}>
                         <div 

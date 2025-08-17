@@ -2,62 +2,125 @@ import Stripe from 'stripe';
 import { storage } from './storage';
 import type { InsertStripeWebhook, SubscriptionTier } from '@shared/schema';
 
-// Flexible price ID mapping - configure these environment variables in Replit Secrets
-// Single source of truth for Stripe price ID → tier mapping
-// Adding new tiers requires only environment variable configuration
-const PLAN_MAPPING: Record<string, string> = {
-  [process.env.STRIPE_BEGINNER_PRICE_ID || 'price_beginner']: 'beginner',
-  [process.env.STRIPE_PRO_PRICE_ID || 'price_pro']: 'pro', 
-  [process.env.STRIPE_DUO_PRICE_ID || 'price_duo']: 'duo'
-  // Future tiers can be added via environment variables without code changes
-  // Example: [process.env.STRIPE_ENTERPRISE_PRICE_ID]: 'enterprise'
+// Dynamic plan mapping - validates environment variables exist
+// No hardcoded fallbacks to prevent incorrect billing
+const buildPlanMapping = (): Record<string, string> => {
+  const mapping: Record<string, string> = {};
+  
+  // Required environment variables for each tier
+  const requiredPriceIds = {
+
+// Validate required environment variables
+const validateStripeConfiguration = () => {
+  const required = ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'];
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing required Stripe environment variables: ${missing.join(', ')}`);
+  }
+  
+  // Validate at least one price ID is configured
+  const priceIdKeys = Object.keys(process.env).filter(key => 
+    key.startsWith('STRIPE_') && key.endsWith('_PRICE_ID')
+  );
+  
+  if (priceIdKeys.length === 0) {
+    console.warn('No Stripe price IDs configured. Subscription features will be limited.');
+  }
+  
+  console.log(`Stripe configuration validated. ${priceIdKeys.length} price IDs configured.`);
 };
+
+// Run validation on startup
+validateStripeConfiguration();
+
+
+    STRIPE_BEGINNER_PRICE_ID: 'beginner',
+    STRIPE_PRO_PRICE_ID: 'pro',
+    STRIPE_DUO_PRICE_ID: 'duo'
+  };
+  
+  // Only add mappings for configured price IDs
+  Object.entries(requiredPriceIds).forEach(([envVar, tier]) => {
+    const priceId = process.env[envVar];
+    if (priceId && priceId.startsWith('price_')) {
+      mapping[priceId] = tier;
+    } else if (priceId) {
+      console.warn(`Invalid price ID format for ${envVar}: ${priceId}. Must start with 'price_'`);
+    }
+  });
+  
+  // Add support for additional tiers via environment variables
+  // Format: STRIPE_<TIER_NAME>_PRICE_ID
+  Object.keys(process.env).forEach(key => {
+    if (key.startsWith('STRIPE_') && key.endsWith('_PRICE_ID') && !requiredPriceIds[key]) {
+      const priceId = process.env[key];
+      if (priceId && priceId.startsWith('price_')) {
+        // Extract tier name: STRIPE_ENTERPRISE_PRICE_ID -> enterprise
+        const tierName = key.replace('STRIPE_', '').replace('_PRICE_ID', '').toLowerCase();
+        mapping[priceId] = tierName;
+      }
+    }
+  });
+  
+  return mapping;
+};
+
+const PLAN_MAPPING = buildPlanMapping();
 
 // Reverse mapping for tier to price ID lookup
 const TIER_TO_PRICE_ID: Record<string, string> = Object.fromEntries(
   Object.entries(PLAN_MAPPING).map(([priceId, tier]) => [tier, priceId])
 );
 
-// Default plan configuration (used if Stripe prices are not set up)
-const DEFAULT_PLAN_CONFIG = {
-  beginner: { 
-    amount: 299, // £2.99 in pence
-    currency: 'gbp',
-    name: 'MyHome Beginner', 
-    description: 'Essential document management for getting started',
-    features: {
-      documents: 200,
-      storage: '500MB',
-      users: 1,
-      ai_features: false
+// Dynamic plan configuration - loads from environment variables
+const loadPlanConfiguration = () => {
+  const config: Record<string, any> = {};
+  
+  // Define base configuration that can be overridden by environment variables
+  const basePlans = ['beginner', 'pro', 'duo'];
+  
+  basePlans.forEach(tier => {
+    const tierUpper = tier.toUpperCase();
+    config[tier] = {
+      name: process.env[`${tierUpper}_PLAN_NAME`] || `MyHome ${tier.charAt(0).toUpperCase() + tier.slice(1)}`,
+      description: process.env[`${tierUpper}_PLAN_DESCRIPTION`] || `${tier} plan description`,
+      currency: process.env[`${tierUpper}_PLAN_CURRENCY`] || 'gbp',
+      features: {
+        documents: parseInt(process.env[`${tierUpper}_PLAN_DOCUMENTS`] || '0'),
+        storage: process.env[`${tierUpper}_PLAN_STORAGE`] || '0MB',
+        users: parseInt(process.env[`${tierUpper}_PLAN_USERS`] || '1'),
+        ai_features: process.env[`${tierUpper}_PLAN_AI_FEATURES`] === 'true',
+        household: process.env[`${tierUpper}_PLAN_HOUSEHOLD`] === 'true'
+      }
+    };
+  });
+  
+  // Add support for custom tiers via environment variables
+  Object.keys(process.env).forEach(key => {
+    if (key.endsWith('_PLAN_NAME') && !basePlans.some(plan => key.startsWith(plan.toUpperCase()))) {
+      const tierName = key.replace('_PLAN_NAME', '').toLowerCase();
+      const tierUpper = tierName.toUpperCase();
+      
+      config[tierName] = {
+        name: process.env[`${tierUpper}_PLAN_NAME`],
+        description: process.env[`${tierUpper}_PLAN_DESCRIPTION`] || `${tierName} plan`,
+        currency: process.env[`${tierUpper}_PLAN_CURRENCY`] || 'gbp',
+        features: {
+          documents: parseInt(process.env[`${tierUpper}_PLAN_DOCUMENTS`] || '0'),
+          storage: process.env[`${tierUpper}_PLAN_STORAGE`] || '0MB',
+          users: parseInt(process.env[`${tierUpper}_PLAN_USERS`] || '1'),
+          ai_features: process.env[`${tierUpper}_PLAN_AI_FEATURES`] === 'true',
+          household: process.env[`${tierUpper}_PLAN_HOUSEHOLD`] === 'true'
+        }
+      };
     }
-  },
-  pro: { 
-    amount: 799, // £7.99 in pence
-    currency: 'gbp',
-    name: 'MyHome Pro', 
-    description: 'Advanced document management with AI features',
-    features: {
-      documents: 5000,
-      storage: '5GB',
-      users: 1,
-      ai_features: true
-    }
-  },
-  duo: { 
-    amount: 999, // £9.99 in pence
-    currency: 'gbp',
-    name: 'MyHome Duo', 
-    description: 'Shared workspace for up to 2 family members',
-    features: {
-      documents: 10000,
-      storage: '10GB', 
-      users: 2,
-      ai_features: true,
-      household: true
-    }
-  }
+  });
+  
+  return config;
 };
+
+const DEFAULT_PLAN_CONFIG = loadPlanConfiguration();
 
 // Initialize Stripe with API key
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -152,31 +215,43 @@ export class StripeService {
    * Create or retrieve Stripe customer for user
    */
   async getOrCreateCustomer(userId: string, email: string, name?: string): Promise<string> {
-    const user = await storage.getUser(userId);
-    if (!user) {
-      throw new Error('User not found');
+    try {
+      const user = await storage.getUser(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Return existing customer ID if available and verify it exists in Stripe
+      if (user.stripeCustomerId) {
+        try {
+          await stripe.customers.retrieve(user.stripeCustomerId);
+          return user.stripeCustomerId;
+        } catch (error) {
+          console.warn(`Stripe customer ${user.stripeCustomerId} not found, creating new one`);
+          // Clear invalid customer ID
+          await storage.updateUser(userId, { stripeCustomerId: null });
+        }
+      }
+
+      // Create new Stripe customer
+      const customer = await stripe.customers.create({
+        email,
+        name: name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+        metadata: {
+          userId: userId,
+        },
+      });
+
+      // Update user with Stripe customer ID
+      await storage.updateUser(userId, {
+        stripeCustomerId: customer.id,
+      });
+
+      return customer.id;
+    } catch (error) {
+      console.error('Error in getOrCreateCustomer:', error);
+      throw new Error(`Failed to create or retrieve customer: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    // Return existing customer ID if available
-    if (user.stripeCustomerId) {
-      return user.stripeCustomerId;
-    }
-
-    // Create new Stripe customer
-    const customer = await stripe.customers.create({
-      email,
-      name: name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-      metadata: {
-        userId: userId,
-      },
-    });
-
-    // Update user with Stripe customer ID
-    await storage.updateUser(userId, {
-      stripeCustomerId: customer.id,
-    });
-
-    return customer.id;
   }
 
   /**
@@ -195,9 +270,16 @@ export class StripeService {
 
     const customerId = await this.getOrCreateCustomer(userId, user.email || '', `${user.firstName} ${user.lastName}`);
 
-    // Get plan details from price ID or default to pro
-    const planType = PLAN_MAPPING[priceId] || 'pro';
+    // Validate price ID exists in our mapping
+    const planType = PLAN_MAPPING[priceId];
+    if (!planType) {
+      throw new Error(`Invalid price ID: ${priceId}. Please ensure the price ID is configured in environment variables.`);
+    }
+    
     const planDetails = DEFAULT_PLAN_CONFIG[planType as keyof typeof DEFAULT_PLAN_CONFIG];
+    if (!planDetails) {
+      throw new Error(`No configuration found for plan type: ${planType}`);
+    }
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -205,18 +287,8 @@ export class StripeService {
       payment_method_types: ['card'],
       line_items: [
         {
-          price_data: {
-            currency: 'gbp',
-            product_data: {
-              name: planDetails.name,
-              description: planDetails.description,
-            },
-            unit_amount: planDetails.amount,
-            recurring: {
-              interval: 'month',
-            },
-          },
-          quantity: planType === 'duo' ? 2 : 1, // Duo plans have 2 seats
+          price: priceId, // Use actual Stripe price ID
+          quantity: 1,
         },
       ],
       success_url: successUrl,
@@ -483,19 +555,22 @@ export class StripeService {
 
         if (subscriptions.data.length > 0) {
           const subscription = subscriptions.data[0];
+          const priceId = subscription.items?.data?.[0]?.price?.id;
+          const subscriptionTier = PLAN_MAPPING[priceId] || 'free';
+          
           // Update local database with current Stripe status
           await storage.updateUser(userId, {
-            subscriptionTier: 'premium',
+            subscriptionTier,
             subscriptionStatus: 'active',
             subscriptionId: subscription.id,
             subscriptionRenewalDate: new Date(subscription.current_period_end * 1000),
           });
 
           return {
-            tier: 'premium',
+            tier: subscriptionTier,
             status: 'active',
             renewalDate: new Date(subscription.current_period_end * 1000),
-            portalUrl: undefined, // Disable portal for now due to configuration issues
+            portalUrl: undefined, // Will enable after portal configuration
           };
         }
       } catch (error) {

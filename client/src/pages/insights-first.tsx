@@ -43,7 +43,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
 import SmartHelpTooltip, { HelpBadge, HelpSection } from "@/components/smart-help-tooltip";
-import MobileNav from "@/components/mobile-nav";
 import type { Category, Document } from "@shared/schema";
 
 interface DocumentInsight {
@@ -522,9 +521,6 @@ export default function InsightsFirstPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Mobile Navigation */}
-      <MobileNav />
     </div>
   );
 }

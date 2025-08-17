@@ -7,10 +7,14 @@ import {
   Lightbulb,
   User,
   Settings,
-  Search
+  Search,
+  Mail,
+  Copy
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
 import { MobileHamburgerMenu } from '@/components/mobile-hamburger-menu';
 
 interface HeaderProps {
@@ -21,6 +25,33 @@ interface HeaderProps {
 export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Get forwarding address for email functionality
+  const { data: forwardingInfo } = useQuery<{
+    address: string;
+    instructions: string;
+  }>({
+    queryKey: ["/api/email/forwarding-address"],
+  });
+
+  const copyEmailToClipboard = async () => {
+    if (!forwardingInfo?.address) return;
+    
+    try {
+      await navigator.clipboard.writeText(forwardingInfo.address);
+      toast({
+        title: "Email copied!",
+        description: "Forward documents to this address",
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: "Please copy manually: " + forwardingInfo.address,
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -79,8 +110,22 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             </div>
           </div>
 
-          {/* Right side - User Profile */}
+          {/* Right side - Email and User Profile */}
           <div className="flex items-center space-x-3">
+            {/* Email forwarding button */}
+            {forwardingInfo?.address && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={copyEmailToClipboard}
+                className="flex items-center space-x-2"
+                title="Copy email address for document forwarding"
+              >
+                <Mail className="h-4 w-4" />
+                <span className="hidden sm:inline text-sm">Email</span>
+              </Button>
+            )}
+            
             {user && (
               <Link href="/settings">
                 <Button variant="ghost" size="sm" className="flex items-center space-x-2">

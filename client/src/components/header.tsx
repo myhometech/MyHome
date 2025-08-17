@@ -27,13 +27,14 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Email forwarding functionality
+  // Email forwarding functionality - use the correct formats expected by Mailgun
   const getEmailAddress = () => {
-    // Generate or use a standard email format for document forwarding
     if (user && (user as any).id) {
-      return `myhome+${(user as any).id}@myhometech.com`;
+      // Use the production format: u[userID]@uploads.myhome-tech.com
+      // This matches the format expected by extractUserIdFromRecipient function
+      return `u${(user as any).id}@uploads.myhome-tech.com`;
     }
-    return 'documents@myhometech.com';
+    return 'upload@myhome-tech.com'; // Generic fallback
   };
 
   const copyEmailToClipboard = async () => {

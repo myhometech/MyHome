@@ -144,7 +144,6 @@ export interface IStorage {
   getFeatureFlagOverrides(): Promise<any[]>;
 
   // Insight operations  
-  createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight>;
   getFeatureFlagAnalytics(): Promise<any>;
 
   // Stripe operations
@@ -159,12 +158,6 @@ export interface IStorage {
   deleteBlogPost(id: number): Promise<void>;
 
   // Encryption operations
-  getEncryptionStats(): Promise<{
-    totalDocuments: number;
-    encryptedDocuments: number;
-    unencryptedDocuments: number;
-    encryptionPercentage: number;
-  }>;
   updateDocumentEncryption(
     id: number,
     userId: string,
@@ -2406,10 +2399,8 @@ export class DatabaseStorage implements IStorage {
 
   // Household operations for Duo plans
   async createHousehold(household: InsertHousehold): Promise<Household> {
-    return safeTransaction(async (tx) => {
-      const result = await tx.insert(households).values(household).returning();
-      return result[0];
-    });
+    const [result] = await this.db.insert(households).values(household).returning();
+    return result;
   }
 
   async getHousehold(id: string): Promise<Household | undefined> {
@@ -2427,24 +2418,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateHousehold(id: string, updates: Partial<InsertHousehold>): Promise<Household | undefined> {
-    return safeTransaction(async (tx) => {
-      const result = await tx.update(households)
-        .set({
-          ...updates,
-          updatedAt: new Date()
-        })
-        .where(eq(households.id, id))
-        .returning();
-      return result.length > 0 ? result[0] : undefined;
-    });
+    const result = await this.db.update(households)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(households.id, id))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
   }
 
   // Household membership operations
   async createHouseholdMembership(membership: InsertUserHouseholdMembership): Promise<UserHouseholdMembership> {
-    return safeTransaction(async (tx) => {
-      const result = await tx.insert(userHouseholdMembership).values(membership).returning();
-      return result[0];
-    });
+    const [result] = await this.db.insert(userHouseholdMembership).values(membership).returning();
+    return result;
   }
 
   async getHouseholdMembership(userId: string): Promise<UserHouseholdMembership | undefined> {
@@ -2462,9 +2449,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async removeHouseholdMembership(userId: string): Promise<void> {
-    await safeTransaction(async (tx) => {
-      await tx.delete(userHouseholdMembership).where(eq(userHouseholdMembership.userId, userId));
-    });
+    await this.db.delete(userHouseholdMembership).where(eq(userHouseholdMembership.userId, userId));
   }
 
   async getHouseholdMemberCount(householdId: string): Promise<number> {
@@ -2474,6 +2459,106 @@ export class DatabaseStorage implements IStorage {
         .where(eq(userHouseholdMembership.householdId, householdId))
     );
     return this.extractResult(result, 'count');
+  }
+
+  // Stripe webhook operations
+  async createStripeWebhook(webhook: InsertStripeWebhook): Promise<StripeWebhook> {
+    const [result] = await this.db.insert(stripeWebhooks).values(webhook).returning();
+    return result;
+  }
+
+  async getStripeWebhookByEventId(eventId: string): Promise<StripeWebhook | undefined> {
+    const result = await safeQuery(() => 
+      this.db.select().from(stripeWebhooks).where(eq(stripeWebhooks.eventId, eventId))
+    );
+    return Array.isArray(result) && result.length > 0 ? result[0] : undefined;
+  }
+
+  // Blog operations
+  async getPublishedBlogPosts(): Promise<BlogPost[]> {
+    const result = await safeQuery(() => 
+      this.db.select().from(blogPosts).where(eq(blogPosts.published, true)).orderBy(desc(blogPosts.publishedAt))
+    );
+    return Array.isArray(result) ? result : [];
+  }
+
+  async getBlogPostBySlug(slug: string): Promise<BlogPost | undefined> {
+    const result = await safeQuery(() => 
+      this.db.select().from(blogPosts).where(eq(blogPosts.slug, slug))
+    );
+    return Array.isArray(result) && result.length > 0 ? result[0] : undefined;
+  }
+
+  async createBlogPost(post: InsertBlogPost): Promise<BlogPost> {
+    const [result] = await this.db.insert(blogPosts).values(post).returning();
+    return result;
+  }
+
+  async updateBlogPost(id: number, updates: Partial<InsertBlogPost>): Promise<BlogPost | undefined> {
+    const result = await this.db.update(blogPosts).set(updates).where(eq(blogPosts.id, id)).returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async deleteBlogPost(id: number): Promise<void> {
+    await this.db.delete(blogPosts).where(eq(blogPosts.id, id));
+  }
+
+  // Encryption operations
+  async updateDocumentEncryptionKey(documentId: number, encryptedKey: string): Promise<void> {
+    await this.db.update(documents).set({ encryptedDocumentKey: encryptedKey }).where(eq(documents.id, documentId));
+  }
+
+  async getDocumentsWithEncryptionKeys(): Promise<Array<{ id: number; encryptedDocumentKey: string | null }>> {
+    const result = await safeQuery(() => 
+      this.db.select({ id: documents.id, encryptedDocumentKey: documents.encryptedDocumentKey })
+        .from(documents)
+        .where(isNotNull(documents.encryptedDocumentKey))
+    );
+    return Array.isArray(result) ? result : [];
+  }
+
+  async updateDocumentEncryption(
+    id: number,
+    userId: string,
+    encryptedDocumentKey: string,
+    encryptionMetadata: string,
+    newFilePath: string
+  ): Promise<Document | undefined> {
+    const result = await this.db.update(documents)
+      .set({
+        encryptedDocumentKey,
+        encryptionMetadata,
+        filePath: newFilePath,
+        isEncrypted: true
+      })
+      .where(and(eq(documents.id, id), eq(documents.userId, userId)))
+      .returning();
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  // Missing getEncryptionStats method
+  async getEncryptionStats(): Promise<{ totalDocuments: number; encryptedDocuments: number; unencryptedDocuments: number; encryptionPercentage: number }> {
+    const totalResult = await safeQuery(() => 
+      this.db.select({ count: sql<number>`count(*)` }).from(documents)
+    );
+    const total = Array.isArray(totalResult) && totalResult.length > 0 ? totalResult[0].count : 0;
+
+    const encryptedResult = await safeQuery(() => 
+      this.db.select({ count: sql<number>`count(*)` })
+        .from(documents)
+        .where(and(eq(documents.isEncrypted, true), isNotNull(documents.encryptedDocumentKey)))
+    );
+    const encrypted = Array.isArray(encryptedResult) && encryptedResult.length > 0 ? encryptedResult[0].count : 0;
+
+    const unencrypted = total - encrypted;
+    const encryptionPercentage = total > 0 ? Math.round((encrypted / total) * 100) : 0;
+
+    return {
+      totalDocuments: total,
+      encryptedDocuments: encrypted,
+      unencryptedDocuments: unencrypted,
+      encryptionPercentage
+    };
   }
 }
 

@@ -9,32 +9,6 @@ const buildPlanMapping = (): Record<string, string> => {
   
   // Required environment variables for each tier
   const requiredPriceIds = {
-
-// Validate required environment variables
-const validateStripeConfiguration = () => {
-  const required = ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'];
-  const missing = required.filter(key => !process.env[key]);
-  
-  if (missing.length > 0) {
-    throw new Error(`Missing required Stripe environment variables: ${missing.join(', ')}`);
-  }
-  
-  // Validate at least one price ID is configured
-  const priceIdKeys = Object.keys(process.env).filter(key => 
-    key.startsWith('STRIPE_') && key.endsWith('_PRICE_ID')
-  );
-  
-  if (priceIdKeys.length === 0) {
-    console.warn('No Stripe price IDs configured. Subscription features will be limited.');
-  }
-  
-  console.log(`Stripe configuration validated. ${priceIdKeys.length} price IDs configured.`);
-};
-
-// Run validation on startup
-validateStripeConfiguration();
-
-
     STRIPE_BEGINNER_PRICE_ID: 'beginner',
     STRIPE_PRO_PRICE_ID: 'pro',
     STRIPE_DUO_PRICE_ID: 'duo'
@@ -53,7 +27,7 @@ validateStripeConfiguration();
   // Add support for additional tiers via environment variables
   // Format: STRIPE_<TIER_NAME>_PRICE_ID
   Object.keys(process.env).forEach(key => {
-    if (key.startsWith('STRIPE_') && key.endsWith('_PRICE_ID') && !requiredPriceIds[key]) {
+    if (key.startsWith('STRIPE_') && key.endsWith('_PRICE_ID') && !(key in requiredPriceIds)) {
       const priceId = process.env[key];
       if (priceId && priceId.startsWith('price_')) {
         // Extract tier name: STRIPE_ENTERPRISE_PRICE_ID -> enterprise
@@ -65,6 +39,35 @@ validateStripeConfiguration();
   
   return mapping;
 };
+
+// Validate required environment variables
+const validateStripeConfiguration = () => {
+  const required = ['STRIPE_SECRET_KEY'];
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(`Missing required Stripe environment variables: ${missing.join(', ')}`);
+  }
+  
+  // Warn about missing webhook secret but don't fail
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.warn('⚠️ STRIPE_WEBHOOK_SECRET not configured. Webhook processing will be disabled.');
+  }
+  
+  // Validate at least one price ID is configured
+  const priceIdKeys = Object.keys(process.env).filter(key => 
+    key.startsWith('STRIPE_') && key.endsWith('_PRICE_ID')
+  );
+  
+  if (priceIdKeys.length === 0) {
+    console.warn('No Stripe price IDs configured. Subscription features will be limited.');
+  }
+  
+  console.log(`Stripe configuration validated. ${priceIdKeys.length} price IDs configured.`);
+};
+
+// Run validation on startup
+validateStripeConfiguration();
 
 const PLAN_MAPPING = buildPlanMapping();
 
@@ -131,7 +134,7 @@ if (!stripeSecretKey) {
 }
 
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
+  apiVersion: '2025-06-30.basil',
 });
 
 export class StripeService {
@@ -139,6 +142,9 @@ export class StripeService {
 
   constructor() {
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+    if (!this.webhookSecret) {
+      console.warn('⚠️ Webhook secret not configured - webhook processing will be disabled');
+    }
   }
 
   /**
@@ -395,7 +401,7 @@ export class StripeService {
       subscriptionTier: subscriptionTier,
       subscriptionStatus: 'active',
       subscriptionId: subscription.id,
-      subscriptionRenewalDate: new Date(subscription.current_period_end * 1000),
+      subscriptionRenewalDate: new Date((subscription as any).current_period_end * 1000),
     });
 
     // If this is a Duo plan, create a household
@@ -494,7 +500,7 @@ export class StripeService {
       subscriptionTier,
       subscriptionStatus: subscription.status,
       subscriptionId: subscription.id,
-      subscriptionRenewalDate: new Date(subscription.current_period_end * 1000),
+      subscriptionRenewalDate: new Date((subscription as any).current_period_end * 1000),
     });
 
     console.log(`Subscription updated for user ${user.id}: ${subscription.status}`);
@@ -563,13 +569,13 @@ export class StripeService {
             subscriptionTier,
             subscriptionStatus: 'active',
             subscriptionId: subscription.id,
-            subscriptionRenewalDate: new Date(subscription.current_period_end * 1000),
+            subscriptionRenewalDate: new Date((subscription as any).current_period_end * 1000),
           });
 
           return {
             tier: subscriptionTier,
             status: 'active',
-            renewalDate: new Date(subscription.current_period_end * 1000),
+            renewalDate: new Date((subscription as any).current_period_end * 1000),
             portalUrl: undefined, // Will enable after portal configuration
           };
         }

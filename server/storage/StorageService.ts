@@ -107,10 +107,7 @@ export class StorageService {
           keyFilename = credentialsStr;
           credentials = undefined;
         }
-        // Extract project ID from file if not provided (and we have credentials)
-        if (!projectId && credentials?.project_id) {
-          projectId = credentials.project_id;
-        }
+        // Note: When using keyFilename, projectId is extracted from the service account file automatically
         console.log('✅ Using NEW_GOOGLE_APPLICATION_CREDENTIALS with project:', projectId);
       } catch (error) {
         console.error('Failed to parse NEW_GOOGLE_APPLICATION_CREDENTIALS:', error);

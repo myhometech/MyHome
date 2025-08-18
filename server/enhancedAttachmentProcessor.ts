@@ -56,12 +56,12 @@ export class EnhancedAttachmentProcessor {
   constructor() {
     this.bucketName = process.env.GCS_BUCKET_NAME || 'myhome-documents';
     this.uploadsDir = './uploads';
-    
+
     // Ensure uploads directory exists
     if (!existsSync(this.uploadsDir)) {
       mkdirSync(this.uploadsDir, { recursive: true });
     }
-    
+
     console.log('EnhancedAttachmentProcessor initialized for TICKET 3');
   }
 
@@ -101,15 +101,15 @@ export class EnhancedAttachmentProcessor {
       try {
         const result = await this.processAttachmentWithClassification(attachment, userId, emailMetadata);
         results.push(result);
-        
+
         if (result.success) {
           totalProcessed++;
           originalCount++;
-          
+
           if (result.convertedDocument) {
             convertedCount++;
           }
-          
+
           console.log(`[${emailMetadata.requestId}] ✅ Successfully processed: ${result.originalDocument.filename} (${result.originalDocument.conversionStatus})`);
           if (result.convertedDocument) {
             console.log(`[${emailMetadata.requestId}] ✅ Converted document created: ${result.convertedDocument.filename}`);
@@ -156,13 +156,13 @@ export class EnhancedAttachmentProcessor {
     emailMetadata: EmailMetadata
   ): Promise<EnhancedProcessedAttachment> {
     const { requestId } = emailMetadata;
-    
+
     // Step 1: Classify attachment
     const classification = attachmentClassificationService.classifyAttachment(attachment);
     const conversionStatus = attachmentClassificationService.getConversionStatus(classification);
-    
+
     console.log(`[${requestId}] Classification: ${attachment.filename} → ${classification.type} (${classification.action})`);
-    
+
     // Step 2: Validate and decode attachment
     const validation = this.validateAttachment(attachment, requestId);
     if (!validation.isValid) {
@@ -170,7 +170,7 @@ export class EnhancedAttachmentProcessor {
     }
 
     const decodedContent = this.decodeAttachmentContent(attachment.content, requestId);
-    
+
     // Step 3: Store original document (always preserved)
     const originalDocument = await this.storeOriginalDocument(
       attachment, 
@@ -184,16 +184,16 @@ export class EnhancedAttachmentProcessor {
 
     // Step 4: Convert if needed
     let convertedDocument: EnhancedProcessedAttachment['convertedDocument'];
-    
+
     if (classification.action === 'convert_to_pdf') {
       try {
         console.log(`[${requestId}] 🔄 Converting ${attachment.filename} to PDF...`);
-        
+
         const conversionResult = await attachmentClassificationService.convertAttachmentToPdf(
           attachment, 
           classification
         );
-        
+
         if (conversionResult.success && conversionResult.pdfBuffer) {
           // Store converted PDF as separate document
           convertedDocument = await this.storeConvertedDocument(
@@ -203,10 +203,10 @@ export class EnhancedAttachmentProcessor {
             emailMetadata,
             attachment.contentType
           );
-          
+
           // Update original document status to completed
           await this.updateConversionStatus(originalDocument.documentId, 'completed', conversionResult.jobId);
-          
+
           console.log(`[${requestId}] ✅ PDF conversion completed: ${convertedDocument.filename} (ID: ${convertedDocument.documentId})`);
         } else {
           // Handle conversion failure
@@ -241,11 +241,25 @@ export class EnhancedAttachmentProcessor {
     const sanitizedFilename = this.sanitizeFilename(attachment.filename);
     const timestampedFilename = this.addTimestamp(sanitizedFilename);
     const gcsPath = this.generateGCSPath(userId, timestampedFilename);
-    
+
     // Upload to storage (local fallback)
     await this.uploadToStorage(gcsPath, decodedContent, attachment.contentType);
-    
-    // Store metadata in database
+
+    // TICKET 3: Deduplicate tags before storing document
+    const allTags = [
+      'email-attachment',
+      'email-imported', 
+      `from-${emailMetadata.from.split('@')[1] || 'unknown'}`,
+      // Assuming 'email' tag might be added elsewhere or implicitly.
+      // For this fix, we'll ensure 'email-imported' covers it.
+      // If 'email' tag is explicitly needed and might be added by other services,
+      // deduplication logic would need to be more robust.
+    ];
+
+    // Remove duplicates while preserving order
+    const uniqueTags = [...new Set(allTags)];
+
+    // Create document with comprehensive metadata
     const documentData: Partial<InsertDocument> = {
       userId,
       name: sanitizedFilename,
@@ -267,11 +281,12 @@ export class EnhancedAttachmentProcessor {
         subject: emailMetadata.subject,
         receivedAt: new Date().toISOString(),
         messageId: emailMetadata.messageId
-      }
+      },
+      tags: uniqueTags // Use the deduplicated tags
     };
 
     const documentId = await storage.createDocument(documentData as InsertDocument);
-    
+
     return {
       documentId,
       filename: sanitizedFilename,
@@ -293,14 +308,14 @@ export class EnhancedAttachmentProcessor {
     originalMimeType: string
   ): Promise<EnhancedProcessedAttachment['convertedDocument']> {
     const { pdfBuffer, filename, jobId, metadata } = conversionResult;
-    
+
     // Generate unique filename and path for PDF
     const timestampedFilename = this.addTimestamp(filename);
     const gcsPath = this.generateGCSPath(userId, timestampedFilename);
-    
+
     // Upload PDF to storage
     await this.uploadToStorage(gcsPath, pdfBuffer, 'application/pdf');
-    
+
     // Store PDF metadata in database with reference to original
     const pdfDocumentData: Partial<InsertDocument> = {
       userId,
@@ -333,7 +348,7 @@ export class EnhancedAttachmentProcessor {
     };
 
     const documentId = await storage.createDocument(pdfDocumentData as InsertDocument);
-    
+
     return {
       documentId,
       filename,
@@ -407,7 +422,7 @@ export class EnhancedAttachmentProcessor {
     if (Buffer.isBuffer(content)) {
       return content;
     }
-    
+
     try {
       return Buffer.from(content, 'base64');
     } catch (error) {
@@ -462,12 +477,12 @@ export class EnhancedAttachmentProcessor {
     const units = ['B', 'KB', 'MB', 'GB'];
     let size = bytes;
     let unitIndex = 0;
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024;
       unitIndex++;
     }
-    
+
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   }
 

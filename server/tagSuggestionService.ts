@@ -52,29 +52,37 @@ export class TagSuggestionService {
       category = 'Insurance';
       confidence = 0.9;
     }
-    
+
     // Bills and utilities
     if (text.includes('bill') || text.includes('electric') || text.includes('water') || text.includes('gas')) {
       tags.push({tag: 'utility', confidence: 0.8, reasoning: 'Contains utility bill terms'});
       if (!category) { category = 'Utilities'; confidence = 0.8; }
     }
-    
+
     // Financial documents
     if (text.includes('mortgage') || text.includes('loan') || text.includes('bank')) {
       tags.push({tag: 'financial', confidence: 0.8, reasoning: 'Contains financial terms'});
       if (!category) { category = 'Financial'; confidence = 0.8; }
     }
-    
+
     // Car-related
     if (text.includes('car') || text.includes('vehicle') || text.includes('auto')) {
       tags.push({tag: 'vehicle', confidence: 0.8, reasoning: 'Contains vehicle-related terms'});
       if (!category) { category = 'Car'; confidence = 0.8; }
     }
-    
+
     // Receipts
     if (text.includes('receipt') || text.includes('purchase') || text.includes('total')) {
       tags.push({tag: 'receipt', confidence: 0.7, reasoning: 'Contains receipt terms'});
       if (!category) { category = 'Receipts'; confidence = 0.7; }
+    }
+
+    // Email processing specific tag
+    if (fileName.toLowerCase().includes('.eml') || mimeType === 'application/vnd.ms-outlook' || mimeType === 'message/rfc822') {
+      if (!tags.some(t => t.tag === 'email')) {
+        tags.push({tag: 'email', confidence: 1.0, reasoning: 'Document is an email file'});
+        if (!category) { category = 'Email'; confidence = 1.0; }
+      }
     }
 
     return {tags, category, confidence};
@@ -91,7 +99,7 @@ export class TagSuggestionService {
     existingTags?: string[];
   }>): Promise<Record<number, TagSuggestionResponse>> {
     const results: Record<number, TagSuggestionResponse> = {};
-    
+
     // Process in parallel batches of 5 to avoid rate limits
     const batchSize = 5;
     for (let i = 0; i < documents.length; i += batchSize) {
@@ -105,13 +113,13 @@ export class TagSuggestionService {
         );
         return { id: doc.id, suggestions };
       });
-      
+
       const batchResults = await Promise.all(promises);
       batchResults.forEach(({ id, suggestions }) => {
         results[id] = suggestions;
       });
     }
-    
+
     return results;
   }
 
@@ -183,10 +191,25 @@ Limit to 3-6 most relevant and useful tags.
       }))
       .slice(0, 6); // Limit to 6 tags
 
+    // Combine human tags with AI suggestions (with confidence threshold) and deduplicate
+    const combinedTags = [...existingTags];
+
+    if (aiResponse?.suggestedTags) {
+      aiResponse.suggestedTags.forEach(suggestion => {
+        if (suggestion.confidence >= 0.6 && !combinedTags.includes(suggestion.tag)) {
+          combinedTags.push(suggestion.tag);
+        }
+      });
+    }
+
+    // Remove any duplicate tags that might have been introduced
+    const uniqueTags = [...new Set(combinedTags)];
+
     return {
-      suggestedTags,
-      category: result.category || null,
-      categoryConfidence: Math.max(0, Math.min(1, result.categoryConfidence || 0))
+      suggestedTags: aiResponse?.suggestedTags || [],
+      combinedTags: uniqueTags,
+      confidence: aiResponse?.confidence || 0.5,
+      reasoning: aiResponse?.reasoning || 'Default tag suggestions'
     };
   }
 }

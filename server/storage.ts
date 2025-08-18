@@ -43,7 +43,7 @@ export interface IStorage {
 
   // User operations  
   updateUserLastLogin(userId: string): Promise<void>;
-  
+
   // Document insight operations
   createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight>;
   getUserInsights(userId: string): Promise<DocumentInsight[]>;
@@ -163,9 +163,59 @@ export class PostgresStorage implements IStorage {
     }
   }
 
-  async createDocument(document: InsertDocument): Promise<Document> {
-    const [newDocument] = await this.db.insert(documents).values(document).returning();
-    return newDocument;
+  async createDocument(documentData: {
+    name: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+    userId: string;
+    tags?: string[];
+    categoryId?: number | null;
+    gcsPath?: string;
+    uploadSource?: string;
+    extractedText?: string;
+    extractedDate?: Date | null;
+    expiryDate?: Date | null;
+    emailContext?: any;
+    messageId?: string;
+    bodyHash?: string;
+    documentReferences?: any;
+    conversionStatus?: string;
+    sourceDocumentId?: number;
+    originalMimeType?: string;
+    conversionJobId?: string;
+    conversionMetadata?: any;
+    conversionEngine?: string;
+    conversionInputSha256?: string;
+  }): Promise<Document> {
+    // Deduplicate tags before creating document
+    const deduplicatedTags = documentData.tags ? this.deduplicateTags(documentData.tags) : [];
+    const result = await this.db.insert(documents).values({
+      name: documentData.name,
+      fileName: documentData.fileName,
+      fileSize: documentData.fileSize,
+      mimeType: documentData.mimeType,
+      userId: documentData.userId,
+      tags: deduplicatedTags,
+      categoryId: documentData.categoryId,
+      gcsPath: documentData.gcsPath,
+      uploadSource: documentData.uploadSource,
+      extractedText: documentData.extractedText,
+      extractedDate: documentData.extractedDate,
+      expiryDate: documentData.expiryDate,
+      emailContext: documentData.emailContext,
+      messageId: documentData.messageId,
+      bodyHash: documentData.bodyHash,
+      documentReferences: documentData.documentReferences,
+      conversionStatus: documentData.conversionStatus,
+      sourceDocumentId: documentData.sourceDocumentId,
+      originalMimeType: documentData.originalMimeType,
+      conversionJobId: documentData.conversionJobId,
+      conversionMetadata: documentData.conversionMetadata,
+      conversionEngine: documentData.conversionEngine,
+      conversionInputSha256: documentData.conversionInputSha256,
+    }).returning();
+    return result[0];
   }
 
   async getUserDocuments(userId: string, sort?: string, filters?: any): Promise<Document[]> {
@@ -222,12 +272,17 @@ export class PostgresStorage implements IStorage {
   }
 
   async updateDocument(id: number, userId: string, updates: any): Promise<Document | undefined> {
-    const [updatedDoc] = await this.db
+    // Deduplicate tags if they're being updated
+    const updateData = { ...updates };
+    if (updateData.tags) {
+      updateData.tags = this.deduplicateTags(updateData.tags);
+    }
+    const result = await this.db
       .update(documents)
-      .set(updates)
+      .set(updateData)
       .where(and(eq(documents.id, id), eq(documents.userId, userId)))
       .returning();
-    return updatedDoc;
+    return result[0];
   }
 
   async updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined> {
@@ -240,9 +295,10 @@ export class PostgresStorage implements IStorage {
   }
 
   async updateDocumentTags(id: number, userId: string, tags: string[]): Promise<Document | undefined> {
+    const deduplicatedTags = this.deduplicateTags(tags);
     const [updatedDoc] = await this.db
       .update(documents)
-      .set({ tags })
+      .set({ tags: deduplicatedTags })
       .where(and(eq(documents.id, id), eq(documents.userId, userId)))
       .returning();
     return updatedDoc;
@@ -392,7 +448,7 @@ export class PostgresStorage implements IStorage {
 
   async getInsights(userId: string, status?: string, type?: string, priority?: string): Promise<DocumentInsight[]> {
     const conditions = [eq(documentInsights.userId, userId)];
-    
+
     if (status) {
       conditions.push(eq(documentInsights.status, status));
     }
@@ -412,7 +468,7 @@ export class PostgresStorage implements IStorage {
 
   async getDocumentInsights(documentId: number, userId?: string, tier?: string): Promise<DocumentInsight[]> {
     const conditions = [eq(documentInsights.documentId, documentId)];
-    
+
     if (userId) {
       conditions.push(eq(documentInsights.userId, userId));
     }
@@ -520,7 +576,7 @@ export class PostgresStorage implements IStorage {
     return [];
   }
 
-  async getManualTrackedEvents(userId: string): Promise<any[]> {
+  async getManualTrackedEvents(userId: string): Promise<any[]>{
     console.warn('ManualTrackedEvent operations not implemented in clean storage');
     return [];
   }
@@ -791,6 +847,13 @@ export class PostgresStorage implements IStorage {
 
   async getHouseholds(): Promise<Household[]> {
     return await this.db.select().from(households);
+  }
+
+  /**
+   * Helper function to deduplicate tags while preserving order
+   */
+  private deduplicateTags(tags: string[]): string[] {
+    return [...new Set(tags.filter(tag => tag && tag.trim()))];
   }
 }
 

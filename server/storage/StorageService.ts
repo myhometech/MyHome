@@ -82,7 +82,7 @@ export class StorageService {
     
     // GCS now properly configured with explicit authentication
     
-    const bucketName = process.env.GCS_BUCKET_NAME || 'myhometech-storage';
+    const bucketName = process.env.GCS_BUCKET_NAME || 'myhometech-eu';
     let projectId = process.env.GCS_PROJECT_ID;
     let keyFilename = process.env.GCS_KEY_FILENAME;
     

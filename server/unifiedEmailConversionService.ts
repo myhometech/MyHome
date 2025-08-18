@@ -769,7 +769,7 @@ export class UnifiedEmailConversionService {
    */
   private getGCSStorageConfig() {
     const storageConfig = {
-      bucketName: process.env.MAILGUN_GCS_BUCKET || 'myhometech-storage',
+      bucketName: process.env.MAILGUN_GCS_BUCKET || process.env.GCS_BUCKET_NAME || 'myhometech-eu',
       projectId: undefined as string | undefined,
       credentials: undefined as any,
       keyFilename: undefined as string | undefined

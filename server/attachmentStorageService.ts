@@ -16,7 +16,7 @@ export class AttachmentStorageService {
 
   constructor() {
     this.storage = new Storage();
-    this.bucketName = process.env.MAILGUN_GCS_BUCKET || 'myhometech-storage';
+    this.bucketName = process.env.MAILGUN_GCS_BUCKET || process.env.GCS_BUCKET_NAME || 'myhometech-eu';
   }
 
   /**

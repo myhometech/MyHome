@@ -85,8 +85,19 @@ export function EnhancedDocumentUpload({
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Show immediate processing notification
+      toast({
+        title: "Document uploaded successfully",
+        description: "Your document is being processed and will appear shortly in your library.",
+        duration: 5000,
+      });
+      
+      // Refresh document list
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/insights/metrics'] });
+      
+      // Call completion callback
       onUploadComplete?.();
     },
     retry: (failureCount, error: any) => {

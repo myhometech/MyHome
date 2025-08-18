@@ -83,7 +83,7 @@ export function AddDropdownMenu({
             Add
           </Button>
         </DropdownMenuTrigger>
-        
+
         <DropdownMenuContent 
           align="end" 
           className="w-48"
@@ -99,7 +99,7 @@ export function AddDropdownMenu({
               <span className="text-xs text-muted-foreground">Track renewals, taxes, etc.</span>
             </div>
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem 
             onClick={() => {
               handleDocumentUpload();
@@ -113,7 +113,7 @@ export function AddDropdownMenu({
               <span className="text-xs text-muted-foreground">PDF, images, existing files</span>
             </div>
           </DropdownMenuItem>
-          
+
           {/* TICKET 7: New browser-native scanner */}
           <DropdownMenuItem 
             onClick={handleScanDocument}
@@ -138,7 +138,7 @@ export function AddDropdownMenu({
             // 1. Close and unmount immediately
             setUploadDialogOpen(false);
             setInstanceKey(k => k + 1);
-            
+
             // 2. Invalidate queries after unmount to avoid remount loops
             queueMicrotask(() => {
               queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
@@ -156,7 +156,7 @@ export function AddDropdownMenu({
         selectedAssetId={selectedAssetId}
         selectedAssetName={selectedAssetName}
       />
-      
+
       {/* TICKET 7: Browser-native scanner flow */}
       <ScanDocumentFlow
         isOpen={showScanFlow}

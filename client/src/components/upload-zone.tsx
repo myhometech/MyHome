@@ -165,16 +165,28 @@ export default function UploadZone({ onUpload }: UploadZoneProps) {
 
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Upload successful",
-        description: "Your document has been uploaded and organized.",
-      });
-      onUpload(selectedFiles);
-      setSelectedFiles([]);
+    onSuccess: (data) => {
+      // Close dialog immediately
       setShowUploadDialog(false);
+      
+      // Show processing notification
+      toast({
+        title: "Document uploaded successfully",
+        description: "Your document is being processed and will appear shortly in your library.",
+        duration: 5000,
+      });
+      
+      // Call upload callback
+      onUpload(selectedFiles);
+      
+      // Reset form state
+      setSelectedFiles([]);
       setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
       setCategorySuggestion(null);
+      
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/insights/metrics"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {

@@ -17,25 +17,25 @@ import { useFeatures } from "@/hooks/useFeatures";
 interface UnifiedUploadButtonProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: (result: any) => void;
+  onSuccess?: (result: any) => void; // Changed to optional
   /** Optional context for prefilling modals (e.g., selected house/vehicle) */
   selectedAssetId?: string;
   selectedAssetName?: string;
 }
 
-export default function UnifiedUploadButton({ 
+export default function UnifiedUploadButton({
   open,
   onOpenChange,
-  onSuccess,
-  selectedAssetId, 
-  selectedAssetName 
+  onSuccess: onUploadComplete, // Renamed for clarity
+  selectedAssetId,
+  selectedAssetName
 }: UnifiedUploadButtonProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   // Guard against late async completions trying to update UI after close
   const closedRef = useRef(false);
-  
+
   // Enhanced per-file upload tracking with progress and error handling
   type UploadItem = {
     id: string;            // stable UUID generated on enqueue
@@ -60,14 +60,14 @@ export default function UnifiedUploadButton({
 
   // Helper function to update a specific upload item
   const updateItem = (id: string, patch: Partial<UploadItem>) => {
-    setUploadItems(prev => prev.map(item => 
+    setUploadItems(prev => prev.map(item =>
       item.id === id ? { ...item, ...patch } : item
     ));
   };
 
   // Generate stable UUID for upload items
   const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
-  
+
   // TICKET 7: Legacy scanner states removed
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadData, setUploadData] = useState({
@@ -90,6 +90,9 @@ export default function UnifiedUploadButton({
     icon: "fas fa-folder",
     color: "blue"
   });
+
+  // Show/Hide upload dialog state
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
 
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
@@ -137,7 +140,7 @@ export default function UnifiedUploadButton({
     closedRef.current = true;
     onOpenChange(false);
   };
-  
+
   // Helper to reset all states - used for successful uploads or explicit clear
   const resetAllStates = () => {
     // Cancel any ongoing uploads
@@ -146,7 +149,7 @@ export default function UnifiedUploadButton({
         item.abortController.abort();
       }
     });
-    
+
     setUploadItems([]);
     setSelectedFiles([]);
     setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
@@ -172,14 +175,14 @@ export default function UnifiedUploadButton({
     onSuccess: (newCategory) => {
       // Invalidate categories cache to refresh the list
       queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      
+
       // Auto-select the newly created category
       setUploadData(prev => ({ ...prev, categoryId: newCategory.id.toString() }));
-      
+
       // Reset form and close dialog
       setNewCategoryData({ name: "", icon: "fas fa-folder", color: "blue" });
       setShowCreateCategory(false);
-      
+
       toast({
         title: "Category created",
         description: `"${newCategory.name}" category has been created and selected.`,
@@ -205,25 +208,86 @@ export default function UnifiedUploadButton({
     },
   });
 
-  // Remove the old uploadMutation since we're handling uploads manually with bounded concurrency
+  // Upload Mutation for handling file uploads, now with improved error handling and notifications
+  const uploadMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      try {
+        const response = await fetch("/api/documents", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ message: 'Upload failed' }));
+          throw new Error(error.message || 'Upload failed');
+        }
+
+        return response.json();
+      } catch (error: any) { // Explicitly type error as 'any' to access 'name' property
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('Upload timed out. Your document may still be processing.');
+        }
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      // Close the modal immediately
+      setShowUploadDialog(false);
+
+      // Show processing notification
+      toast({
+        title: "Document uploaded successfully",
+        description: "Your document is being processed and will appear shortly in your library.",
+        duration: 5000,
+      });
+
+      // Invalidate queries to refresh the document list
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/insights/metrics"] });
+
+      // Call completion callback
+      onUploadComplete?.();
+
+      // Reset form state
+      setSelectedFiles([]);
+      setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
+    },
+    onError: (error: any) => { // Explicitly type error as 'any' to access message property safely
+      toast({
+        title: "Upload failed",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
 
   const handleFileSelect = async (files: File[]) => {
     // Deduplicate by name+size+lastModified before enqueue
     const createFileKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
     const existingKeys = new Set(selectedFiles.map(createFileKey));
-    
+
     const validFiles = files.filter(file => {
       const fileKey = createFileKey(file);
-      
+
       // Check for duplicates first
       if (existingKeys.has(fileKey)) {
         console.log(`Skipping duplicate file: ${file.name}`);
         return false;
       }
-      
+
       const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
       const maxSize = 10 * 1024 * 1024; // 10MB
-      
+
       if (!validTypes.includes(file.type)) {
         toast({
           title: "Invalid file type",
@@ -232,7 +296,7 @@ export default function UnifiedUploadButton({
         });
         return false;
       }
-      
+
       if (file.size > maxSize) {
         toast({
           title: "File too large",
@@ -241,14 +305,14 @@ export default function UnifiedUploadButton({
         });
         return false;
       }
-      
+
       return true;
     });
 
     if (validFiles.length > 0) {
       // Preserve existing queue logic; push each file into upload queue
       setSelectedFiles(prev => [...prev, ...validFiles]);
-      
+
       // Create upload items for new files with deduplication
       const newUploadItems: UploadItem[] = validFiles.map(file => ({
         id: generateId(),
@@ -257,14 +321,14 @@ export default function UnifiedUploadButton({
         progress: 0,
         bytesUploaded: 0
       }));
-      
+
       setUploadItems(prev => [...prev, ...newUploadItems]);
-      
+
       // Get category suggestion for first file if no category selected
       if (validFiles.length > 0 && !uploadData.categoryId) {
         await getSuggestion(validFiles[0]);
       }
-      
+
       // Files are loaded, ready for upload form
       console.log(`Added ${validFiles.length} files to upload queue. Total: ${selectedFiles.length + validFiles.length}`);
     }
@@ -274,13 +338,13 @@ export default function UnifiedUploadButton({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await fetch('/api/documents/suggest-category', {
         method: 'POST',
         body: formData,
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         const suggestion = await response.json();
         setCategorySuggestion({
@@ -308,7 +372,7 @@ export default function UnifiedUploadButton({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     handleFileSelect(files);
   };
@@ -325,7 +389,7 @@ export default function UnifiedUploadButton({
       updateItem(itemId, { status: 'uploading', abortController });
 
       const xhr = new XMLHttpRequest();
-      
+
       // Prepare form data
       const formData = new FormData();
       formData.append("file", item.file);
@@ -402,7 +466,7 @@ export default function UnifiedUploadButton({
             errorCode,
             errorMessage
           });
-          
+
           console.error(`✗ Failed to upload ${item.file.name}: ${errorMessage}`);
           reject(new Error(errorMessage));
         }
@@ -453,47 +517,47 @@ export default function UnifiedUploadButton({
   const handleUpload = async () => {
     const queuedItems = uploadItems.filter(item => item.status === 'queued');
     console.log(`Starting upload of ${queuedItems.length} files with bounded concurrency (max 3)`);
-    
+
     if (queuedItems.length === 0) return;
-    
+
     // Process files with bounded concurrency (3 uploads at a time)
     const concurrencyLimit = 3;
     const results: Array<{ item: UploadItem; success: boolean; result?: any; error?: string }> = [];
-    
+
     for (let i = 0; i < queuedItems.length; i += concurrencyLimit) {
       const batch = queuedItems.slice(i, i + concurrencyLimit);
       console.log(`Processing batch ${Math.floor(i / concurrencyLimit) + 1}: ${batch.map(item => item.file.name).join(', ')}`);
-      
+
       // Process batch concurrently
       const batchPromises = batch.map(async (item) => {
         try {
           const result = await uploadSingleFileWithProgress(item.id);
           return { item, success: true, result };
-        } catch (error: any) {
+        } catch (error) {
           return { item, success: false, error: error.message };
         }
       });
-      
+
       const batchResults = await Promise.all(batchPromises);
       results.push(...batchResults);
     }
-    
+
     // Show final summary
     const successCount = results.filter(r => r.success).length;
     const errorCount = results.length - successCount;
-    
+
     console.log(`Upload process completed: ${successCount} successful, ${errorCount} failed`);
-    
+
     if (errorCount === 0) {
       toast({
         title: "All uploads successful",
         description: `${successCount} documents uploaded successfully.`,
       });
-      
+
       // Clear state and close modal only on complete success
       resetAllStates();
       close();
-      onSuccess(results.map(r => r.result));
+      onUploadComplete(results.map(r => r.result));
     } else {
       toast({
         title: "Some uploads failed",
@@ -505,7 +569,7 @@ export default function UnifiedUploadButton({
 
   const applySuggestion = () => {
     if (categorySuggestion) {
-      const suggestedCategory = categories.find(cat => 
+      const suggestedCategory = categories.find(cat =>
         cat.name.toLowerCase() === categorySuggestion.suggested.toLowerCase()
       );
       if (suggestedCategory) {
@@ -603,7 +667,7 @@ export default function UnifiedUploadButton({
                   </span>
                 </div>
               </div>
-              
+
               {/* Action buttons */}
               <div className="flex items-center gap-1">
                 {item.status === 'uploading' && (
@@ -648,7 +712,7 @@ export default function UnifiedUploadButton({
                     onClick={() => {
                       // Remove from both lists
                       setUploadItems(prev => prev.filter(i => i.id !== item.id));
-                      setSelectedFiles(prev => prev.filter(f => 
+                      setSelectedFiles(prev => prev.filter(f =>
                         f !== item.file
                       ));
                     }}
@@ -665,7 +729,7 @@ export default function UnifiedUploadButton({
             {item.status === 'uploading' && (
               <div className="space-y-1">
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-200 ease-out"
                     style={{ width: `${item.progress}%` }}
                     role="progressbar"
@@ -703,9 +767,9 @@ export default function UnifiedUploadButton({
               <X className="h-3 w-3" />
             </Button>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={applySuggestion}
             className="mt-2 text-xs"
           >
@@ -728,8 +792,8 @@ export default function UnifiedUploadButton({
         <div>
           <Label htmlFor="category">Category</Label>
           <div className="flex gap-2">
-            <Select 
-              value={uploadData.categoryId} 
+            <Select
+              value={uploadData.categoryId}
               onValueChange={(value) => setUploadData({ ...uploadData, categoryId: value })}
             >
               <SelectTrigger className="flex-1">
@@ -772,20 +836,36 @@ export default function UnifiedUploadButton({
       </div>
 
       <div className="flex gap-2 pt-4">
-        <Button 
-          variant="outline" 
-          onClick={() => close()}
+        <Button
+          variant="outline"
+          onClick={() => {
+            resetAllStates(); // Ensure all states are reset before closing
+            close();
+          }}
           className="flex-1"
         >
           Cancel
         </Button>
-        <Button 
-          onClick={handleUpload}
-          disabled={uploadItems.some(item => item.status === 'uploading') || uploadItems.filter(item => item.status === 'queued').length === 0}
+        <Button
+          onClick={() => {
+            // Prepare formData for the uploadMutation
+            const formData = new FormData();
+            uploadItems.forEach(item => {
+              formData.append("file", item.file);
+            });
+            if (uploadData.customName) formData.append("name", uploadData.customName);
+            if (uploadData.categoryId) formData.append("categoryId", uploadData.categoryId);
+            if (uploadData.tags) formData.append("tags", JSON.stringify(uploadData.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
+            if (uploadData.expiryDate) formData.append("expiryDate", uploadData.expiryDate);
+
+            uploadMutation.mutate(formData);
+            setShowUploadDialog(true); // Show the upload dialog to display progress
+          }}
+          disabled={uploadItems.filter(item => item.status === 'queued' || item.status === 'error').length === 0 || uploadMutation.isPending}
           className="flex-1"
         >
-          {uploadItems.some(item => item.status === 'uploading') ? "Uploading..." : 
-           uploadItems.filter(item => item.status === 'queued').length === 0 ? "No Files to Upload" : "Upload"}
+          {uploadMutation.isPending ? "Uploading..." :
+           uploadItems.filter(item => item.status === 'queued' || item.status === 'error').length === 0 ? "No Files to Upload" : "Upload"}
         </Button>
       </div>
     </div>
@@ -793,7 +873,8 @@ export default function UnifiedUploadButton({
 
   return (
     <>
-      {/* No inline content - only modal based */}
+      {/* Button to trigger the upload dialog */}
+      <Button onClick={() => setShowUploadDialog(true)}>Upload Documents</Button>
 
       {/* Hidden file input */}
       <input
@@ -811,7 +892,7 @@ export default function UnifiedUploadButton({
       />
 
       {/* Fully controlled upload dialog */}
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Upload Documents</DialogTitle>
@@ -820,10 +901,10 @@ export default function UnifiedUploadButton({
               uploadFormContent
             ) : (
               <div className="space-y-4">
-                <Card 
+                <Card
                   className={`h-32 border-2 border-dashed transition-colors cursor-pointer hover:border-primary ${
-                    isDragOver 
-                      ? "border-primary bg-blue-50" 
+                    isDragOver
+                      ? "border-primary bg-blue-50"
                       : "border-gray-300"
                   }`}
                   onDrop={handleDrop}
@@ -840,7 +921,7 @@ export default function UnifiedUploadButton({
                     <p className="text-xs text-gray-500">PDF, JPG, PNG, WebP (max 10MB)</p>
                   </CardContent>
                 </Card>
-                
+
                 <div className="text-center">
                   <p className="text-sm text-gray-500 mb-3">Or choose files directly:</p>
                   <Button onClick={handleFileUpload} variant="outline" className="w-full">
@@ -859,7 +940,7 @@ export default function UnifiedUploadButton({
           <DialogHeader>
             <DialogTitle>Create New Category</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div>
               <Label htmlFor="category-name">Category Name</Label>
@@ -873,8 +954,8 @@ export default function UnifiedUploadButton({
 
             <div>
               <Label htmlFor="category-icon">Icon</Label>
-              <Select 
-                value={newCategoryData.icon} 
+              <Select
+                value={newCategoryData.icon}
                 onValueChange={(value) => setNewCategoryData({ ...newCategoryData, icon: value })}
               >
                 <SelectTrigger>
@@ -892,8 +973,8 @@ export default function UnifiedUploadButton({
 
             <div>
               <Label htmlFor="category-color">Color</Label>
-              <Select 
-                value={newCategoryData.color} 
+              <Select
+                value={newCategoryData.color}
                 onValueChange={(value) => setNewCategoryData({ ...newCategoryData, color: value })}
               >
                 <SelectTrigger>
@@ -910,14 +991,14 @@ export default function UnifiedUploadButton({
             </div>
 
             <div className="flex gap-2 pt-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowCreateCategory(false)}
                 className="flex-1"
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={() => createCategoryMutation.mutate(newCategoryData)}
                 disabled={!newCategoryData.name || createCategoryMutation.isPending}
                 className="flex-1"

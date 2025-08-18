@@ -522,24 +522,54 @@ export default function UnifiedUploadButton({
 
     if (queuedItems.length === 0) return;
 
-    // Show immediate notification
-    toast({
-      title: "Documents uploading",
-      description: `${queuedItems.length} documents are being processed and will appear in your library shortly.`,
-      duration: 5000,
-    });
+    // Process files sequentially to avoid overwhelming the server
+    const results: Array<{ item: UploadItem; success: boolean; result?: any; error?: string }> = [];
 
-    // Close modal immediately
-    resetAllStates();
-    close();
+    for (const item of queuedItems) {
+      console.log(`Uploading: ${item.file.name}`);
+      
+      try {
+        const result = await uploadSingleFileWithProgress(item.id);
+        results.push({ item, success: true, result });
+        
+        // Refresh queries after each successful upload
+        queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/insights/metrics"] });
+        
+      } catch (error: any) {
+        console.error(`Failed to upload ${item.file.name}:`, error);
+        results.push({ item, success: false, error: error.message });
+      }
+    }
 
-    // Trigger background uploads without waiting
-    queuedItems.forEach(item => {
-      uploadSingleFileInBackground(item.id);
-    });
+    // Show final summary
+    const successCount = results.filter(r => r.success).length;
+    const errorCount = results.filter(r => !r.success).length;
 
-    // Call completion callback immediately
-    onUploadComplete?.(queuedItems.map(item => ({ id: item.id, name: item.file.name })));
+    console.log(`Upload process completed: ${successCount} successful, ${errorCount} failed`);
+
+    if (successCount > 0) {
+      toast({
+        title: successCount === results.length ? "All uploads successful" : "Some uploads completed",
+        description: errorCount === 0 
+          ? `${successCount} documents uploaded successfully.`
+          : `${successCount} successful, ${errorCount} failed. Check failed items below.`,
+        variant: errorCount === 0 ? "default" : "destructive",
+      });
+
+      // If all succeeded, close modal and reset
+      if (errorCount === 0) {
+        resetAllStates();
+        close();
+        onUploadComplete?.(results.filter(r => r.success).map(r => r.result));
+      }
+    } else {
+      toast({
+        title: "All uploads failed",
+        description: "Please check the errors and try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const uploadSingleFileInBackground = async (itemId: string) => {

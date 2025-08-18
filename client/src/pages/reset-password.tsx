@@ -35,9 +35,17 @@ export default function ResetPassword() {
   const [tokenError, setTokenError] = useState<string | null>(null);
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
 
-  // Extract token from URL query params
+  // Extract token from URL query params - clear from URL after extraction for security
   const urlParams = new URLSearchParams(location.split('?')[1] || '');
   const token = urlParams.get('token');
+  
+  // Clear sensitive token from URL after extraction
+  React.useEffect(() => {
+    if (token && window.history.replaceState) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [token]);
 
   const form = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),

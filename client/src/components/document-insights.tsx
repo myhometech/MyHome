@@ -109,7 +109,6 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
       window.removeEventListener('resize', handleResize);
       if (resizeTimer) {
         clearTimeout(resizeTimer);
-        resizeTimer = null;
       }
     };
   }, []);

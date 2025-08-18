@@ -379,17 +379,9 @@ export const insertLlmUsageLogSchema = createInsertSchema(llmUsageLogs).omit({
   createdAt: true,
 });
 
-// Stripe webhook types
-export type StripeWebhook = typeof stripeWebhooks.$inferSelect;
-export type InsertStripeWebhook = z.infer<typeof insertStripeWebhookSchema>;
-
 // TICKET 1: LLM Usage Log types
 export type LlmUsageLog = typeof llmUsageLogs.$inferSelect;
 export type InsertLlmUsageLog = z.infer<typeof insertLlmUsageLogSchema>;
-
-// Types  
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
 export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
 export type OAuthRegisterData = z.infer<typeof oauthRegisterSchema>;
@@ -484,6 +476,10 @@ export const insertExpiryReminderSchema = createInsertSchema(expiryReminders, {
   updatedAt: true,
 });
 
+// User types
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
 // User forwarding mapping types
 export type InsertUserForwardingMapping = typeof userForwardingMappings.$inferInsert;
 export type UserForwardingMapping = typeof userForwardingMappings.$inferSelect;
@@ -495,6 +491,8 @@ export type DocumentShare = typeof documentShares.$inferSelect;
 export type InsertDocumentShare = z.infer<typeof insertDocumentShareSchema>;
 export type EmailForward = typeof emailForwards.$inferSelect;
 export type InsertEmailForward = z.infer<typeof insertEmailForwardSchema>;
+
+
 
 // User Assets table for properties and vehicles
 export const userAssets = pgTable("user_assets", {

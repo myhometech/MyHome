@@ -1,8 +1,10 @@
 import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
-import type { NeonDatabase } from '@neondatabase/serverless';
+import { type NeonDatabase } from '@neondatabase/serverless';
 import { 
   users, categories, documents, emailForwards, households, userHouseholdMembership,
-  type User, type Category, type Document, type EmailForward, type Household
+  type User, type InsertUser, type Category, type InsertCategory, 
+  type Document, type InsertDocument, type EmailForward, type InsertEmailForward, 
+  type Household, type InsertHousehold
 } from '../shared/schema.js';
 
 export interface IStorage {
@@ -15,26 +17,37 @@ export interface IStorage {
   // Category operations
   createCategory(category: InsertCategory): Promise<Category>;
   getUserCategories(userId: string): Promise<Category[]>;
+  getCategories(userId: string): Promise<Category[]>;
   getCategory(id: number): Promise<Category | undefined>;
   updateCategory(id: number, updates: Partial<InsertCategory>): Promise<Category | undefined>;
-  deleteCategory(id: number): Promise<void>;
+  deleteCategory(id: number, userId?: string): Promise<void>;
 
   // Document operations
   createDocument(document: InsertDocument): Promise<Document>;
   getUserDocuments(userId: string, sort?: string, filters?: any): Promise<Document[]>;
+  getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: string, filters?: any, sort?: string): Promise<Document[]>;
   getDocument(id: number, userId: string): Promise<Document | undefined>;
   getDocumentById(id: number): Promise<Document | undefined>;
   updateDocument(id: number, userId: string, updates: any): Promise<Document | undefined>;
   updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined>;
+  updateDocumentTags(id: number, userId: string, tags: string[]): Promise<Document | undefined>;
+  updateDocumentOCRAndSummary(id: number, ocrText: string, summary: string): Promise<Document | undefined>;
+  updateDocumentSummary(id: number, userId: string, summary: string): Promise<Document | undefined>;
+  updateDocumentOCR(id: number, ocrText: string): Promise<Document | undefined>;
   deleteDocument(id: number, userId: string): Promise<void>;
 
   // SEARCH FUNCTIONALITY
   searchDocuments(userId: string, query: string, limit?: number): Promise<Array<Document & { relevanceScore?: number, matchType?: string }>>;
 
+  // User operations  
+  updateUserLastLogin(userId: string): Promise<void>;
+  
   // Legacy insight operations (simplified for now)
   createInsight(insight: any): Promise<any>;
   getUserInsights(userId: string): Promise<any[]>;
+  getInsights(userId: string): Promise<any[]>;
   updateInsight(id: number, updates: any): Promise<any>;
+  updateInsightStatus(id: number, status: string): Promise<any>;
   deleteInsight(id: number): Promise<void>;
 
   // Email forwarding operations
@@ -50,8 +63,18 @@ export interface IStorage {
   // Manual event operations  
   createManualEvent(event: any): Promise<any>;
   getUserManualEvents(userId: string): Promise<any[]>;
+  getManualTrackedEvents(userId: string): Promise<any[]>;
+  getManualTrackedEvent(id: string, userId: string): Promise<any>;
+  createManualTrackedEvent(event: any): Promise<any>;
   updateManualEvent(id: number, updates: any): Promise<any>;
+  updateManualTrackedEvent(id: string, updates: any): Promise<any>;
   deleteManualEvent(id: number): Promise<void>;
+  deleteManualTrackedEvent(id: string): Promise<void>;
+
+  // User assets operations
+  createUserAsset(asset: any): Promise<any>;
+  getUserAssets(userId: string): Promise<any[]>;
+  deleteUserAsset(id: number, userId: string): Promise<void>;
 
   // Household operations
   createHousehold(household: any): Promise<Household>;
@@ -85,6 +108,13 @@ export class PostgresStorage implements IStorage {
     return updatedUser;
   }
 
+  async updateUserLastLogin(userId: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
   async createCategory(category: InsertCategory): Promise<Category> {
     const [newCategory] = await this.db.insert(categories).values(category).returning();
     return newCategory;
@@ -92,6 +122,10 @@ export class PostgresStorage implements IStorage {
 
   async getUserCategories(userId: string): Promise<Category[]> {
     return await this.db.select().from(categories).where(eq(categories.userId, userId));
+  }
+
+  async getCategories(userId: string): Promise<Category[]> {
+    return await this.getUserCategories(userId);
   }
 
   async getCategory(id: number): Promise<Category | undefined> {
@@ -108,8 +142,12 @@ export class PostgresStorage implements IStorage {
     return updatedCategory;
   }
 
-  async deleteCategory(id: number): Promise<void> {
-    await this.db.delete(categories).where(eq(categories.id, id));
+  async deleteCategory(id: number, userId?: string): Promise<void> {
+    if (userId) {
+      await this.db.delete(categories).where(and(eq(categories.id, id), eq(categories.userId, userId)));
+    } else {
+      await this.db.delete(categories).where(eq(categories.id, id));
+    }
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {
@@ -122,6 +160,29 @@ export class PostgresStorage implements IStorage {
 
     if (filters?.category) {
       conditions.push(eq(documents.categoryId, parseInt(filters.category)));
+    }
+
+    return await this.db
+      .select()
+      .from(documents)
+      .where(and(...conditions))
+      .orderBy(desc(documents.uploadedAt));
+  }
+
+  async getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: string, filters?: any, sort?: string): Promise<Document[]> {
+    const conditions = [eq(documents.userId, userId)];
+
+    if (categoryId) {
+      conditions.push(eq(documents.categoryId, categoryId));
+    }
+
+    if (search) {
+      conditions.push(
+        or(
+          ilike(documents.name, `%${search}%`),
+          ilike(documents.extractedText, `%${search}%`)
+        )
+      );
     }
 
     return await this.db
@@ -161,6 +222,49 @@ export class PostgresStorage implements IStorage {
       .update(documents)
       .set({ name: newName })
       .where(and(eq(documents.id, id), eq(documents.userId, userId)))
+      .returning();
+    return updatedDoc;
+  }
+
+  async updateDocumentTags(id: number, userId: string, tags: string[]): Promise<Document | undefined> {
+    const [updatedDoc] = await this.db
+      .update(documents)
+      .set({ tags })
+      .where(and(eq(documents.id, id), eq(documents.userId, userId)))
+      .returning();
+    return updatedDoc;
+  }
+
+  async updateDocumentOCRAndSummary(id: number, ocrText: string, summary: string): Promise<Document | undefined> {
+    const [updatedDoc] = await this.db
+      .update(documents)
+      .set({ 
+        extractedText: ocrText, 
+        summary, 
+        ocrProcessed: true 
+      })
+      .where(eq(documents.id, id))
+      .returning();
+    return updatedDoc;
+  }
+
+  async updateDocumentSummary(id: number, userId: string, summary: string): Promise<Document | undefined> {
+    const [updatedDoc] = await this.db
+      .update(documents)
+      .set({ summary })
+      .where(and(eq(documents.id, id), eq(documents.userId, userId)))
+      .returning();
+    return updatedDoc;
+  }
+
+  async updateDocumentOCR(id: number, ocrText: string): Promise<Document | undefined> {
+    const [updatedDoc] = await this.db
+      .update(documents)
+      .set({ 
+        extractedText: ocrText, 
+        ocrProcessed: true 
+      })
+      .where(eq(documents.id, id))
       .returning();
     return updatedDoc;
   }
@@ -265,12 +369,37 @@ export class PostgresStorage implements IStorage {
     return null;
   }
 
+  async createDocumentInsight(insight: any): Promise<any> {
+    console.warn('Document insight operations not implemented in clean storage');
+    return null;
+  }
+
   async getUserInsights(userId: string): Promise<any[]> {
     console.warn('Insight operations not implemented in clean storage');
     return [];
   }
 
+  async getInsights(userId: string): Promise<any[]> {
+    console.warn('Insight operations not implemented in clean storage');
+    return [];
+  }
+
+  async getDocumentInsights(documentId: number): Promise<any[]> {
+    console.warn('Document insight operations not implemented in clean storage');
+    return [];
+  }
+
+  async getCriticalInsights(userId: string): Promise<any[]> {
+    console.warn('Critical insight operations not implemented in clean storage');
+    return [];
+  }
+
   async updateInsight(id: number, updates: any): Promise<any> {
+    console.warn('Insight operations not implemented in clean storage');
+    return null;
+  }
+
+  async updateInsightStatus(id: number, status: string): Promise<any> {
     console.warn('Insight operations not implemented in clean storage');
     return null;
   }
@@ -332,13 +461,253 @@ export class PostgresStorage implements IStorage {
     return [];
   }
 
+  async getManualTrackedEvents(userId: string): Promise<any[]> {
+    console.warn('ManualTrackedEvent operations not implemented in clean storage');
+    return [];
+  }
+
+  async getManualTrackedEvent(id: string, userId: string): Promise<any> {
+    console.warn('ManualTrackedEvent operations not implemented in clean storage');
+    return null;
+  }
+
+  async createManualTrackedEvent(event: any): Promise<any> {
+    console.warn('ManualTrackedEvent operations not implemented in clean storage');
+    return null;
+  }
+
   async updateManualEvent(id: number, updates: any): Promise<any> {
     console.warn('ManualEvent operations not implemented in clean storage');
     return null;
   }
 
+  async updateManualTrackedEvent(id: string, updates: any): Promise<any> {
+    console.warn('ManualTrackedEvent operations not implemented in clean storage');
+    return null;
+  }
+
   async deleteManualEvent(id: number): Promise<void> {
     console.warn('ManualEvent operations not implemented in clean storage');
+  }
+
+  async deleteManualTrackedEvent(id: string): Promise<void> {
+    console.warn('ManualTrackedEvent operations not implemented in clean storage');
+  }
+
+  async deleteDocumentInsight(id: number): Promise<void> {
+    console.warn('Document insight operations not implemented in clean storage');
+  }
+
+  // User assets operations
+  async createUserAsset(asset: any): Promise<any> {
+    console.warn('UserAsset operations not implemented in clean storage');
+    return null;
+  }
+
+  async getUserAssets(userId: string): Promise<any[]> {
+    console.warn('UserAsset operations not implemented in clean storage');
+    return [];
+  }
+
+  async deleteUserAsset(id: number, userId: string): Promise<void> {
+    console.warn('UserAsset operations not implemented in clean storage');
+  }
+
+  // Admin and statistics operations
+  async getEncryptionStats(): Promise<any> {
+    console.warn('Encryption stats not implemented in clean storage');
+    return {};
+  }
+
+  async getAdminStats(): Promise<any> {
+    console.warn('Admin stats not implemented in clean storage');
+    return {};
+  }
+
+  async getAllUsersWithStats(): Promise<any[]> {
+    console.warn('User stats not implemented in clean storage');
+    return [];
+  }
+
+  async getSystemActivities(): Promise<any[]> {
+    console.warn('System activities not implemented in clean storage');
+    return [];
+  }
+
+  async getGCSUsage(): Promise<any> {
+    console.warn('GCS usage not implemented in clean storage');
+    return {};
+  }
+
+  async getOpenAIUsage(): Promise<any> {
+    console.warn('OpenAI usage not implemented in clean storage');
+    return {};
+  }
+
+  async updateUserStatus(userId: string, status: string): Promise<any> {
+    console.warn('User status updates not implemented in clean storage');
+    return null;
+  }
+
+  async getSearchAnalytics(): Promise<any[]> {
+    console.warn('Search analytics not implemented in clean storage');
+    return [];
+  }
+
+  // Document sharing operations
+  async shareDocument(documentId: number, shareWith: string[], permissions: string): Promise<any> {
+    console.warn('Document sharing not implemented in clean storage');
+    return null;
+  }
+
+  async getDocumentShares(documentId: number): Promise<any[]> {
+    console.warn('Document sharing not implemented in clean storage');
+    return [];
+  }
+
+  async unshareDocument(shareId: number, userId: string): Promise<void> {
+    console.warn('Document sharing not implemented in clean storage');
+  }
+
+  async getSharedWithMeDocuments(userId: string): Promise<any[]> {
+    console.warn('Document sharing not implemented in clean storage');
+    return [];
+  }
+
+  // Household operations
+  async getHouseholdMembership(userId: string): Promise<any> {
+    console.warn('Household operations not implemented in clean storage');
+    return null;
+  }
+
+  async getHousehold(householdId: string): Promise<any> {
+    console.warn('Household operations not implemented in clean storage');
+    return null;
+  }
+
+  async getHouseholdMembers(householdId: string): Promise<any[]> {
+    console.warn('Household operations not implemented in clean storage');
+    return [];
+  }
+
+  async getHouseholdMemberCount(householdId: string): Promise<number> {
+    console.warn('Household operations not implemented in clean storage');
+    return 0;
+  }
+
+  async createHouseholdMembership(membership: any): Promise<any> {
+    console.warn('Household operations not implemented in clean storage');
+    return null;
+  }
+
+  async removeHouseholdMembership(userId: string): Promise<void> {
+    console.warn('Household operations not implemented in clean storage');
+  }
+
+  // Blog operations
+  async getPublishedBlogPosts(): Promise<any[]> {
+    console.warn('Blog operations not implemented in clean storage');
+    return [];
+  }
+
+  async getBlogPostBySlug(slug: string): Promise<any> {
+    console.warn('Blog operations not implemented in clean storage');
+    return null;
+  }
+
+  async createBlogPost(post: any): Promise<any> {
+    console.warn('Blog operations not implemented in clean storage');
+    return null;
+  }
+
+  async updateBlogPost(id: number, updates: any): Promise<any> {
+    console.warn('Blog operations not implemented in clean storage');
+    return null;
+  }
+
+  async deleteBlogPost(id: number): Promise<void> {
+    console.warn('Blog operations not implemented in clean storage');
+  }
+
+  // Expiry reminders operations
+  async getExpiryReminders(userId: string): Promise<any[]> {
+    console.warn('Expiry reminders not implemented in clean storage');
+    return [];
+  }
+
+  async createExpiryReminder(reminder: any): Promise<any> {
+    console.warn('Expiry reminders not implemented in clean storage');
+    return null;
+  }
+
+  async updateExpiryReminder(id: number, updates: any): Promise<any> {
+    console.warn('Expiry reminders not implemented in clean storage');
+    return null;
+  }
+
+  async deleteExpiryReminder(id: number): Promise<void> {
+    console.warn('Expiry reminders not implemented in clean storage');
+  }
+
+  async markReminderCompleted(id: number): Promise<any> {
+    console.warn('Expiry reminders not implemented in clean storage');
+    return null;
+  }
+
+  // Feature flag operations
+  async getAllFeatureFlags(): Promise<any[]> {
+    console.warn('Feature flags not implemented in clean storage');
+    return [];
+  }
+
+  async toggleFeatureFlag(flagName: string): Promise<any> {
+    console.warn('Feature flags not implemented in clean storage');
+    return null;
+  }
+
+  async getFeatureFlagOverrides(userId: string): Promise<any[]> {
+    console.warn('Feature flags not implemented in clean storage');
+    return [];
+  }
+
+  async getFeatureFlagAnalytics(): Promise<any> {
+    console.warn('Feature flags not implemented in clean storage');
+    return {};
+  }
+
+  // Vehicle operations
+  async getVehicles(userId: string): Promise<any[]> {
+    console.warn('Vehicle operations not implemented in clean storage');
+    return [];
+  }
+
+  async getVehicle(id: string, userId: string): Promise<any> {
+    console.warn('Vehicle operations not implemented in clean storage');
+    return null;
+  }
+
+  async getVehicleByVRN(vrn: string, userId: string): Promise<any> {
+    console.warn('Vehicle operations not implemented in clean storage');
+    return null;
+  }
+
+  async createVehicle(vehicle: any): Promise<any> {
+    console.warn('Vehicle operations not implemented in clean storage');
+    return null;
+  }
+
+  async updateVehicle(id: string, userId: string, updates: any): Promise<any> {
+    console.warn('Vehicle operations not implemented in clean storage');
+    return null;
+  }
+
+  async deleteVehicle(id: string, userId: string): Promise<void> {
+    console.warn('Vehicle operations not implemented in clean storage');
+  }
+
+  // Additional document operations
+  async addDocumentReference(documentId: number, referenceId: number): Promise<void> {
+    console.warn('Document references not implemented in clean storage');
   }
 
   // Household operations

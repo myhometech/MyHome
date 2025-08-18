@@ -517,31 +517,43 @@ export default function UnifiedUploadButton({
   };
 
   const handleUpload = async () => {
-    const queuedItems = uploadItems.filter(item => item.status === 'queued');
-    console.log(`Starting upload of ${queuedItems.length} files with bounded concurrency (max 3)`);
+    const queuedItems = uploadItems.filter(item => item.status === 'queued' || item.status === 'error');
+    console.log(`Starting upload of ${queuedItems.length} files`);
 
     if (queuedItems.length === 0) return;
 
-    // Process files with bounded concurrency (3 uploads at a time)
-    const concurrencyLimit = 3;
+    // Reset any error items back to queued
+    queuedItems.forEach(item => {
+      if (item.status === 'error') {
+        updateItem(item.id, {
+          status: 'queued',
+          progress: 0,
+          bytesUploaded: 0,
+          errorCode: undefined,
+          errorMessage: undefined,
+          abortController: undefined
+        });
+      }
+    });
+
+    // Process files sequentially to avoid overwhelming the server
     const results: Array<{ item: UploadItem; success: boolean; result?: any; error?: string }> = [];
 
-    for (let i = 0; i < queuedItems.length; i += concurrencyLimit) {
-      const batch = queuedItems.slice(i, i + concurrencyLimit);
-      console.log(`Processing batch ${Math.floor(i / concurrencyLimit) + 1}: ${batch.map(item => item.file.name).join(', ')}`);
-
-      // Process batch concurrently
-      const batchPromises = batch.map(async (item) => {
-        try {
-          const result = await uploadSingleFileWithProgress(item.id);
-          return { item, success: true, result };
-        } catch (error) {
-          return { item, success: false, error: error.message };
-        }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
+    for (const item of queuedItems) {
+      console.log(`Uploading: ${item.file.name}`);
+      
+      try {
+        const result = await uploadSingleFileWithProgress(item.id);
+        results.push({ item, success: true, result });
+        
+        // Refresh queries after each successful upload
+        queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/insights/metrics"] });
+        
+      } catch (error: any) {
+        console.error(`Failed to upload ${item.file.name}:`, error);
+        results.push({ item, success: false, error: error.message });
+      }
     }
 
     // Show final summary
@@ -550,21 +562,26 @@ export default function UnifiedUploadButton({
 
     console.log(`Upload process completed: ${successCount} successful, ${errorCount} failed`);
 
-    if (errorCount === 0) {
+    if (successCount > 0) {
       toast({
-        title: "All uploads successful",
-        description: `${successCount} documents uploaded successfully.`,
+        title: successCount === results.length ? "All uploads successful" : "Some uploads completed",
+        description: errorCount === 0 
+          ? `${successCount} documents uploaded successfully.`
+          : `${successCount} successful, ${errorCount} failed. Check failed items below.`,
+        variant: errorCount === 0 ? "default" : "destructive",
       });
 
-      // Clear state and close modal only on complete success
-      resetAllStates();
-      close();
-      onUploadComplete(results.map(r => r.result));
+      // If all succeeded, close modal and reset
+      if (errorCount === 0) {
+        resetAllStates();
+        close();
+        onUploadComplete?.(results.filter(r => r.success).map(r => r.result));
+      }
     } else {
       toast({
-        title: "Some uploads failed",
-        description: `${successCount} successful, ${errorCount} failed. Use retry or remove failed items.`,
-        variant: errorCount === results.length ? "destructive" : "default",
+        title: "All uploads failed",
+        description: "Please check the errors and try again.",
+        variant: "destructive",
       });
     }
   };

@@ -47,16 +47,21 @@ export function SmartSearch({
   }, [query, onSearchChange]);
 
   // Search API call
-  const { data: searchResults = [], isLoading } = useQuery<SearchResult[]>({
+  const { data: searchResults = [], isLoading, error } = useQuery<SearchResult[]>({
     queryKey: ["/api/documents/search", debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery.trim()) return [];
       
+      console.log('Making search request for:', debouncedQuery);
       const response = await fetch(`/api/documents/search?q=${encodeURIComponent(debouncedQuery)}`, {
         credentials: "include",
       });
-      if (!response.ok) throw new Error("Search failed");
+      if (!response.ok) {
+        console.error('Search request failed:', response.status, response.statusText);
+        throw new Error("Search failed");
+      }
       const data = await response.json();
+      console.log('Search response:', data);
       return data.results || [];
     },
     enabled: debouncedQuery.length > 0,
@@ -195,6 +200,10 @@ export function SmartSearch({
               <div className="p-4 text-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="text-sm text-gray-500 mt-2">Searching...</p>
+              </div>
+            ) : error ? (
+              <div className="p-4 text-center text-red-500">
+                <p className="text-sm">Search failed: {error.message}</p>
               </div>
             ) : searchResults.length > 0 ? (
               <div ref={resultsRef} className="max-h-80 overflow-y-auto">

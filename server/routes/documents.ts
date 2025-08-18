@@ -39,7 +39,7 @@ const pdfOptimizer = new PDFOptimizationService('./uploads');
 const enhancedOCR = new EnhancedOCRStrategies();
 
 // DOC-303: Enhanced document upload with auto-categorization via rules and AI fallback
-router.post('/upload', upload.fields([
+router.post('/', upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'thumbnail', maxCount: 1 }
 ]), async (req: AuthenticatedRequest, res) => {
@@ -154,6 +154,22 @@ router.post('/upload', upload.fields([
       console.log('PDF optimization completed:', processingMetadata);
     }
 
+    // Validate required data before creating document
+    if (!finalFilePath || !uploadedFile.originalname || !uploadedFile.mimetype) {
+      throw new Error('Missing required file data for document creation');
+    }
+
+    console.log('📝 Creating document record:', {
+      name: path.parse(uploadedFile.originalname).name,
+      fileName: uploadedFile.originalname,
+      filePath: finalFilePath,
+      mimeType: uploadedFile.mimetype,
+      fileSize: uploadedFile.size,
+      userId,
+      categoryId,
+      categorizationSource
+    });
+
     // Create document record with DOC-303 categorization tracking
     const document = await storage.createDocument({
       name: path.parse(uploadedFile.originalname).name,
@@ -165,6 +181,8 @@ router.post('/upload', upload.fields([
       categoryId,
       categorizationSource, // DOC-303: Track categorization method
     });
+
+    console.log('✅ Document created successfully:', document.id);
 
     // Clean up temporary files
     try {
@@ -184,7 +202,13 @@ router.post('/upload', upload.fields([
     });
 
   } catch (error: any) {
-    console.error('Upload error:', error);
+    console.error('🚨 Upload error details:', {
+      message: error.message,
+      stack: error.stack,
+      fileName: uploadedFile?.originalname,
+      fileSize: uploadedFile?.size,
+      userId: req.user?.id
+    });
     
     // Clean up any temporary files on error
     try {
@@ -201,9 +225,14 @@ router.post('/upload', upload.fields([
       console.warn('Failed to clean up temp files after error:', cleanupError);
     }
 
+    // Send more specific error message
+    const errorMessage = error.message || 'Unknown upload error';
+    console.error('🚨 Sending error response:', errorMessage);
+
     res.status(500).json({
-      message: 'Upload failed',
-      error: error.message,
+      message: errorMessage.includes('Failed to upload document') ? errorMessage : 'Failed to upload document',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Upload processing failed',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

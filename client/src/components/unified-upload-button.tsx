@@ -51,8 +51,9 @@ export default function UnifiedUploadButton({
 
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
 
-  // Reset states when modal opens fresh (no ongoing upload)
+  // Sync internal dialog state with external open prop
   useEffect(() => {
+    setShowUploadDialog(open);
     if (open && uploadItems.length === 0) {
       resetAllStates();
     }
@@ -92,7 +93,7 @@ export default function UnifiedUploadButton({
   });
 
   // Show/Hide upload dialog state
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(open);
 
   const { data: categories = [] } = useQuery<any[]>({
     queryKey: ["/api/categories"],
@@ -135,9 +136,10 @@ export default function UnifiedUploadButton({
   const { hasFeature, features } = useFeatures();
   const isFree = !features.BULK_OPERATIONS; // Simple check for free tier
 
-  // Helper to close modal - never try to set internal open state
+  // Helper to close modal - use external onOpenChange and sync internal state
   const close = () => {
     closedRef.current = true;
+    setShowUploadDialog(false);
     onOpenChange(false);
   };
 
@@ -240,9 +242,6 @@ export default function UnifiedUploadButton({
       }
     },
     onSuccess: (data) => {
-      // Close the modal immediately
-      setShowUploadDialog(false);
-
       // Show processing notification
       toast({
         title: "Document uploaded successfully",
@@ -254,12 +253,15 @@ export default function UnifiedUploadButton({
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/insights/metrics"] });
 
-      // Call completion callback
-      onUploadComplete?.();
-
       // Reset form state
       setSelectedFiles([]);
       setUploadData({ categoryId: "", tags: "", expiryDate: "", customName: "" });
+
+      // Close the modal and notify parent
+      close();
+
+      // Call completion callback
+      onUploadComplete?.(data);
     },
     onError: (error: any) => { // Explicitly type error as 'any' to access message property safely
       toast({

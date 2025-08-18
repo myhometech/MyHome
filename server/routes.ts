@@ -1,6 +1,5 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import { setupSimpleAuth, requireAuth } from "./simpleAuth";
 import { AuthService } from "./authService";
 import multer from "multer";
@@ -56,6 +55,9 @@ import type { Request, Response, NextFunction } from "express";
 
 // CloudConvert initialization - no browser setup needed
 import cloudConvertHealthRoutes from './routes/cloudConvertHealth.js';
+
+// Import storage service - this is the corrected import
+import { storage } from "./storage";
 
 type AuthenticatedRequest = Request & { user?: any };
 
@@ -156,9 +158,6 @@ const mailgunUpload = multer({
     }
   }
 });
-
-// Import storage service
-import { storage } from "./storage";
 
 // Helper function to get user ID from request
 function getUserId(req: any): string {
@@ -450,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
       const user = req.user || req.session?.user;
-      
+
       if (!user) {
         console.log("No user found in req.user or req.session.user");
         return res.status(401).json({ message: "User not authenticated" });
@@ -1374,7 +1373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document file not found" });
       }
 
-      // Reprocess with enhanced OCR and date extraction
+      // Reprocess the document with date extraction
       await processDocumentWithDateExtraction(
         document.id,
         document.name,
@@ -4416,7 +4415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             emailMetadata: {
               from: sender,
               to: [recipient],
-              subject: subject || undefined,
+              subject: subject || 'Untitled Email',
               messageId: messageId || `mailgun-${Date.now()}`,
               receivedAt: new Date().toISOString()
             },
@@ -4638,9 +4637,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug route for production testing
+  // Debug route to confirm deployment
   app.get("/debug", (_req, res) => {
-    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}body{margin:0;padding:0;box-sizing:border-box}#root-status,#js-status,#react-status{padding:10px;margin-bottom:10px;border-radius:4px}#root-status{background-color:#d1ecf1;color:#0c5460}#js-status{background-color:#d4edda;color:#155724}#react-status{background-color:#f8d7da;color:#721c24}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
   });
 
   // ANDROID-303: OCR Error Handling and Analytics Routes
@@ -4843,58 +4842,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create vehicle immediately with manual data - don't block on DVLA lookup
+      // Create vehicle with DVLA data and proper date conversion
+      const dvlaVehicle = await dvlaLookupService.lookupVehicleByVRN(vrn).then(result => result.vehicle);
+      
+      // Prepare vehicle data for creation
       const vehicleData = {
         userId,
         vrn,
         notes: notes || null,
-        source: 'manual',
-        // Use manual fields if provided
-        ...manualFields,
+        source: dvlaVehicle ? 'dvla' : 'manual',
+        dvlaLastRefreshed: dvlaVehicle ? new Date() : null,
+        // Use DVLA fields if available, otherwise use manual fields
+        ...dvlaVehicle,
+        // Override with manual fields if provided, for fields not returned by DVLA
+        ...Object.entries(manualFields).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== null && (!dvlaVehicle || dvlaVehicle[key] === undefined)) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {}),
+        // Ensure dates are strings for storage
+        taxDueDate: dvlaVehicle?.taxDueDate ? (dvlaVehicle.taxDueDate as Date).toISOString().split('T')[0] : null,
+        motExpiryDate: dvlaVehicle?.motExpiryDate ? (dvlaVehicle.motExpiryDate as Date).toISOString().split('T')[0] : null,
       };
-
-      let dvlaFields: string[] = [];
-      let userEditableFields = ['notes', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour'];
 
       // Debug logging for validation issues
       console.log(`[${req.cid || 'no-cid'}] Creating vehicle with data:`, JSON.stringify(vehicleData, null, 2));
 
-      // Create the vehicle immediately
+      // Create the vehicle
       const createdVehicle = await storage.createVehicle(vehicleData);
 
-      // Async DVLA enrichment + Vehicle Insights (don't block response)
+      // Async Vehicle Insights generation
       setImmediate(async () => {
         try {
-          // Attempt DVLA lookup in background
-          const dvlaLookupResult = await dvlaLookupService.lookupVehicleByVRN(vrn);
-
-          if (dvlaLookupResult.success && dvlaLookupResult.vehicle) {
-            // Update vehicle with DVLA data
-            const dvlaVehicle = dvlaLookupResult.vehicle;
-            const dvlaUpdateData = {
-              ...dvlaVehicle,
-              source: 'dvla' as const,
-              dvlaLastRefreshed: new Date(),
-              // Convert string dates to Date objects  
-              taxDueDate: dvlaVehicle.taxDueDate ? new Date(dvlaVehicle.taxDueDate) : null,
-              motExpiryDate: dvlaVehicle.motExpiryDate ? new Date(dvlaVehicle.motExpiryDate) : null,
-              // Preserve user notes
-              notes: createdVehicle.notes,
-            };
-
-            await storage.updateVehicle(createdVehicle.id, userId, dvlaUpdateData);
-            console.log(`[${req.cid || 'no-cid'}] DVLA enrichment completed for ${vrn}`);
-
-            // Update DVLA fields for async response
-            dvlaFields = [
-              'vrn', 'make', 'model', 'yearOfManufacture', 'fuelType', 'colour',
-              'taxStatus', 'taxDueDate', 'motStatus', 'motExpiryDate',
-              'co2Emissions', 'euroStatus', 'engineCapacity', 'revenueWeight'
-            ];
-            userEditableFields = ['notes'];
-          }
-
-          // Generate Vehicle Insights
           if (createdVehicle) {
             const insightResult = await vehicleInsightService.generateVehicleInsights(createdVehicle);
             if (insightResult.success && insightResult.insights.length > 0) {
@@ -4903,17 +4883,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         } catch (error) {
-          console.error(`[${req.cid || 'no-cid'}] Error in background DVLA/insights processing:`, error);
+          console.error(`[${req.cid || 'no-cid'}] Error in background insights generation:`, error);
         }
       });
 
-      // TICKET 3 response format - immediate response with manual data
       const response = {
         vehicle: createdVehicle,
-        dvlaEnriched: false, // Initially false, will be updated async
-        dvlaFields,
-        userEditableFields,
-        message: "Vehicle created successfully. DVLA data will be added automatically if available."
+        dvlaEnriched: !!dvlaVehicle,
+        message: dvlaVehicle ? "Vehicle created successfully from DVLA data." : "Vehicle created successfully. DVLA data will be added automatically if available."
       };
 
       res.status(201).json(response);
@@ -5200,7 +5177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isAvailable = await dvlaLookupService.checkDVLAAvailability();
       res.json({ 
         available: isAvailable,
-        message: isAvailable ? "DVLA API is available" : "DVLA API is not available"
+message: isAvailable ? "DVLA API is available" : "DVLA API is not available"
       });
     } catch (error) {
       console.error("Error checking DVLA status:", error);
@@ -5210,30 +5187,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // ✅ Debug route to confirm deployment
     app.get("/debug", (_req, res) => {
-      res.send(`✅ App is live - ${new Date().toISOString()}`);
-    });
+      res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}body{margin:0;padding:0;box-sizing:border-box}#root-status,#js-status,#react-status{padding:10px;margin-bottom:10px;border-radius:4px}#root-status{background-color:#d1ecf1;color:#0c5460}#js-status{background-color:#d4edda;color:#155724}#react-status{background-color:#f8d7da;color:#721c24}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
+  });
 
-    // ✅ Email ingest webhook GET (for Mailgun verification)
-    app.get("/api/email-ingest", (req, res) => {
-      res.send("✅ Email Ingest GET Confirmed");
-    });
+  // ✅ Email ingest webhook GET (for Mailgun verification)
+  app.get("/api/email-ingest", (req, res) => {
+    res.send("✅ Email Ingest GET Confirmed");
+  });
 
-    // NOTE: POST /api/email-ingest is handled earlier in the file with full functionality
+  // NOTE: POST /api/email-ingest is handled earlier in the file with full functionality
 
-    // Keep API route protection for unhandled routes
-    app.use('/api/*', (req, res, next) => {
-      console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
-      res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
-    });
+  // Keep API route protection for unhandled routes
+  app.use('/api/*', (req, res, next) => {
+    console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ error: 'API endpoint not found', path: req.originalUrl });
+  });
 
-    // OCR error handling routes
-    setupOCRErrorRoutes(app);
+  // OCR error handling routes
+  setupOCRErrorRoutes(app);
 
-    // CloudConvert health check
-    app.use('/api', cloudConvertHealthRoutes);
+  // CloudConvert health check
+  app.use('/api', cloudConvertHealthRoutes);
 
-    app.use(sentryErrorHandler());
+  app.use(sentryErrorHandler());
 
-    const httpServer = createServer(app);
-    return httpServer;
-  }
+  const httpServer = createServer(app);
+  return httpServer;
+}

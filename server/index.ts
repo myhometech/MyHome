@@ -229,7 +229,7 @@ app.use((req, res, next) => {
   });
 
   // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
-  const server = await registerRoutes(app);
+  const server = await registerRoutes(app, storage);
   console.log('✅ API routes registered successfully');
 
   // Initialize manual event notification service (TICKET B2)

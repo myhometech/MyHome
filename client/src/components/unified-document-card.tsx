@@ -865,7 +865,7 @@ export default function UnifiedDocumentCard({
                     </>
                   ) : (
                     <>
-                      <Brain className="h-3 w-3" />
+                      <Brain className="h-3 w-3 mr-1" />
                       Generate
                     </>
                   )}

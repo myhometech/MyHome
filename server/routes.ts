@@ -443,9 +443,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
-      const userId = getUserId(req);
-      const user = await storage.getUser(userId);
-      res.json(user);
+      const user = req.user;
+
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        authProvider: user.authProvider || req.session?.authProvider
+      });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -1022,7 +1029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (document.gcsPath && document.isEncrypted && !document.encryptionMetadata) {
         // Handle cloud storage documents without encryption metadata (direct GCS storage)
         console.log(`📁 GCS PREVIEW: Loading unencrypted document from ${document.gcsPath}`);
-        
+
         const storageService = storageProvider();
         try {
           const fileBuffer = await storageService.download(document.gcsPath);
@@ -1317,7 +1324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Reprocess with enhanced OCR and date extraction
       await processDocumentWithDateExtraction(
-        documentId,
+        document.id,
         document.name,
         document.filePath,
         document.mimeType || 'application/octet-stream',
@@ -1801,7 +1808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/documents/bulk-delete', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       // Request validation
 
       // Ensure body exists and has the right structure
@@ -1857,7 +1864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error in bulk delete:", error);
-      
+
       // Enhanced error logging
       if (error instanceof Error) {
         console.error("Error details:", {
@@ -2558,12 +2565,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Household Management API for Duo Plans
-  
+
   // Get household information for current user
   app.get('/api/household', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       // Check if user is part of a household
       const membership = await storage.getHouseholdMembership(userId);
       if (!membership) {
@@ -2578,7 +2585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get all household members
       const members = await storage.getHouseholdMembers(household.id);
-      
+
       res.json({
         household,
         membership,
@@ -2673,7 +2680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/household/leave', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      
+
       // Check if user is part of a household
       const membership = await storage.getHouseholdMembership(userId);
       if (!membership) {
@@ -2689,7 +2696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Remove user from household
       await storage.removeHouseholdMembership(userId);
-      
+
       res.json({ message: 'Successfully left household' });
     } catch (error) {
       console.error('Error leaving household:', error);
@@ -2726,7 +2733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Remove member from household
       await storage.removeHouseholdMembership(memberId);
-      
+
       res.json({ message: 'Member removed from household successfully' });
     } catch (error) {
       console.error('Error removing household member:', error);
@@ -2864,7 +2871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (supportsOCR(document.mimeType)) {
         await processDocumentWithDateExtraction(
           document.id,
-          document.fileName,
+          document.name,
           document.filePath,
           document.mimeType,
           userId,
@@ -3904,7 +3911,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add error handling middleware at the end
   // Backup management routes (admin only)
   app.use('/api/backup', backupRoutes);
 
@@ -4072,11 +4078,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get recent documents with email import tags
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-      
+
       console.log('📧 Checking recent email activity...');
       console.log(`📧 Current time: ${new Date().toISOString()}`);
       console.log(`📧 Looking for emails since: ${fifteenMinutesAgo.toISOString()}`);
-      
+
       res.status(200).json({
         status: 'monitoring_active',
         currentTime: new Date().toISOString(),
@@ -4109,11 +4115,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sentAt, 
         attachmentCount = 0 
       } = req.body;
-      
+
       console.log(`📧 EMAIL DELIVERY TRACK: ${subject || 'No Subject'} from ${from} to ${to}`);
       console.log(`📧 Message-ID: ${messageId}, Sent: ${sentAt}, Attachments: ${attachmentCount}`);
       console.log(`📧 Timestamp: ${new Date().toISOString()}`);
-      
+
       // Simple tracking response
       res.status(200).json({
         status: 'tracked',
@@ -4234,7 +4240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('📨 Content-Type:', req.get('Content-Type'));
       console.log('📦 Body keys:', Object.keys(req.body || {}));
       console.log('📎 Files:', req.files ? req.files.length : 0);
-      
+
       // Track webhook receipt time for debugging delivery issues
       const webhookReceiptTime = new Date().toISOString();
       console.log(`🕐 WEBHOOK RECEIPT: ${webhookReceiptTime}`);
@@ -4267,7 +4273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log(`📧 Processing email: ${subject || 'No Subject'} from ${sender} to ${recipient}`);
         console.log(`📎 Attachment count: ${attachmentCount}, Has files: ${req.files ? req.files.length : 0}`);
-        
+
         // Enhanced attachment logging for debugging
         if (req.files && req.files.length > 0) {
           console.log(`📎 ATTACHMENT DEBUG: Found ${req.files.length} files`);
@@ -4277,7 +4283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (attachmentCount > 0) {
           console.warn(`⚠️ ATTACHMENT MISMATCH: Mailgun reported ${attachmentCount} attachments but no files received in webhook`);
         }
-        
+
         // Log all body fields for debugging missing attachments
         const bodyFieldsCount = Object.keys(req.body || {}).length;
         console.log(`📦 Body fields count: ${bodyFieldsCount}`);

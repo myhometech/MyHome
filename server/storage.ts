@@ -2,10 +2,11 @@ import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { type NeonDatabase } from '@neondatabase/serverless';
 import { 
   users, categories, documents, emailForwards, households, userHouseholdMembership,
-  documentInsights,
+  documentInsights, vehicles,
   type User, type InsertUser, type Category, type InsertCategory, 
   type Document, type InsertDocument, type EmailForward, type InsertEmailForward, 
-  type Household, type InsertHousehold, type DocumentInsight, type InsertDocumentInsight
+  type Household, type InsertHousehold, type DocumentInsight, type InsertDocumentInsight,
+  type Vehicle, type InsertVehicle
 } from '../shared/schema.js';
 
 export interface IStorage {
@@ -79,6 +80,14 @@ export interface IStorage {
   createUserAsset(asset: any): Promise<any>;
   getUserAssets(userId: string): Promise<any[]>;
   deleteUserAsset(id: number, userId: string): Promise<void>;
+
+  // Vehicle operations
+  getVehicles(userId: string): Promise<Vehicle[]>;
+  getVehicle(id: string, userId: string): Promise<Vehicle | undefined>;
+  getVehicleByVRN(vrn: string, userId: string): Promise<Vehicle | undefined>;
+  createVehicle(vehicle: InsertVehicle): Promise<Vehicle>;
+  updateVehicle(id: string, userId: string, updates: Partial<InsertVehicle>): Promise<Vehicle | undefined>;
+  deleteVehicle(id: string, userId: string): Promise<void>;
 
   // Household operations
   createHousehold(household: any): Promise<Household>;
@@ -724,33 +733,49 @@ export class PostgresStorage implements IStorage {
   }
 
   // Vehicle operations
-  async getVehicles(userId: string): Promise<any[]> {
-    console.warn('Vehicle operations not implemented in clean storage');
-    return [];
+  async getVehicles(userId: string): Promise<Vehicle[]> {
+    return await this.db
+      .select()
+      .from(vehicles)
+      .where(eq(vehicles.userId, userId))
+      .orderBy(desc(vehicles.createdAt));
   }
 
-  async getVehicle(id: string, userId: string): Promise<any> {
-    console.warn('Vehicle operations not implemented in clean storage');
-    return null;
+  async getVehicle(id: string, userId: string): Promise<Vehicle | undefined> {
+    const [vehicle] = await this.db
+      .select()
+      .from(vehicles)
+      .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)));
+    return vehicle;
   }
 
-  async getVehicleByVRN(vrn: string, userId: string): Promise<any> {
-    console.warn('Vehicle operations not implemented in clean storage');
-    return null;
+  async getVehicleByVRN(vrn: string, userId: string): Promise<Vehicle | undefined> {
+    const [vehicle] = await this.db
+      .select()
+      .from(vehicles)
+      .where(and(eq(vehicles.vrn, vrn), eq(vehicles.userId, userId)));
+    return vehicle;
   }
 
-  async createVehicle(vehicle: any): Promise<any> {
-    console.warn('Vehicle operations not implemented in clean storage');
-    return null;
+  async createVehicle(vehicle: InsertVehicle): Promise<Vehicle> {
+    const [newVehicle] = await this.db
+      .insert(vehicles)
+      .values(vehicle)
+      .returning();
+    return newVehicle;
   }
 
-  async updateVehicle(id: string, userId: string, updates: any): Promise<any> {
-    console.warn('Vehicle operations not implemented in clean storage');
-    return null;
+  async updateVehicle(id: string, userId: string, updates: Partial<InsertVehicle>): Promise<Vehicle | undefined> {
+    const [updatedVehicle] = await this.db
+      .update(vehicles)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)))
+      .returning();
+    return updatedVehicle;
   }
 
   async deleteVehicle(id: string, userId: string): Promise<void> {
-    console.warn('Vehicle operations not implemented in clean storage');
+    await this.db.delete(vehicles).where(and(eq(vehicles.id, id), eq(vehicles.userId, userId)));
   }
 
   // Additional document operations

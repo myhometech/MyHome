@@ -873,9 +873,6 @@ export default function UnifiedUploadButton({
 
   return (
     <>
-      {/* Button to trigger the upload dialog */}
-      <Button onClick={() => setShowUploadDialog(true)}>Upload Documents</Button>
-
       {/* Hidden file input */}
       <input
         ref={fileInputRef}

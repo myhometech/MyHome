@@ -161,13 +161,23 @@ const mailgunUpload = multer({
 
 // Helper function to get user ID from request
 function getUserId(req: any): string {
-  if (req.user?.id) {
-    return req.user.id;
+  try {
+    if (req.user?.id) {
+      console.log(`✅ Found user ID in req.user: ${req.user.id}`);
+      return req.user.id;
+    }
+    if (req.session?.user?.id) {
+      console.log(`✅ Found user ID in session: ${req.session.user.id}`);
+      return req.session.user.id;
+    }
+    console.log('❌ No user ID found in request or session');
+    console.log('❌ req.user:', req.user);
+    console.log('❌ req.session?.user:', req.session?.user);
+    throw new Error("User not authenticated");
+  } catch (error) {
+    console.error('❌ Error in getUserId:', error);
+    throw new Error("Authentication error");
   }
-  if (req.session?.user?.id) {
-    return req.session.user.id;
-  }
-  throw new Error("User not authenticated");
 }
 
 // TICKET 4: Helper function to generate dashboard-ready messages
@@ -649,13 +659,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/documents', requireAuth, upload.single('file'), async (req: any, res) => {
+    let tempFilePath = null;
+    let convertedFilePath = null;
+    
     try {
       if (!req.file) {
+        console.log('❌ No file in upload request');
         return res.status(400).json({ message: "No file uploaded" });
       }
 
       const userId = getUserId(req);
+      if (!userId) {
+        console.log('❌ No userId found in request');
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
       const { categoryId, tags, expiryDate } = req.body;
+      tempFilePath = req.file.path;
 
       console.log(`📤 Starting upload for user ${userId}: ${req.file.originalname} (${req.file.size} bytes)`);
 
@@ -755,13 +775,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const storageService = storageProvider();
         
+        // Verify storage service is available
+        if (!storageService) {
+          throw new Error('Storage service not available');
+        }
+        
         // Read file and upload to cloud storage
         const fileBuffer = await fs.promises.readFile(finalFilePath);
+        if (!fileBuffer || fileBuffer.length === 0) {
+          throw new Error('File is empty or unreadable');
+        }
+        
+        console.log(`📤 Uploading ${fileBuffer.length} bytes to storage key: ${storageKey}`);
         cloudStorageKey = await storageService.upload(fileBuffer, storageKey, finalMimeType);
         
         console.log(`✅ File uploaded to cloud storage: ${cloudStorageKey}`);
       } catch (storageError) {
         console.error('❌ Cloud storage upload failed:', storageError);
+        console.error('❌ Storage error details:', {
+          finalFilePath,
+          finalMimeType,
+          storageKey,
+          error: storageError instanceof Error ? storageError.message : String(storageError)
+        });
+        
         // Clean up local file
         try {
           if (fs.existsSync(finalFilePath)) {
@@ -773,7 +810,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (cleanupError) {
           console.warn('Failed to cleanup files after storage error:', cleanupError);
         }
-        return res.status(500).json({ message: "File upload to cloud storage failed" });
+        
+        // Provide more specific error message
+        const errorMessage = storageError instanceof Error && storageError.message.includes('credentials') 
+          ? "Storage service configuration error" 
+          : "File upload to cloud storage failed";
+          
+        return res.status(500).json({ 
+          message: errorMessage,
+          error: storageError instanceof Error ? storageError.message : "Storage error"
+        });
       }
 
       // Setup encryption metadata
@@ -861,19 +907,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(document);
     } catch (error) {
       console.error("❌ Error uploading document:", error);
+      console.error("❌ Error stack:", error instanceof Error ? error.stack : 'No stack trace');
       
       // Clean up any uploaded files on error
-      try {
-        if (req.file && fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
+      const filesToCleanup = [tempFilePath, convertedFilePath].filter(Boolean);
+      for (const filePath of filesToCleanup) {
+        try {
+          if (filePath && fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`🧹 Cleaned up file: ${filePath}`);
+          }
+        } catch (cleanupError) {
+          console.warn('Failed to cleanup file on error:', cleanupError);
         }
-      } catch (cleanupError) {
-        console.warn('Failed to cleanup file on error:', cleanupError);
       }
       
-      res.status(500).json({ 
-        message: "Failed to upload document",
-        error: error instanceof Error ? error.message : "Unknown error"
+      // Provide specific error messages based on error type
+      let errorMessage = "Failed to upload document";
+      let statusCode = 500;
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Authentication')) {
+          errorMessage = "Authentication required";
+          statusCode = 401;
+        } else if (error.message.includes('storage')) {
+          errorMessage = "Storage service unavailable";
+        } else if (error.message.includes('file size') || error.message.includes('too large')) {
+          errorMessage = "File too large";
+          statusCode = 413;
+        } else if (error.message.includes('file type') || error.message.includes('unsupported')) {
+          errorMessage = "Unsupported file type";
+          statusCode = 400;
+        }
+      }
+      
+      res.status(statusCode).json({ 
+        message: errorMessage,
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString()
       });
     }
   });

@@ -17,19 +17,43 @@ export class StorageService {
    */
   static initialize(): StorageProvider {
     if (StorageService.instance) {
+      console.log('✅ Returning existing storage instance');
       return StorageService.instance;
     }
 
     const storageType = process.env.STORAGE_TYPE || 'gcs';
+    console.log(`🔧 Initializing storage type: ${storageType}`);
 
     switch (storageType.toLowerCase()) {
       case 'gcs':
       case 'google':
         try {
+          console.log('🔧 Attempting GCS storage initialization...');
           StorageService.instance = StorageService.createGCSStorage();
           console.log('✅ GCS Storage initialized successfully');
+          
+          // Test the storage connection
+          try {
+            // Basic connectivity test - this will throw if credentials are invalid
+            const testResult = StorageService.instance.toString();
+            console.log('✅ GCS Storage connectivity verified');
+          } catch (testError) {
+            console.warn('⚠️ GCS Storage test failed, falling back to local storage');
+            throw testError;
+          }
         } catch (error) {
           console.error('🚨 GCS Storage initialization failed:', error);
+          console.error('🚨 Error details:', {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            env: {
+              hasCredentials: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+              hasNewCredentials: !!process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS,
+              hasGcsCredentials: !!process.env.GCS_CREDENTIALS,
+              bucketName: process.env.GCS_BUCKET_NAME,
+              projectId: process.env.GCS_PROJECT_ID
+            }
+          });
           console.warn('⚠️ Falling back to local storage due to GCS failure');
           StorageService.fallbackMode = true;
           StorageService.instance = StorageService.createLocalStorage();

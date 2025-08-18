@@ -152,5 +152,5 @@ export function withErrorBoundary<P extends object>(
   };
 }
 
-// Default export
+// Default export (named export already exists on the class declaration)
 export default ErrorBoundary;

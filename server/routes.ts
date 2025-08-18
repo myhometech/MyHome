@@ -92,6 +92,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Configure multer for file uploads
 const upload = multer({
   storage: multer.diskStorage({
     destination: uploadsDir,
@@ -102,8 +103,11 @@ const upload = multer({
   }),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 10, // Max 10 files per request
   },
   fileFilter: (req, file, cb) => {
+    console.log(`📁 File validation: ${file.originalname} (${file.mimetype}, ${file.size} bytes)`);
+
     const allowedTypes = [
       'application/pdf', 
       'image/jpeg', 
@@ -121,8 +125,19 @@ const upload = multer({
       'application/msword' // Legacy DOC files
     ];
 
-    // Also allow files with no specified mimetype (some camera uploads)
     if (!file.mimetype || allowedTypes.includes(file.mimetype)) {
+      // Also allow files with no specified mimetype (some camera uploads)
+      // Additional filename validation to prevent common security risks
+      const dangerousExtensions = ['.exe', '.bat', '.cmd', '.scr', '.pif', '.com', '.js', '.vbs', '.sh', '.php', '.html', '.htm'];
+      const fileExt = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf('.'));
+
+      if (dangerousExtensions.includes(fileExt)) {
+        console.error(`❌ Dangerous file extension detected: ${fileExt} for file ${file.originalname}`);
+        cb(new Error(`File extension ${fileExt} is not allowed for security reasons.`));
+        return;
+      }
+
+      console.log(`✅ File validation passed for ${file.originalname}`);
       cb(null, true);
     } else {
       console.warn(`Rejected file upload - unsupported MIME type: ${file.mimetype} for file: ${file.originalname}`);
@@ -661,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents', requireAuth, upload.single('file'), async (req: any, res) => {
     let tempFilePath = null;
     let convertedFilePath = null;
-    
+
     try {
       if (!req.file) {
         console.log('❌ No file in upload request');
@@ -774,21 +789,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let cloudStorageKey = '';
       try {
         const storageService = storageProvider();
-        
+
         // Verify storage service is available
         if (!storageService) {
           throw new Error('Storage service not available');
         }
-        
+
         // Read file and upload to cloud storage
         const fileBuffer = await fs.promises.readFile(finalFilePath);
         if (!fileBuffer || fileBuffer.length === 0) {
           throw new Error('File is empty or unreadable');
         }
-        
+
         console.log(`📤 Uploading ${fileBuffer.length} bytes to storage key: ${storageKey}`);
         cloudStorageKey = await storageService.upload(fileBuffer, storageKey, finalMimeType);
-        
+
         console.log(`✅ File uploaded to cloud storage: ${cloudStorageKey}`);
       } catch (storageError) {
         console.error('❌ Cloud storage upload failed:', storageError);
@@ -798,7 +813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           storageKey,
           error: storageError instanceof Error ? storageError.message : String(storageError)
         });
-        
+
         // Clean up local file
         try {
           if (fs.existsSync(finalFilePath)) {
@@ -810,12 +825,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (cleanupError) {
           console.warn('Failed to cleanup files after storage error:', cleanupError);
         }
-        
+
         // Provide more specific error message
         const errorMessage = storageError instanceof Error && storageError.message.includes('credentials') 
           ? "Storage service configuration error" 
           : "File upload to cloud storage failed";
-          
+
         return res.status(500).json({ 
           message: errorMessage,
           error: storageError instanceof Error ? storageError.message : "Storage error"
@@ -905,45 +920,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.status(201).json(document);
-    } catch (error) {
-      console.error("❌ Error uploading document:", error);
-      console.error("❌ Error stack:", error instanceof Error ? error.stack : 'No stack trace');
-      
-      // Clean up any uploaded files on error
-      const filesToCleanup = [tempFilePath, convertedFilePath].filter(Boolean);
-      for (const filePath of filesToCleanup) {
-        try {
-          if (filePath && fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            console.log(`🧹 Cleaned up file: ${filePath}`);
-          }
-        } catch (cleanupError) {
-          console.warn('Failed to cleanup file on error:', cleanupError);
+    } catch (error: any) {
+      console.error('📤 Upload error details:', {
+        message: error.message,
+        stack: error.stack,
+        userId: req.user?.id,
+        fileName: req.files?.file?.[0]?.originalname,
+        fileSize: req.files?.file?.[0]?.size,
+        timestamp: new Date().toISOString()
+      });
+
+      // Clean up any temporary files on error
+      try {
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        const fs = require('fs').promises;
+
+        if (files.file?.[0]) {
+          await fs.unlink(files.file[0].path);
         }
+        if (files.thumbnail?.[0]) {
+          await fs.unlink(files.thumbnail[0].path);
+        }
+      } catch (cleanupError) {
+        console.warn('Failed to clean up temp files after error:', cleanupError);
       }
-      
-      // Provide specific error messages based on error type
-      let errorMessage = "Failed to upload document";
+
+      // Provide more specific error messages
       let statusCode = 500;
-      
-      if (error instanceof Error) {
-        if (error.message.includes('Authentication')) {
-          errorMessage = "Authentication required";
-          statusCode = 401;
-        } else if (error.message.includes('storage')) {
-          errorMessage = "Storage service unavailable";
-        } else if (error.message.includes('file size') || error.message.includes('too large')) {
-          errorMessage = "File too large";
-          statusCode = 413;
-        } else if (error.message.includes('file type') || error.message.includes('unsupported')) {
-          errorMessage = "Unsupported file type";
-          statusCode = 400;
-        }
+      let errorMessage = 'Upload failed';
+
+      if (error.message.includes('File too large')) {
+        statusCode = 413;
+        errorMessage = 'File is too large. Maximum size is 10MB.';
+      } else if (error.message.includes('Invalid file type')) {
+        statusCode = 415;
+        errorMessage = 'File type not supported. Please use PDF, JPG, PNG, or WebP files.';
+      } else if (error.message.includes('Authentication')) {
+        statusCode = 401;
+        errorMessage = 'Authentication required. Please log in again.';
+      } else if (error.message.includes('storage') || error.message.includes('GCS')) {
+        errorMessage = 'Storage error. Please try again or contact support if the issue persists.';
+      } else {
+        errorMessage = error.message || 'Upload failed due to an unexpected error.';
       }
-      
-      res.status(statusCode).json({ 
+
+      res.status(statusCode).json({
         message: errorMessage,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error.message,
         timestamp: new Date().toISOString()
       });
     }
@@ -3555,7 +3578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug endpoints have been removed after successful testing
+  // Debug routes have been removed after successful testing
 
   // Search analytics endpoint for admin monitoring
   app.get('/api/admin/search-analytics', requireAuth, async (req: any, res) => {
@@ -4065,572 +4088,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         debug: 'active'
       }
     });
-  });
-
-  // Simple GET endpoint for /api/email-ingest (no security requirements for Mailgun route validation)
-  // DEPLOYMENT UPDATE v4: Email ingestion endpoint active with enhanced diagnostics
-  app.get('/api/email-ingest', (req, res) => { 
-    console.log('📞 /api/email-ingest GET endpoint called from routes.ts');
-    console.log('🔧 Route registration confirmed for email ingestion');
-    res.status(200).send('✅ Email Ingest Live - ' + new Date().toISOString()); 
-  });
-  app.head('/api/email-ingest', (req, res) => { 
-    console.log('🧪 Email ingest HEAD route accessed');
-    res.sendStatus(200); 
-  });
-
-  // Minimal test endpoint to isolate server issues
-  app.post('/api/email-test-minimal', async (req: any, res) => {
-    console.log('🧪 MINIMAL TEST: Route hit successfully');
-    res.status(200).json({ 
-      message: 'Minimal endpoint working', 
-      timestamp: new Date().toISOString() 
-    });
-  });
-
-  // Debug route to test webhook processing without full security (REMOVE IN PRODUCTION)
-  app.post('/api/email-ingest-debug', 
-    (req, res, next) => {
-      console.log('🧪 DEBUG: Email ingest debug route accessed');
-      console.log('🧪 DEBUG Content-Type:', req.get('Content-Type'));
-      console.log('🧪 DEBUG User-Agent:', req.get('User-Agent'));
-      console.log('🧪 DEBUG Body:', req.body);
-      next();
-    },
-    async (req: any, res) => {
-      try {
-        res.status(200).json({
-          message: 'Debug endpoint working',
-          contentType: req.get('Content-Type'),
-          userAgent: req.get('User-Agent'),
-          hasBody: !!req.body,
-          bodyKeys: req.body ? Object.keys(req.body) : [],
-          timestamp: new Date().toISOString()
-        });
-      } catch (error) {
-        console.error('❌ DEBUG ENDPOINT ERROR:', error);
-        res.status(500).json({ error: 'Debug endpoint error', details: error instanceof Error ? error.message : String(error) });
-      }
-    }
-  );
-
-  // GET endpoint to check recent email webhook activity
-  app.get('/api/email-delivery-track', async (req: any, res) => {
-    try {
-      // Get recent documents with email import tags
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-
-      console.log('📧 Checking recent email activity...');
-      console.log(`📧 Current time: ${new Date().toISOString()}`);
-      console.log(`📧 Looking for emails since: ${fifteenMinutesAgo.toISOString()}`);
-
-      res.status(200).json({
-        status: 'monitoring_active',
-        currentTime: new Date().toISOString(),
-        searchWindow: {
-          from: fifteenMinutesAgo.toISOString(),
-          to: new Date().toISOString()
-        },
-        notes: [
-          'Webhook endpoint active at /api/email-ingest',
-          'Email processing pipeline operational',
-          'CloudConvert service connected',
-          'Redis connection issues detected - may affect background jobs'
-        ],
-        redisIssues: 'Redis connection failing - background processing may be impacted'
-      });
-    } catch (error) {
-      console.error('❌ Email delivery status check error:', error);
-      res.status(500).json({ error: 'Status check error', details: error instanceof Error ? error.message : String(error) });
-    }
-  });
-
-  // Email delivery tracking endpoint for debugging missing emails
-  app.post('/api/email-delivery-track', async (req: any, res) => {
-    try {
-      const { 
-        subject, 
-        from, 
-        to, 
-        messageId, 
-        sentAt, 
-        attachmentCount = 0 
-      } = req.body;
-
-      console.log(`📧 EMAIL DELIVERY TRACK: ${subject || 'No Subject'} from ${from} to ${to}`);
-      console.log(`📧 Message-ID: ${messageId}, Sent: ${sentAt}, Attachments: ${attachmentCount}`);
-      console.log(`📧 Timestamp: ${new Date().toISOString()}`);
-
-      // Simple tracking response
-      res.status(200).json({
-        status: 'tracked',
-        subject: subject || 'No Subject',
-        messageId,
-        receivedAt: new Date().toISOString(),
-        expectedAttachments: attachmentCount,
-        note: 'Email delivery tracked - webhook monitoring active'
-      });
-    } catch (error) {
-      console.error('❌ Email delivery tracking error:', error);
-      res.status(500).json({ error: 'Tracking error', details: error instanceof Error ? error.message : String(error) });
-    }
-  });
-
-  // EMERGENCY FIX: Simplified email ingest handler bypassing all middleware
-  app.use('/api/email-ingest-simple', (req, res, next) => {
-    // Skip all global middleware for this route
-    next();
-  });
-
-  app.post('/api/email-ingest-simple',
-    async (req: any, res) => {
-      try {
-        console.log('🚀 SIMPLE EMAIL INGEST: Request received');
-        console.log('📧 Body data:', Object.keys(req.body || {}));
-        console.log('📧 Raw body:', req.body);
-
-        // Basic email data extraction
-        const { recipient, sender, subject, 'body-plain': bodyPlain, 'body-html': bodyHtml } = req.body;
-
-        if (!recipient || !sender || !subject) {
-          return res.status(400).json({ error: 'Missing required email fields' });
-        }
-
-        console.log(`📧 Processing email: ${subject} from ${sender} to ${recipient}`);
-
-        // Extract user ID from recipient using proper parsing logic
-        const { extractUserIdFromRecipient } = await import('./mailgunService');
-        const { userId, error: recipientError } = extractUserIdFromRecipient(recipient);
-
-        if (!userId || recipientError) {
-          console.error(`❌ Invalid recipient format: ${recipient}`, recipientError);
-          return res.status(400).json({ 
-            error: 'Invalid recipient format', 
-            details: recipientError,
-            recipient: recipient
-          });
-        }
-
-        console.log(`👤 User ID extracted: ${userId}`);
-
-        // Check if email body PDF feature is enabled
-        const isEmailPdfEnabled = true; // Force enable for testing
-        console.log(`🎛️ Email PDF feature enabled: ${isEmailPdfEnabled} (forced for testing)`);
-
-        if (isEmailPdfEnabled && (bodyPlain || bodyHtml)) {
-          console.log('📄 Creating email body PDF...');
-
-          try {
-            const result = await renderAndCreateEmailBodyPdf({
-              tenantId: userId,
-              messageId: req.body['Message-Id'] || `auto-${Date.now()}`,
-              subject: subject || 'Untitled Email',
-              from: sender || 'unknown@sender.com',
-              to: [recipient || 'unknown@recipient.com'],
-              receivedAt: new Date().toISOString(),
-              html: bodyHtml || null,
-              text: bodyPlain || null,
-              ingestGroupId: null,
-              categoryId: null,
-              tags: ['email']
-            });
-
-            console.log(`✅ Email body PDF created: Document ID ${result.documentId}, Created: ${result.created}`);
-
-            return res.status(200).json({
-              message: 'Email body PDF created successfully',
-              documentId: result.documentId,
-              filename: result.name,
-              created: result.created
-            });
-          } catch (pdfError) {
-            console.error('❌ Email body PDF creation failed:', pdfError);
-            return res.status(500).json({
-              error: 'Failed to create email body PDF',
-              details: pdfError instanceof Error ? pdfError.message : String(pdfError)
-            });
-          }
-        } else {
-          return res.status(200).json({
-            message: 'Email processed - no attachments, PDF creation not enabled or no content',
-            reason: !isEmailPdfEnabled ? 'feature_disabled' : 'no_content'
-          });
-        }
-      } catch (error) {
-        console.error('❌ Simple email ingest error:', error);
-        res.status(500).json({
-          error: 'Internal server error',
-          details: error instanceof Error ? error.message : String(error)
-        });
-      }
-    }
-  );
-
-  // MAIN MAILGUN WEBHOOK ENDPOINT - Properly secured with full validation
-  // This handles both emails with and without attachments, supporting both form-encoded and multipart data
-  app.post('/api/email-ingest', 
-    // Apply security middleware stack in correct order
-    mailgunIPWhitelist,
-    mailgunWebhookRateLimit,
-    mailgunWebhookLogger,
-    validateMailgunContentType,
-    mailgunUpload.any(), // Handle multipart/form-data with file uploads and form-encoded data
-    mailgunSignatureVerification,
-    async (req: any, res) => {
-      console.log('🚀 MAIN MAILGUN WEBHOOK: Processing authenticated request');
-      console.log('📨 Content-Type:', req.get('Content-Type'));
-      console.log('📦 Body keys:', Object.keys(req.body || {}));
-      console.log('📎 Files:', req.files ? req.files.length : 0);
-
-      // Track webhook receipt time for debugging delivery issues
-      const webhookReceiptTime = new Date().toISOString();
-      console.log(`🕐 WEBHOOK RECEIPT: ${webhookReceiptTime}`);
-
-      try {
-        // Extract email data - works for both multipart and form-encoded
-        const { 
-          timestamp, 
-          token, 
-          signature, 
-          recipient, 
-          sender, 
-          subject, 
-          'body-plain': bodyPlain, 
-          'body-html': bodyHtml,
-          'stripped-html': strippedHtml,
-          'Message-Id': messageId,
-          'attachment-count': attachmentCountStr
-        } = req.body;
-
-        // Parse attachment count
-        const attachmentCount = parseInt(attachmentCountStr || '0');
-        const hasAttachments = attachmentCount > 0 || (req.files && req.files.length > 0);
-
-        // Basic validation
-        if (!recipient || !sender) {
-          console.error('❌ Missing required email fields:', { recipient: !!recipient, sender: !!sender });
-          return res.status(400).json({ error: 'Missing required email fields (recipient, sender)' });
-        }
-
-        console.log(`📧 Processing email: ${subject || 'No Subject'} from ${sender} to ${recipient}`);
-        console.log(`📎 Attachment count: ${attachmentCount}, Has files: ${req.files ? req.files.length : 0}`);
-
-        // Enhanced attachment logging for debugging
-        if (req.files && req.files.length > 0) {
-          console.log(`📎 ATTACHMENT DEBUG: Found ${req.files.length} files`);
-          req.files.forEach((file: any, index: number) => {
-            console.log(`📎 File ${index + 1}: ${file.originalname} (${file.mimetype}, ${Math.round(file.size / 1024)}KB, field: ${file.fieldname})`);
-          });
-        } else if (attachmentCount > 0) {
-          console.warn(`⚠️ ATTACHMENT MISMATCH: Mailgun reported ${attachmentCount} attachments but no files received in webhook`);
-        }
-
-        // Log all body fields for debugging missing attachments
-        const bodyFieldsCount = Object.keys(req.body || {}).length;
-        console.log(`📦 Body fields count: ${bodyFieldsCount}`);
-        if (bodyFieldsCount > 20) {  // If many fields, log attachment-related ones
-          const attachmentFields = Object.keys(req.body || {}).filter(key => 
-            key.startsWith('attachment-') || key.includes('content-id') || key.includes('inline')
-          );
-          if (attachmentFields.length > 0) {
-            console.log(`📎 Body attachment fields found: ${attachmentFields.length} (${attachmentFields.slice(0, 5).join(', ')}${attachmentFields.length > 5 ? '...' : ''})`);
-          }
-        }
-
-        // Extract user ID from recipient using proper parsing logic
-        const { extractUserIdFromRecipient } = await import('./mailgunService');
-        console.log(`🔍 DEBUG: About to extract from recipient: "${recipient}"`);
-        const { userId, error: recipientError } = extractUserIdFromRecipient(recipient);
-        console.log(`🔍 DEBUG: Extraction result - UserId: "${userId}", Error: "${recipientError}"`);
-
-        if (!userId || recipientError) {
-          console.error(`❌ Invalid recipient format: ${recipient}`, recipientError);
-          return res.status(400).json({ 
-            error: 'Invalid recipient format', 
-            details: recipientError,
-            recipient: recipient
-          });
-        }
-
-        console.log(`👤 User ID extracted: ${userId}`);
-
-        // Extract email title from subject (define early for use in error handlers)
-        const emailTitle = subject || 'Untitled Email';
-
-        // Parse attachment types - distinguish file attachments from inline assets
-        const files = req.files || [];
-        const attachmentFiles = files.filter((f: any) => f.fieldname?.startsWith('attachment-'));
-        const inlineFiles = files.filter((f: any) => f.fieldname?.startsWith('inline-'));
-        const hasFileAttachments = attachmentFiles.length > 0;
-        const hasInlineAssets = inlineFiles.length > 0;
-
-        console.log(`📎 Attachment analysis: ${attachmentFiles.length} file attachments, ${inlineFiles.length} inline assets`);
-
-        // TICKET 4: Use unified conversion service with feature flag support
-        console.log('📄 Processing email with unified conversion service...');
-
-        // Prefer stripped-html, fallback to body-html, then body-plain as specified
-        let emailContent = strippedHtml || bodyHtml || bodyPlain;
-
-        if (!emailContent) {
-          console.warn('⚠️ No email content available for PDF creation');
-          return res.status(400).json({
-            error: 'No email content',
-            message: 'No body-plain, body-html, or stripped-html content found for PDF creation'
-          });
-        }
-
-        try {
-          // Import unified conversion service
-          const { unifiedEmailConversionService } = await import('./unifiedEmailConversionService.js');
-
-          // Convert multer files to AttachmentData format
-          const attachmentData = attachmentFiles.map((file: any) => ({
-            filename: file.originalname,
-            content: file.buffer.toString('base64'),
-            contentType: file.mimetype,
-            size: file.size
-          }));
-
-          // Prepare conversion input
-          const conversionInput = {
-            userId: userId,  // Add missing userId field
-            tenantId: userId,
-            emailContent: {
-              strippedHtml,
-              bodyHtml,
-              bodyPlain
-            },
-            attachments: attachmentData,
-            emailMetadata: {
-              from: sender,
-              to: [recipient],
-              subject: subject || 'Untitled Email',
-              messageId: messageId || `mailgun-${Date.now()}`,
-              receivedAt: new Date().toISOString()
-            },
-            categoryId: null,
-            tags: ['email']
-          };
-
-          // Process email with unified service (feature flag handled internally)
-          const result = await unifiedEmailConversionService.convertEmail(conversionInput);
-
-          // Enhanced analytics - include conversion engine info
-          const conversionEngine = result.conversionEngine;
-          const cloudConvertJobId = result.cloudConvertJobId;
-          const successCount = result.attachmentResults.filter(r => r.success).length;
-          const conversionCount = result.attachmentResults.filter(r => r.converted).length;
-
-          console.log(`mailgun.verified=true, engine=${conversionEngine}, docId=${result.emailBodyPdf?.documentId}, pdf.bytes=${result.emailBodyPdf?.created ? 'created' : 'exists'}, hasFileAttachments=${hasFileAttachments}, hasInlineAssets=${hasInlineAssets}, cloudConvertJobId=${cloudConvertJobId || 'none'}, contentType=${req.get('Content-Type')}`);
-
-          console.log(`✅ Email processed via ${conversionEngine}: Body PDF ${result.emailBodyPdf?.documentId}, ${successCount}/${attachmentFiles.length} attachments (${conversionCount} converted)`);
-
-          // Trigger OCR for all created documents
-          const allDocumentIds = [
-            ...(result.emailBodyPdf ? [result.emailBodyPdf.documentId] : []),
-            ...result.attachmentResults.filter(r => r.documentId).map(r => r.documentId!)
-          ];
-
-          if (allDocumentIds.length > 0) {
-            try {
-              const { ocrQueue } = await import('./ocrQueue.js');
-
-              for (const documentId of allDocumentIds) {
-                const document = await storage.getDocumentById(documentId);
-                if (document) {
-                  await ocrQueue.addJob({
-                    documentId,
-                    fileName: document.fileName,
-                    filePathOrGCSKey: document.filePath,
-                    mimeType: document.mimeType,
-                    userId,
-                    priority: 5
-                  });
-                }
-              }
-
-              console.log(`📝 OCR jobs queued for ${allDocumentIds.length} documents`);
-            } catch (ocrError) {
-              console.error('⚠️ OCR queue failed:', ocrError);
-            }
-          }
-
-          return res.status(200).json({
-            message: 'Email processed successfully',
-            conversionEngine,
-            cloudConvertJobId,
-            emailBodyPdf: result.emailBodyPdf,
-            hasFileAttachments,
-            hasInlineAssets,
-            attachmentResults: result.attachmentResults,
-            messageId,
-            title: subject || 'Untitled Email'
-          });
-
-        } catch (pdfError) {
-          console.error('❌ Email body PDF creation failed:', pdfError);
-
-          // Log failure analytics with attachment info
-          console.log(`mailgun.verified=true, docId=failed, pdf.bytes=0, hasFileAttachments=${hasFileAttachments}, hasInlineAssets=${hasInlineAssets}, contentType=${req.get('Content-Type')}, error=${pdfError instanceof Error ? pdfError.message : String(pdfError)}`);
-
-          // Return 200 with failure flag instead of 500 to prevent webhook retries
-          return res.status(200).json({
-            ok: false,
-            reason: 'pdf_render_failed',
-            error: 'Failed to create email body PDF',
-            details: pdfError instanceof Error ? pdfError.message : String(pdfError),
-            messageId,
-            hasFileAttachments,
-            hasInlineAssets
-          });
-        }
-
-      } catch (error) {
-        console.error('❌ Main webhook error:', error);
-
-        // Log error analytics
-        console.log(`mailgun.verified=unknown, docId=error, pdf.bytes=0, hasAttachments=unknown, contentType=${req.get('Content-Type')}, error=${error instanceof Error ? error.message : String(error)}`);
-
-        res.status(500).json({
-          error: 'Webhook processing failed',
-          details: error instanceof Error ? error.message : String(error)
-        });
-      }
-    }
-  );
-
-  app.get('/api/worker-health', async (_req, res) => {
-    try {
-      if (!workerHealthChecker) {
-        return res.status(503).json({
-          status: 'unavailable',
-          message: 'Worker health checker not initialized'
-        });
-      }
-
-      const healthStatus = await workerHealthChecker.getHealthStatus();
-      const httpStatus = healthStatus.status === 'healthy' ? 200 :
-                        healthStatus.status === 'degraded' ? 200 : 503;
-
-      res.status(httpStatus).json(healthStatus);
-    } catch (error) {
-      console.error('Worker health check failed:', error);
-      res.status(500).json({
-        status: 'error',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      });
-    }
-  });
-
-  // TICKET 9: Email context backfill endpoint
-  app.post('/api/admin/backfill-email-context', requireAuth, async (req, res) => {
-    try {
-      // Admin-only endpoint
-      if (req.user?.role !== 'admin' && req.user?.email !== 'simontaylor66@googlemail.com') {
-        return res.status(403).json({
-          error: 'Forbidden',
-          message: 'Admin access required for email context backfill'
-        });
-      }
-
-      const { EmailContextBackfillService } = await import('./backfillEmailContext.js');
-      const backfillService = new EmailContextBackfillService();
-
-      const { userId, dryRun } = req.body;
-
-      // Set dry run mode from request
-      if (typeof dryRun === 'boolean') {
-        process.env.BACKFILL_DRY_RUN = dryRun ? '1' : '0';
-      }
-
-      console.log(`🚀 TICKET 9: Starting email context backfill (userId: ${userId || 'all'}, dryRun: ${dryRun})`);
-
-      const metrics = await backfillService.backfillEmailContext(userId);
-
-      res.json({
-        success: true,
-        message: 'Email context backfill completed',
-        metrics,
-        dryRun: process.env.BACKFILL_DRY_RUN === '1'
-      });
-
-    } catch (error) {
-      console.error('❌ TICKET 9: Email context backfill failed:', error);
-      res.status(500).json({
-        error: 'Backfill failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        details: error instanceof Error ? error.stack : undefined
-      });
-    }
-  });
-
-  // TICKET 9: Get backfill status/preview
-  app.get('/api/admin/backfill-email-context/preview', requireAuth, async (req, res) => {
-    try {
-      // Admin-only endpoint  
-      if (req.user?.role !== 'admin' && req.user?.email !== 'simontaylor66@googlemail.com') {
-        return res.status(403).json({
-          error: 'Forbidden',
-          message: 'Admin access required for backfill preview'
-        });
-      }
-
-      const { userId } = req.query;
-      const lookbackDays = parseInt(req.query.lookbackDays as string || '60');
-
-      // Find legacy documents that would be processed
-      const sinceDate = new Date();
-      sinceDate.setDate(sinceDate.getDate() - lookbackDays);
-
-      const allDocs = await storage.getDocuments('');
-      const legacyDocs = allDocs.filter((doc: any) => {
-        const isEmailSource = doc.uploadSource === 'email';
-        const missingEmailContext = !doc.emailContext || !doc.emailContext.messageId;
-        const withinWindow = new Date(doc.createdAt) >= sinceDate;
-        const matchesUser = !userId || doc.userId === userId;
-
-        return isEmailSource && missingEmailContext && withinWindow && matchesUser;
-      });
-
-      const previewDocs = legacyDocs.slice(0, 10).map(doc => ({
-        id: doc.id,
-        name: doc.name,
-        createdAt: doc.createdAt,
-        userId: doc.userId,
-        hasEmailContext: !!doc.emailContext?.messageId
-      }));
-
-      res.json({
-        success: true,
-        preview: {
-          totalLegacyDocuments: legacyDocs.length,
-          lookbackDays,
-          sinceDate: sinceDate.toISOString(),
-          sampleDocuments: previewDocs
-        },
-        config: {
-          lookbackDays: parseInt(process.env.BACKFILL_LOOKBACK_DAYS || '60'),
-          windowMinutes: parseInt(process.env.BACKFILL_WINDOW_MINUTES || '5'),
-          batchSize: parseInt(process.env.BACKFILL_BATCH_SIZE || '10'),
-          dryRun: process.env.BACKFILL_DRY_RUN === '1'
-        }
-      });
-
-    } catch (error) {
-      console.error('❌ TICKET 9: Backfill preview failed:', error);
-      res.status(500).json({
-        error: 'Preview failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
-  // Debug route to confirm deployment
-  app.get("/debug", (_req, res) => {
-    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}body{margin:0;padding:0;box-sizing:border-box}#root-status,#js-status,#react-status{padding:10px;margin-bottom:10px;border-radius:4px}#root-status{background-color:#d1ecf1;color:#0c5460}#js-status{background-color:#d4edda;color:#155724}#react-status{background-color:#f8d7da;color:#721c24}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
   });
 
   // ✅ Email ingest webhook GET (for Mailgun verification)

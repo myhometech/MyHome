@@ -395,21 +395,56 @@ export default function UnifiedUploadButton({
       if (uploadData.tags) formData.append("tags", JSON.stringify(uploadData.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
       if (uploadData.expiryDate) formData.append("expiryDate", uploadData.expiryDate);
 
-      console.log(`Uploading: ${item.file.name} (${item.file.size} bytes)`);
+      console.log(`📤 Starting upload: ${item.file.name} (${(item.file.size / 1024 / 1024).toFixed(2)} MB)`);
+      console.log(`📝 Upload data:`, {
+        name: uploadData.customName || item.file.name,
+        categoryId: uploadData.categoryId,
+        tags: uploadData.tags,
+        fileType: item.file.type
+      });
 
-      // Use fetch directly instead of mutation to get better error handling
+      // Add timeout and better error handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.error(`⏰ Upload timeout for ${item.file.name}`);
+        controller.abort();
+      }, 60000); // 60 second timeout
+
       const response = await fetch('/api/documents', {
         method: 'POST',
         body: formData,
         credentials: 'include',
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
+      console.log(`📡 Response status for ${item.file.name}: ${response.status}`);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }));
-        throw new Error(errorData.message || `Server error: ${response.status}`);
+        let errorMessage = `Upload failed with status ${response.status}`;
+        
+        try {
+          const errorData = await response.text();
+          console.error(`❌ Server error response for ${item.file.name}:`, errorData);
+          
+          // Try to parse as JSON first
+          try {
+            const parsedError = JSON.parse(errorData);
+            errorMessage = parsedError.message || parsedError.error || errorMessage;
+          } catch {
+            // If not JSON, use the text response
+            errorMessage = errorData || errorMessage;
+          }
+        } catch (textError) {
+          console.error(`❌ Failed to read error response for ${item.file.name}:`, textError);
+        }
+
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
+      console.log(`✅ Upload successful for ${item.file.name}:`, result);
 
       setUploadItems(prev => prev.map(i => 
         i.id === itemId ? { ...i, status: 'completed', progress: 100 } : i
@@ -421,13 +456,32 @@ export default function UnifiedUploadButton({
 
       return result;
     } catch (error: any) {
-      console.error(`Upload failed for ${item.file.name}:`, error);
+      console.error(`❌ Upload failed for ${item.file.name}:`, {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        fileSize: item.file.size,
+        fileType: item.file.type
+      });
+
+      let friendlyMessage = error.message;
+      
+      // Provide more specific error messages
+      if (error.name === 'AbortError') {
+        friendlyMessage = 'Upload timed out. Please try again with a smaller file or check your connection.';
+      } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        friendlyMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message.includes('413')) {
+        friendlyMessage = 'File is too large. Maximum file size is 10MB.';
+      } else if (error.message.includes('415')) {
+        friendlyMessage = 'File type not supported. Please use PDF, JPG, PNG, or WebP files.';
+      }
 
       setUploadItems(prev => prev.map(i => 
-        i.id === itemId ? { ...i, status: 'error', progress: 0, error: error.message } : i
+        i.id === itemId ? { ...i, status: 'error', progress: 0, errorMessage: friendlyMessage } : i
       ));
 
-      throw error;
+      throw new Error(friendlyMessage);
     }
   };
 

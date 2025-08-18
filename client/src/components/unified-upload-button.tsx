@@ -849,24 +849,11 @@ export default function UnifiedUploadButton({
           Cancel
         </Button>
         <Button
-          onClick={() => {
-            // Prepare formData for the uploadMutation
-            const formData = new FormData();
-            uploadItems.forEach(item => {
-              formData.append("file", item.file);
-            });
-            if (uploadData.customName) formData.append("name", uploadData.customName);
-            if (uploadData.categoryId) formData.append("categoryId", uploadData.categoryId);
-            if (uploadData.tags) formData.append("tags", JSON.stringify(uploadData.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
-            if (uploadData.expiryDate) formData.append("expiryDate", uploadData.expiryDate);
-
-            uploadMutation.mutate(formData);
-            setShowUploadDialog(true); // Show the upload dialog to display progress
-          }}
-          disabled={uploadItems.filter(item => item.status === 'queued' || item.status === 'error').length === 0 || uploadMutation.isPending}
+          onClick={handleUpload}
+          disabled={uploadItems.filter(item => item.status === 'queued' || item.status === 'error').length === 0 || uploadItems.some(item => item.status === 'uploading')}
           className="flex-1"
         >
-          {uploadMutation.isPending ? "Uploading..." :
+          {uploadItems.some(item => item.status === 'uploading') ? "Uploading..." :
            uploadItems.filter(item => item.status === 'queued' || item.status === 'error').length === 0 ? "No Files to Upload" : "Upload"}
         </Button>
       </div>

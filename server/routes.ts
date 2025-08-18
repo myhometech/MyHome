@@ -657,6 +657,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const { categoryId, tags, expiryDate } = req.body;
 
+      console.log(`📤 Starting upload for user ${userId}: ${req.file.originalname} (${req.file.size} bytes)`);
+
       const documentData = {
         userId,
         categoryId: categoryId ? parseInt(categoryId) : null,
@@ -684,8 +686,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
 
           if (conversionResult.success && conversionResult.pdfPath) {
-            // Create a secondary PDF file linked to the original DOCX
-            const pdfDocumentData = {
+            finalFilePath = conversionResult.pdfPath;
+            finalMimeType = 'application/pdf';
+            finalDocumentData = {
               ...documentData,
               filePath: conversionResult.pdfPath,
               mimeType: 'application/pdf',
@@ -694,19 +697,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               tags: [...(documentData.tags || []), 'converted-from-docx']
             };
 
-            // Keep the original DOCX as primary, PDF as secondary for viewing
-            finalFilePath = conversionResult.pdfPath;
-            finalMimeType = 'application/pdf';
-            finalDocumentData = pdfDocumentData;
-
             console.log(`✅ DOCX converted to PDF for viewing: ${conversionResult.pdfPath}`);
           } else {
             console.warn(`DOCX conversion failed: ${conversionResult.error}, keeping original DOCX`);
-            // Continue with original DOCX file - will be processed differently in document processor
           }
         } catch (conversionError) {
           console.error('DOCX conversion error:', conversionError);
-          // Continue with original DOCX if conversion fails
         }
       }
       // Convert scanned images to PDF format  
@@ -720,7 +716,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
 
           if (conversionResult.success) {
-            // Update document data to use PDF file
             finalFilePath = conversionResult.pdfPath;
             finalMimeType = 'application/pdf';
             finalDocumentData = {
@@ -733,7 +728,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // Clean up the original image file
             setTimeout(() => {
-              pdfConversionService.cleanup([req.file.path]);
+              try {
+                if (fs.existsSync(req.file.path)) {
+                  fs.unlinkSync(req.file.path);
+                }
+              } catch (e) {
+                console.warn('Failed to cleanup original image file:', e);
+              }
             }, 1000);
 
             console.log(`Successfully converted scanned document to PDF: ${conversionResult.pdfPath}`);
@@ -742,52 +743,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } catch (conversionError) {
           console.error('PDF conversion error:', conversionError);
-          // Continue with original image if conversion fails
         }
       }
 
-      // MEMORY OPTIMIZATION: Use streaming upload instead of buffering entire file
-      // Generate storage key using consistent naming convention
-      const documentId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      // Generate unique document ID
+      const documentId = `doc_${Date.now()}_${Math.random().toString(36).substring(2)}`;
       const storageKey = StorageService.generateFileKey(userId, documentId, finalDocumentData.fileName);
 
-      // Upload to cloud storage using stream (memory-efficient)
+      // Upload to cloud storage
       let cloudStorageKey = '';
       try {
-        const storage = storageProvider();
-        // Create read stream instead of loading full file into memory
-        const fileStream = fs.createReadStream(finalFilePath);
-        // Use streaming upload if available, fallback to buffer upload
-        if (typeof storage.uploadStream === 'function') {
-          cloudStorageKey = await storage.uploadStream(fileStream, storageKey, finalMimeType);
-        } else {
-          // Fallback to buffer upload for LocalStorage
-          const fileBuffer = await fs.promises.readFile(finalFilePath);
-          cloudStorageKey = await storage.upload(fileBuffer, storageKey, finalMimeType);
-        }
-        console.log(`File streamed to cloud storage: ${cloudStorageKey}`);
-
-        // Close stream immediately
-        fileStream.destroy();
+        const storageService = storageProvider();
+        
+        // Read file and upload to cloud storage
+        const fileBuffer = await fs.promises.readFile(finalFilePath);
+        cloudStorageKey = await storageService.upload(fileBuffer, storageKey, finalMimeType);
+        
+        console.log(`✅ File uploaded to cloud storage: ${cloudStorageKey}`);
       } catch (storageError) {
-        console.error('Cloud storage upload failed:', storageError);
-        // Clean up local file immediately
-        if (fs.existsSync(finalFilePath)) {
-          fs.unlinkSync(finalFilePath);
+        console.error('❌ Cloud storage upload failed:', storageError);
+        // Clean up local file
+        try {
+          if (fs.existsSync(finalFilePath)) {
+            fs.unlinkSync(finalFilePath);
+          }
+          if (finalFilePath !== req.file.path && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+        } catch (cleanupError) {
+          console.warn('Failed to cleanup files after storage error:', cleanupError);
         }
         return res.status(500).json({ message: "File upload to cloud storage failed" });
       }
 
-      // Generate encryption for cloud-stored file
+      // Setup encryption metadata
       let encryptedDocumentKey = '';
       let encryptionMetadata = '';
 
       try {
-        // For GCS, we encrypt the file buffer before upload
         const documentKey = EncryptionService.generateDocumentKey();
         encryptedDocumentKey = EncryptionService.encryptDocumentKey(documentKey);
 
-        // Create metadata indicating cloud storage with encryption
         encryptionMetadata = JSON.stringify({
           storageType: 'cloud',
           storageKey: cloudStorageKey,
@@ -795,27 +791,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           algorithm: 'AES-256-GCM'
         });
 
-        console.log(`Document prepared for cloud storage with encryption: ${cloudStorageKey}`);
+        console.log(`✅ Document encryption setup completed for: ${cloudStorageKey}`);
       } catch (encryptionError) {
-        console.error('Document encryption setup failed:', encryptionError);
-        // Clean up cloud storage
+        console.error('❌ Document encryption setup failed:', encryptionError);
+        // Clean up cloud storage and local files
         try {
-          const storage = storageProvider();
-          await storage.delete(cloudStorageKey);
+          const storageService = storageProvider();
+          await storageService.delete(cloudStorageKey);
         } catch (cleanupError) {
           console.error('Failed to cleanup cloud storage after encryption error:', cleanupError);
         }
-        // Clean up local file
-        if (fs.existsSync(finalFilePath)) {
-          fs.unlinkSync(finalFilePath);
+        try {
+          if (fs.existsSync(finalFilePath)) {
+            fs.unlinkSync(finalFilePath);
+          }
+          if (finalFilePath !== req.file.path && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+        } catch (cleanupError) {
+          console.warn('Failed to cleanup files after encryption error:', cleanupError);
         }
         return res.status(500).json({ message: "Document encryption setup failed" });
       }
 
-      // Update document data to use cloud storage key
+      // Create document record with cloud storage path
       const cloudDocumentData = {
         ...finalDocumentData,
-        filePath: cloudStorageKey, // Store cloud storage key instead of local path
+        filePath: cloudStorageKey,
         encryptedDocumentKey,
         encryptionMetadata,
         isEncrypted: true
@@ -824,39 +826,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertDocumentSchema.parse(cloudDocumentData);
       const document = await storage.createDocument(validatedData);
 
-      // Queue background job for document processing instead of inline processing
-      if (documentId) {
-        try {
-          const { backgroundJobService } = await import('./backgroundJobService.js');
-          await backgroundJobService.queueOCRProcessing(
-            documentId,
-            userId,
-            cloudStorageKey,
-            file.originalname,
-            file.mimetype,
-            5 // Standard priority
-          );
-          console.log(`✅ Queued background OCR processing for document ${documentId}`);
-        } catch (jobError) {
-          console.error('Failed to queue background job:', jobError);
-          // Don't fail the upload if background job queueing fails
-        }
+      console.log(`✅ Document created in database: ${document.id}`);
+
+      // Queue background OCR processing
+      try {
+        const { ocrQueue } = await import('./ocrQueue.js');
+        await ocrQueue.addJob({
+          documentId: document.id,
+          fileName: document.fileName,
+          filePathOrGCSKey: cloudStorageKey,
+          mimeType: finalMimeType,
+          userId,
+          priority: 5
+        });
+        console.log(`✅ OCR job queued for document ${document.id}`);
+      } catch (jobError) {
+        console.error('⚠️ Failed to queue OCR job:', jobError);
+        // Don't fail the upload if OCR queueing fails
       }
 
-      // MEMORY OPTIMIZATION: Immediate cleanup instead of delayed setTimeout
-      // Clean up local temporary file immediately after successful cloud upload
-      if (fs.existsSync(finalFilePath)) {
-        fs.unlinkSync(finalFilePath);
-        console.log(`Immediately cleaned up local temporary file: ${finalFilePath}`);
+      // Clean up local temporary files
+      try {
+        if (fs.existsSync(finalFilePath)) {
+          fs.unlinkSync(finalFilePath);
+        }
+        if (finalFilePath !== req.file.path && fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+        console.log(`✅ Local temporary files cleaned up`);
+      } catch (cleanupError) {
+        console.warn('⚠️ Failed to cleanup local files:', cleanupError);
       }
 
       res.status(201).json(document);
     } catch (error) {
-      console.error("Error uploading document:", error);
-      if (req.file) {
-        fs.unlinkSync(req.file.path); // Clean up uploaded file on error
+      console.error("❌ Error uploading document:", error);
+      
+      // Clean up any uploaded files on error
+      try {
+        if (req.file && fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup file on error:', cleanupError);
       }
-      res.status(500).json({ message: "Failed to upload document" });
+      
+      res.status(500).json({ 
+        message: "Failed to upload document",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

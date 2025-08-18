@@ -90,12 +90,6 @@ class PerformanceMonitoringService {
     if (this.systemMetrics.length > this.maxMetricsHistory) {
       this.systemMetrics = this.systemMetrics.slice(-this.maxMetricsHistory);
     }
-    });
-
-    // Trim system metrics
-    if (this.systemMetrics.length > this.maxMetricsHistory) {
-      this.systemMetrics = this.systemMetrics.slice(-this.maxMetricsHistory);
-    }
   }
 
   /**
@@ -295,27 +289,12 @@ class PerformanceMonitoringService {
   startPeriodicCleanup(): void {
     // Clear old metrics every 6 hours
     setInterval(() => {
-      this.clearOldMetrics();
+      this.clearOldMetrics(24); // Clear metrics older than 24 hours
     }, 6 * 60 * 60 * 1000);
-  }
-
-  /**
-   * Clear old metrics based on age
-   */
-  private clearOldMetrics(): void {
-    const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
-    
-    this.queryMetrics = this.queryMetrics.filter(
-      metric => metric.timestamp > cutoffTime
-    );
-    
-    this.systemMetrics = this.systemMetrics.filter(
-      metric => metric.timestamp > cutoffTime
-    );
   }
 }
 
 export const performanceMonitoringService = new PerformanceMonitoringService();
 
 // Start periodic cleanup
-performanceMonitoringService.startPeriodicCleanup();up();
+performanceMonitoringService.startPeriodicCleanup();

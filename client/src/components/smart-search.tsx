@@ -39,6 +39,7 @@ export function SmartSearch({
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      console.log('Setting debounced query:', query);
       setDebouncedQuery(query);
       onSearchChange?.(query);
     }, 300);
@@ -65,6 +66,17 @@ export function SmartSearch({
       return data.results || [];
     },
     enabled: debouncedQuery.length > 0,
+  });
+
+  // Debug logging
+  console.log('SmartSearch state:', { 
+    query, 
+    debouncedQuery, 
+    isOpen, 
+    searchResultsCount: searchResults.length,
+    isLoading,
+    error: error?.message,
+    enabled: debouncedQuery.length > 0
   });
 
   // Keyboard navigation

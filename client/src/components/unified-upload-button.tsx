@@ -517,72 +517,59 @@ export default function UnifiedUploadButton({
   };
 
   const handleUpload = async () => {
-    const queuedItems = uploadItems.filter(item => item.status === 'queued' || item.status === 'error');
+    const queuedItems = uploadItems.filter(item => item.status === 'queued');
     console.log(`Starting upload of ${queuedItems.length} files`);
 
     if (queuedItems.length === 0) return;
 
-    // Reset any error items back to queued
-    queuedItems.forEach(item => {
-      if (item.status === 'error') {
-        updateItem(item.id, {
-          status: 'queued',
-          progress: 0,
-          bytesUploaded: 0,
-          errorCode: undefined,
-          errorMessage: undefined,
-          abortController: undefined
-        });
-      }
+    // Show immediate notification
+    toast({
+      title: "Documents uploading",
+      description: `${queuedItems.length} documents are being processed and will appear in your library shortly.`,
+      duration: 5000,
     });
 
-    // Process files sequentially to avoid overwhelming the server
-    const results: Array<{ item: UploadItem; success: boolean; result?: any; error?: string }> = [];
+    // Close modal immediately
+    resetAllStates();
+    close();
 
-    for (const item of queuedItems) {
-      console.log(`Uploading: ${item.file.name}`);
-      
-      try {
-        const result = await uploadSingleFileWithProgress(item.id);
-        results.push({ item, success: true, result });
-        
-        // Refresh queries after each successful upload
+    // Trigger background uploads without waiting
+    queuedItems.forEach(item => {
+      uploadSingleFileInBackground(item.id);
+    });
+
+    // Call completion callback immediately
+    onUploadComplete?.(queuedItems.map(item => ({ id: item.id, name: item.file.name })));
+  };
+
+  const uploadSingleFileInBackground = async (itemId: string) => {
+    try {
+      const item = uploadItems.find(i => i.id === itemId);
+      if (!item) return;
+
+      const formData = new FormData();
+      formData.append("file", item.file);
+      formData.append("name", uploadData.customName || item.file.name);
+      if (uploadData.categoryId) formData.append("categoryId", uploadData.categoryId);
+      if (uploadData.tags) formData.append("tags", JSON.stringify(uploadData.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
+      if (uploadData.expiryDate) formData.append("expiryDate", uploadData.expiryDate);
+
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        // Refresh document list on successful upload
         queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
         queryClient.invalidateQueries({ queryKey: ["/api/insights/metrics"] });
-        
-      } catch (error: any) {
-        console.error(`Failed to upload ${item.file.name}:`, error);
-        results.push({ item, success: false, error: error.message });
+        console.log(`✅ Successfully uploaded: ${item.file.name}`);
+      } else {
+        console.error(`❌ Failed to upload ${item.file.name}: ${response.statusText}`);
       }
-    }
-
-    // Show final summary
-    const successCount = results.filter(r => r.success).length;
-    const errorCount = results.length - successCount;
-
-    console.log(`Upload process completed: ${successCount} successful, ${errorCount} failed`);
-
-    if (successCount > 0) {
-      toast({
-        title: successCount === results.length ? "All uploads successful" : "Some uploads completed",
-        description: errorCount === 0 
-          ? `${successCount} documents uploaded successfully.`
-          : `${successCount} successful, ${errorCount} failed. Check failed items below.`,
-        variant: errorCount === 0 ? "default" : "destructive",
-      });
-
-      // If all succeeded, close modal and reset
-      if (errorCount === 0) {
-        resetAllStates();
-        close();
-        onUploadComplete?.(results.filter(r => r.success).map(r => r.result));
-      }
-    } else {
-      toast({
-        title: "All uploads failed",
-        description: "Please check the errors and try again.",
-        variant: "destructive",
-      });
+    } catch (error) {
+      console.error(`❌ Error uploading file: ${error.message}`);
     }
   };
 

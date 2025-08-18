@@ -163,57 +163,12 @@ export class PostgresStorage implements IStorage {
     }
   }
 
-  async createDocument(documentData: {
-    name: string;
-    fileName: string;
-    fileSize: number;
-    mimeType: string;
-    userId: string;
-    tags?: string[];
-    categoryId?: number | null;
-    gcsPath?: string;
-    uploadSource?: string;
-    extractedText?: string;
-    extractedDate?: Date | null;
-    expiryDate?: Date | null;
-    emailContext?: any;
-    messageId?: string;
-    bodyHash?: string;
-    documentReferences?: any;
-    conversionStatus?: string;
-    sourceDocumentId?: number;
-    originalMimeType?: string;
-    conversionJobId?: string;
-    conversionMetadata?: any;
-    conversionEngine?: string;
-    conversionInputSha256?: string;
-  }): Promise<Document> {
+  async createDocument(documentData: InsertDocument): Promise<Document> {
     // Deduplicate tags before creating document
     const deduplicatedTags = documentData.tags ? this.deduplicateTags(documentData.tags) : [];
     const result = await this.db.insert(documents).values({
-      name: documentData.name,
-      fileName: documentData.fileName,
-      fileSize: documentData.fileSize,
-      mimeType: documentData.mimeType,
-      userId: documentData.userId,
+      ...documentData,
       tags: deduplicatedTags,
-      categoryId: documentData.categoryId,
-      gcsPath: documentData.gcsPath,
-      uploadSource: documentData.uploadSource,
-      extractedText: documentData.extractedText,
-      extractedDate: documentData.extractedDate,
-      expiryDate: documentData.expiryDate,
-      emailContext: documentData.emailContext,
-      messageId: documentData.messageId,
-      bodyHash: documentData.bodyHash,
-      documentReferences: documentData.documentReferences,
-      conversionStatus: documentData.conversionStatus,
-      sourceDocumentId: documentData.sourceDocumentId,
-      originalMimeType: documentData.originalMimeType,
-      conversionJobId: documentData.conversionJobId,
-      conversionMetadata: documentData.conversionMetadata,
-      conversionEngine: documentData.conversionEngine,
-      conversionInputSha256: documentData.conversionInputSha256,
     }).returning();
     return result[0];
   }

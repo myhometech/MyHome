@@ -40,7 +40,7 @@ export default function UnifiedUploadButton({
   type UploadItem = {
     id: string;            // stable UUID generated on enqueue
     file: File;
-    status: 'queued' | 'uploading' | 'success' | 'error' | 'canceled';
+    status: 'queued' | 'uploading' | 'success' | 'error' | 'canceled' | 'completed'; // Added 'completed' for the state after uploadMutation success
     progress: number;      // 0–100
     bytesUploaded: number; // running byte count
     errorCode?: 'TIMEOUT' | 'NETWORK' | 'RATE_LIMITED' | 'VALIDATION' | 'SERVER' | 'UNKNOWN';
@@ -273,7 +273,7 @@ export default function UnifiedUploadButton({
   });
 
 
-  const handleFileSelect = async (files: File[]) => {
+  const handleFileSelect = async (files: File[]): Promise<void> => {
     // Deduplicate by name+size+lastModified before enqueue
     const createFileKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
     const existingKeys = new Set(selectedFiles.map(createFileKey));
@@ -379,141 +379,56 @@ export default function UnifiedUploadButton({
     handleFileSelect(files);
   };
 
-  const uploadSingleFileWithProgress = (itemId: string): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      const item = uploadItems.find(i => i.id === itemId);
-      if (!item) {
-        reject(new Error('Upload item not found'));
-        return;
-      }
+  const uploadSingleFileWithProgress = async (itemId: string): Promise<any> => {
+    const item = uploadItems.find(i => i.id === itemId);
+    if (!item) throw new Error('Upload item not found');
 
-      const abortController = new AbortController();
-      updateItem(itemId, { status: 'uploading', abortController });
+    setUploadItems(prev => prev.map(i => 
+      i.id === itemId ? { ...i, status: 'uploading', progress: 0 } : i
+    ));
 
-      const xhr = new XMLHttpRequest();
-
-      // Prepare form data
+    try {
       const formData = new FormData();
       formData.append("file", item.file);
-      formData.append("name", uploadData.customName || item.file.name);
+      if (uploadData.customName) formData.append("name", uploadData.customName);
       if (uploadData.categoryId) formData.append("categoryId", uploadData.categoryId);
       if (uploadData.tags) formData.append("tags", JSON.stringify(uploadData.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)));
       if (uploadData.expiryDate) formData.append("expiryDate", uploadData.expiryDate);
 
-      // Progress tracking
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const progress = Math.round((e.loaded / e.total) * 100);
-          updateItem(itemId, {
-            progress,
-            bytesUploaded: e.loaded
-          });
-        }
+      console.log(`Uploading: ${item.file.name} (${item.file.size} bytes)`);
+
+      // Use fetch directly instead of mutation to get better error handling
+      const response = await fetch('/api/documents', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
       });
 
-      // Success handler
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const result = JSON.parse(xhr.responseText);
-            updateItem(itemId, {
-              status: 'success',
-              progress: 100,
-              bytesUploaded: item.file.size,
-              serverId: result.id
-            });
-            console.log(`✓ Successfully uploaded: ${item.file.name}`);
-            resolve(result);
-          } catch (e) {
-            const error = new Error('Invalid server response');
-            updateItem(itemId, {
-              status: 'error',
-              errorCode: 'SERVER',
-              errorMessage: 'Invalid server response'
-            });
-            reject(error);
-          }
-        } else {
-          // Map HTTP status to error codes
-          let errorCode: UploadItem['errorCode'] = 'UNKNOWN';
-          let errorMessage = 'Upload failed';
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }));
+        throw new Error(errorData.message || `Server error: ${response.status}`);
+      }
 
-          if (xhr.status === 408 || xhr.status === 504) {
-            errorCode = 'TIMEOUT';
-            errorMessage = 'Request timed out. Please try again.';
-          } else if (xhr.status === 429) {
-            errorCode = 'RATE_LIMITED';
-            errorMessage = 'Too many requests. Please wait and try again.';
-          } else if (xhr.status === 413) {
-            errorCode = 'VALIDATION';
-            errorMessage = 'File too large (max 10MB)';
-          } else if (xhr.status === 415) {
-            errorCode = 'VALIDATION';
-            errorMessage = 'File type not supported';
-          } else if (xhr.status >= 400 && xhr.status < 500) {
-            errorCode = 'VALIDATION';
-            try {
-              const errorResponse = JSON.parse(xhr.responseText);
-              errorMessage = errorResponse.message || `Validation error (${xhr.status})`;
-            } catch {
-              errorMessage = `Validation error (${xhr.status})`;
-            }
-          } else if (xhr.status >= 500) {
-            errorCode = 'SERVER';
-            errorMessage = 'Server error. Please try again.';
-          }
+      const result = await response.json();
 
-          updateItem(itemId, {
-            status: 'error',
-            errorCode,
-            errorMessage
-          });
+      setUploadItems(prev => prev.map(i => 
+        i.id === itemId ? { ...i, status: 'completed', progress: 100 } : i
+      ));
 
-          console.error(`✗ Failed to upload ${item.file.name}: ${errorMessage}`);
-          reject(new Error(errorMessage));
-        }
-      });
+      // Invalidate queries to refresh the document list
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/insights/metrics"] });
 
-      // Network error handler
-      xhr.addEventListener('error', () => {
-        updateItem(itemId, {
-          status: 'error',
-          errorCode: 'NETWORK',
-          errorMessage: 'Network error. Check your connection.'
-        });
-        reject(new Error('Network error'));
-      });
+      return result;
+    } catch (error: any) {
+      console.error(`Upload failed for ${item.file.name}:`, error);
 
-      // Abort handler
-      xhr.addEventListener('abort', () => {
-        updateItem(itemId, {
-          status: 'canceled',
-          errorMessage: 'Upload canceled'
-        });
-        reject(new Error('Upload canceled'));
-      });
+      setUploadItems(prev => prev.map(i => 
+        i.id === itemId ? { ...i, status: 'error', progress: 0, error: error.message } : i
+      ));
 
-      // Timeout handler
-      xhr.addEventListener('timeout', () => {
-        updateItem(itemId, {
-          status: 'error',
-          errorCode: 'TIMEOUT',
-          errorMessage: 'Upload timed out. Please try again.'
-        });
-        reject(new Error('Upload timed out'));
-      });
-
-      // Abort signal handling
-      abortController.signal.addEventListener('abort', () => {
-        xhr.abort();
-      });
-
-      // Configure and send request
-      xhr.open('POST', '/api/documents');
-      xhr.timeout = 120000; // 2 minute timeout
-      xhr.withCredentials = true;
-      xhr.send(formData);
-    });
+      throw error;
+    }
   };
 
   const handleUpload = async () => {
@@ -527,15 +442,16 @@ export default function UnifiedUploadButton({
 
     for (const item of queuedItems) {
       console.log(`Uploading: ${item.file.name}`);
-      
+
       try {
         const result = await uploadSingleFileWithProgress(item.id);
         results.push({ item, success: true, result });
-        
+
         // Refresh queries after each successful upload
-        queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/insights/metrics"] });
-        
+        // Moved to uploadSingleFileWithProgress for immediate feedback
+        // queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+        // queryClient.invalidateQueries({ queryKey: ["/api/insights/metrics"] });
+
       } catch (error: any) {
         console.error(`Failed to upload ${item.file.name}:`, error);
         results.push({ item, success: false, error: error.message });
@@ -633,9 +549,9 @@ export default function UnifiedUploadButton({
                   {uploadItems.filter(i => i.status === 'uploading').length} uploading
                 </span>
               )}
-              {uploadItems.filter(i => i.status === 'success').length > 0 && (
+              {uploadItems.filter(i => i.status === 'completed').length > 0 && ( // Changed from 'success' to 'completed'
                 <span className="bg-green-100 text-green-600 px-2 py-1 rounded">
-                  {uploadItems.filter(i => i.status === 'success').length} success
+                  {uploadItems.filter(i => i.status === 'completed').length} success
                 </span>
               )}
               {uploadItems.filter(i => i.status === 'error').length > 0 && (
@@ -691,13 +607,13 @@ export default function UnifiedUploadButton({
                   <span className={`text-xs px-2 py-1 rounded ${
                     item.status === 'queued' ? 'bg-gray-100 text-gray-600' :
                     item.status === 'uploading' ? 'bg-blue-100 text-blue-600' :
-                    item.status === 'success' ? 'bg-green-100 text-green-600' :
+                    item.status === 'completed' ? 'bg-green-100 text-green-600' : // Changed from 'success' to 'completed'
                     item.status === 'error' ? 'bg-red-100 text-red-600' :
                     'bg-gray-100 text-gray-600'
                   }`}>
                     {item.status === 'queued' && 'Queued'}
                     {item.status === 'uploading' && `${item.progress}%`}
-                    {item.status === 'success' && '✓ Success'}
+                    {item.status === 'completed' && '✓ Success'} {/* Changed from 'success' to 'completed' */}
                     {item.status === 'error' && '✗ Failed'}
                     {item.status === 'canceled' && 'Canceled'}
                   </span>

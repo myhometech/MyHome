@@ -50,7 +50,6 @@ import {
 import { db } from "./db";
 import { users, documents, featureFlags } from "@shared/schema";
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
-import { storage } from "./storage";
 
 // Import proper types
 import type { Request, Response, NextFunction } from "express";
@@ -157,6 +156,9 @@ const mailgunUpload = multer({
     }
   }
 });
+
+// Import storage service
+import { storage } from "./storage";
 
 // Helper function to get user ID from request
 function getUserId(req: any): string {
@@ -450,11 +452,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user || req.session?.user;
       
       if (!user) {
+        console.log("No user found in req.user or req.session.user");
         return res.status(401).json({ message: "User not authenticated" });
       }
 
       // If we have a full user object, return it
       if (user.id && user.email) {
+        console.log("Returning user from session/req:", user.id);
         return res.json({
           id: user.id,
           email: user.email,
@@ -465,19 +469,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Otherwise, fetch from storage
-      if (storage && storage.getUser) {
-        const fullUser = await storage.getUser(user.id);
-        if (fullUser) {
-          return res.json({
-            id: fullUser.id,
-            email: fullUser.email,
-            firstName: fullUser.firstName,
-            lastName: fullUser.lastName,
-            role: fullUser.role,
-            authProvider: fullUser.authProvider || req.session?.authProvider
-          });
+      // Otherwise, fetch from storage if available
+      try {
+        if (storage && typeof storage.getUser === 'function') {
+          console.log("Fetching user from storage:", user.id);
+          const fullUser = await storage.getUser(user.id);
+          if (fullUser) {
+            return res.json({
+              id: fullUser.id,
+              email: fullUser.email,
+              firstName: fullUser.firstName,
+              lastName: fullUser.lastName,
+              role: fullUser.role,
+              authProvider: fullUser.authProvider || req.session?.authProvider
+            });
+          }
+        } else {
+          console.error("Storage service not available or getUser method missing");
         }
+      } catch (storageError) {
+        console.error("Storage error:", storageError);
+      }
+
+      // Fallback: return partial user data if we have basic info
+      if (user.id) {
+        console.log("Returning partial user data:", user.id);
+        return res.json({
+          id: user.id,
+          email: user.email || 'unknown@email.com',
+          firstName: user.firstName || null,
+          lastName: user.lastName || null,
+          role: user.role || 'user',
+          authProvider: user.authProvider || req.session?.authProvider || 'session'
+        });
       }
 
       return res.status(404).json({ message: "User not found" });

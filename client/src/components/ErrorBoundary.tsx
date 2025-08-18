@@ -3,18 +3,6 @@ import { captureReactError } from '@/lib/monitoring';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-  onError?: (error: Error, errorInfo: ErrorInfo) => void;
-}
-
-interface State {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
-}
-
 export interface Props {
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -27,7 +15,7 @@ interface State {
   errorInfo: React.ErrorInfo | null;
 }
 
-class ErrorBoundary extends Component<Props, State> {
+export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
@@ -163,3 +151,6 @@ export function withErrorBoundary<P extends object>(
     );
   };
 }
+
+// Default export
+export default ErrorBoundary;

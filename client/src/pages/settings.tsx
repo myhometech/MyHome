@@ -1210,30 +1210,36 @@ export default function Settings() {
 
         {/* Settings Tabs */}
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Profile
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 h-auto p-1">
+            <TabsTrigger value="profile" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <User className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Profile</span>
+              <span className="sm:hidden">Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="assets" className="flex items-center gap-2">
-              <Car className="h-4 w-4" />
-              Assets
+            <TabsTrigger value="assets" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <Car className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Assets</span>
+              <span className="sm:hidden">Assets</span>
             </TabsTrigger>
-            <TabsTrigger value="billing" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Billing
+            <TabsTrigger value="billing" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Billing</span>
+              <span className="sm:hidden">Billing</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              Notifications
+            <TabsTrigger value="notifications" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Notifications</span>
+              <span className="sm:hidden">Notify</span>
             </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Security
+            <TabsTrigger value="security" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Security</span>
+              <span className="sm:hidden">Security</span>
             </TabsTrigger>
-            <TabsTrigger value="support" className="flex items-center gap-2">
-              <HelpCircle className="h-4 w-4" />
-              Support
+            <TabsTrigger value="support" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Support</span>
+              <span className="sm:hidden">Support</span>
             </TabsTrigger>
           </TabsList>
 

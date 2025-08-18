@@ -721,5 +721,6 @@ export class PostgresStorage implements IStorage {
   }
 }
 
-// Export storage instance (will be initialized in index.ts)
-export let storage: PostgresStorage;
+// Initialize and export storage instance
+import { db } from "./db";
+export const storage = new PostgresStorage(db);

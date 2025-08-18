@@ -56,7 +56,8 @@ export function SmartSearch({
         credentials: "include",
       });
       if (!response.ok) throw new Error("Search failed");
-      return response.json();
+      const data = await response.json();
+      return data.results || [];
     },
     enabled: debouncedQuery.length > 0,
   });

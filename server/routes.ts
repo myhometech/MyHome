@@ -50,6 +50,7 @@ import {
 import { db } from "./db";
 import { users, documents, featureFlags } from "@shared/schema";
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
+import { storage } from "./storage";
 
 // Import proper types
 import type { Request, Response, NextFunction } from "express";
@@ -161,6 +162,9 @@ const mailgunUpload = multer({
 function getUserId(req: any): string {
   if (req.user?.id) {
     return req.user.id;
+  }
+  if (req.session?.user?.id) {
+    return req.session.user.id;
   }
   throw new Error("User not authenticated");
 }
@@ -443,16 +447,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
-      const user = req.user;
+      const user = req.user || req.session?.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
 
-      res.json({
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        authProvider: user.authProvider || req.session?.authProvider
-      });
+      // If we have a full user object, return it
+      if (user.id && user.email) {
+        return res.json({
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          authProvider: user.authProvider || req.session?.authProvider
+        });
+      }
+
+      // Otherwise, fetch from storage
+      if (storage && storage.getUser) {
+        const fullUser = await storage.getUser(user.id);
+        if (fullUser) {
+          return res.json({
+            id: fullUser.id,
+            email: fullUser.email,
+            firstName: fullUser.firstName,
+            lastName: fullUser.lastName,
+            role: fullUser.role,
+            authProvider: fullUser.authProvider || req.session?.authProvider
+          });
+        }
+      }
+
+      return res.status(404).json({ message: "User not found" });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });

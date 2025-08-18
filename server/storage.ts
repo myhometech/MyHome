@@ -2,9 +2,10 @@ import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { type NeonDatabase } from '@neondatabase/serverless';
 import { 
   users, categories, documents, emailForwards, households, userHouseholdMembership,
+  documentInsights,
   type User, type InsertUser, type Category, type InsertCategory, 
   type Document, type InsertDocument, type EmailForward, type InsertEmailForward, 
-  type Household, type InsertHousehold
+  type Household, type InsertHousehold, type DocumentInsight, type InsertDocumentInsight
 } from '../shared/schema.js';
 
 export interface IStorage {
@@ -42,13 +43,16 @@ export interface IStorage {
   // User operations  
   updateUserLastLogin(userId: string): Promise<void>;
   
-  // Legacy insight operations (simplified for now)
-  createInsight(insight: any): Promise<any>;
-  getUserInsights(userId: string): Promise<any[]>;
-  getInsights(userId: string): Promise<any[]>;
-  updateInsight(id: number, updates: any): Promise<any>;
-  updateInsightStatus(id: number, status: string): Promise<any>;
-  deleteInsight(id: number): Promise<void>;
+  // Document insight operations
+  createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight>;
+  getUserInsights(userId: string): Promise<DocumentInsight[]>;
+  getInsights(userId: string, status?: string, type?: string, priority?: string): Promise<DocumentInsight[]>;
+  getDocumentInsights(documentId: number, userId?: string, tier?: string): Promise<DocumentInsight[]>;
+  getCriticalInsights(userId: string): Promise<DocumentInsight[]>;
+  updateInsight(id: string, updates: Partial<InsertDocumentInsight>): Promise<DocumentInsight | undefined>;
+  updateInsightStatus(id: string, status: string): Promise<DocumentInsight | undefined>;
+  deleteInsight(id: string): Promise<void>;
+  deleteDocumentInsight(id: string): Promise<void>;
 
   // Email forwarding operations
   createEmailForward(emailForward: InsertEmailForward): Promise<EmailForward>;
@@ -363,49 +367,95 @@ export class PostgresStorage implements IStorage {
     }).sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
   }
 
-  // Legacy insight operations (simplified for compatibility)
-  async createInsight(insight: any): Promise<any> {
-    console.warn('Insight operations not implemented in clean storage');
-    return null;
+  // Document insight operations
+  async createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight> {
+    const [newInsight] = await this.db.insert(documentInsights).values(insight).returning();
+    return newInsight;
   }
 
-  async createDocumentInsight(insight: any): Promise<any> {
-    console.warn('Document insight operations not implemented in clean storage');
-    return null;
+  async getUserInsights(userId: string): Promise<DocumentInsight[]> {
+    return await this.db
+      .select()
+      .from(documentInsights)
+      .where(eq(documentInsights.userId, userId))
+      .orderBy(desc(documentInsights.createdAt));
   }
 
-  async getUserInsights(userId: string): Promise<any[]> {
-    console.warn('Insight operations not implemented in clean storage');
-    return [];
+  async getInsights(userId: string, status?: string, type?: string, priority?: string): Promise<DocumentInsight[]> {
+    const conditions = [eq(documentInsights.userId, userId)];
+    
+    if (status) {
+      conditions.push(eq(documentInsights.status, status));
+    }
+    if (type) {
+      conditions.push(eq(documentInsights.type, type));
+    }
+    if (priority) {
+      conditions.push(eq(documentInsights.priority, priority));
+    }
+
+    return await this.db
+      .select()
+      .from(documentInsights)
+      .where(and(...conditions))
+      .orderBy(desc(documentInsights.dueDate), desc(documentInsights.createdAt));
   }
 
-  async getInsights(userId: string): Promise<any[]> {
-    console.warn('Insight operations not implemented in clean storage');
-    return [];
+  async getDocumentInsights(documentId: number, userId?: string, tier?: string): Promise<DocumentInsight[]> {
+    const conditions = [eq(documentInsights.documentId, documentId)];
+    
+    if (userId) {
+      conditions.push(eq(documentInsights.userId, userId));
+    }
+    if (tier) {
+      conditions.push(eq(documentInsights.tier, tier));
+    }
+
+    return await this.db
+      .select()
+      .from(documentInsights)
+      .where(and(...conditions))
+      .orderBy(desc(documentInsights.priority), desc(documentInsights.createdAt));
   }
 
-  async getDocumentInsights(documentId: number): Promise<any[]> {
-    console.warn('Document insight operations not implemented in clean storage');
-    return [];
+  async getCriticalInsights(userId: string): Promise<DocumentInsight[]> {
+    return await this.db
+      .select()
+      .from(documentInsights)
+      .where(
+        and(
+          eq(documentInsights.userId, userId),
+          eq(documentInsights.priority, 'high'),
+          eq(documentInsights.status, 'open')
+        )
+      )
+      .orderBy(desc(documentInsights.dueDate), desc(documentInsights.createdAt));
   }
 
-  async getCriticalInsights(userId: string): Promise<any[]> {
-    console.warn('Critical insight operations not implemented in clean storage');
-    return [];
+  async updateInsight(id: string, updates: Partial<InsertDocumentInsight>): Promise<DocumentInsight | undefined> {
+    const [updatedInsight] = await this.db
+      .update(documentInsights)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(documentInsights.id, id))
+      .returning();
+    return updatedInsight;
   }
 
-  async updateInsight(id: number, updates: any): Promise<any> {
-    console.warn('Insight operations not implemented in clean storage');
-    return null;
+  async updateInsightStatus(id: string, status: string): Promise<DocumentInsight | undefined> {
+    const [updatedInsight] = await this.db
+      .update(documentInsights)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(documentInsights.id, id))
+      .returning();
+    return updatedInsight;
   }
 
-  async updateInsightStatus(id: number, status: string): Promise<any> {
-    console.warn('Insight operations not implemented in clean storage');
-    return null;
+  async deleteInsight(id: string): Promise<void> {
+    await this.db.delete(documentInsights).where(eq(documentInsights.id, id));
   }
 
-  async deleteInsight(id: number): Promise<void> {
-    console.warn('Insight operations not implemented in clean storage');
+  async deleteDocumentInsight(id: string): Promise<void> {
+    await this.db.delete(documentInsights).where(eq(documentInsights.id, id));
   }
 
   // Email forwarding operations
@@ -494,9 +544,7 @@ export class PostgresStorage implements IStorage {
     console.warn('ManualTrackedEvent operations not implemented in clean storage');
   }
 
-  async deleteDocumentInsight(id: number): Promise<void> {
-    console.warn('Document insight operations not implemented in clean storage');
-  }
+
 
   // User assets operations
   async createUserAsset(asset: any): Promise<any> {

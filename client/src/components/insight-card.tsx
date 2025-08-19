@@ -160,30 +160,32 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
       className={`transition-all duration-200 hover:shadow-md cursor-pointer ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}
       onClick={handleCardClick}
     >
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-1 sm:pb-2">
         <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-2">
+          <div className="flex items-start space-x-1 sm:space-x-2 flex-1 min-w-0">
             {getPriorityIcon(insight.priority)}
-            <div className="flex-1">
-              <CardTitle className="text-sm font-medium leading-tight">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-xs sm:text-sm font-medium leading-tight text-gray-900 truncate">
                 {insight.message || insight.title}
               </CardTitle>
-              <div className="flex items-center space-x-2 mt-1">
+              <div className="flex items-center space-x-1 mt-1 flex-wrap">
                 <Badge variant="outline" className={`text-xs ${getPriorityColor(insight.priority)}`}>
                   {insight.priority}
                 </Badge>
                 <Badge variant="outline" className={`text-xs ${getStatusColor(insight.status || 'open')}`}>
                   {insight.status || 'open'}
                 </Badge>
-                {getTypeIcon(insight.type)}
-                <span className="text-xs text-gray-500 capitalize">{insight.type.replace('_', ' ')}</span>
+                <div className="hidden sm:flex items-center space-x-1">
+                  {getTypeIcon(insight.type)}
+                  <span className="text-xs text-gray-500 capitalize">{insight.type.replace('_', ' ')}</span>
+                </div>
               </div>
             </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" disabled={isUpdating} data-radix-dropdown-menu-trigger>
-                <MoreVertical className="h-4 w-4" />
+              <Button variant="ghost" size="sm" disabled={isUpdating} data-radix-dropdown-menu-trigger className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -209,18 +211,18 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
           </DropdownMenu>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 px-3 sm:px-6 pb-2 sm:pb-4">
         {insight.content && (
-          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+          <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2 line-clamp-2">
             {insight.content}
           </p>
         )}
         <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1 sm:space-x-2">
             {dueInfo && (
               <div className={`flex items-center space-x-1 ${dueInfo.color}`}>
                 <Calendar className="h-3 w-3" />
-                <span>Due {dueInfo.text}</span>
+                <span className="text-xs">Due {dueInfo.text}</span>
               </div>
             )}
             {insight.confidence && (

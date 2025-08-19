@@ -354,8 +354,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   return (
     <div className="space-y-6">
-      {/* High-Level Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      {/* High-Level Summary Cards - Mobile Optimized */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         {/* All Items */}
         <Card 
           className={`border-l-4 border-l-blue-500 bg-blue-50/50 cursor-pointer hover:bg-blue-50 transition-colors ${
@@ -363,16 +363,16 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
           }`}
           onClick={() => setPriorityFilter('all')}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-700">All Items</p>
-                <p className="text-2xl font-bold text-blue-900">
+                <p className="text-xs sm:text-sm font-medium text-blue-700">All Items</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-900">
                   {insights.filter(i => i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-blue-600">Total active</p>
+                <p className="text-xs text-blue-600 hidden sm:block">Total active</p>
               </div>
-              <Brain className="h-8 w-8 text-blue-500" />
+              <Brain className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
             </div>
           </CardContent>
         </Card>
@@ -383,16 +383,16 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
           }`}
           onClick={() => setPriorityFilter('high')}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">High Priority</p>
-                <p className="text-2xl font-bold text-red-900">
+                <p className="text-xs sm:text-sm font-medium text-red-700">High Priority</p>
+                <p className="text-lg sm:text-2xl font-bold text-red-900">
                   {insights.filter(i => i.priority === 'high' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-red-600">Urgent items</p>
+                <p className="text-xs text-red-600 hidden sm:block">Urgent items</p>
               </div>
-              <AlertTriangle className="h-8 w-8 text-red-500" />
+              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-red-500" />
             </div>
           </CardContent>
         </Card>
@@ -404,16 +404,16 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
           }`}
           onClick={() => setPriorityFilter('medium')}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-yellow-700">Medium Priority</p>
-                <p className="text-2xl font-bold text-yellow-900">
+                <p className="text-xs sm:text-sm font-medium text-yellow-700">Medium</p>
+                <p className="text-lg sm:text-2xl font-bold text-yellow-900">
                   {insights.filter(i => i.priority === 'medium' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-yellow-600">Important items</p>
+                <p className="text-xs text-yellow-600 hidden sm:block">Important items</p>
               </div>
-              <Clock className="h-8 w-8 text-yellow-500" />
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
@@ -425,54 +425,54 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
           }`}
           onClick={() => setPriorityFilter('low')}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700">Low Priority</p>
-                <p className="text-2xl font-bold text-green-900">
+                <p className="text-xs sm:text-sm font-medium text-green-700">Low</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-900">
                   {insights.filter(i => i.priority === 'low' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-green-600">General items</p>
+                <p className="text-xs text-green-600 hidden sm:block">General items</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
+              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* AI Insights Section - Simple Horizontal Buttons */}
-      <div className="space-y-4">
+      {/* AI Insights Section - Mobile Optimized */}
+      <div className="space-y-3">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold">AI Insights</h3>
+                <h3 className="text-base sm:text-lg font-semibold">AI Insights</h3>
                 <SmartHelpTooltip helpKey="ai-insights" variant="detailed" />
               </div>
               <Button onClick={() => refetch()} disabled={isLoading} variant="outline" size="sm">
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
               </Button>
             </div>
             
             {isLoading || manualEventsLoading ? (
-              <div className="text-center py-8">
-                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
-                <p>Loading insights...</p>
+              <div className="text-center py-4 sm:py-6">
+                <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 animate-spin mx-auto mb-2 sm:mb-4 text-blue-500" />
+                <p className="text-sm">Loading insights...</p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {/* Priority Filter Buttons */}
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-sm font-medium text-gray-700">Priority:</span>
-                  <div className="flex gap-1">
+              <div className="space-y-3 sm:space-y-4">
+                {/* Priority Filter Buttons - Mobile Optimized */}
+                <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700">Filter:</span>
+                  <div className="flex gap-1 flex-wrap">
                     <Button
                       size="sm"
                       variant={priorityFilter === 'high' ? 'default' : 'outline'}
                       onClick={() => setPriorityFilter('high')}
-                      className="h-7 px-3 text-xs"
+                      className="h-6 sm:h-7 px-2 sm:px-3 text-xs"
                     >
-                      High Priority
+                      High
                     </Button>
                     <Button
                       size="sm"

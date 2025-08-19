@@ -37,6 +37,7 @@ import Notifications from "@/pages/notifications";
 import Tasks from "@/pages/tasks";
 import Analytics from "@/pages/analytics";
 import { Support } from "@/pages/support";
+import { InviteAccept } from "@/pages/InviteAccept";
 
 
 function Router() {
@@ -130,6 +131,8 @@ function Router() {
           </Route>
         </>
       )}
+      {/* TICKET 5: Invite accept route accessible regardless of auth status */}
+      <Route path="/invite/accept" component={InviteAccept} />
       <Route component={NotFound} />
     </Switch>
   );

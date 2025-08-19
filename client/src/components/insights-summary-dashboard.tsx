@@ -38,6 +38,7 @@ interface InsightMetrics {
   keyDates: number;
   compliance: number;
   upcomingDeadlines: number;
+  manualEvents: number;
   byType: {
     summary: number;
     action_items: number;

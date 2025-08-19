@@ -55,6 +55,7 @@ import type { Category, Document, DocumentInsight } from "@shared/schema";
 
 // Dashboard Overview Cards Component
 function DashboardOverview({ onFilterChange }: { onFilterChange: (filter: any) => void }) {
+  const { toast } = useToast();
   const { data: metricsData, isLoading } = useQuery({
     queryKey: ['/api/insights/metrics'],
     queryFn: async () => {
@@ -350,6 +351,7 @@ function QuickActionCards() {
 }
 
 export default function Home() {
+  const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");

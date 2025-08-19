@@ -8,7 +8,7 @@ export interface VehicleFetchError {
 }
 
 export async function fetchVehicles(): Promise<any[]> {
-  const res = await fetch('/api/vehicles', { credentials: 'include' });
+  const res = await fetch('/api/user-assets', { credentials: 'include' });
   
   if (res.status === 401) {
     throw { type: 'auth', message: 'You need to sign in.' } as VehicleFetchError;
@@ -42,7 +42,7 @@ async function safeJson(r: Response) {
 
 export function useVehicles() {
   return useQuery({
-    queryKey: ['/api/vehicles'],
+    queryKey: ['/api/user-assets'],
     queryFn: fetchVehicles,
     retry: (failureCount, error: any) => {
       // Don't retry auth errors

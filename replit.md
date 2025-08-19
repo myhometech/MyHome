@@ -15,6 +15,7 @@ MyHome is a comprehensive document management application for homeowners, design
 - **TICKET 3 Complete**: Full role-based access control system with owner/duo_partner/household_user roles, permission middleware, and frontend role enforcement
 - **TICKET 4 Complete**: Comprehensive audit logging system with document_events table, AuditLogger service, and API endpoints for tracking document upload, delete, rename, and AI insight actions
 - **TICKET 5 Complete**: Frontend invite accept flow with /invite/accept route, welcome screen for valid invitations, error handling for invalid/expired tokens, and seamless household joining UX
+- **Mobile Header Optimization**: Fixed horizontal scrolling issues on mobile by hiding search bar, removing redundant icons (settings/profile available in hamburger menu), implementing icon-only buttons, and responsive spacing
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

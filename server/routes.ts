@@ -173,7 +173,7 @@ const mailgunUpload = multer({
 });
 
 // Helper function to get user ID from request
-function getUserId(req: any): string {
+function getUserId(req: AuthenticatedRequest): string {
   try {
     if (req.user?.id) {
       console.log(`✅ Found user ID in req.user: ${req.user.id}`);

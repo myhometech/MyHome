@@ -118,7 +118,7 @@ export interface IStorage {
 }
 
 export class PostgresStorage implements IStorage {
-  constructor(private db: NeonHttpDatabase<any>) {}
+  constructor(private db: any) {}
 
   async createUser(user: InsertUser): Promise<User> {
     const [newUser] = await this.db.insert(users).values(user).returning();
@@ -218,12 +218,13 @@ export class PostgresStorage implements IStorage {
     }
 
     if (search) {
-      conditions.push(
-        or(
-          ilike(documents.name, `%${search}%`),
-          ilike(documents.extractedText, `%${search}%`)
-        )
+      const searchCondition = or(
+        ilike(documents.name, `%${search}%`),
+        ilike(documents.extractedText, `%${search}%`)
       );
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
     }
 
     return await this.db
@@ -375,7 +376,7 @@ export class PostgresStorage implements IStorage {
       .limit(limit);
 
     // Add relevance scoring and match type detection
-    return results.map(doc => {
+    return results.map((doc: any) => {
       let relevanceScore = 0;
       let matchType = 'other';
 
@@ -407,7 +408,7 @@ export class PostgresStorage implements IStorage {
         relevanceScore,
         matchType
       };
-    }).sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+    }).sort((a: any, b: any) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
   }
 
   // Document insight operations
@@ -652,34 +653,22 @@ export class PostgresStorage implements IStorage {
     return [];
   }
 
-  // Household operations
+  // Household operations moved to actual implementations below
   async getHouseholdMembership(userId: string): Promise<any> {
-    console.warn('Household operations not implemented in clean storage');
-    return null;
+    return this.getUserHouseholdMembership(userId);
   }
 
   async getHousehold(householdId: string): Promise<any> {
-    console.warn('Household operations not implemented in clean storage');
-    return null;
-  }
-
-  async getHouseholdMembers(householdId: string): Promise<any[]> {
-    console.warn('Household operations not implemented in clean storage');
-    return [];
+    const [household] = await this.db
+      .select()
+      .from(households)
+      .where(eq(households.id, householdId));
+    return household;
   }
 
   async getHouseholdMemberCount(householdId: string): Promise<number> {
-    console.warn('Household operations not implemented in clean storage');
-    return 0;
-  }
-
-  async createHouseholdMembership(membership: any): Promise<any> {
-    console.warn('Household operations not implemented in clean storage');
-    return null;
-  }
-
-  async removeHouseholdMembership(userId: string): Promise<void> {
-    console.warn('Household operations not implemented in clean storage');
+    const members = await this.getHouseholdMembers(householdId);
+    return members.length;
   }
 
   // Blog operations
@@ -927,14 +916,6 @@ export class PostgresStorage implements IStorage {
     await this.db.delete(userHouseholdMembership).where(eq(userHouseholdMembership.userId, userId));
   }
 
-  async getUserHouseholdMembership(userId: string): Promise<any> {
-    const [membership] = await this.db
-      .select()
-      .from(userHouseholdMembership)
-      .where(eq(userHouseholdMembership.userId, userId));
-    return membership;
-  }
-
   // TICKET 4: Document audit logging operations
   async logDocumentEvent(event: InsertDocumentEvent): Promise<DocumentEvent> {
     const [loggedEvent] = await this.db
@@ -993,6 +974,7 @@ export class PostgresStorage implements IStorage {
   async createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document> {
     // Use regular createDocument method for now
     return this.createDocument({
+      name: `Email: ${emailData.subject || 'No Subject'}`,
       userId,
       fileName: `Email: ${emailData.subject || 'No Subject'}.pdf`,
       filePath: '',
@@ -1007,7 +989,8 @@ export class PostgresStorage implements IStorage {
    * Helper function to deduplicate tags while preserving order
    */
   private deduplicateTags(tags: string[]): string[] {
-    return [...new Set(tags.filter(tag => tag && tag.trim()))];
+    const uniqueTags = new Set(tags.filter(tag => tag && tag.trim()));
+    return Array.from(uniqueTags);
   }
 }
 

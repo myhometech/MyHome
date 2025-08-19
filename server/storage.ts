@@ -112,6 +112,9 @@ export interface IStorage {
   logDocumentEvent(event: InsertDocumentEvent): Promise<DocumentEvent>;
   getDocumentEvents(documentId: number): Promise<DocumentEvent[]>;
   getUserDocumentEvents(userId: string, limit?: number): Promise<DocumentEvent[]>;
+  
+  // Email body document operations
+  createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -984,6 +987,20 @@ export class PostgresStorage implements IStorage {
       .where(eq(documentEvents.userId, userId))
       .orderBy(desc(documentEvents.createdAt))
       .limit(limit);
+  }
+
+  // Email body document operations
+  async createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document> {
+    // Use regular createDocument method for now
+    return this.createDocument({
+      userId,
+      fileName: `Email: ${emailData.subject || 'No Subject'}.pdf`,
+      filePath: '',
+      fileSize: pdfBuffer.length,
+      mimeType: 'application/pdf',
+      tags: emailData.tags || ['email', 'email-body'],
+      emailContext: emailData
+    });
   }
 
   /**

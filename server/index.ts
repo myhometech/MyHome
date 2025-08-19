@@ -50,7 +50,7 @@ if (global.gc) {
     const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
 
     // Emergency GC at 85% to prevent memory pressure
-    if (heapPercent > 85) {
+    if (heapPercent > 85 && global.gc) {
       const before = memUsage.heapUsed / 1024 / 1024;
       global.gc();
       const after = process.memoryUsage().heapUsed / 1024 / 1024;
@@ -84,7 +84,7 @@ import { initializeWorkerHealthChecker } from './workerHealthCheck';
 const app = express();
 
 // Add correlation ID middleware first
-app.use(withCorrelationId);
+app.use(withCorrelationId as any);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -229,7 +229,7 @@ app.use((req, res, next) => {
   });
 
   // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
-  const server = await registerRoutes(app, storage);
+  const server = await registerRoutes(app);
   console.log('✅ API routes registered successfully');
 
   // Initialize manual event notification service (TICKET B2)

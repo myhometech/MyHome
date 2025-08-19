@@ -156,7 +156,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             </Button>
             
             {/* Settings button - direct access */}
-            {user && (
+            {user ? (
               <Button
                 variant="ghost"
                 size="sm"
@@ -167,11 +167,11 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
                 <Settings className="h-4 w-4" />
                 <span className="hidden lg:inline text-sm">Settings</span>
               </Button>
-            )}
+            ) : null}
             
-            {user && (
+            {user ? (
               <UserProfileBadge variant="compact" showDropdown={true} />
-            )}
+            ) : null}
           </div>
         </div>
       </div>

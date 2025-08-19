@@ -2,12 +2,12 @@ import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { type NeonDatabase } from '@neondatabase/serverless';
 import { 
   users, categories, documents, emailForwards, households, userHouseholdMembership, pendingInvites,
-  documentInsights, vehicles, documentEvents,
+  documentInsights, vehicles, documentEvents, userAssets,
   type User, type InsertUser, type Category, type InsertCategory, 
   type Document, type InsertDocument, type EmailForward, type InsertEmailForward, 
   type Household, type InsertHousehold, type DocumentInsight, type InsertDocumentInsight,
   type Vehicle, type InsertVehicle, type PendingInvite, type InsertPendingInvite,
-  type DocumentEvent, type InsertDocumentEvent
+  type DocumentEvent, type InsertDocumentEvent, type UserAsset, type InsertUserAsset
 } from '../shared/schema.js';
 
 export interface IStorage {
@@ -78,8 +78,8 @@ export interface IStorage {
   deleteManualTrackedEvent(id: string): Promise<void>;
 
   // User assets operations
-  createUserAsset(asset: any): Promise<any>;
-  getUserAssets(userId: string): Promise<any[]>;
+  createUserAsset(asset: InsertUserAsset & { userId: string }): Promise<UserAsset>;
+  getUserAssets(userId: string): Promise<UserAsset[]>;
   deleteUserAsset(id: number, userId: string): Promise<void>;
 
   // Vehicle operations
@@ -586,20 +586,7 @@ export class PostgresStorage implements IStorage {
 
 
 
-  // User assets operations
-  async createUserAsset(asset: any): Promise<any> {
-    console.warn('UserAsset operations not implemented in clean storage');
-    return null;
-  }
 
-  async getUserAssets(userId: string): Promise<any[]> {
-    console.warn('UserAsset operations not implemented in clean storage');
-    return [];
-  }
-
-  async deleteUserAsset(id: number, userId: string): Promise<void> {
-    console.warn('UserAsset operations not implemented in clean storage');
-  }
 
   // Admin and statistics operations
   async getEncryptionStats(): Promise<any> {
@@ -761,6 +748,29 @@ export class PostgresStorage implements IStorage {
   async getFeatureFlagAnalytics(): Promise<any> {
     console.warn('Feature flags not implemented in clean storage');
     return {};
+  }
+
+  // User assets operations
+  async createUserAsset(asset: InsertUserAsset & { userId: string }): Promise<UserAsset> {
+    const [newAsset] = await this.db
+      .insert(userAssets)
+      .values(asset)
+      .returning();
+    return newAsset;
+  }
+
+  async getUserAssets(userId: string): Promise<UserAsset[]> {
+    return await this.db
+      .select()
+      .from(userAssets)
+      .where(eq(userAssets.userId, userId))
+      .orderBy(desc(userAssets.createdAt));
+  }
+
+  async deleteUserAsset(id: number, userId: string): Promise<void> {
+    await this.db
+      .delete(userAssets)
+      .where(and(eq(userAssets.id, id), eq(userAssets.userId, userId)));
   }
 
   // Vehicle operations

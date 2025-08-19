@@ -60,7 +60,7 @@ export const users = pgTable("users", {
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  householdId: uuid("household_id").references(() => households.id, { onDelete: "cascade" }), // For Duo users
+  householdId: uuid("household_id"), // For Duo users
   name: varchar("name", { length: 50 }).notNull(),
   icon: varchar("icon", { length: 50 }).notNull(),
   color: varchar("color", { length: 20 }).notNull(),
@@ -76,7 +76,7 @@ export const categories = pgTable("categories", {
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  householdId: uuid("household_id").references(() => households.id, { onDelete: "cascade" }), // For Duo users
+  householdId: uuid("household_id"), // For Duo users
   categoryId: integer("category_id").references(() => categories.id),
   name: varchar("name", { length: 255 }).notNull(),
   fileName: varchar("file_name", { length: 255 }).notNull(),
@@ -108,7 +108,7 @@ export const documents = pgTable("documents", {
   
   // TICKET 3: Attachment classification and conversion tracking
   conversionStatus: varchar("conversion_status", { length: 30 }).default("not_applicable"), // 'not_applicable', 'pending', 'completed', 'skipped_unsupported', 'skipped_too_large', 'skipped_password_protected', 'failed'
-  sourceDocumentId: integer("source_document_id").references(() => documents.id), // Reference to original document (for converted PDFs)
+  sourceDocumentId: integer("source_document_id"), // Reference to original document (for converted PDFs)
   originalMimeType: varchar("original_mime_type", { length: 100 }), // Original MIME type before conversion (for converted documents)
   conversionJobId: text("conversion_job_id"), // CloudConvert job ID for tracking
   conversionMetadata: jsonb("conversion_metadata"), // { engine: 'libreoffice|imagemagick|chrome', duration: number, fileSize: number }
@@ -117,7 +117,7 @@ export const documents = pgTable("documents", {
   conversionEngine: varchar("conversion_engine", { length: 20 }), // 'cloudconvert' | 'puppeteer' | null
   conversionInputSha256: text("conversion_input_sha256"), // SHA-256 hash of input content for tracking
   conversionReason: varchar("conversion_reason", { length: 30 }), // 'ok' | 'skipped_unsupported' | 'skipped_too_large' | 'skipped_password_protected' | 'error'
-  derivedFromDocumentId: integer("derived_from_document_id").references(() => documents.id), // For converted docs, reference to original
+  derivedFromDocumentId: integer("derived_from_document_id"), // For converted docs, reference to original
   source: varchar("source", { length: 20 }).default("manual"), // 'manual', 'email', 'api' (replacing uploadSource for consistency)
 }, (table) => [
   // Primary user-based indexes for common queries

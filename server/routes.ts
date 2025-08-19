@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupSimpleAuth, requireAuth } from "./simpleAuth";
 import { AuthService } from "./authService";
-import { loadHouseholdRole, requireRole, requireDocumentAccess, getRoleDisplayName, getRolePermissions, hasRole, type AuthenticatedRequest } from "./middleware/roleBasedAccess";
+import { loadHouseholdRole, requireRole, requireDocumentAccess, getRoleDisplayName, getRolePermissions, hasRole } from "./middleware/roleBasedAccess";
 import { AuditLogger } from "./auditLogger";
 import multer from "multer";
 import path from "path";
@@ -61,7 +61,18 @@ import cloudConvertHealthRoutes from './routes/cloudConvertHealth.js';
 // Import storage service - this is the corrected import
 import { storage } from "./storage";
 
-type AuthenticatedRequest = Request & { user?: any };
+type AuthenticatedRequest = Request & { 
+  user?: {
+    id: string;
+    email: string;
+    role?: string;
+    household?: {
+      id: string;
+      role: string;
+      name?: string;
+    };
+  };
+};
 
 // Helper function to extract short sender name (display name if present, else domain)
 function extractFromShort(sender: string): string {

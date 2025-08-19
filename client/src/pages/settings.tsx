@@ -337,7 +337,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
       co2Emissions: dvlaData.co2Emissions || null,
       euroStatus: dvlaData.euroStatus || null,
       engineCapacity: dvlaData.engineCapacity || null,
-      revenueWeight: dvlaData.revenueWeight || null,
+      // revenueWeight field not available in DVLA data
       notes: notes.trim() || null,
     });
   };

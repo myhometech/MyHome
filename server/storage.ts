@@ -1,5 +1,5 @@
 import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
-import { type NeonDatabase } from '@neondatabase/serverless';
+import type { NeonHttpDatabase } from 'drizzle-orm/neon-http';
 import { 
   users, categories, documents, emailForwards, households, userHouseholdMembership, pendingInvites,
   documentInsights, vehicles, documentEvents, userAssets,
@@ -115,7 +115,7 @@ export interface IStorage {
 }
 
 export class PostgresStorage implements IStorage {
-  constructor(private db: NeonDatabase) {}
+  constructor(private db: NeonHttpDatabase<any>) {}
 
   async createUser(user: InsertUser): Promise<User> {
     const [newUser] = await this.db.insert(users).values(user).returning();
@@ -862,7 +862,6 @@ export class PostgresStorage implements IStorage {
         email: users.email,
         firstName: users.firstName,
         lastName: users.lastName,
-        profileImage: users.profileImage,
       })
       .from(userHouseholdMembership)
       .innerJoin(users, eq(userHouseholdMembership.userId, users.id))

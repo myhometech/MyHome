@@ -331,7 +331,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleModalStateChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[85vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
@@ -394,7 +394,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
                   DVLA Vehicle Information (Read-only)
                 </h3>
                 
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   <div>
                     <Label className="text-gray-600">Make</Label>
                     <p className="font-medium">{dvlaData.make || 'No data available'}</p>
@@ -459,7 +459,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col sm:flex-row justify-end gap-2">
             <Button variant="outline" onClick={() => handleModalStateChange(false)}>
               Cancel
             </Button>
@@ -471,6 +471,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
                   setLookupError(null);
                 }}
                 variant="outline"
+                className="text-sm"
               >
                 Lookup Different Vehicle
               </Button>
@@ -478,7 +479,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
             <Button
               onClick={handleSaveVehicle}
               disabled={!dvlaData || createVehicleMutation.isPending}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2"
             >
               {createVehicleMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

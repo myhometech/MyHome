@@ -315,7 +315,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
           ) : (
             <>
               <Brain className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'}`} />
-              {insights.length > 0 ? (isMobile ? 'Find More Tips' : 'Find More') : (isMobile ? 'Find Important Info' : 'Find Info')}
+              {insights.length > 0 ? (isMobile ? 'Generate More' : 'Generate') : (isMobile ? 'Generate Insights' : 'Generate')}
             </>
           )}
         </Button>

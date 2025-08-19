@@ -387,6 +387,31 @@ export type RegisterData = z.infer<typeof registerSchema>;
 export type OAuthRegisterData = z.infer<typeof oauthRegisterSchema>;
 export type EmailRegisterData = z.infer<typeof emailRegisterSchema>;
 
+// TICKET 4: Document Events Audit Logging
+export const documentEvents = pgTable("document_events", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  householdId: uuid("household_id").references(() => households.id, { onDelete: "cascade" }),
+  action: varchar("action", { length: 50 }).notNull(), // 'upload', 'delete', 'rename', 'ai_insight', 'share', 'download'
+  metadata: jsonb("metadata"), // Additional context like old/new values, insight type, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_document_events_document_id").on(table.documentId),
+  index("idx_document_events_user_id").on(table.userId),
+  index("idx_document_events_household_id").on(table.householdId),
+  index("idx_document_events_action").on(table.action),
+  index("idx_document_events_created_at").on(table.createdAt),
+]);
+
+export const insertDocumentEventSchema = createInsertSchema(documentEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type DocumentEvent = typeof documentEvents.$inferSelect;
+export type InsertDocumentEvent = z.infer<typeof insertDocumentEventSchema>;
+
 // Auth provider enum for type safety
 export type AuthProvider = "email" | "google" | "apple" | "twitter";
 

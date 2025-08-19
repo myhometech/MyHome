@@ -2,11 +2,12 @@ import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { type NeonDatabase } from '@neondatabase/serverless';
 import { 
   users, categories, documents, emailForwards, households, userHouseholdMembership, pendingInvites,
-  documentInsights, vehicles,
+  documentInsights, vehicles, documentEvents,
   type User, type InsertUser, type Category, type InsertCategory, 
   type Document, type InsertDocument, type EmailForward, type InsertEmailForward, 
   type Household, type InsertHousehold, type DocumentInsight, type InsertDocumentInsight,
-  type Vehicle, type InsertVehicle, type PendingInvite, type InsertPendingInvite
+  type Vehicle, type InsertVehicle, type PendingInvite, type InsertPendingInvite,
+  type DocumentEvent, type InsertDocumentEvent
 } from '../shared/schema.js';
 
 export interface IStorage {
@@ -106,6 +107,11 @@ export interface IStorage {
   // TICKET 3: Role-based operations
   removeHouseholdMembership(userId: string): Promise<void>;
   getUserHouseholdMembership(userId: string): Promise<any>;
+
+  // TICKET 4: Document audit logging
+  logDocumentEvent(event: InsertDocumentEvent): Promise<DocumentEvent>;
+  getDocumentEvents(documentId: number): Promise<DocumentEvent[]>;
+  getUserDocumentEvents(userId: string, limit?: number): Promise<DocumentEvent[]>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -915,6 +921,60 @@ export class PostgresStorage implements IStorage {
       .from(userHouseholdMembership)
       .where(eq(userHouseholdMembership.userId, userId));
     return membership;
+  }
+
+  // TICKET 4: Document audit logging operations
+  async logDocumentEvent(event: InsertDocumentEvent): Promise<DocumentEvent> {
+    const [loggedEvent] = await this.db
+      .insert(documentEvents)
+      .values(event)
+      .returning();
+    return loggedEvent;
+  }
+
+  async getDocumentEvents(documentId: number): Promise<DocumentEvent[]> {
+    return await this.db
+      .select({
+        id: documentEvents.id,
+        documentId: documentEvents.documentId,
+        userId: documentEvents.userId,
+        householdId: documentEvents.householdId,
+        action: documentEvents.action,
+        metadata: documentEvents.metadata,
+        createdAt: documentEvents.createdAt,
+        user: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        }
+      })
+      .from(documentEvents)
+      .leftJoin(users, eq(documentEvents.userId, users.id))
+      .where(eq(documentEvents.documentId, documentId))
+      .orderBy(desc(documentEvents.createdAt));
+  }
+
+  async getUserDocumentEvents(userId: string, limit: number = 50): Promise<DocumentEvent[]> {
+    return await this.db
+      .select({
+        id: documentEvents.id,
+        documentId: documentEvents.documentId,
+        userId: documentEvents.userId,
+        householdId: documentEvents.householdId,
+        action: documentEvents.action,
+        metadata: documentEvents.metadata,
+        createdAt: documentEvents.createdAt,
+        document: {
+          id: documents.id,
+          name: documents.name,
+        }
+      })
+      .from(documentEvents)
+      .leftJoin(documents, eq(documentEvents.documentId, documents.id))
+      .where(eq(documentEvents.userId, userId))
+      .orderBy(desc(documentEvents.createdAt))
+      .limit(limit);
   }
 
   /**

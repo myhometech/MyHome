@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { setupSimpleAuth, requireAuth } from "./simpleAuth";
 import { AuthService } from "./authService";
 import { loadHouseholdRole, requireRole, requireDocumentAccess, getRoleDisplayName, getRolePermissions, hasRole, type AuthenticatedRequest } from "./middleware/roleBasedAccess";
+import { AuditLogger } from "./auditLogger";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -884,6 +885,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`✅ Document created in database: ${document.id}`);
 
+      // TICKET 4: Log document upload event
+      const userHousehold = await storage.getUserHousehold(userId);
+      await AuditLogger.logUpload(document.id, userId, userHousehold?.id, {
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        fileType: finalMimeType,
+      });
+
       // Queue background OCR processing
       try {
         const { ocrQueue } = await import('./ocrQueue.js');
@@ -1298,6 +1307,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Expiry date must be a valid date string or null" });
       }
 
+      // TICKET 4: Get original document for audit logging
+      const originalDocument = await storage.getDocument(documentId, userId);
+      const userHousehold = await storage.getUserHousehold(userId);
+      
       const updatedDocument = await storage.updateDocument(documentId, userId, {
         name: name ? name.trim() : undefined,
         expiryDate: expiryDate === '' ? null : expiryDate
@@ -1305,6 +1318,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!updatedDocument) {
         return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Log rename if name changed
+      if (name && originalDocument && originalDocument.name !== name.trim()) {
+        await AuditLogger.logRename(documentId, userId, userHousehold?.id, {
+          oldName: originalDocument.name,
+          newName: name.trim(),
+        });
+      }
+
+      // Log general update for other changes
+      if (expiryDate !== undefined && originalDocument?.expiryDate !== (expiryDate === '' ? null : expiryDate)) {
+        await AuditLogger.logUpdate(documentId, userId, userHousehold?.id, {
+          field: 'expiryDate',
+          oldValue: originalDocument?.expiryDate,
+          newValue: expiryDate === '' ? null : expiryDate,
+        });
       }
 
       res.json(updatedDocument);
@@ -1952,7 +1982,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fs.unlinkSync(document.filePath);
       }
 
+      // TICKET 4: Log document deletion before actual deletion
+      const documentToDelete = await storage.getDocument(documentId, userId);
+      const userHousehold = await storage.getUserHousehold(userId);
+      
       await storage.deleteDocument(documentId, userId);
+      
+      if (documentToDelete) {
+        await AuditLogger.logDelete(documentId, userId, userHousehold?.id, {
+          documentName: documentToDelete.name,
+          deletedBy: userId,
+        });
+      }
+      
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting document:", error);
@@ -4909,6 +4951,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // CloudConvert health check
   app.use('/api', cloudConvertHealthRoutes);
+
+  // TICKET 4: API endpoint to get document audit trail
+  app.get('/api/documents/:id/audit', requireAuth, requireDocumentAccess('view'), async (req: AuthenticatedRequest, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const auditTrail = await AuditLogger.getDocumentAuditTrail(documentId);
+      res.json(auditTrail);
+    } catch (error) {
+      console.error("Error fetching document audit trail:", error);
+      res.status(500).json({ message: "Failed to fetch audit trail" });
+    }
+  });
+
+  // TICKET 4: API endpoint to get user's recent audit events
+  app.get('/api/user/audit', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      
+      const auditTrail = await AuditLogger.getUserAuditTrail(userId, limit);
+      res.json(auditTrail);
+    } catch (error) {
+      console.error("Error fetching user audit trail:", error);
+      res.status(500).json({ message: "Failed to fetch audit trail" });
+    }
+  });
 
   app.use(sentryErrorHandler());
 

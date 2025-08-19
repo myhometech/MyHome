@@ -86,19 +86,19 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left side - Logo and Mobile hamburger menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {/* Mobile Hamburger Menu */}
             <div className="md:hidden">
               <MobileHamburgerMenu />
             </div>
             
             <Link href="/">
-              <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
-                <Home className="h-6 w-6 text-primary" />
-                <h1 className="text-xl font-bold text-slate-900">MyHome</h1>
+              <div className="flex items-center space-x-1 sm:space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
+                <Home className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900">MyHome</h1>
               </div>
             </Link>
 
@@ -127,9 +127,9 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             </nav>
           </div>
 
-          {/* Center - Search Bar */}
-          <div className="flex-1 max-w-lg mx-4">
-            <div className="relative">
+          {/* Center - Search Bar - Hidden on mobile, shown on larger screens */}
+          <div className="hidden md:flex flex-1 max-w-lg mx-4">
+            <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 type="text"
@@ -141,34 +141,47 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             </div>
           </div>
 
-          {/* Right side - Email, Settings, and User Profile */}
-          <div className="flex items-center space-x-2">
-            {/* Email forwarding button - always show */}
+          {/* Right side - Compact mobile layout */}
+          <div className="flex items-center space-x-1">
+            {/* Search button for mobile */}
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2"
+                title="Search"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Email forwarding button - icon only on mobile */}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => copyEmailToClipboard()}
-              className="flex items-center space-x-2"
+              className="p-2"
               title="Copy email address for document forwarding"
             >
               <Mail className="h-4 w-4" />
-              <span className="hidden sm:inline text-sm">Email</span>
+              <span className="hidden lg:inline ml-2 text-sm">Email</span>
             </Button>
             
-            {/* Settings button - direct access */}
+            {/* Settings button - icon only on mobile */}
             {user ? (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setLocation('/settings')}
-                className="flex items-center space-x-2"
+                className="p-2"
                 title="Settings"
               >
                 <Settings className="h-4 w-4" />
-                <span className="hidden lg:inline text-sm">Settings</span>
+                <span className="hidden lg:inline ml-2 text-sm">Settings</span>
               </Button>
             ) : null}
             
+            {/* User profile - always compact */}
             {user ? (
               <UserProfileBadge variant="compact" showDropdown={true} />
             ) : null}

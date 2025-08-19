@@ -30,12 +30,12 @@ export function Navigation() {
   ];
 
   return (
-    <nav className="bg-white border-b border-gray-200 px-4 py-3">
+    <nav className="bg-white border-b border-gray-200 px-2 sm:px-4 py-3">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         <Link href="/">
           <div className="flex items-center space-x-1 cursor-pointer hover:opacity-80 transition-opacity">
             <FileText className="h-6 w-6 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">MyHome</span>
+            <span className="text-lg sm:text-xl font-bold text-gray-900">MyHome</span>
           </div>
         </Link>
         
@@ -45,12 +45,12 @@ export function Navigation() {
               <Button
                 variant={item.isActive ? "default" : "ghost"}
                 size="sm"
-                className="relative"
+                className="relative px-2 sm:px-3"
               >
-                <item.icon className="h-4 w-4 mr-2" />
-                {item.label}
+                <item.icon className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{item.label}</span>
                 {item.badge && (
-                  <Badge variant="secondary" className="ml-2 text-xs">
+                  <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
                     {item.badge}
                   </Badge>
                 )}
@@ -76,10 +76,11 @@ export function Navigation() {
               window.location.href = "/api/logout"; // Fallback to GET route
             }
           }}
-          className="text-gray-600 hover:text-gray-900"
+          className="text-gray-600 hover:text-gray-900 px-2 sm:px-3"
         >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign Out
+          <LogOut className="h-4 w-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">Sign Out</span>
+          <span className="sm:hidden">Out</span>
         </Button>
       </div>
     </nav>

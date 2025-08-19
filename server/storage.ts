@@ -102,6 +102,10 @@ export interface IStorage {
   getPendingInviteByToken(token: string): Promise<PendingInvite | undefined>;
   getPendingInvitesByHousehold(householdId: string): Promise<PendingInvite[]>;
   deletePendingInvite(id: number): Promise<void>;
+
+  // TICKET 3: Role-based operations
+  removeHouseholdMembership(userId: string): Promise<void>;
+  getUserHouseholdMembership(userId: string): Promise<any>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -898,6 +902,19 @@ export class PostgresStorage implements IStorage {
 
   async deletePendingInvite(id: number): Promise<void> {
     await this.db.delete(pendingInvites).where(eq(pendingInvites.id, id));
+  }
+
+  // TICKET 3: Role-based operations
+  async removeHouseholdMembership(userId: string): Promise<void> {
+    await this.db.delete(userHouseholdMembership).where(eq(userHouseholdMembership.userId, userId));
+  }
+
+  async getUserHouseholdMembership(userId: string): Promise<any> {
+    const [membership] = await this.db
+      .select()
+      .from(userHouseholdMembership)
+      .where(eq(userHouseholdMembership.userId, userId));
+    return membership;
   }
 
   /**

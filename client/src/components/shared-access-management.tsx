@@ -54,20 +54,21 @@ export default function SharedAccessManagement() {
   // Check if user has Duo subscription
   const isDuoUser = (user as any)?.subscriptionTier === 'duo';
 
-  // Get household details
-  const { data: householdDetails, isLoading: householdLoading } = useQuery<HouseholdDetails>({
-    queryKey: ['/api/household/details'],
+  // TICKET 3: Get user role and household members with real API calls
+  const { data: userRole } = useQuery({
+    queryKey: ['/api/user/role'],
     enabled: isDuoUser,
   });
 
-  // Get pending invites (UI only for now)
+  const { data: members = [], isLoading: membersLoading } = useQuery<HouseholdMember[]>({
+    queryKey: ['/api/household/members'],
+    enabled: isDuoUser && !!userRole?.household,
+  });
+
+  // Get pending invites
   const { data: pendingInvites = [] } = useQuery<PendingInvite[]>({
     queryKey: ['/api/household/invites'],
-    enabled: isDuoUser,
-    queryFn: () => {
-      // Return mock data for UI demonstration
-      return Promise.resolve([]);
-    }
+    enabled: isDuoUser && !!userRole?.household,
   });
 
   // Invite member mutation (UI only)
@@ -214,9 +215,11 @@ export default function SharedAccessManagement() {
     );
   }
 
-  const currentUserMembership = householdDetails?.members.find(m => m.userId === (user as any)?.id);
-  const isOwner = currentUserMembership?.role === 'owner';
-  const canInviteMembers = isOwner && (householdDetails?.memberCount || 0) < (householdDetails?.seatLimit || 2);
+  // TICKET 3: Use real user role data
+  const currentUserRole = userRole?.household?.role;
+  const isOwner = currentUserRole === 'owner';
+  const canInvite = userRole?.household?.permissions?.canInvite || false;
+  const canRemove = userRole?.household?.permissions?.canRemoveMembers || false;
 
   return (
     <div className="space-y-6">
@@ -231,11 +234,11 @@ export default function SharedAccessManagement() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{householdDetails?.memberCount || 0}</div>
+              <div className="text-2xl font-bold text-blue-600">{members.length}</div>
               <div className="text-sm text-gray-600">Active Members</div>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{householdDetails?.seatLimit || 2}</div>
+              <div className="text-2xl font-bold text-green-600">2</div>
               <div className="text-sm text-gray-600">Total Seats</div>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg">
@@ -245,7 +248,7 @@ export default function SharedAccessManagement() {
           </div>
 
           {/* Invite New Member */}
-          {canInviteMembers && (
+          {canInvite && (
             <div className="border rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <UserPlus className="h-4 w-4" />
@@ -299,7 +302,7 @@ export default function SharedAccessManagement() {
           <div>
             <h3 className="font-medium mb-3">Current Members</h3>
             <div className="space-y-3">
-              {householdDetails?.members.map((member) => {
+              {members.map((member) => {
                 const roleDisplay = getRoleDisplay(member.role);
                 const IconComponent = roleDisplay.icon;
                 const isCurrentUser = member.userId === (user as any)?.id;
@@ -335,7 +338,7 @@ export default function SharedAccessManagement() {
                         {roleDisplay.label}
                       </Badge>
                       
-                      {isOwner && !isCurrentUser && (
+                      {canRemove && !isCurrentUser && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button 

@@ -304,7 +304,7 @@ export const userHouseholdMembership = pgTable("user_household_membership", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   householdId: uuid("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
-  role: varchar("role", { length: 20 }).default("member").notNull(), // 'owner', 'member', 'guest'
+  role: varchar("role", { length: 20 }).default("household_user").notNull(), // 'owner', 'duo_partner', 'household_user'
   joinedAt: timestamp("joined_at").defaultNow(),
 }, (table) => [
   // Unique constraint: user can only be in one household

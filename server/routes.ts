@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupSimpleAuth, requireAuth } from "./simpleAuth";
 import { AuthService } from "./authService";
+import { loadHouseholdRole, requireRole, requireDocumentAccess, getRoleDisplayName, getRolePermissions, hasRole, type AuthenticatedRequest } from "./middleware/roleBasedAccess";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -258,6 +259,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup simple authentication
   setupSimpleAuth(app);
+
+  // TICKET 3: Load household role for authenticated API routes (exclude auth routes)
+  app.use('/api', (req, res, next) => {
+    // Skip role loading for auth routes
+    if (req.path.startsWith('/api/auth/')) {
+      return next();
+    }
+    return requireAuth(req, res, () => loadHouseholdRole(req as AuthenticatedRequest, res, next));
+  });
 
   // Initialize Passport middleware
   app.use(passport.initialize());
@@ -1269,7 +1279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update document details (name and expiry date)
-  app.patch('/api/documents/:id', requireAuth, async (req: any, res) => {
+  app.patch('/api/documents/:id', requireAuth, requireDocumentAccess('write'), async (req: AuthenticatedRequest, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -1923,7 +1933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/documents/:id', requireAuth, async (req: any, res) => {
+  app.delete('/api/documents/:id', requireAuth, requireDocumentAccess('delete'), async (req: AuthenticatedRequest, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -4595,6 +4605,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // NOTE: POST /api/email-ingest is handled earlier in the file with full functionality
 
+  // TICKET 3: Role-based access endpoints
+  app.get('/api/user/role', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const household = req.user?.household;
+      const roleInfo = {
+        userId: user.id,
+        email: user.email,
+        household: household ? {
+          id: household.id,
+          name: household.name,
+          role: household.role,
+          displayName: getRoleDisplayName(household.role),
+          permissions: getRolePermissions(household.role)
+        } : null
+      };
+
+      res.json(roleInfo);
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+      res.status(500).json({ message: "Failed to fetch user role" });
+    }
+  });
+
+  app.get('/api/household/members', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      const userHousehold = await storage.getUserHousehold(userId);
+      if (!userHousehold) {
+        return res.status(400).json({ message: "You must be in a household to view members" });
+      }
+
+      const members = await storage.getHouseholdMembers(userHousehold.id);
+      
+      // Add role display names and permissions
+      const enrichedMembers = members.map(member => ({
+        ...member,
+        roleDisplayName: getRoleDisplayName(member.role),
+        permissions: getRolePermissions(member.role)
+      }));
+
+      res.json(enrichedMembers);
+    } catch (error) {
+      console.error("Error fetching household members:", error);
+      res.status(500).json({ message: "Failed to fetch household members" });
+    }
+  });
+
+  app.delete('/api/household/members/:userId', requireAuth, requireRole('owner'), async (req: AuthenticatedRequest, res) => {
+    try {
+      const requesterId = getUserId(req);
+      const targetUserId = req.params.userId;
+      
+      if (requesterId === targetUserId) {
+        return res.status(400).json({ message: "Cannot remove yourself from household" });
+      }
+
+      const userHousehold = await storage.getUserHousehold(requesterId);
+      if (!userHousehold) {
+        return res.status(400).json({ message: "You must be in a household" });
+      }
+
+      // Verify target user is in the same household
+      const targetMembership = await storage.getUserHouseholdMembership(targetUserId);
+      if (!targetMembership || targetMembership.householdId !== userHousehold.id) {
+        return res.status(404).json({ message: "User not found in household" });
+      }
+
+      // Remove membership
+      await storage.removeHouseholdMembership(targetUserId);
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing household member:", error);
+      res.status(500).json({ message: "Failed to remove household member" });
+    }
+  });
+
   // TICKET 2: Household invite endpoints
   app.post('/api/household/invite', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
@@ -4615,7 +4710,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "You must be in a household to send invites" });
       }
 
-      // Check if user has permission to invite (must be owner or duo_partner for duo_partner invites)
+      // Check if user has permission to invite (must be owner or duo_partner)
+      if (!hasRole(userHousehold.role, 'duo_partner')) {
+        return res.status(403).json({ message: "Only household owners and duo partners can send invites" });
+      }
+
+      // Only owners can invite duo_partners
       if (role === 'duo_partner' && userHousehold.role !== 'owner') {
         return res.status(403).json({ message: "Only household owners can invite duo partners" });
       }

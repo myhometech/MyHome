@@ -6,11 +6,12 @@ import Header from "@/components/header";
 import SubscriptionPlans from "@/components/SubscriptionPlans";
 import CategoryManagement from "@/components/category-management";
 import { YourAssetsSection } from "@/components/YourAssetsSection";
+import SharedAccessManagement from "@/components/shared-access-management";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard, Car, Plus, Calendar, FileText, Search, AlertCircle, CheckCircle, Loader2, Edit, Clock, X, RefreshCw } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, HelpCircle, CreditCard, Car, Plus, Calendar, FileText, Search, AlertCircle, CheckCircle, Loader2, Edit, Clock, X, RefreshCw, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -1210,7 +1211,7 @@ export default function Settings() {
 
         {/* Settings Tabs */}
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-1 h-auto p-1">
             <TabsTrigger value="profile" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
               <User className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -1221,10 +1222,15 @@ export default function Settings() {
               <span className="hidden sm:inline">Assets</span>
               <span className="sm:hidden">Assets</span>
             </TabsTrigger>
-            <TabsTrigger value="billing" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+            <TabsTrigger value="account" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
               <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Billing</span>
-              <span className="sm:hidden">Billing</span>
+              <span className="hidden sm:inline">Account</span>
+              <span className="sm:hidden">Account</span>
+            </TabsTrigger>
+            <TabsTrigger value="shared-access" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
+              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Shared Access</span>
+              <span className="sm:hidden">Share</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
               <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -1308,8 +1314,8 @@ export default function Settings() {
             <AssetsTabContent />
           </TabsContent>
 
-          {/* Billing Tab */}
-          <TabsContent value="billing" className="space-y-6">
+          {/* Account Tab */}
+          <TabsContent value="account" className="space-y-6">
             {isPremium && (
               <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
                 <CardHeader>
@@ -1334,6 +1340,11 @@ export default function Settings() {
                 <SubscriptionPlans />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Shared Access Tab */}
+          <TabsContent value="shared-access" className="space-y-6">
+            <SharedAccessManagement />
           </TabsContent>
 
           {/* Notifications Tab */}

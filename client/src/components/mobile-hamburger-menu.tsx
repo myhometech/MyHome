@@ -44,22 +44,11 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
     return "U";
   };
 
-  const getSubscriptionBadge = () => {
-    if (!user) return null;
-    
-    if ((user as any)?.subscriptionTier === 'premium') {
-      return (
-        <Badge variant="default" className="bg-blue-600 text-white text-xs">
-          Premium
-        </Badge>
-      );
-    }
-    
-    return (
-      <Badge variant="outline" className="text-xs">
-        Free
-      </Badge>
-    );
+  // Get subscription tier for display
+  const getSubscriptionTier = () => {
+    if (!user) return 'free';
+    const tier = (user as any)?.subscriptionTier;
+    return tier === 'premium' ? 'pro' : tier || 'free';
   };
 
   const menuItems = [
@@ -192,7 +181,7 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
                 </div>
                 <div className="flex flex-col items-end space-y-1">
                   <SubscriptionBadge 
-                    tier={(user as any)?.subscriptionTier === 'premium' ? 'pro' : (user as any)?.subscriptionTier || 'free'} 
+                    tier={getSubscriptionTier() as any} 
                     size="sm" 
                   />
                   <User className="h-3 w-3 text-gray-400" />

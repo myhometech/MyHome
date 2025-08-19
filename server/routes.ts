@@ -4104,6 +4104,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DVLA Vehicle Lookup routes
+  app.post('/api/vehicles/lookup', requireAuth, async (req: any, res) => {
+    try {
+      const { vrn } = req.body;
+
+      if (!vrn || typeof vrn !== 'string') {
+        return res.status(400).json({ 
+          success: false, 
+          error: { message: 'VRN is required and must be a string' } 
+        });
+      }
+
+      console.log(`🔍 DVLA Lookup request for VRN: ${vrn}`);
+      
+      const result = await dvlaLookupService.lookupVehicleByVRN(vrn);
+      
+      if (result.success) {
+        console.log(`✅ DVLA Lookup successful for VRN: ${vrn}`);
+        res.json(result);
+      } else {
+        console.log(`❌ DVLA Lookup failed for VRN: ${vrn}`, result.error);
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error in DVLA lookup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: { message: "Internal server error during DVLA lookup" } 
+      });
+    }
+  });
+
   // ROOT ROUTE: Only define fallback for production mode
   // In development, Vite middleware handles all frontend routing
 

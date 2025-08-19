@@ -4144,6 +4144,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`🚗 Creating vehicle for user ${userId}:`, vehicleData);
 
+      // Check if vehicle with this VRN already exists for this user
+      if (vehicleData.vrn) {
+        const existingVehicle = await storage.getVehicleByVRN(vehicleData.vrn, userId);
+        if (existingVehicle) {
+          console.log(`⚠️ Vehicle with VRN ${vehicleData.vrn} already exists for user ${userId}`);
+          return res.status(409).json({ 
+            message: `Vehicle ${vehicleData.vrn} is already being tracked`,
+            code: "VEHICLE_ALREADY_EXISTS"
+          });
+        }
+      }
+
       const vehicle = await storage.createVehicle({ ...vehicleData, userId });
       res.json(vehicle);
     } catch (error) {

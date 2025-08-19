@@ -4595,6 +4595,209 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // NOTE: POST /api/email-ingest is handled earlier in the file with full functionality
 
+  // TICKET 2: Household invite endpoints
+  app.post('/api/household/invite', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const { email, role } = req.body;
+
+      if (!email || !role) {
+        return res.status(400).json({ message: "Email and role are required" });
+      }
+
+      if (!['duo_partner', 'household_user'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role. Must be 'duo_partner' or 'household_user'" });
+      }
+
+      // Get user's household
+      const userHousehold = await storage.getUserHousehold(userId);
+      if (!userHousehold) {
+        return res.status(400).json({ message: "You must be in a household to send invites" });
+      }
+
+      // Check if user has permission to invite (must be owner or duo_partner for duo_partner invites)
+      if (role === 'duo_partner' && userHousehold.role !== 'owner') {
+        return res.status(403).json({ message: "Only household owners can invite duo partners" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        // Check if they're already in a household
+        const existingMembership = await storage.getUserHouseholdMembership(existingUser.id);
+        if (existingMembership) {
+          return res.status(400).json({ message: "User is already in a household" });
+        }
+      }
+
+      // Check household seat limits
+      const householdMembers = await storage.getHouseholdMembers(userHousehold.id);
+      if (householdMembers.length >= (userHousehold.seatLimit || 2)) {
+        return res.status(400).json({ message: "Household has reached its member limit" });
+      }
+
+      // Generate unique token
+      const crypto = await import('crypto');
+      const token = crypto.randomBytes(32).toString('hex');
+      
+      // Set expiry date (7 days from now)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      // Create pending invite
+      const pendingInvite = await storage.createPendingInvite({
+        householdId: userHousehold.id,
+        email: email.toLowerCase(),
+        role,
+        token,
+        invitedByUserId: userId,
+        expiresAt,
+      });
+
+      // Get inviter details
+      const inviter = await storage.getUser(userId);
+      const inviterName = `${inviter?.firstName || ''} ${inviter?.lastName || ''}`.trim() || inviter?.email || 'Someone';
+
+      // Send invite email
+      const { sendHouseholdInviteEmail } = await import('./emailService');
+      const emailSent = await sendHouseholdInviteEmail(
+        email,
+        inviterName,
+        userHousehold.name || 'MyHome Household',
+        token,
+        role
+      );
+
+      if (!emailSent) {
+        // Delete the invite if email failed
+        await storage.deletePendingInvite(pendingInvite.id);
+        return res.status(500).json({ message: "Failed to send invite email" });
+      }
+
+      res.status(201).json({
+        message: "Invite sent successfully",
+        invite: {
+          id: pendingInvite.id,
+          email: pendingInvite.email,
+          role: pendingInvite.role,
+          expiresAt: pendingInvite.expiresAt,
+        }
+      });
+
+    } catch (error) {
+      console.error("Error creating household invite:", error);
+      res.status(500).json({ message: "Failed to create invite" });
+    }
+  });
+
+  app.post('/api/household/invite/accept', async (req: Request, res) => {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({ message: "Invite token is required" });
+      }
+
+      // Get pending invite
+      const invite = await storage.getPendingInviteByToken(token);
+      if (!invite) {
+        return res.status(400).json({ message: "Invalid or expired invite token" });
+      }
+
+      // Check if user exists by email
+      const existingUser = await storage.getUserByEmail(invite.email);
+      if (!existingUser) {
+        return res.status(400).json({ 
+          message: "User account not found. Please create an account first.",
+          email: invite.email
+        });
+      }
+
+      // Check if user is already in a household
+      const existingMembership = await storage.getUserHouseholdMembership(existingUser.id);
+      if (existingMembership) {
+        // Clean up the invite
+        await storage.deletePendingInvite(invite.id);
+        return res.status(400).json({ message: "You are already in a household" });
+      }
+
+      // Create household membership
+      await storage.createHouseholdMembership({
+        userId: existingUser.id,
+        householdId: invite.householdId,
+        role: invite.role,
+        joinedAt: new Date(),
+      });
+
+      // Delete pending invite
+      await storage.deletePendingInvite(invite.id);
+
+      res.json({
+        message: "Invite accepted successfully",
+        household: await storage.getUserHousehold(existingUser.id)
+      });
+
+    } catch (error) {
+      console.error("Error accepting household invite:", error);
+      res.status(500).json({ message: "Failed to accept invite" });
+    }
+  });
+
+  app.get('/api/household/invites', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Get user's household
+      const userHousehold = await storage.getUserHousehold(userId);
+      if (!userHousehold) {
+        return res.status(400).json({ message: "You must be in a household to view invites" });
+      }
+
+      // Get pending invites for household
+      const invites = await storage.getPendingInvitesByHousehold(userHousehold.id);
+      
+      res.json(invites);
+
+    } catch (error) {
+      console.error("Error fetching household invites:", error);
+      res.status(500).json({ message: "Failed to fetch invites" });
+    }
+  });
+
+  app.delete('/api/household/invites/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = getUserId(req);
+      const inviteId = parseInt(req.params.id);
+
+      if (isNaN(inviteId)) {
+        return res.status(400).json({ message: "Invalid invite ID" });
+      }
+
+      // Get user's household
+      const userHousehold = await storage.getUserHousehold(userId);
+      if (!userHousehold) {
+        return res.status(400).json({ message: "You must be in a household" });
+      }
+
+      // Get all invites for the household to verify ownership
+      const invites = await storage.getPendingInvitesByHousehold(userHousehold.id);
+      const invite = invites.find(i => i.id === inviteId);
+      
+      if (!invite) {
+        return res.status(404).json({ message: "Invite not found" });
+      }
+
+      // Delete invite
+      await storage.deletePendingInvite(inviteId);
+      
+      res.status(204).send();
+
+    } catch (error) {
+      console.error("Error deleting household invite:", error);
+      res.status(500).json({ message: "Failed to delete invite" });
+    }
+  });
+
   // Keep API route protection for unhandled routes
   app.use('/api/*', (req, res, next) => {
     console.log(`⚠️ Unhandled API route: ${req.method} ${req.originalUrl}`);

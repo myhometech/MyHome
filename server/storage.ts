@@ -1,12 +1,12 @@
 import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { type NeonDatabase } from '@neondatabase/serverless';
 import { 
-  users, categories, documents, emailForwards, households, userHouseholdMembership,
+  users, categories, documents, emailForwards, households, userHouseholdMembership, pendingInvites,
   documentInsights, vehicles,
   type User, type InsertUser, type Category, type InsertCategory, 
   type Document, type InsertDocument, type EmailForward, type InsertEmailForward, 
   type Household, type InsertHousehold, type DocumentInsight, type InsertDocumentInsight,
-  type Vehicle, type InsertVehicle
+  type Vehicle, type InsertVehicle, type PendingInvite, type InsertPendingInvite
 } from '../shared/schema.js';
 
 export interface IStorage {
@@ -92,6 +92,16 @@ export interface IStorage {
   // Household operations
   createHousehold(household: any): Promise<Household>;
   getHouseholds(): Promise<Household[]>;
+  getUserHousehold(userId: string): Promise<any>;
+  getHouseholdMembers(householdId: string): Promise<any[]>;
+  getUserHouseholdMembership(userId: string): Promise<any>;
+  createHouseholdMembership(membership: any): Promise<any>;
+
+  // TICKET 2: Pending invite operations
+  createPendingInvite(invite: InsertPendingInvite): Promise<PendingInvite>;
+  getPendingInviteByToken(token: string): Promise<PendingInvite | undefined>;
+  getPendingInvitesByHousehold(householdId: string): Promise<PendingInvite[]>;
+  deletePendingInvite(id: number): Promise<void>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -802,6 +812,92 @@ export class PostgresStorage implements IStorage {
 
   async getHouseholds(): Promise<Household[]> {
     return await this.db.select().from(households);
+  }
+
+  async getUserHousehold(userId: string): Promise<any> {
+    // Get user's household membership
+    const [membership] = await this.db
+      .select()
+      .from(userHouseholdMembership)
+      .where(eq(userHouseholdMembership.userId, userId));
+    
+    if (!membership) return null;
+
+    // Get household details
+    const [household] = await this.db
+      .select()
+      .from(households)
+      .where(eq(households.id, membership.householdId));
+    
+    return household ? { ...household, role: membership.role } : null;
+  }
+
+  async getHouseholdMembers(householdId: string): Promise<any[]> {
+    return await this.db
+      .select({
+        id: userHouseholdMembership.id,
+        userId: userHouseholdMembership.userId,
+        role: userHouseholdMembership.role,
+        joinedAt: userHouseholdMembership.joinedAt,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImage: users.profileImage,
+      })
+      .from(userHouseholdMembership)
+      .innerJoin(users, eq(userHouseholdMembership.userId, users.id))
+      .where(eq(userHouseholdMembership.householdId, householdId));
+  }
+
+  async getUserHouseholdMembership(userId: string): Promise<any> {
+    const [membership] = await this.db
+      .select()
+      .from(userHouseholdMembership)
+      .where(eq(userHouseholdMembership.userId, userId));
+    return membership;
+  }
+
+  async createHouseholdMembership(membership: any): Promise<any> {
+    const [newMembership] = await this.db
+      .insert(userHouseholdMembership)
+      .values(membership)
+      .returning();
+    return newMembership;
+  }
+
+  // TICKET 2: Pending invite operations
+  async createPendingInvite(invite: InsertPendingInvite): Promise<PendingInvite> {
+    const [newInvite] = await this.db
+      .insert(pendingInvites)
+      .values(invite)
+      .returning();
+    return newInvite;
+  }
+
+  async getPendingInviteByToken(token: string): Promise<PendingInvite | undefined> {
+    const [invite] = await this.db
+      .select()
+      .from(pendingInvites)
+      .where(and(
+        eq(pendingInvites.token, token),
+        sql`${pendingInvites.expiresAt} > NOW()`
+      ));
+    return invite;
+  }
+
+  async getPendingInvitesByHousehold(householdId: string): Promise<PendingInvite[]> {
+    return await this.db
+      .select()
+      .from(pendingInvites)
+      .where(and(
+        eq(pendingInvites.householdId, householdId),
+        sql`${pendingInvites.expiresAt} > NOW()`
+      ))
+      .orderBy(desc(pendingInvites.createdAt));
+  }
+
+  async deletePendingInvite(id: number): Promise<void> {
+    await this.db.delete(pendingInvites).where(eq(pendingInvites.id, id));
   }
 
   /**

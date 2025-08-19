@@ -10,6 +10,8 @@ MyHome is a comprehensive document management application for homeowners, design
 - **Household Management**: Added complete shared workspace functionality for Duo subscribers with member invitation system
 - **Enhanced Stripe Integration**: Updated webhook handling to support multiple pricing tiers and automatic household creation
 - **Feature Flagging Evolution**: Modernized to support array-based tier definitions for granular feature access control
+- **TICKET 1 Complete**: Settings UI overhaul - renamed "Billing" to "Account" and added "Shared Access" tab with comprehensive household member management interface
+- **TICKET 2 Complete**: Backend pending invite system with tokenized invitations, email notifications via SendGrid, and automatic household membership creation
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

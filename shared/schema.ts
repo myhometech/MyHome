@@ -494,6 +494,34 @@ export type InsertEmailForward = z.infer<typeof insertEmailForwardSchema>;
 
 
 
+// TICKET 2: Pending invites table for household sharing
+export const pendingInvites = pgTable("pending_invites", {
+  id: serial("id").primaryKey(),
+  householdId: uuid("household_id").notNull().references(() => households.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 255 }).notNull(),
+  role: varchar("role", { length: 50 }).notNull(), // 'duo_partner', 'household_user'
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  invitedByUserId: varchar("invited_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_pending_invites_household").on(table.householdId),
+  index("idx_pending_invites_email").on(table.email),
+  index("idx_pending_invites_token").on(table.token),
+  index("idx_pending_invites_expires").on(table.expiresAt),
+  // Prevent duplicate invites for the same email to the same household
+  unique("unique_household_email_invite").on(table.householdId, table.email),
+]);
+
+export type PendingInvite = typeof pendingInvites.$inferSelect;
+export type InsertPendingInvite = typeof pendingInvites.$inferInsert;
+
+export const insertPendingInviteSchema = createInsertSchema(pendingInvites).omit({
+  id: true,
+  token: true,
+  createdAt: true,
+});
+
 // User Assets table for properties and vehicles
 export const userAssets = pgTable("user_assets", {
   id: serial("id").primaryKey(),

@@ -24,7 +24,7 @@ interface HeaderProps {
 }
 
 export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -141,8 +141,8 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             </div>
           </div>
 
-          {/* Right side - Email and User Profile */}
-          <div className="flex items-center space-x-3">
+          {/* Right side - Email, Settings, and User Profile */}
+          <div className="flex items-center space-x-2">
             {/* Email forwarding button - always show */}
             <Button
               variant="ghost"
@@ -154,6 +154,20 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
               <Mail className="h-4 w-4" />
               <span className="hidden sm:inline text-sm">Email</span>
             </Button>
+            
+            {/* Settings button - direct access */}
+            {user && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLocation('/settings')}
+                className="flex items-center space-x-2"
+                title="Settings"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="hidden lg:inline text-sm">Settings</span>
+              </Button>
+            )}
             
             {user && (
               <UserProfileBadge variant="compact" showDropdown={true} />

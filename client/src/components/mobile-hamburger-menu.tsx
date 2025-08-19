@@ -53,8 +53,15 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
 
   const menuItems = [
     {
+      icon: Settings,
+      label: "Settings",
+      href: "/settings",
+      badge: null,
+      priority: true // Mark as high priority for better positioning
+    },
+    {
       icon: Bell,
-      label: "Notifications",
+      label: "Notifications", 
       href: "/notifications",
       badge: null
     },
@@ -68,12 +75,6 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
       icon: BarChart3,
       label: "Analytics & Reports",
       href: "/analytics",
-      badge: null
-    },
-    {
-      icon: Settings,
-      label: "Settings",
-      href: "/settings",
       badge: null
     }
   ];

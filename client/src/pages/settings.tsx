@@ -1233,8 +1233,8 @@ export default function Settings() {
             </TabsTrigger>
             <TabsTrigger value="assets" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
               <Car className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Assets</span>
-              <span className="sm:hidden">Assets</span>
+              <span className="hidden sm:inline">Vehicles</span>
+              <span className="sm:hidden">Vehicles</span>
             </TabsTrigger>
             <TabsTrigger value="account" className="flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm p-2 sm:p-3">
               <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />

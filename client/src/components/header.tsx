@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { MobileHamburgerMenu } from '@/components/mobile-hamburger-menu';
+import { UserProfileBadge } from '@/components/UserProfileBadge';
 
 interface HeaderProps {
   searchQuery?: string;
@@ -155,14 +156,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             </Button>
             
             {user && (
-              <Link href="/settings">
-                <Button variant="ghost" size="sm" className="flex items-center space-x-2">
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline text-sm">
-                    {user && typeof user === 'object' && 'firstName' in user ? (user as any).firstName : 'Profile'}
-                  </span>
-                </Button>
-              </Link>
+              <UserProfileBadge variant="compact" showDropdown={true} />
             )}
           </div>
         </div>

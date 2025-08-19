@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SubscriptionBadge } from "@/components/ui/subscription-badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -190,7 +191,10 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
                   </p>
                 </div>
                 <div className="flex flex-col items-end space-y-1">
-                  {getSubscriptionBadge()}
+                  <SubscriptionBadge 
+                    tier={(user as any)?.subscriptionTier === 'premium' ? 'pro' : (user as any)?.subscriptionTier || 'free'} 
+                    size="sm" 
+                  />
                   <User className="h-3 w-3 text-gray-400" />
                 </div>
               </motion.div>

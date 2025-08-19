@@ -323,38 +323,49 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
 
       {/* Content Area */}
       {insights.length === 0 ? (
-        <div className="text-center py-12 px-6">
-          <div className="relative mb-6">
+        <div className="text-center py-16 px-6">
+          <div className="relative mb-8">
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 via-accent-purple/20 to-accent-cyan/20 rounded-full opacity-50 animate-pulse"></div>
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-100 via-purple-100 to-cyan-100 rounded-full opacity-40 animate-pulse"></div>
             </div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-16 h-16 bg-gradient-to-tr from-accent-purple/30 to-accent-cyan/30 rounded-full opacity-30 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+              <div className="w-20 h-20 bg-gradient-to-tr from-purple-200/40 to-cyan-200/40 rounded-full opacity-30 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
             </div>
-            <Brain className="h-12 w-12 text-primary mx-auto relative z-10" />
+            <div className="relative z-10 bg-white rounded-full p-4 shadow-lg">
+              <Brain className="h-12 w-12 text-blue-600 mx-auto" />
+            </div>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Discover Key Insights</h3>
-          <p className="text-gray-600 mb-6 text-sm max-w-md mx-auto leading-relaxed">
+          <h3 className="text-2xl font-bold text-gray-900 mb-3">Discover Key Insights</h3>
+          <p className="text-gray-600 mb-8 text-base max-w-lg mx-auto leading-relaxed">
             No insights detected yet for this document. Our AI can extract important deadlines, contacts, summaries, and actionable items automatically.
           </p>
-          <div className="bg-gradient-to-r from-blue-50 via-accent-purple/5 to-accent-cyan/10 rounded-lg p-4 mb-6 border border-blue-100 relative overflow-hidden">
-            <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-transparent via-white to-transparent"></div>
-            <div className="relative">
-            <div className="flex items-start gap-3 text-left">
-              <div className="bg-blue-600 rounded-full p-1 mt-0.5">
-                <Brain className="h-3 w-3 text-white" />
+          <div className="bg-gradient-to-r from-blue-50 via-purple-50/50 to-cyan-50 rounded-xl p-6 mb-8 border border-blue-200/50 shadow-sm max-w-md mx-auto">
+            <div className="flex items-start gap-4 text-left">
+              <div className="bg-blue-600 rounded-full p-2 mt-1 shadow-sm">
+                <Brain className="h-4 w-4 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-blue-900 mb-1">AI Analysis includes:</p>
-                <ul className="text-xs text-blue-700 space-y-1">
-                  <li>• Key dates and deadlines</li>
-                  <li>• Important contacts and entities</li>
-                  <li>• Document summaries</li>
-                  <li>• Actionable insights</li>
-                </ul>
+                <p className="text-base font-semibold text-blue-900 mb-3">AI Analysis includes:</p>
+                <div className="grid grid-cols-1 gap-2 text-sm text-blue-700">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                    <span>Key dates and deadlines</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+                    <span>Important contacts and entities</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>
+                    <span>Document summaries</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                    <span>Actionable insights</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
       ) : (
@@ -369,29 +380,40 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
             return (
               <div 
                 key={insight.id} 
-                className={`group border border-gray-100 shadow-sm bg-white rounded-lg ${isMobile ? 'p-4 space-y-3 mb-3' : 'p-5 space-y-4 mb-4'} insight-content hover:shadow-lg hover:border-gray-200 ${isMobile ? 'active:scale-[0.98]' : 'hover:-translate-y-1'} hover:shadow-blue-100/50 transition-all duration-300 cursor-pointer border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} relative overflow-hidden`}
+                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-xl ${isMobile ? 'p-4 space-y-3 mb-3' : 'p-6 space-y-4 mb-4'} insight-content hover:shadow-xl hover:border-gray-300/80 ${isMobile ? 'active:scale-[0.98]' : 'hover:-translate-y-2'} hover:shadow-blue-200/30 transition-all duration-300 cursor-pointer border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden`}
                 style={{
                   animationDelay: `${index * 100}ms`
                 }}
               >
-                <div className="flex items-center justify-between">
-                  <div className={`flex items-center gap-2 flex-wrap ${isMobile ? 'gap-1.5' : 'gap-2'}`}>
-                    <Badge className={`${config.color} ${isMobile ? 'text-xs px-2 py-1' : 'text-xs'} flex items-center`}>
-                      <IconComponent className={`${isMobile ? 'h-3 w-3 mr-1.5' : 'h-3 w-3 mr-1'}`} />
-                      {config.label}
-                    </Badge>
-                    
-                    <Badge variant="outline" className={`${priorityStyle.color} text-xs`}>
-                      {priorityStyle.label}
-                    </Badge>
-
-                    <div className="flex items-center gap-1">
-                      <Badge variant="secondary" className={`${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs'}`}>
-                        Confidence: {Math.round(insight.confidence * 100)}%
+                <div className="flex items-start justify-between mb-3">
+                  <div className={`flex items-center gap-3 flex-wrap ${isMobile ? 'gap-2' : 'gap-3'}`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg ${config.color.includes('blue') ? 'bg-blue-50' : config.color.includes('green') ? 'bg-green-50' : config.color.includes('purple') ? 'bg-purple-50' : 'bg-gray-50'}`}>
+                        <IconComponent className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'} ${config.color.split(' ')[1]}`} />
+                      </div>
+                      <Badge className={`${config.color} ${isMobile ? 'text-xs px-3 py-1' : 'text-sm px-3 py-1'} font-medium rounded-full shadow-sm`}>
+                        {config.label}
                       </Badge>
-                      <div className={`${isMobile ? 'w-12 h-1.5' : 'w-16 h-2'} bg-gray-200 rounded-full overflow-hidden shadow-inner`}>
+                    </div>
+                    
+                    <Badge 
+                      variant="outline" 
+                      className={`${priorityStyle.color} ${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-1'} font-medium rounded-full border-2`}
+                    >
+                      {insight.priority === 'high' ? '🔥' : insight.priority === 'medium' ? '⚡' : '📝'} {priorityStyle.label}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 bg-gray-50 rounded-full px-3 py-1.5">
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-xs font-medium text-gray-600">
+                          {Math.round(insight.confidence * 100)}%
+                        </span>
+                      </div>
+                      <div className={`${isMobile ? 'w-12 h-2' : 'w-16 h-2'} bg-gray-200 rounded-full overflow-hidden`}>
                         <div 
-                          className="h-full bg-gradient-to-r from-accent-purple via-primary to-accent-cyan rounded-full transition-all duration-1000 ease-out shadow-sm"
+                          className="h-full bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 rounded-full transition-all duration-1000 ease-out"
                           style={{ 
                             width: `${insight.confidence * 100}%`,
                             animationDelay: `${index * 200}ms`
@@ -399,30 +421,43 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
                         />
                       </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteInsight(insight.id)}
+                      disabled={deleteInsightMutation.isPending}
+                      className={`text-gray-400 hover:text-red-500 hover:bg-red-50 ${isMobile ? 'opacity-100 h-8 w-8 p-0' : 'h-8 w-8 p-0 opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-full`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteInsight(insight.id)}
-                    disabled={deleteInsightMutation.isPending}
-                    className={`text-gray-500 hover:text-red-600 ${isMobile ? 'opacity-100 h-10 w-10 p-0' : 'h-8 w-8 p-0 sm:h-6 sm:w-6 opacity-0 group-hover:opacity-100'} transition-opacity touch-target`}
-                    style={{ minHeight: '44px', minWidth: '44px' }}
-                  >
-                    <Trash2 className={`${isMobile ? 'h-4 w-4' : 'h-4 w-4 sm:h-3 sm:w-3'}`} />
-                  </Button>
                 </div>
 
-                <div>
-                  <h4 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-sm leading-tight' : 'text-sm'}`}>{insight.title}</h4>
-                  <p className={`text-gray-700 ${isMobile ? 'text-sm leading-snug' : 'text-sm leading-relaxed'} insight-content`}>{insight.content}</p>
+                <div className="space-y-3">
+                  <h4 className={`font-semibold text-gray-900 ${isMobile ? 'text-base leading-tight' : 'text-lg'} tracking-tight`}>
+                    {insight.title}
+                  </h4>
+                  <div className={`text-gray-600 ${isMobile ? 'text-sm leading-relaxed' : 'text-base leading-relaxed'} insight-content bg-gray-50/50 rounded-lg p-3 border-l-2 border-gray-300`}>
+                    {insight.content}
+                  </div>
                 </div>
 
-                <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-xs'} text-gray-500`}>
-                  <Clock className={`${isMobile ? 'h-3 w-3' : 'h-3 w-3'}`} />
-                  {isMobile ? 
-                    new Date(insight.createdAt).toLocaleDateString() : 
-                    `${new Date(insight.createdAt).toLocaleDateString()} at ${new Date(insight.createdAt).toLocaleTimeString()}`
-                  }
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-sm'} text-gray-500 bg-gray-50 rounded-full px-3 py-1`}>
+                    <Clock className="h-3 w-3" />
+                    <span className="font-medium">
+                      {isMobile ? 
+                        new Date(insight.createdAt).toLocaleDateString() : 
+                        `${new Date(insight.createdAt).toLocaleDateString()} at ${new Date(insight.createdAt).toLocaleTimeString()}`
+                      }
+                    </span>
+                  </div>
+                  {insight.priority === 'high' && (
+                    <div className="flex items-center gap-1 text-red-600 bg-red-50 rounded-full px-2 py-1">
+                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs font-medium">Urgent</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

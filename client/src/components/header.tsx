@@ -141,8 +141,8 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             </div>
           </div>
 
-          {/* Right side - Compact mobile layout */}
-          <div className="flex items-center space-x-1">
+          {/* Right side - Mobile optimized layout */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
             {/* Search button for mobile */}
             <div className="md:hidden">
               <Button
@@ -155,7 +155,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
               </Button>
             </div>
             
-            {/* Email forwarding button - icon only on mobile */}
+            {/* Email forwarding button */}
             <Button
               variant="ghost"
               size="sm"
@@ -166,25 +166,6 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
               <Mail className="h-4 w-4" />
               <span className="hidden lg:inline ml-2 text-sm">Email</span>
             </Button>
-            
-            {/* Settings button - icon only on mobile */}
-            {user ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setLocation('/settings')}
-                className="p-2"
-                title="Settings"
-              >
-                <Settings className="h-4 w-4" />
-                <span className="hidden lg:inline ml-2 text-sm">Settings</span>
-              </Button>
-            ) : null}
-            
-            {/* User profile - always compact */}
-            {user ? (
-              <UserProfileBadge variant="compact" showDropdown={true} />
-            ) : null}
           </div>
         </div>
       </div>

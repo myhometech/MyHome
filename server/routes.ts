@@ -488,7 +488,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      // If we have a full user object, return it
+      // Always fetch the latest user data from database to ensure subscription tier is up to date
+      try {
+        console.log("Fetching fresh user data from database:", user.id);
+        const fullUser = await AuthService.findUserById(user.id);
+        if (fullUser) {
+          console.log("Returning fresh user data with subscription tier:", fullUser.subscriptionTier);
+          return res.json({
+            id: fullUser.id,
+            email: fullUser.email,
+            firstName: fullUser.firstName,
+            lastName: fullUser.lastName,
+            role: fullUser.role,
+            authProvider: fullUser.authProvider || req.session?.authProvider,
+            subscriptionTier: fullUser.subscriptionTier || 'free'
+          });
+        }
+      } catch (dbError) {
+        console.error("Database error:", dbError);
+      }
+
+      // Fallback to session data if database fetch fails
       if (user.id && user.email) {
         console.log("Returning user from session/req:", user.id);
         return res.json({
@@ -497,30 +517,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
-          authProvider: user.authProvider || req.session?.authProvider
+          authProvider: user.authProvider || req.session?.authProvider,
+          subscriptionTier: user.subscriptionTier || user.subscription_tier || 'free'
         });
-      }
-
-      // Otherwise, fetch from storage if available
-      try {
-        if (storage && typeof storage.getUser === 'function') {
-          console.log("Fetching user from storage:", user.id);
-          const fullUser = await storage.getUser(user.id);
-          if (fullUser) {
-            return res.json({
-              id: fullUser.id,
-              email: fullUser.email,
-              firstName: fullUser.firstName,
-              lastName: fullUser.lastName,
-              role: fullUser.role,
-              authProvider: fullUser.authProvider || req.session?.authProvider
-            });
-          }
-        } else {
-          console.error("Storage service not available or getUser method missing");
-        }
-      } catch (storageError) {
-        console.error("Storage error:", storageError);
       }
 
       // Fallback: return partial user data if we have basic info

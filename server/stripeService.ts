@@ -85,16 +85,25 @@ const loadPlanConfiguration = () => {
   
   basePlans.forEach(tier => {
     const tierUpper = tier.toUpperCase();
+    
+    // Default amounts in pence (for GBP)
+    const defaultAmounts = {
+      beginner: 299,  // £2.99
+      pro: 799,      // £7.99 
+      duo: 999       // £9.99
+    };
+    
     config[tier] = {
       name: process.env[`${tierUpper}_PLAN_NAME`] || `MyHome ${tier.charAt(0).toUpperCase() + tier.slice(1)}`,
       description: process.env[`${tierUpper}_PLAN_DESCRIPTION`] || `${tier} plan description`,
+      amount: parseInt(process.env[`${tierUpper}_PLAN_AMOUNT`] as string) || defaultAmounts[tier as keyof typeof defaultAmounts] || 0,
       currency: process.env[`${tierUpper}_PLAN_CURRENCY`] || 'gbp',
       features: {
-        documents: parseInt(process.env[`${tierUpper}_PLAN_DOCUMENTS`] || '0'),
-        storage: process.env[`${tierUpper}_PLAN_STORAGE`] || '0MB',
-        users: parseInt(process.env[`${tierUpper}_PLAN_USERS`] || '1'),
-        ai_features: process.env[`${tierUpper}_PLAN_AI_FEATURES`] === 'true',
-        household: process.env[`${tierUpper}_PLAN_HOUSEHOLD`] === 'true'
+        documents: parseInt(process.env[`${tierUpper}_PLAN_DOCUMENTS`] || (tier === 'beginner' ? '200' : tier === 'pro' ? '5000' : '10000')),
+        storage: process.env[`${tierUpper}_PLAN_STORAGE`] || (tier === 'beginner' ? '1GB' : tier === 'pro' ? '10GB' : '20GB'),
+        users: parseInt(process.env[`${tierUpper}_PLAN_USERS`] || (tier === 'duo' ? '2' : '1')),
+        ai_features: process.env[`${tierUpper}_PLAN_AI_FEATURES`] === 'true' || ['pro', 'duo'].includes(tier),
+        household: process.env[`${tierUpper}_PLAN_HOUSEHOLD`] === 'true' || tier === 'duo'
       }
     };
   });
@@ -108,6 +117,7 @@ const loadPlanConfiguration = () => {
       config[tierName] = {
         name: process.env[`${tierUpper}_PLAN_NAME`],
         description: process.env[`${tierUpper}_PLAN_DESCRIPTION`] || `${tierName} plan`,
+        amount: parseInt(process.env[`${tierUpper}_PLAN_AMOUNT`] as string) || 0,
         currency: process.env[`${tierUpper}_PLAN_CURRENCY`] || 'gbp',
         features: {
           documents: parseInt(process.env[`${tierUpper}_PLAN_DOCUMENTS`] || '0'),
@@ -148,6 +158,43 @@ export class StripeService {
   }
 
   /**
+   * Convert features object to array of strings for frontend display
+   */
+  private formatFeatures(features: any): string[] {
+    if (Array.isArray(features)) {
+      return features;
+    }
+    
+    if (!features || typeof features !== 'object') {
+      return [];
+    }
+    
+    const featureList = [];
+    
+    if (features.documents) {
+      featureList.push(`Up to ${features.documents} documents`);
+    }
+    
+    if (features.storage) {
+      featureList.push(`${features.storage} storage`);
+    }
+    
+    if (features.users && features.users > 1) {
+      featureList.push(`Up to ${features.users} users`);
+    }
+    
+    if (features.ai_features) {
+      featureList.push('AI-powered insights');
+    }
+    
+    if (features.household) {
+      featureList.push('Shared household access');
+    }
+    
+    return featureList;
+  }
+
+  /**
    * Get available pricing plans from Stripe or defaults
    */
   async getAvailablePlans(): Promise<Array<{
@@ -158,7 +205,7 @@ export class StripeService {
     amount: number;
     currency: string;
     interval: string;
-    features: any;
+    features: string[];
     popular?: boolean;
   }>> {
     const plans = [];
@@ -185,7 +232,7 @@ export class StripeService {
               amount: price.unit_amount || 0,
               currency: price.currency,
               interval: price.recurring?.interval || 'month',
-              features: config.features,
+              features: this.formatFeatures(config.features),
               popular: tier === 'pro' // Mark Pro as popular
             });
           }
@@ -208,7 +255,7 @@ export class StripeService {
           amount: config.amount,
           currency: config.currency,
           interval: 'month',
-          features: config.features,
+          features: this.formatFeatures(config.features),
           popular: tier === 'pro'
         });
       }

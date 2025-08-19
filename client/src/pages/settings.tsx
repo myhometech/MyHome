@@ -325,6 +325,19 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
 
     createVehicleMutation.mutate({
       vrn: dvlaData.vrn,
+      make: dvlaData.make || null,
+      model: dvlaData.model || null,
+      yearOfManufacture: dvlaData.yearOfManufacture || null,
+      fuelType: dvlaData.fuelType || null,
+      colour: dvlaData.colour || null,
+      taxStatus: dvlaData.taxStatus || null,
+      taxDueDate: dvlaData.taxDueDate || null,
+      motStatus: dvlaData.motStatus || null,
+      motExpiryDate: dvlaData.motExpiryDate || null,
+      co2Emissions: dvlaData.co2Emissions || null,
+      euroStatus: dvlaData.euroStatus || null,
+      engineCapacity: dvlaData.engineCapacity || null,
+      revenueWeight: dvlaData.revenueWeight || null,
       notes: notes.trim() || null,
     });
   };

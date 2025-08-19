@@ -4136,6 +4136,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Vehicle management routes
+  app.post('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleData = req.body;
+
+      console.log(`🚗 Creating vehicle for user ${userId}:`, vehicleData);
+
+      const vehicle = await storage.createVehicle({ ...vehicleData, userId });
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error creating vehicle:", error);
+      res.status(500).json({ message: "Failed to create vehicle" });
+    }
+  });
+
+  app.get('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicles = await storage.getVehicles(userId);
+      res.json(vehicles);
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+      res.status(500).json({ message: "Failed to fetch vehicles" });
+    }
+  });
+
+  app.delete('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      await storage.deleteVehicle(vehicleId, userId);
+      res.json({ message: "Vehicle deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+      res.status(500).json({ message: "Failed to delete vehicle" });
+    }
+  });
+
   // ROOT ROUTE: Only define fallback for production mode
   // In development, Vite middleware handles all frontend routing
 

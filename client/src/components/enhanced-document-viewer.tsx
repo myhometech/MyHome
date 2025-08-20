@@ -543,9 +543,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
 
           {/* Preview Content */}
-          <div className="flex-1 pt-2 md:p-0 bg-gray-100 w-full overflow-auto md:overflow-auto">
+          <div className="flex-1 pt-6 md:p-0 bg-gray-100 w-full overflow-auto md:overflow-auto">
             {isLoading && (
-              <div className="flex items-center justify-center h-full bg-white md:rounded-lg">
+              <div className="flex items-center justify-center h-full bg-white mx-2 md:mx-0 rounded-lg md:rounded-lg mt-2 md:mt-0">
                 <div className="text-center">
                   <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                   <p className="text-sm text-gray-600">Loading document...</p>
@@ -554,7 +554,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
             
             {error && (
-              <div className="flex items-center justify-center h-full bg-white md:rounded-lg">
+              <div className="flex items-center justify-center h-full bg-white mx-2 md:mx-0 rounded-lg md:rounded-lg mt-2 md:mt-0">
                 <div className="text-center">
                   <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <p className="text-lg font-medium">Preview failed</p>
@@ -568,7 +568,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
 
             {!isLoading && !error && isImage() && (
-              <div className="flex items-center justify-center h-full bg-white p-2 md:p-1 mx-2 md:mx-0 rounded-lg md:rounded-none">
+              <div className="flex items-center justify-center h-full bg-white p-2 md:p-1 mx-2 md:mx-0 rounded-lg md:rounded-none mt-2 md:mt-0">
                 <img
                   src={getPreviewUrl()}
                   alt={document.name}
@@ -579,7 +579,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
 
             {!isLoading && !error && isPDF() && (
-              <div className="h-full bg-white mx-2 md:mx-0 rounded-lg md:rounded-lg">
+              <div className="h-full bg-white mx-2 md:mx-0 rounded-lg md:rounded-lg mt-2 md:mt-0">
                 
                 {useReactPdf ? (
                   <div className="h-full overflow-auto bg-gray-100 p-1 md:p-4">

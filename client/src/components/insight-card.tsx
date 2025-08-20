@@ -157,84 +157,107 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
 
   return (
     <Card 
-      className={`transition-all duration-200 hover:shadow-md cursor-pointer ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}
+      className={`compact-insight-card transition-all duration-200 hover:shadow-md cursor-pointer border-l-4 ${
+        insight.priority === 'high' ? 'border-l-red-500 bg-red-50/30' :
+        insight.priority === 'medium' ? 'border-l-yellow-500 bg-yellow-50/30' :
+        'border-l-green-500 bg-green-50/30'
+      } ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}
       onClick={handleCardClick}
     >
-      <CardHeader className="pb-1 sm:pb-2">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-1 sm:space-x-2 flex-1 min-w-0">
-            {getPriorityIcon(insight.priority)}
+      <CardContent className="p-3">
+        {/* Header with title, status indicator, and menu */}
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            {/* Priority and type indicator */}
+            <div className="flex items-center space-x-1">
+              {getPriorityIcon(insight.priority)}
+              {getTypeIcon(insight.type)}
+            </div>
+            
+            {/* Title */}
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-xs sm:text-sm font-medium leading-tight text-gray-900 truncate">
+              <h4 className="text-sm font-medium text-gray-900 leading-tight truncate">
                 {insight.message || insight.title}
-              </CardTitle>
-              <div className="flex items-center space-x-1 mt-1 flex-wrap">
-                <Badge variant="outline" className={`text-xs ${getPriorityColor(insight.priority)}`}>
-                  {insight.priority}
-                </Badge>
-                <Badge variant="outline" className={`text-xs ${getStatusColor(insight.status || 'open')}`}>
-                  {insight.status || 'open'}
-                </Badge>
-                <div className="hidden sm:flex items-center space-x-1">
-                  {getTypeIcon(insight.type)}
-                  <span className="text-xs text-gray-500 capitalize">{insight.type.replace('_', ' ')}</span>
-                </div>
-              </div>
+              </h4>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" disabled={isUpdating} data-radix-dropdown-menu-trigger className="h-7 w-7 sm:h-8 sm:w-8 p-0">
-                <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleStatusUpdate('resolved')}>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Mark Resolved
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusUpdate('dismissed')}>
-                <Clock className="h-4 w-4 mr-2" />
-                Dismiss
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusUpdate('open')}>
-                <AlertCircle className="h-4 w-4 mr-2" />
-                Reopen
-              </DropdownMenuItem>
-              {insight.actionUrl && (
-                <DropdownMenuItem onClick={() => setLocation(insight.actionUrl!)}>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View Document
+          
+          {/* Status and menu */}
+          <div className="flex items-center space-x-1">
+            {/* Compact status indicator */}
+            <div className={`w-2 h-2 rounded-full ${
+              insight.status === 'resolved' ? 'bg-green-500' :
+              insight.status === 'dismissed' ? 'bg-gray-400' :
+              'bg-blue-500'
+            }`} title={`Status: ${insight.status || 'open'}`} />
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" disabled={isUpdating} data-radix-dropdown-menu-trigger className="h-6 w-6 p-0">
+                  <MoreVertical className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleStatusUpdate('resolved')}>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Mark Resolved
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem onClick={() => handleStatusUpdate('dismissed')}>
+                  <Clock className="h-4 w-4 mr-2" />
+                  Dismiss
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusUpdate('open')}>
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Reopen
+                </DropdownMenuItem>
+                {insight.actionUrl && (
+                  <DropdownMenuItem onClick={() => setLocation(insight.actionUrl!)}>
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Document
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0 px-3 sm:px-6 pb-2 sm:pb-4">
+        
+        {/* Content */}
         {insight.content && (
-          <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2 line-clamp-2">
+          <p className="text-sm text-gray-700 mb-2 line-clamp-2 leading-relaxed">
             {insight.content}
           </p>
         )}
+        
+        {/* Footer with metadata */}
         <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center space-x-1 sm:space-x-2">
+          <div className="flex items-center space-x-3">
+            {/* Priority badge */}
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+              insight.priority === 'high' ? 'bg-red-100 text-red-800' :
+              insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-green-100 text-green-800'
+            }`}>
+              {insight.priority}
+            </span>
+            
+            {/* Type */}
+            <span className="capitalize text-gray-500">
+              {insight.type.replace('_', ' ')}
+            </span>
+            
+            {/* Due date */}
             {dueInfo && (
               <div className={`flex items-center space-x-1 ${dueInfo.color}`}>
                 <Calendar className="h-3 w-3" />
-                <span className="text-xs">Due {dueInfo.text}</span>
-              </div>
-            )}
-            {insight.confidence && (
-              <div className="flex items-center space-x-1">
-                <Target className="h-3 w-3" />
-                <span>{insight.confidence}% confidence</span>
+                <span>{dueInfo.text}</span>
               </div>
             )}
           </div>
-          {insight.createdAt && (
-            <span>
-              {formatDistance(new Date(insight.createdAt), new Date(), { addSuffix: true })}
+          
+          {/* Confidence if available */}
+          {insight.confidence && (
+            <span className="text-gray-400">
+              {insight.confidence}% confidence
             </span>
           )}
         </div>

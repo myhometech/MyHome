@@ -63,6 +63,17 @@
   .mobile-insight-card {
     @apply transform-gpu; /* Enable hardware acceleration */
   }
+  
+  /* Compact insight card styling */
+  .compact-insight-card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .compact-insight-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
 
   /* Touch feedback for mobile insights */
   @media (max-width: 768px) {

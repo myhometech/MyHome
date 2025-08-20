@@ -462,143 +462,78 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
               </div>
             ) : (
               <div className="space-y-3 sm:space-y-4">
-                {/* Priority Filter Buttons - Mobile Optimized */}
-                <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
-                  <span className="text-xs sm:text-sm font-medium text-gray-700">Filter:</span>
-                  <div className="flex gap-1 flex-wrap">
-                    <Button
-                      size="sm"
-                      variant={priorityFilter === 'high' ? 'default' : 'outline'}
-                      onClick={() => setPriorityFilter('high')}
-                      className="h-6 sm:h-7 px-2 sm:px-3 text-xs"
-                    >
-                      High
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={priorityFilter === 'all' ? 'default' : 'outline'}
-                      onClick={() => setPriorityFilter('all')}
-                      className="h-7 px-3 text-xs"
-                    >
-                      All
-                    </Button>
+                {/* Improved Filter Interface */}
+                <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Filter className="h-4 w-4 text-gray-500" />
+                    
+                    {/* Priority Filter */}
+                    <Select value={priorityFilter} onValueChange={(value: any) => setPriorityFilter(value)}>
+                      <SelectTrigger className="w-28 h-8">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Priority</SelectItem>
+                        <SelectItem value="high">High Only</SelectItem>
+                        <SelectItem value="medium">Medium Only</SelectItem>
+                        <SelectItem value="low">Low Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Type Filter */}
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                      <SelectTrigger className="w-32 h-8">
+                        <SelectValue placeholder="Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="financial_info">Financial</SelectItem>
+                        <SelectItem value="key_dates">Key Dates</SelectItem>
+                        <SelectItem value="action_items">Action Items</SelectItem>
+                        <SelectItem value="contacts">Contacts</SelectItem>
+                        <SelectItem value="compliance">Compliance</SelectItem>
+                        <SelectItem value="summary">Summary</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Clear filters button */}
+                    {(priorityFilter !== 'high' || typeFilter !== 'all') && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => { setPriorityFilter('high'); setTypeFilter('all'); }}
+                        className="h-8 px-2 text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Clear
+                      </Button>
+                    )}
                   </div>
-                  <div className="ml-4 flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">Type:</span>
-                    <div className="flex gap-1 flex-wrap">
-                      <Button
-                        size="sm"
-                        variant={typeFilter === 'all' ? 'default' : 'outline'}
-                        onClick={() => setTypeFilter('all')}
-                        className="h-7 px-3 text-xs"
-                      >
-                        All Types
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={typeFilter === 'financial_info' ? 'default' : 'outline'}
-                        onClick={() => setTypeFilter('financial_info')}
-                        className="h-7 px-3 text-xs"
-                      >
-                        Financial
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={typeFilter === 'key_dates' ? 'default' : 'outline'}
-                        onClick={() => setTypeFilter('key_dates')}
-                        className="h-7 px-3 text-xs"
-                      >
-                        Dates
-                      </Button>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-xs ml-auto">
+                  
+                  {/* Results count */}
+                  <Badge variant="outline" className="text-xs">
                     {filteredInsights.length} insights
                   </Badge>
                 </div>
 
-                {/* AI Document Insights Cards */}
+                {/* AI Document Insights Cards - Use the updated InsightCard component */}
                 {filteredInsights.length > 0 && (
                   <div>
-                    <div className="mobile-insight-grid">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {filteredInsights.slice(0, 9).map((insight) => (
-                        <Card 
-                          key={insight.id} 
-                          className={`border-l-2 hover:shadow-sm transition-shadow cursor-pointer ${
-                            insight.priority === 'high' ? 'border-l-red-500 bg-red-50' :
-                            insight.priority === 'medium' ? 'border-l-yellow-500 bg-yellow-50' :
-                            'border-l-green-500 bg-green-50'
-                          }`}
-                          onClick={() => handleInsightClick(insight)}
-                        >
-                          <CardContent className="p-3 sm:p-2">
-                            {/* Mobile: Stack metadata vertically, Desktop: Keep horizontal */}
-                            <div className="flex sm:flex-row flex-col items-start justify-between mb-2 sm:mb-1 gap-2 sm:gap-0">
-                              <div className="flex items-center gap-1.5 sm:gap-1">
-                                {insight.type === 'summary' && <Brain className="h-3 w-3 sm:h-2 sm:w-2 text-blue-600" />}
-                                {insight.type === 'contacts' && <Users className="h-3 w-3 sm:h-2 sm:w-2 text-green-600" />}
-                                {insight.type === 'financial_info' && <DollarSign className="h-3 w-3 sm:h-2 sm:w-2 text-green-600" />}
-                                {insight.type === 'compliance' && <Shield className="h-3 w-3 sm:h-2 sm:w-2 text-orange-600" />}
-                                {insight.type === 'key_dates' && <Calendar className="h-3 w-3 sm:h-2 sm:w-2 text-purple-600" />}
-                                {insight.type === 'action_items' && <CheckCircle className="h-3 w-3 sm:h-2 sm:w-2 text-blue-600" />}
-                                {insight.type.startsWith('vehicle:') && <FileText className="h-3 w-3 sm:h-2 sm:w-2 text-red-600" />}
-                                {!['summary', 'contacts', 'financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type) && !insight.type.startsWith('vehicle:') && <FileText className="h-3 w-3 sm:h-2 sm:w-2 text-gray-600" />}
-                                <Badge variant={insight.priority === 'high' ? 'destructive' : insight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs h-4 px-2 sm:h-3 sm:px-1">
-                                  {insight.priority.charAt(0).toUpperCase()}
-                                </Badge>
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-5 w-5 sm:h-4 sm:w-4 p-0 opacity-60 hover:opacity-100"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <MoreHorizontal className="h-3 w-3 sm:h-2 sm:w-2" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-40">
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleStatusUpdate(insight.id, 'resolved');
-                                    }}
-                                  >
-                                    <CheckCircle className="h-3 w-3 mr-2" />
-                                    Mark as Done
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            {/* Mobile: Allow 2 lines for title, Desktop: Keep 1 line */}
-                            <h5 className="mobile-card-title mb-2 sm:mb-1">{insight.title}</h5>
-                            {/* Mobile: Allow more content, Desktop: Keep compact */}
-                            <p className="mobile-card-content mb-2 sm:mb-1">
-                              {insight.content.length > 80 ? `${insight.content.substring(0, 80)}...` : insight.content}
-                            </p>
-                            {/* Mobile: Stack date and type info vertically */}
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
-                              {insight.dueDate && (
-                                <div className="flex items-center gap-1 mobile-card-metadata">
-                                  <Calendar className="h-3 w-3 sm:h-2 sm:w-2" />
-                                  <span>{new Date(insight.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                                </div>
-                              )}
-                              <div className="mobile-card-metadata capitalize truncate">
-                                {insight.type.replace('_', ' ').replace(':', ' ')}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
+                        <InsightCard
+                          key={insight.id}
+                          insight={insight}
+                          onStatusUpdate={handleStatusUpdate}
+                        />
                       ))}
                       {filteredInsights.length > 9 && (
                         <Card className="border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
-                          <CardContent className="p-3 sm:p-2 text-center">
+                          <CardContent className="p-4 text-center">
                             <div className="text-gray-500">
-                              <FileText className="h-4 w-4 sm:h-3 sm:w-3 mx-auto mb-2 sm:mb-1" />
-                              <p className="text-sm sm:text-xs mb-1">+{filteredInsights.length - 9}</p>
-                              <Button variant="ghost" size="sm" className="h-6 sm:h-4 text-sm sm:text-xs mt-1 px-2 sm:px-1" onClick={() => setPriorityFilter('all')}>
+                              <FileText className="h-6 w-6 mx-auto mb-2" />
+                              <p className="text-sm mb-2">+{filteredInsights.length - 9} more insights</p>
+                              <Button variant="ghost" size="sm" onClick={() => setPriorityFilter('all')}>
                                 View All
                               </Button>
                             </div>

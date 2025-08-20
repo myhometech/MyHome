@@ -675,7 +675,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
       {/* Document Viewer Modal */}
       {selectedDocumentId && documentDetails && (
         <Dialog open={true} onOpenChange={handleCloseDocument}>
-          <DialogContent className="max-w-4xl max-h-[90vh] p-0" aria-describedby="document-viewer-description">
+          <DialogContent className="max-w-[95vw] lg:max-w-[90vw] max-h-[90vh] p-0" aria-describedby="document-viewer-description">
             <DialogTitle className="sr-only">Document Viewer</DialogTitle>
             <DialogDescription id="document-viewer-description" className="sr-only">
               View document details and content

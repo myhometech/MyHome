@@ -88,14 +88,14 @@
     }
   }
 
-  /* Document Viewer Dialog Width Fix */
-  [data-radix-dialog-content]:has(.mobile-document-viewer) {
+  /* Document Viewer Dialog Width Fix - Override shadcn Dialog constraints */
+  [data-radix-dialog-content] {
     max-width: 95vw !important;
     width: 95vw !important;
   }
 
   @media (min-width: 1024px) {
-    [data-radix-dialog-content]:has(.mobile-document-viewer) {
+    [data-radix-dialog-content] {
       max-width: 90vw !important;
       width: 90vw !important;
     }

@@ -757,33 +757,35 @@ export default function UnifiedDocumentCard({
               </div>
             </div>
 
-            {/* No insights state */}
+            {/* No insights state - brain icon in bottom right */}
             {showInsights && openInsights.length === 0 && !insightsLoading && (
-              <div className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
-                <span className="text-gray-500">No insights yet</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 px-2 text-xs"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    generateInsightsMutation.mutate();
-                  }}
-                  disabled={generateInsightsMutation.isPending}
-                >
-                  {generateInsightsMutation.isPending ? (
-                    <>
-                      <Clock className="h-3 w-3 mr-1 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Brain className="h-3 w-3 mr-1" />
-                      Generate
-                    </>
-                  )}
-                </Button>
+              <div className="absolute bottom-2 right-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 rounded-full hover:bg-blue-50 hover:text-blue-600 opacity-60 hover:opacity-100 transition-all"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          generateInsightsMutation.mutate();
+                        }}
+                        disabled={generateInsightsMutation.isPending}
+                      >
+                        {generateInsightsMutation.isPending ? (
+                          <Clock className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Brain className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{generateInsightsMutation.isPending ? 'Generating insights...' : 'Generate AI insights'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             )}
 

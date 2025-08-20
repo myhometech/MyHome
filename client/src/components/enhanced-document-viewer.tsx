@@ -719,7 +719,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         </div>
 
         {/* Document Properties Panel - Hidden on mobile, sidebar on desktop */}
-        <div className="hidden md:flex md:w-1/3 lg:w-1/4 lg:border-l bg-gray-50 flex-col min-h-0">
+        <div className="hidden md:flex md:w-1/3 lg:w-1/4 border-l bg-gray-50 flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
               <TabsTrigger value="properties" className="text-xs">
@@ -940,7 +940,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
               <div 
                 ref={scrollContainerRef}
-                className="flex-1 p-3 mobile-modal-height insights-scroll-container safe-area-padding"
+                className="flex-1 p-3 overflow-y-auto"
                 onScroll={(e) => {
                   const scrollTop = e.currentTarget.scrollTop;
                   setShowBackToTop(scrollTop > 200);
@@ -951,6 +951,11 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                     documentId={document.id}
                     documentName={fullDocument.name}
                   />
+                )}
+                {!fullDocument && (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-gray-500">Loading document details...</p>
+                  </div>
                 )}
               </div>
             </TabsContent>
@@ -975,12 +980,14 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         </Button>
       )}
 
-      {/* AI Insights Drawer - Always show for duo users */}
-      <MobileInsightsDrawer
-        documentId={document.id}
-        documentName={document.name}
-        className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
-      />
+      {/* AI Insights Drawer - Only show on mobile */}
+      <div className="md:hidden">
+        <MobileInsightsDrawer
+          documentId={document.id}
+          documentName={document.name}
+          className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
+        />
+      </div>
     </div>
   );
 }

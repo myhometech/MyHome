@@ -497,7 +497,61 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
               <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
               <span className="font-medium text-sm truncate">Preview</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              {/* PDF page navigation */}
+              {useReactPdf && numPages && numPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                    disabled={pageNumber <= 1}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <ChevronLeft className="w-3 h-3" />
+                  </Button>
+                  <span className="text-xs px-2">
+                    {pageNumber} / {numPages}
+                  </span>
+                  <Button
+                    onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                    disabled={pageNumber >= numPages}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <ChevronRight className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+              
+              {/* PDF view toggle */}
+              {isPDF() && (
+                <Button
+                  onClick={() => {
+                    if (pdfLoadTimeout) {
+                      clearTimeout(pdfLoadTimeout);
+                    }
+                    setUseReactPdf(!useReactPdf);
+                    if (!useReactPdf) {
+                      setPageNumber(1);
+                      setNumPages(null);
+                      const timeout = setTimeout(() => {
+                        setUseReactPdf(false);
+                        toast({
+                          title: "Loading timeout",
+                          description: "Using browser view instead",
+                        });
+                      }, 10000);
+                      setPdfLoadTimeout(timeout);
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  {useReactPdf ? 'Browser' : 'Page'}
+                </Button>
+              )}
+              
               <Button 
                 onClick={onDownload} 
                 variant="outline" 
@@ -548,79 +602,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
             {!isLoading && !error && isPDF() && (
               <div className="h-full bg-white rounded-lg">
-                {/* PDF Controls - Simplified for mobile */}
-                <div className="flex items-center justify-between p-2 border-b bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium hidden sm:inline">PDF Document</span>
-                    {numPages && (
-                      <Badge variant="outline" className="text-xs">
-                        {numPages} page{numPages > 1 ? 's' : ''}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {/* Page navigation - only show on desktop or when using react-pdf */}
-                    {useReactPdf && numPages && numPages > 1 && (
-                      <div className="hidden sm:flex items-center gap-1">
-                        <Button
-                          onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                          disabled={pageNumber <= 1}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <ChevronLeft className="w-3 h-3" />
-                        </Button>
-                        <span className="text-xs px-2">
-                          {pageNumber} / {numPages}
-                        </span>
-                        <Button
-                          onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-                          disabled={pageNumber >= numPages}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <ChevronRight className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    )}
-                    {/* View toggle - hidden on mobile */}
-                    <Button
-                      onClick={() => {
-                        // Clear any existing timeout
-                        if (pdfLoadTimeout) {
-                          clearTimeout(pdfLoadTimeout);
-                        }
-                        
-                        setUseReactPdf(!useReactPdf);
-                        if (!useReactPdf) {
-                          setPageNumber(1);
-                          setNumPages(null);
-                          
-                          // Set a timeout to fall back if loading takes too long
-                          const timeout = setTimeout(() => {
-                            console.log('PDF loading timeout - falling back to browser view');
-                            setUseReactPdf(false);
-                            toast({
-                              title: "Loading timeout",
-                              description: "Using browser view instead",
-                            });
-                          }, 10000); // 10 second timeout
-                          
-                          setPdfLoadTimeout(timeout);
-                        }
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs hidden sm:flex"
-                    >
-                      {useReactPdf ? 'Browser' : 'Page'}
-                    </Button>
-                  </div>
-                </div>
                 
                 {useReactPdf ? (
-                  <div className="h-full overflow-auto bg-gray-100 p-1 md:p-4" style={{ height: 'calc(100% - 60px)' }}>
+                  <div className="h-full overflow-auto bg-gray-100 p-1 md:p-4">
                     <div className="flex justify-center w-full">
                       <Document
                         file={getPreviewUrl()}
@@ -695,7 +679,6 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                     src={`${getPreviewUrl()}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
                     className="w-full h-full border-0"
                     title={document.name}
-                    style={{ height: 'calc(100% - 60px)' }}
                     allow="fullscreen"
                   />
                 )}

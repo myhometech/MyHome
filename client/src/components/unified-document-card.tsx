@@ -725,10 +725,24 @@ export default function UnifiedDocumentCard({
               </div>
             )}
 
-            {/* Rich footer with tags and metadata */}
-            <div className="mt-auto space-y-1 mb-1">
-              {/* Tags row */}
-              {document.tags && document.tags.length > 0 && (
+            {/* Rich footer with metadata */}
+            <div className="mt-auto mb-1">
+              {/* Bottom row with file size and category */}
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500 text-xs">{formatFileSize(document.fileSize)}</span>
+                
+                {category && (
+                  <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300 px-1 py-0 badge">
+                    <FolderIcon className="h-2.5 w-2.5 mr-0.5" />
+                    <span className="truncate max-w-[40px]">{category.name}</span>
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Tags positioned at same level as brain icon */}
+            {document.tags && document.tags.length > 0 && (
+              <div className="absolute bottom-8 left-2">
                 <div className="flex items-center gap-1 flex-wrap">
                   {document.tags.slice(0, 2).map((tag, index) => (
                     <Badge key={index} variant="secondary" className="text-xs bg-gray-100 px-1 py-0 badge">
@@ -742,20 +756,8 @@ export default function UnifiedDocumentCard({
                     </Badge>
                   )}
                 </div>
-              )}
-              
-              {/* Bottom row with file size and category */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 text-xs">{formatFileSize(document.fileSize)}</span>
-                
-                {category && (
-                  <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300 px-1 py-0 badge">
-                    <FolderIcon className="h-2.5 w-2.5 mr-0.5" />
-                    <span className="truncate max-w-[40px]">{category.name}</span>
-                  </Badge>
-                )}
               </div>
-            </div>
+            )}
 
             {/* No insights state - brain icon in bottom right */}
             {showInsights && openInsights.length === 0 && !insightsLoading && (

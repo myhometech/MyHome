@@ -293,33 +293,43 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
 
   return (
     <div className="space-y-4">
-      {/* Header with Generate Button - Mobile Optimized */}
-      <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3 sm:flex-col' : ''}`}>
-        <div className="flex items-center gap-2">
+      {/* Header - Show generate button only if no insights exist or generation failed */}
+      {insights.length === 0 && (
+        <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3 sm:flex-col' : ''}`}>
+          <div className="flex items-center gap-2">
+            <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-blue-600`} />
+            <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>Smart Tips</span>
+          </div>
+          <Button 
+            onClick={handleGenerateInsights} 
+            disabled={isGenerating || generateInsightsMutation.isPending}
+            size={isMobile ? "default" : "sm"}
+            variant="outline"
+            className={`${isMobile ? 'w-full sm:w-auto text-sm' : 'text-xs'} touch-target hover:bg-gradient-to-r hover:from-blue-50 hover:to-accent-purple/10 hover:border-accent-purple/30 transition-all duration-300 shadow-sm hover:shadow-md`}
+            style={{ minHeight: '44px', minWidth: isMobile ? 'auto' : '44px' }}
+          >
+            {isGenerating || generateInsightsMutation.isPending ? (
+              <>
+                <Loader2 className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'} animate-spin`} />
+                {isMobile ? 'Finding Tips...' : 'Finding...'}
+              </>
+            ) : (
+              <>
+                <Brain className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'}`} />
+                {isMobile ? 'Generate Insights' : 'Generate'}
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+      
+      {/* Header for existing insights - no generate button */}
+      {insights.length > 0 && (
+        <div className="flex items-center gap-2 mb-4">
           <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-blue-600`} />
           <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>Smart Tips</span>
         </div>
-        <Button 
-          onClick={handleGenerateInsights} 
-          disabled={isGenerating || generateInsightsMutation.isPending}
-          size={isMobile ? "default" : "sm"}
-          variant="outline"
-          className={`${isMobile ? 'w-full sm:w-auto text-sm' : 'text-xs'} touch-target hover:bg-gradient-to-r hover:from-blue-50 hover:to-accent-purple/10 hover:border-accent-purple/30 transition-all duration-300 shadow-sm hover:shadow-md`}
-          style={{ minHeight: '44px', minWidth: isMobile ? 'auto' : '44px' }}
-        >
-          {isGenerating || generateInsightsMutation.isPending ? (
-            <>
-              <Loader2 className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'} animate-spin`} />
-              {isMobile ? 'Finding Tips...' : 'Finding...'}
-            </>
-          ) : (
-            <>
-              <Brain className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'}`} />
-              {insights.length > 0 ? (isMobile ? 'Generate More' : 'Generate') : (isMobile ? 'Generate Insights' : 'Generate')}
-            </>
-          )}
-        </Button>
-      </div>
+      )}
 
       {/* Content Area */}
       {insights.length === 0 ? (

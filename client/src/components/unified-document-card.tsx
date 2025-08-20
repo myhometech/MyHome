@@ -533,7 +533,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-1 sm:p-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
+        <CardContent className="p-2 sm:p-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
           {/* Bulk selection checkbox */}
           {bulkMode && (
             <div className="absolute top-0.5 left-0.5 z-10">
@@ -551,7 +551,7 @@ export default function UnifiedDocumentCard({
             </div>
           )}
 
-          <div className="h-full flex flex-col justify-between gap-1">
+          <div className="h-full flex flex-col justify-between gap-2">
             {/* Compact header */}
             <div className="flex items-start justify-between min-h-0">
               <div className="flex-1 min-w-0">
@@ -586,9 +586,9 @@ export default function UnifiedDocumentCard({
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="flex items-start gap-1">
-                      <div className={`p-0.5 rounded ${getFileTypeIconColor()} border flex-shrink-0`}>
-                        <div className="scale-50">
+                    <div className="flex items-start gap-2">
+                      <div className={`p-1 rounded ${getFileTypeIconColor()} border flex-shrink-0`}>
+                        <div className="scale-75">
                           {getFileIcon()}
                         </div>
                       </div>
@@ -612,14 +612,14 @@ export default function UnifiedDocumentCard({
                           </div>
                         </div>
                       ) : (
-                        <h3 className="font-semibold text-xs leading-none text-gray-900 line-clamp-3 flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm leading-tight text-gray-900 line-clamp-2 flex-1 min-w-0">
                           {document.name}
                         </h3>
                       )}
                     </div>
                     {document.expiryDate && (
-                      <div className="flex items-center gap-0.5 text-xs text-gray-500 ml-5">
-                        <Calendar className="h-2 w-2" />
+                      <div className="flex items-center gap-1 text-xs text-gray-500 ml-8">
+                        <Calendar className="h-3 w-3" />
                         <span className="text-xs truncate">{formatDate(document.expiryDate)}</span>
                       </div>
                     )}
@@ -627,17 +627,17 @@ export default function UnifiedDocumentCard({
                 )}
               </div>
 
-              {/* Compact actions dropdown */}
+              {/* Actions dropdown */}
               {!isEditing && !isRenaming && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-5 w-5 p-0 flex-shrink-0 opacity-60 hover:opacity-100"
+                      className="h-6 w-6 p-0 flex-shrink-0 opacity-60 hover:opacity-100"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreHorizontal className="h-3 w-3" />
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

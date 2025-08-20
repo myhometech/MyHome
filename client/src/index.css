@@ -85,45 +85,48 @@
     font-size: 0.75rem;
   }
   
-  /* Compact square cards on mobile */
+  /* Square cards on mobile with proper sizing */
   @media (max-width: 640px) {
     .mobile-document-card {
       aspect-ratio: 1 !important;
-      height: 140px !important;
-      max-height: 140px !important;
+      height: auto !important;
+      min-height: 120px !important;
+      max-height: 150px !important;
       width: 100% !important;
     }
     
-    /* Force very compact content */
+    /* Ensure grid items are equal size */
+    .grid > .mobile-document-card {
+      min-width: 0;
+      max-width: 100%;
+    }
+    
+    /* Compact content spacing */
     .mobile-document-card .space-y-1 > *:not(:first-child) {
-      margin-top: 0.0625rem;
+      margin-top: 0.25rem;
     }
     
-    .mobile-document-card .gap-0\.5 {
-      gap: 0.125rem !important;
-    }
-    
-    /* Tiny text for mobile squares */
+    /* Readable text sizes for mobile */
     .mobile-document-card h3 {
-      font-size: 0.625rem !important;
-      line-height: 1.0 !important;
+      font-size: 0.75rem !important;
+      line-height: 1.1 !important;
       margin: 0 !important;
     }
     
     .mobile-document-card .text-xs {
-      font-size: 0.5rem !important;
-      line-height: 1.0 !important;
+      font-size: 0.6875rem !important;
+      line-height: 1.1 !important;
     }
     
-    /* Minimal badges */
+    /* Compact badges and icons */
     .mobile-document-card .badge {
-      padding: 0.0625rem 0.125rem !important;
-      font-size: 0.5rem !important;
+      padding: 0.125rem 0.25rem !important;
+      font-size: 0.625rem !important;
     }
     
-    /* Compact card content */
+    /* Card content padding */
     .mobile-document-card-content {
-      padding: 0.25rem !important;
+      padding: 0.5rem !important;
     }
   }
   

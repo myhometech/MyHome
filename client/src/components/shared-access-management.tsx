@@ -44,6 +44,18 @@ interface HouseholdDetails {
   members: HouseholdMember[];
 }
 
+interface UserRole {
+  household?: {
+    id: string;
+    role: 'owner' | 'duo_partner' | 'household_user';
+    name?: string;
+    permissions?: {
+      canInvite: boolean;
+      canRemoveMembers: boolean;
+    };
+  };
+}
+
 export default function SharedAccessManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -55,7 +67,7 @@ export default function SharedAccessManagement() {
   const isDuoUser = (user as any)?.subscriptionTier === 'duo';
 
   // TICKET 3: Get user role and household members with real API calls
-  const { data: userRole } = useQuery({
+  const { data: userRole } = useQuery<UserRole>({
     queryKey: ['/api/user/role'],
     enabled: isDuoUser,
   });
@@ -197,7 +209,7 @@ export default function SharedAccessManagement() {
     );
   }
 
-  if (householdLoading) {
+  if (membersLoading) {
     return (
       <Card>
         <CardHeader>

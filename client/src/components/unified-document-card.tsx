@@ -533,7 +533,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-1 sm:p-3 relative mobile-document-card-content h-full flex flex-col">
+        <CardContent className="p-1 sm:p-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
           {/* Bulk selection checkbox */}
           {bulkMode && (
             <div className="absolute top-0.5 left-0.5 z-10">
@@ -551,9 +551,9 @@ export default function UnifiedDocumentCard({
             </div>
           )}
 
-          <div className="h-full flex flex-col justify-between gap-0.5">
-            {/* Header with title and actions */}
-            <div className="flex items-start justify-between">
+          <div className="h-full flex flex-col justify-between gap-1">
+            {/* Compact header */}
+            <div className="flex items-start justify-between min-h-0">
               <div className="flex-1 min-w-0">
                 {isEditing ? (
                   <div className="space-y-2">
@@ -586,8 +586,8 @@ export default function UnifiedDocumentCard({
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="flex items-center gap-1">
-                      <div className={`p-0.5 rounded ${getFileTypeIconColor()} border`}>
+                    <div className="flex items-start gap-1">
+                      <div className={`p-0.5 rounded ${getFileTypeIconColor()} border flex-shrink-0`}>
                         <div className="scale-50">
                           {getFileIcon()}
                         </div>
@@ -612,32 +612,32 @@ export default function UnifiedDocumentCard({
                           </div>
                         </div>
                       ) : (
-                        <h3 className="font-semibold text-xs leading-tight text-gray-900 line-clamp-2 flex-1">
+                        <h3 className="font-semibold text-xs leading-none text-gray-900 line-clamp-3 flex-1 min-w-0">
                           {document.name}
                         </h3>
                       )}
                     </div>
                     {document.expiryDate && (
-                      <div className="flex items-center gap-1 text-xs text-gray-600 ml-7">
-                        <Calendar className="h-3 w-3" />
-                        <span>Due: {formatDate(document.expiryDate)}</span>
+                      <div className="flex items-center gap-0.5 text-xs text-gray-500 ml-5">
+                        <Calendar className="h-2 w-2" />
+                        <span className="text-xs truncate">{formatDate(document.expiryDate)}</span>
                       </div>
                     )}
                   </div>
                 )}
               </div>
 
-              {/* Actions dropdown */}
+              {/* Compact actions dropdown */}
               {!isEditing && !isRenaming && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-8 w-8 p-0"
+                      className="h-5 w-5 p-0 flex-shrink-0 opacity-60 hover:opacity-100"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreHorizontal className="h-4 w-4" />
+                      <MoreHorizontal className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -692,50 +692,34 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-            {/* Document metadata - mobile optimized */}
-            <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="flex items-center gap-1">
-                  <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                  <span className="font-medium text-gray-600 text-xs">{formatFileSize(document.fileSize)}</span>
-                </div>
-                <div className="hidden sm:flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full">
-                  <Clock className="h-3 w-3 text-gray-400" />
-                  <span className="text-gray-500">{formatDate(document.uploadedAt)}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1 ml-auto">
+            {/* Compact bottom metadata for square cards */}
+            <div className="mt-auto space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-600 font-medium">{formatFileSize(document.fileSize)}</span>
                 {category && (
-                  <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300">
-                    <FolderIcon className="h-3 w-3 mr-1" />
-                    {category.name}
+                  <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300 px-1 py-0 badge">
+                    <FolderIcon className="h-1.5 w-1.5 mr-0.5" />
+                    <span className="truncate max-w-[30px]">{category.name}</span>
                   </Badge>
                 )}
+              </div>
+              
+              {/* Bottom row with tags and status */}
+              <div className="flex items-center justify-between">
                 {document.tags && document.tags.length > 0 && (
-                  <>
-                    {document.tags.slice(0, 2).map((tag, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs bg-gray-100">
-                        <Tag className="h-3 w-3 mr-1" />
-                        {tag}
-                      </Badge>
-                    ))}
-                    {document.tags.length > 2 && (
-                      <Badge variant="secondary" className="text-xs bg-gray-100">
-                        +{document.tags.length - 2}
-                      </Badge>
-                    )}
-                  </>
+                  <Badge variant="secondary" className="text-xs bg-gray-100 px-1 py-0 badge">
+                    <Tag className="h-1.5 w-1.5 mr-0.5" />
+                    {document.tags.length}
+                  </Badge>
                 )}
-
+                
                 {/* TICKET 6: OCR failure badge for browser scans */}
                 {document.status === 'ocr_failed' && document.uploadSource === 'browser_scan' && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Badge variant="destructive" className="text-xs bg-red-100 text-red-800 border-red-200 cursor-help">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          OCR failed
+                        <Badge variant="destructive" className="text-xs bg-red-100 text-red-800 border-red-200 cursor-help px-1 py-0 badge">
+                          <AlertCircle className="h-1.5 w-1.5" />
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -746,6 +730,7 @@ export default function UnifiedDocumentCard({
                 )}
               </div>
             </div>
+
 
             {/* Insight summary badges */}
             {showInsights && openInsights.length > 0 && (

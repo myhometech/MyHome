@@ -85,35 +85,45 @@
     font-size: 0.75rem;
   }
   
-  /* Square cards on mobile - force square aspect ratio */
+  /* Compact square cards on mobile */
   @media (max-width: 640px) {
     .mobile-document-card {
       aspect-ratio: 1 !important;
-      height: auto !important;
+      height: 140px !important;
+      max-height: 140px !important;
+      width: 100% !important;
     }
     
-    /* Make cards much more compact in square format */
+    /* Force very compact content */
     .mobile-document-card .space-y-1 > *:not(:first-child) {
-      margin-top: 0.125rem;
+      margin-top: 0.0625rem;
     }
     
-    .mobile-document-card .space-y-3 > *:not(:first-child) {
-      margin-top: 0.125rem;
+    .mobile-document-card .gap-0\.5 {
+      gap: 0.125rem !important;
     }
     
-    /* Reduce text sizes and spacing on mobile */
+    /* Tiny text for mobile squares */
     .mobile-document-card h3 {
-      font-size: 0.6875rem !important;
-      line-height: 1.1 !important;
+      font-size: 0.625rem !important;
+      line-height: 1.0 !important;
+      margin: 0 !important;
     }
     
     .mobile-document-card .text-xs {
-      font-size: 0.625rem !important;
+      font-size: 0.5rem !important;
+      line-height: 1.0 !important;
     }
     
-    /* Tighter padding for badges */
+    /* Minimal badges */
     .mobile-document-card .badge {
-      padding: 0.125rem 0.25rem !important;
+      padding: 0.0625rem 0.125rem !important;
+      font-size: 0.5rem !important;
+    }
+    
+    /* Compact card content */
+    .mobile-document-card-content {
+      padding: 0.25rem !important;
     }
   }
   

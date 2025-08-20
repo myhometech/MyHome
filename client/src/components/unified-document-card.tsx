@@ -531,7 +531,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-2 sm:p-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
+        <CardContent className="p-2 sm:p-3 pb-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
             {/* Bulk selection checkbox */}
             {bulkMode && (
               <div className="absolute top-0.5 left-0.5 z-10">
@@ -726,7 +726,7 @@ export default function UnifiedDocumentCard({
             )}
 
             {/* Rich footer with tags and metadata */}
-            <div className="mt-auto space-y-1 mb-2">
+            <div className="mt-auto space-y-1 mb-1">
               {/* Tags row */}
               {document.tags && document.tags.length > 0 && (
                 <div className="flex items-center gap-1 flex-wrap">

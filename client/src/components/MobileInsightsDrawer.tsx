@@ -92,43 +92,71 @@ export function MobileInsightsDrawer({
       <SheetTrigger asChild>
         <Button
           variant="default"
-          size="sm"
           className={`
             fixed bottom-6 left-1/2 -translate-x-1/2 z-50
-            md:hidden
+            md:hidden lg:hidden
             bg-primary hover:bg-primary/90 text-primary-foreground
             shadow-lg border border-border/20
-            px-4 py-2 rounded-full
+            px-4 py-3 rounded-full
             flex items-center gap-2
-            transition-all duration-200
+            transition-all duration-200 ease-out
+            min-h-[44px] min-w-[120px]
+            active:scale-95 hover:shadow-xl
+            mobile-insights-trigger mobile-touch-target
             ${className}
           `}
+          style={{ 
+            paddingBottom: 'max(12px, env(safe-area-inset-bottom))'
+          }}
           aria-label="Open AI Insights"
         >
-          <Lightbulb className="h-4 w-4" />
-          <span className="font-medium">Insights</span>
+          <Lightbulb className="h-4 w-4 shrink-0" />
+          <span className="font-medium text-sm">Insights</span>
         </Button>
       </SheetTrigger>
 
-      {/* Drawer content - 50% height from bottom */}
+      {/* Drawer content - responsive height from bottom */}
       <SheetContent 
         side="bottom" 
         className="
-          h-[50vh] 
+          h-[50vh] min-h-[320px] max-h-[75vh]
+          sm:h-[60vh] sm:max-h-[600px]
           bg-background border-t border-border
-          rounded-t-xl
-          p-0
+          rounded-t-xl sm:rounded-t-2xl
+          p-0 mx-0
+          max-w-none sm:max-w-screen-sm sm:mx-auto
         "
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
       >
         {/* Header with visual indicator */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 py-3">
-          <div className="flex items-center justify-center mb-2">
-            {/* Drag indicator */}
-            <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+        <div className="
+          sticky top-0 z-10 
+          bg-background/95 backdrop-blur-sm border-b border-border/50 
+          px-4 py-3 sm:px-6 sm:py-4
+          min-h-[60px]
+        ">
+          <div className="flex items-center justify-center mb-2 sm:mb-3">
+            {/* Drag indicator - touch-friendly */}
+            <div className="
+              w-12 h-1.5 sm:w-16 sm:h-2 
+              bg-muted-foreground/40 hover:bg-muted-foreground/60
+              rounded-full cursor-grab active:cursor-grabbing
+              transition-colors duration-200
+            " />
           </div>
-          <div className="flex items-center gap-2">
-            <Lightbulb className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="
+              p-2 rounded-lg bg-primary/10 
+              ring-1 ring-primary/20
+            ">
+              <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            </div>
+            <h2 className="
+              text-lg sm:text-xl font-semibold text-foreground
+              tracking-tight
+            ">
               AI Insights
             </h2>
           </div>
@@ -137,9 +165,22 @@ export function MobileInsightsDrawer({
         {/* Scrollable insights content */}
         <div 
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto px-4 pb-6"
+          className="
+            flex-1 overflow-y-auto overflow-x-hidden
+            px-4 sm:px-6
+            pb-6 sm:pb-8
+            mobile-insights-scroll mobile-insights-drawer
+            mobile-insights-small
+          "
+          style={{
+            paddingBottom: 'max(24px, calc(24px + env(safe-area-inset-bottom)))',
+          }}
         >
-          <div className="space-y-4 pt-4" data-insight-section>
+          <div className="
+            space-y-4 sm:space-y-5 pt-4 sm:pt-5
+            max-w-none sm:max-w-lg mx-auto
+            mobile-insights-large-mobile
+          " data-insight-section>
             <DocumentInsights 
               documentId={documentId}
               documentName={documentName}

@@ -466,8 +466,8 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
   return (
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
-      {/* Mobile-optimized header - HIDDEN FOR DESKTOP TEST */}
-      <div className="hidden flex items-center justify-between p-2 md:p-3 border-b bg-white md:hidden shrink-0">
+      {/* Mobile-optimized header - Hidden on desktop */}
+      <div className="hidden">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
           <span className="font-medium text-sm truncate">{document.name}</span>
@@ -718,13 +718,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
         </div>
 
-        {/* Document Properties Panel - FORCED VISIBLE - Fixed to 30% width */}
-        <div className="flex flex-col bg-red-100 border-2 border-red-500 min-h-0" style={{ width: '30%', minWidth: '300px' }}>
+        {/* Document Properties Panel - Laptop Sidebar */}
+        <div className="flex flex-col bg-gray-50 border-l min-h-0" style={{ width: '30%', minWidth: '300px' }}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <div className="p-4 bg-blue-200 border-2 border-blue-500">
-              <h3 className="font-bold text-lg">SIDEBAR DEBUG</h3>
-              <p className="text-sm">If you can see this red/blue box, the sidebar is working!</p>
-            </div>
             <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
               <TabsTrigger value="properties" className="text-xs">
                 <Info className="w-3 h-3 mr-1" />

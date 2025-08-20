@@ -518,7 +518,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`group hover:shadow-md hover:scale-[1.01] transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer bg-white border-gray-200`}
+        className={`mobile-document-card group hover:shadow-md hover:scale-[1.01] transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer bg-white border-gray-200 aspect-square overflow-hidden`}
         onClick={() => {
           if (isRenaming || isEditing) {
             // Prevent modal from opening when in edit/rename mode
@@ -533,7 +533,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-2 sm:p-4 relative mobile-document-card-content">
+        <CardContent className="p-2 sm:p-4 relative mobile-document-card-content h-full flex flex-col">
           {/* Bulk selection checkbox */}
           {bulkMode && (
             <div className="absolute top-2 left-2 z-10">

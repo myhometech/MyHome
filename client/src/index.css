@@ -85,6 +85,23 @@
     font-size: 0.75rem;
   }
   
+  /* Square cards on mobile - force square aspect ratio */
+  @media (max-width: 640px) {
+    .mobile-document-card {
+      aspect-ratio: 1 !important;
+      height: auto !important;
+    }
+    
+    /* Make cards more compact in square format */
+    .mobile-document-card .space-y-1 > *:not(:first-child) {
+      margin-top: 0.25rem;
+    }
+    
+    .mobile-document-card .space-y-3 > *:not(:first-child) {
+      margin-top: 0.25rem;
+    }
+  }
+  
   @media (min-width: 640px) {
     .mobile-document-card-content {
       font-size: inherit;

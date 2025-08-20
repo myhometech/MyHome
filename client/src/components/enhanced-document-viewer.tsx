@@ -683,9 +683,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                           pageNumber={pageNumber}
                           renderTextLayer={false}
                           renderAnnotationLayer={false}
-                          className="shadow-lg"
-                          width={Math.min(window.innerWidth * 0.9, 800)}
-                          scale={1}
+                          className="shadow-lg mx-auto"
+                          width={Math.min(window.innerWidth - 40, 800)}
+                          scale={window.innerWidth < 768 ? 0.95 : 1}
                         />
                       </Document>
                     </div>

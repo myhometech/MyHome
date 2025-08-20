@@ -704,24 +704,25 @@
   min-width: 100% !important;
 }
 
-/* PDF width fitting - fit to content width, not full viewport */
+/* PDF width fitting - proper responsive sizing */
 .enhanced-document-viewer iframe {
   width: 100% !important;
+  max-width: 100% !important;
   height: calc(100vh - 60px) !important;
   border: none !important;
-  margin: 0 !important;
+  margin: 0 auto !important;
   padding: 0 !important;
 }
 
 /* Fix react-pdf Page component to fit container properly */
 .react-pdf__Page {
-  width: 100% !important;
+  width: auto !important;
   max-width: 100% !important;
   margin: 0 auto !important;
 }
 
 .react-pdf__Page canvas {
-  width: 100% !important;
+  width: auto !important;
   max-width: 100% !important;
   height: auto !important;
 }

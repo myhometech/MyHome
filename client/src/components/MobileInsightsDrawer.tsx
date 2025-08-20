@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ArrowUp, Lightbulb } from "lucide-react";
+import { ArrowUp, Brain } from "lucide-react";
 import { DocumentInsights } from "@/components/document-insights";
 
 interface MobileInsightsDrawerProps {
@@ -110,7 +110,7 @@ export function MobileInsightsDrawer({
           }}
           aria-label="Open AI Insights"
         >
-          <Lightbulb className="h-4 w-4 shrink-0" />
+          <Brain className="h-4 w-4 shrink-0" />
           <span className="font-medium text-sm">Insights</span>
         </Button>
       </SheetTrigger>
@@ -153,7 +153,7 @@ export function MobileInsightsDrawer({
                 p-2 rounded-lg bg-primary/10 
                 ring-1 ring-primary/20
               ">
-                <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
               <div>
                 <h2 className="

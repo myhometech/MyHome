@@ -85,48 +85,50 @@
     font-size: 0.75rem;
   }
   
-  /* Square cards on mobile with proper sizing */
+  /* Compact square cards for mobile 2-column grid */
   @media (max-width: 640px) {
     .mobile-document-card {
       aspect-ratio: 1 !important;
-      height: auto !important;
-      min-height: 120px !important;
-      max-height: 150px !important;
+      height: 160px !important;
+      max-height: 160px !important;
       width: 100% !important;
+      overflow: hidden !important;
     }
     
-    /* Ensure grid items are equal size */
-    .grid > .mobile-document-card {
-      min-width: 0;
-      max-width: 100%;
+    /* Force card content to fit within square */
+    .mobile-document-card-content {
+      padding: 0.75rem !important;
+      height: 100% !important;
+      display: flex !important;
+      flex-direction: column !important;
     }
     
-    /* Compact content spacing */
-    .mobile-document-card .space-y-1 > *:not(:first-child) {
-      margin-top: 0.25rem;
-    }
-    
-    /* Readable text sizes for mobile */
+    /* Compact text for square format */
     .mobile-document-card h3 {
       font-size: 0.75rem !important;
       line-height: 1.1 !important;
       margin: 0 !important;
+      display: -webkit-box !important;
+      -webkit-line-clamp: 2 !important;
+      -webkit-box-orient: vertical !important;
+      overflow: hidden !important;
     }
     
     .mobile-document-card .text-xs {
-      font-size: 0.6875rem !important;
-      line-height: 1.1 !important;
+      font-size: 0.625rem !important;
+      line-height: 1.0 !important;
     }
     
-    /* Compact badges and icons */
+    /* Tiny badges for square cards */
     .mobile-document-card .badge {
       padding: 0.125rem 0.25rem !important;
-      font-size: 0.625rem !important;
+      font-size: 0.5rem !important;
+      line-height: 1.0 !important;
     }
     
-    /* Card content padding */
-    .mobile-document-card-content {
-      padding: 0.5rem !important;
+    /* Hide less important elements on very small cards */
+    .mobile-document-card .hidden-on-mobile {
+      display: none !important;
     }
   }
   

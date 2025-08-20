@@ -551,7 +551,7 @@ export default function UnifiedDocumentCard({
             </div>
           )}
 
-          <div className="h-full flex flex-col justify-between gap-2">
+          <div className="h-full flex flex-col justify-between gap-1">
             {/* Compact header */}
             <div className="flex items-start justify-between min-h-0">
               <div className="flex-1 min-w-0">
@@ -618,7 +618,7 @@ export default function UnifiedDocumentCard({
                       )}
                     </div>
                     {document.expiryDate && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 ml-8">
+                      <div className="flex items-center gap-1 text-xs text-gray-500 ml-8 hidden-on-mobile">
                         <Calendar className="h-3 w-3" />
                         <span className="text-xs truncate">{formatDate(document.expiryDate)}</span>
                       </div>
@@ -692,41 +692,15 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-            {/* Compact bottom metadata for square cards */}
-            <div className="mt-auto space-y-0.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-600 font-medium">{formatFileSize(document.fileSize)}</span>
-                {category && (
-                  <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300 px-1 py-0 badge">
-                    <FolderIcon className="h-1.5 w-1.5 mr-0.5" />
-                    <span className="truncate max-w-[30px]">{category.name}</span>
-                  </Badge>
-                )}
-              </div>
-              
-              {/* Bottom row with tags and status */}
-              <div className="flex items-center justify-between">
+            {/* Compact footer for mobile squares */}
+            <div className="mt-auto">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">{formatFileSize(document.fileSize)}</span>
                 {document.tags && document.tags.length > 0 && (
                   <Badge variant="secondary" className="text-xs bg-gray-100 px-1 py-0 badge">
-                    <Tag className="h-1.5 w-1.5 mr-0.5" />
+                    <Tag className="h-3 w-3 mr-1" />
                     {document.tags.length}
                   </Badge>
-                )}
-                
-                {/* TICKET 6: OCR failure badge for browser scans */}
-                {document.status === 'ocr_failed' && document.uploadSource === 'browser_scan' && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant="destructive" className="text-xs bg-red-100 text-red-800 border-red-200 cursor-help px-1 py-0 badge">
-                          <AlertCircle className="h-1.5 w-1.5" />
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>We couldn't read text from this scan – try rescanning.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                 )}
               </div>
             </div>

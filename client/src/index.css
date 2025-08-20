@@ -76,7 +76,7 @@
   }
 
   /* Enhanced Document Viewer Mobile Optimizations */
-  @media (max-width: 1024px) {
+  @media (max-width: 767px) {
     /* Fix tab content width consistency - minimal approach */
     [data-state="active"][role="tabpanel"] {
       overflow-x: hidden;

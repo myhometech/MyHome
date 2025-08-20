@@ -86,8 +86,8 @@ export default function DocumentPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-      <div className="container mx-auto px-4 py-6">
-        <div className="mb-4">
+      <div className="w-full">
+        <div className="px-4 py-2">
           <Button onClick={() => setLocation('/')} variant="outline" size="sm">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Documents

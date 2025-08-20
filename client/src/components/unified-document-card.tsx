@@ -533,38 +533,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-0 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
-          {/* Insights Banner */}
-          {showInsights && openInsights.length > 0 && (
-            <div className={`px-2 py-1.5 text-xs font-medium flex items-center justify-between ${
-              criticalInsights.length > 0 
-                ? 'bg-red-50 text-red-800 border-b border-red-100' 
-                : openInsights.some(i => i.priority === 'medium')
-                ? 'bg-yellow-50 text-yellow-800 border-b border-yellow-100'
-                : 'bg-blue-50 text-blue-800 border-b border-blue-100'
-            }`}>
-              <div className="flex items-center gap-2">
-                <Brain className="h-3.5 w-3.5" />
-                <span>
-                  {openInsights.length} insight{openInsights.length !== 1 ? 's' : ''}
-                  {criticalInsights.length > 0 && (
-                    <span className="ml-1 text-red-600 font-semibold">• {criticalInsights.length} critical</span>
-                  )}
-                </span>
-              </div>
-              {!insightsExpanded && (
-                <ChevronDown 
-                  className="h-3 w-3 cursor-pointer hover:scale-110 transition-transform" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setInsightsExpanded(true);
-                  }}
-                />
-              )}
-            </div>
-          )}
-
-          <div className="p-2 sm:p-3 flex-1">
+        <CardContent className="p-2 sm:p-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
             {/* Bulk selection checkbox */}
             {bulkMode && (
               <div className="absolute top-0.5 left-0.5 z-10">
@@ -723,6 +692,45 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
+            {/* Insights Banner */}
+            {showInsights && openInsights.length > 0 && (
+              <div className={`mb-2 px-2 py-1.5 rounded text-xs font-medium flex items-center justify-between ${
+                criticalInsights.length > 0 
+                  ? 'bg-red-50 text-red-800 border border-red-200' 
+                  : openInsights.some(i => i.priority === 'medium')
+                  ? 'bg-yellow-50 text-yellow-800 border border-yellow-200'
+                  : 'bg-blue-50 text-blue-800 border border-blue-200'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Brain className="h-3.5 w-3.5" />
+                  <span>
+                    {openInsights.length} insight{openInsights.length !== 1 ? 's' : ''}
+                    {criticalInsights.length > 0 && (
+                      <span className="ml-1 text-red-600 font-semibold">• {criticalInsights.length} critical</span>
+                    )}
+                  </span>
+                </div>
+                {!insightsExpanded && (
+                  <ChevronDown 
+                    className="h-3 w-3 cursor-pointer hover:scale-110 transition-transform" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInsightsExpanded(true);
+                    }}
+                  />
+                )}
+                {insightsExpanded && (
+                  <ChevronRight 
+                    className="h-3 w-3 cursor-pointer hover:scale-110 transition-transform" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInsightsExpanded(false);
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
             {/* Rich footer with tags and metadata */}
             <div className="mt-auto space-y-1">
               {/* Tags row */}
@@ -840,7 +848,6 @@ export default function UnifiedDocumentCard({
             )}
 
             </div>
-          </div>
         </CardContent>
       </Card>
 

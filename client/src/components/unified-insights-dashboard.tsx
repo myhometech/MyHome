@@ -519,7 +519,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 {/* AI Document Insights Cards - Use the updated InsightCard component */}
                 {filteredInsights.length > 0 && (
                   <div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                       {filteredInsights.slice(0, 9).map((insight) => (
                         <InsightCard
                           key={insight.id}

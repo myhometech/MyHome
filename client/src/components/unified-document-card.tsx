@@ -533,24 +533,54 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-2 sm:p-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
-
-          {/* Bulk selection checkbox */}
-          {bulkMode && (
-            <div className="absolute top-0.5 left-0.5 z-10">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleSelection?.();
-                }}
-                className="w-4 h-4 p-0"
-              >
-                {isSelected ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
-              </Button>
+        <CardContent className="p-0 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
+          {/* Insights Banner */}
+          {showInsights && openInsights.length > 0 && (
+            <div className={`px-2 py-1.5 text-xs font-medium flex items-center justify-between ${
+              criticalInsights.length > 0 
+                ? 'bg-red-50 text-red-800 border-b border-red-100' 
+                : openInsights.some(i => i.priority === 'medium')
+                ? 'bg-yellow-50 text-yellow-800 border-b border-yellow-100'
+                : 'bg-blue-50 text-blue-800 border-b border-blue-100'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Brain className="h-3.5 w-3.5" />
+                <span>
+                  {openInsights.length} insight{openInsights.length !== 1 ? 's' : ''}
+                  {criticalInsights.length > 0 && (
+                    <span className="ml-1 text-red-600 font-semibold">• {criticalInsights.length} critical</span>
+                  )}
+                </span>
+              </div>
+              {!insightsExpanded && (
+                <ChevronDown 
+                  className="h-3 w-3 cursor-pointer hover:scale-110 transition-transform" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setInsightsExpanded(true);
+                  }}
+                />
+              )}
             </div>
           )}
+
+          <div className="p-2 sm:p-3 flex-1">
+            {/* Bulk selection checkbox */}
+            {bulkMode && (
+              <div className="absolute top-0.5 left-0.5 z-10">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleSelection?.();
+                  }}
+                  className="w-4 h-4 p-0"
+                >
+                  {isSelected ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+                </Button>
+              </div>
+            )}
 
           <div className="h-full flex flex-col justify-between gap-1">
             {/* Compact header */}
@@ -693,7 +723,7 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-            {/* Rich footer with insights and tags */}
+            {/* Rich footer with tags and metadata */}
             <div className="mt-auto space-y-1">
               {/* Tags row */}
               {document.tags && document.tags.length > 0 && (
@@ -712,20 +742,9 @@ export default function UnifiedDocumentCard({
                 </div>
               )}
               
-              {/* Bottom row with file size, category, and insights */}
+              {/* Bottom row with file size and category */}
               <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  {/* Insights in bottom left */}
-                  {showInsights && openInsights.length > 0 && (
-                    <div className="flex items-center justify-center w-5 h-5 bg-blue-100 border border-blue-200 rounded-full">
-                      <Brain className="h-2.5 w-2.5 text-blue-600" />
-                      <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-3 h-3 text-xs font-medium text-white bg-blue-600 rounded-full">
-                        {openInsights.length}
-                      </span>
-                    </div>
-                  )}
-                  <span className="text-gray-500 text-xs">{formatFileSize(document.fileSize)}</span>
-                </div>
+                <span className="text-gray-500 text-xs">{formatFileSize(document.fileSize)}</span>
                 
                 {category && (
                   <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300 px-1 py-0 badge">
@@ -735,9 +754,6 @@ export default function UnifiedDocumentCard({
                 )}
               </div>
             </div>
-
-
-
             {/* Expandable insights panel */}
             {showInsights && openInsights.length > 0 && (
               <Collapsible 
@@ -823,7 +839,7 @@ export default function UnifiedDocumentCard({
               </div>
             )}
 
-
+            </div>
           </div>
         </CardContent>
       </Card>

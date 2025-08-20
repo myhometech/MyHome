@@ -505,7 +505,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
 
           {/* Preview Content */}
-          <div className="flex-1 p-2 lg:p-4 overflow-auto bg-gray-100">
+          <div className="flex-1 p-0 overflow-auto bg-gray-100">
             {isLoading && (
               <div className="flex items-center justify-center h-full bg-white rounded-lg">
                 <div className="text-center">
@@ -530,7 +530,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
 
             {!isLoading && !error && isImage() && (
-              <div className="flex items-center justify-center h-full bg-white rounded-lg p-4">
+              <div className="flex items-center justify-center h-full bg-white p-0">
                 <img
                   src={getPreviewUrl()}
                   alt={document.name}

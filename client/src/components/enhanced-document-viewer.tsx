@@ -58,6 +58,7 @@ interface EnhancedDocumentViewerProps {
   onClose: () => void;
   onDownload: () => void;
   onUpdate?: () => void;
+  initialTab?: string;
 }
 
 interface FullDocumentDetails {
@@ -97,7 +98,7 @@ interface Category {
   color: string;
 }
 
-export function EnhancedDocumentViewer({ document, category: propCategory, onClose, onDownload, onUpdate }: EnhancedDocumentViewerProps) {
+export function EnhancedDocumentViewer({ document, category: propCategory, onClose, onDownload, onUpdate, initialTab = "properties" }: EnhancedDocumentViewerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +110,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   const [pageNumber, setPageNumber] = useState(1);
   const [useReactPdf, setUseReactPdf] = useState(false);
   const [pdfLoadTimeout, setPdfLoadTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [activeTab, setActiveTab] = useState(initialTab);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -695,7 +697,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
         {/* Document Properties Panel - Mobile Tab Layout */}
         <div className="lg:w-1/3 lg:border-l bg-gray-50 flex flex-col min-h-0">
-          <Tabs defaultValue="properties" className="flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
               <TabsTrigger value="properties" className="text-xs">
                 <Info className="w-3 h-3 mr-1" />

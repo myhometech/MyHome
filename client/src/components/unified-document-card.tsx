@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -26,8 +25,6 @@ import {
   Clock, 
   CheckSquare, 
   Square,
-  ChevronDown,
-  ChevronRight,
   Brain,
   DollarSign,
   Users,
@@ -95,7 +92,7 @@ interface UnifiedDocumentCardProps {
   onUpdate?: () => void;
   showInsights?: boolean;
   autoExpandCritical?: boolean;
-  onClick?: () => void;
+  onClick?: (initialTab?: string) => void;
 }
 
 const insightTypeConfig = {
@@ -155,13 +152,13 @@ export default function UnifiedDocumentCard({
   onClick
 }: UnifiedDocumentCardProps) {
   const [showModal, setShowModal] = useState(false);
+  const [modalInitialTab, setModalInitialTab] = useState<string>("properties");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(document.name);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameName, setRenameName] = useState(document.name);
   const [editImportantDate, setEditImportantDate] = useState(document.expiryDate || "");
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [insightsExpanded, setInsightsExpanded] = useState(false);
   const { toast } = useToast();
 
   const category = categories?.find(c => c.id === document.categoryId);
@@ -529,6 +526,7 @@ export default function UnifiedDocumentCard({
           } else if (onClick) {
             onClick();
           } else {
+            setModalInitialTab('properties');
             setShowModal(true);
           }
         }}
@@ -646,6 +644,7 @@ export default function UnifiedDocumentCard({
                       if (onClick) {
                         onClick();
                       } else {
+                        setModalInitialTab('properties');
                         setShowModal(true);
                       }
                     }}>
@@ -694,13 +693,25 @@ export default function UnifiedDocumentCard({
 
             {/* Insights Banner */}
             {showInsights && openInsights.length > 0 && (
-              <div className={`mb-2 px-2 py-1.5 rounded text-xs font-medium flex items-center justify-between ${
-                criticalInsights.length > 0 
-                  ? 'bg-red-50 text-red-800 border border-red-200' 
-                  : openInsights.some(i => i.priority === 'medium')
-                  ? 'bg-yellow-50 text-yellow-800 border border-yellow-200'
-                  : 'bg-blue-50 text-blue-800 border border-blue-200'
-              }`}>
+              <div 
+                className={`mb-2 px-2 py-1.5 rounded text-xs font-medium flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity ${
+                  criticalInsights.length > 0 
+                    ? 'bg-red-50 text-red-800 border border-red-200' 
+                    : openInsights.some(i => i.priority === 'medium')
+                    ? 'bg-yellow-50 text-yellow-800 border border-yellow-200'
+                    : 'bg-blue-50 text-blue-800 border border-blue-200'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onClick) {
+                    // Open document viewer with insights tab
+                    onClick('insights');
+                  } else {
+                    setModalInitialTab('insights');
+                    setShowModal(true);
+                  }
+                }}
+              >
                 <div className="flex items-center gap-2">
                   <Brain className="h-3.5 w-3.5" />
                   <span>
@@ -710,24 +721,7 @@ export default function UnifiedDocumentCard({
                     )}
                   </span>
                 </div>
-                {!insightsExpanded && (
-                  <ChevronDown 
-                    className="h-3 w-3 cursor-pointer hover:scale-110 transition-transform" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setInsightsExpanded(true);
-                    }}
-                  />
-                )}
-                {insightsExpanded && (
-                  <ChevronRight 
-                    className="h-3 w-3 cursor-pointer hover:scale-110 transition-transform" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setInsightsExpanded(false);
-                    }}
-                  />
-                )}
+                <div className="text-xs opacity-70">Tap to view</div>
               </div>
             )}
 
@@ -762,60 +756,6 @@ export default function UnifiedDocumentCard({
                 )}
               </div>
             </div>
-            {/* Expandable insights panel */}
-            {showInsights && openInsights.length > 0 && (
-              <Collapsible 
-                open={insightsExpanded || shouldAutoExpand} 
-                onOpenChange={setInsightsExpanded}
-              >
-                <CollapsibleContent className="space-y-2 mt-1">
-                  {insightsLoading ? (
-                    <div className="text-xs text-gray-500 p-2">Loading insights...</div>
-                  ) : (
-                    openInsights.map((insight) => {
-                      const config = insightTypeConfig[insight.type] || insightTypeConfig.summary;
-                      const priorityStyle = priorityConfig[insight.priority];
-                      const IconComponent = config.icon;
-
-                      return (
-                        <div 
-                          key={insight.id} 
-                          className={`p-2 rounded border-l-2 ${priorityStyle.color}`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Badge className={`text-xs ${config.color}`}>
-                                  <IconComponent className="h-3 w-3 mr-1" />
-                                  {config.label}
-                                </Badge>
-                                <Badge variant="outline" className={`text-xs ${priorityStyle.badgeColor}`}>
-                                  {insight.priority.toUpperCase()}
-                                </Badge>
-                                <Badge variant="secondary" className="text-xs">
-                                  {Math.round(insight.confidence * 100)}%
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-gray-700 mb-1">{insight.title}</p>
-                              <p className="text-xs text-gray-600">{insight.message}</p>
-                              {insight.dueDate && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <Calendar className="h-3 w-3 text-gray-400" />
-                                  <span className="text-xs text-gray-500">
-                                    Due: {formatDueDate(insight.dueDate)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            )}
 
             {/* No insights state */}
             {showInsights && openInsights.length === 0 && !insightsLoading && (
@@ -858,6 +798,7 @@ export default function UnifiedDocumentCard({
           onClose={() => setShowModal(false)}
           onUpdate={onUpdate}
           onDownload={handleDownload}
+          initialTab={modalInitialTab}
         />
       )}
 

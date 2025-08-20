@@ -751,15 +751,15 @@ export default function UnifiedDocumentCard({
                         <TooltipTrigger asChild>
                           <Badge 
                             variant="secondary" 
-                            className="text-xs bg-blue-50 border-blue-200 text-blue-700 px-1.5 py-0.5 cursor-pointer hover:bg-blue-100 transition-colors"
+                            className="text-xs bg-blue-50 border-blue-200 text-blue-700 px-2 py-1 cursor-pointer hover:bg-blue-100 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               setModalInitialTab('insights');
                               setShowModal(true);
                             }}
                           >
-                            <Brain className="h-3 w-3 mr-1" />
-                            <span className="text-xs">{openInsights.length}</span>
+                            <Brain className="h-4 w-4 mr-1.5" />
+                            <span className="text-xs font-medium">{openInsights.length}</span>
                           </Badge>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -781,9 +781,9 @@ export default function UnifiedDocumentCard({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger>
-                            <Badge variant="secondary" className="text-xs bg-orange-50 border-orange-200 text-orange-700 px-1.5 py-0.5">
-                              <Calendar className="h-3 w-3 mr-1" />
-                              <span className="text-xs">{format(expiryDate, 'MMM dd')}</span>
+                            <Badge variant="secondary" className="text-xs bg-orange-50 border-orange-200 text-orange-700 px-2 py-1">
+                              <Calendar className="h-4 w-4 mr-1.5" />
+                              <span className="text-xs font-medium">{format(expiryDate, 'MMM dd')}</span>
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -799,9 +799,9 @@ export default function UnifiedDocumentCard({
               // Priority 3: Upload Source  
               if (document.uploadSource) {
                 const sourceIcons: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-                  'camera': { icon: <Type className="h-3 w-3" />, label: 'Scanned', color: 'bg-green-50 border-green-200 text-green-700' },
-                  'email': { icon: <FileText className="h-3 w-3" />, label: 'Email', color: 'bg-purple-50 border-purple-200 text-purple-700' },
-                  'upload': { icon: <FileText className="h-3 w-3" />, label: 'Uploaded', color: 'bg-gray-50 border-gray-200 text-gray-700' }
+                  'camera': { icon: <Type className="h-4 w-4" />, label: 'Scanned', color: 'bg-green-50 border-green-200 text-green-700' },
+                  'email': { icon: <FileText className="h-4 w-4" />, label: 'Email', color: 'bg-purple-50 border-purple-200 text-purple-700' },
+                  'upload': { icon: <FileText className="h-4 w-4" />, label: 'Uploaded', color: 'bg-gray-50 border-gray-200 text-gray-700' }
                 };
                 
                 const sourceInfo = sourceIcons[document.uploadSource] || sourceIcons['upload'];
@@ -810,7 +810,7 @@ export default function UnifiedDocumentCard({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
-                          <Badge variant="secondary" className={`text-xs px-1.5 py-0.5 ${sourceInfo.color}`}>
+                          <Badge variant="secondary" className={`text-xs px-2 py-1 ${sourceInfo.color}`}>
                             {sourceInfo.icon}
                           </Badge>
                         </TooltipTrigger>

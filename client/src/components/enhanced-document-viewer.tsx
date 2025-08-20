@@ -459,7 +459,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   }, [document.id, error]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-white mobile-document-viewer">
+    <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
       {/* Mobile-optimized header */}
       <div className="flex items-center justify-between p-2 md:p-3 border-b bg-white lg:hidden shrink-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -505,7 +505,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
 
           {/* Preview Content */}
-          <div className="flex-1 p-0 overflow-auto bg-gray-100 w-full min-w-full">
+          <div className="flex-1 p-0 overflow-auto bg-gray-100 w-full min-w-full" style={{ width: '100vw', minWidth: '100vw', maxWidth: '100vw' }}>
             {isLoading && (
               <div className="flex items-center justify-center h-full bg-white rounded-lg">
                 <div className="text-center">

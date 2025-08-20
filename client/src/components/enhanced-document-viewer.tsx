@@ -534,7 +534,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 <img
                   src={getPreviewUrl()}
                   alt={document.name}
-                  className="max-w-full max-h-full object-contain rounded"
+                  className="w-full h-full object-contain rounded"
                 />
               </div>
             )}
@@ -677,7 +677,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                           renderTextLayer={false}
                           renderAnnotationLayer={false}
                           className="shadow-lg"
-                          width={Math.min(600, window.innerWidth - 150)}
+                          width={Math.max(800, window.innerWidth - 50)}
                         />
                       </Document>
                     </div>

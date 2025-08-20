@@ -540,16 +540,19 @@ export function MobileDocumentViewer({
     if (isPDF()) {
       return (
         <div 
-          className="h-full bg-gray-200"
+          className="w-full h-full bg-gray-200 overflow-hidden"
           {...enhancedSwipeGestures}
         >
           <iframe
             ref={iframeRef}
             src={getPreviewUrl()}
-            className="w-full h-full border-0"
+            className="w-full h-full border-0 min-w-full"
             style={{ 
               transform: `scale(${zoom})`,
-              transformOrigin: 'top left',
+              transformOrigin: 'center center',
+              width: '100%',
+              height: '100%',
+              minWidth: '100vw',
             }}
             onLoad={() => {
               setIsLoading(false);
@@ -585,10 +588,16 @@ export function MobileDocumentViewer({
       <div 
         ref={viewerRef}
         className={`
-          fixed inset-0 z-50 bg-black
+          fixed inset-0 z-50 bg-black w-full h-full
           ${isMobile ? 'mobile-viewer' : ''}
         `}
         onClick={toggleControls}
+        style={{
+          width: '100vw',
+          height: '100vh',
+          maxWidth: '100vw',
+          maxHeight: '100vh',
+        }}
       >
         {/* Mobile Header - Fixed at top */}
         <div className={`
@@ -684,7 +693,7 @@ export function MobileDocumentViewer({
         {/* Main Content */}
         <div 
           ref={contentRef}
-          className="h-full pt-16 pb-20"
+          className="w-full h-full pt-16 pb-20 overflow-hidden"
         >
           {isLoading ? (
             <div className="flex items-center justify-center h-full">

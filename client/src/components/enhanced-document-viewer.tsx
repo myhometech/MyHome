@@ -467,11 +467,13 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   return (
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
       {/* Mobile-optimized header - Show on mobile, hidden on desktop */}
-      <div className="md:hidden flex items-center justify-between p-2 md:p-3 border-b bg-white shrink-0">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-white shrink-0">
+        <div className="flex items-center gap-2 min-w-0" style={{ maxWidth: 'calc(100% - 48px)' }}>
           <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
           <span className="font-medium text-sm truncate">{document.name}</span>
         </div>
+        {/* Reserve space for Sheet close button */}
+        <div className="w-6 h-6 flex-shrink-0"></div>
       </div>
 
       {/* Responsive Layout - Mobile full screen, Desktop sidebar */}

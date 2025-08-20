@@ -102,8 +102,8 @@ interface Category {
 
 export function EnhancedDocumentViewer({ document, category: propCategory, onClose, onDownload, onUpdate, initialTab = "properties" }: EnhancedDocumentViewerProps) {
   // Feature flags for AI insights
-  const { enabledFeatures } = useFeatures();
-  const hasAIInsights = enabledFeatures.includes('AI_SUMMARIZATION');
+  const { hasFeature } = useFeatures();
+  const hasAIInsights = hasFeature('AI_SUMMARIZATION');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

@@ -505,13 +505,13 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 className="text-xs"
               >
                 <Download className="w-3 h-3 mr-1" />
-                <span>Download</span>
+                Download
               </Button>
             </div>
           </div>
 
           {/* Preview Content */}
-          <div className="flex-1 p-0 overflow-auto bg-gray-100 w-full min-w-full" style={{ width: '100vw', minWidth: '100vw', maxWidth: '100vw' }}>
+          <div className="flex-1 p-0 overflow-auto bg-gray-100 w-full">
             {isLoading && (
               <div className="flex items-center justify-center h-full bg-white rounded-lg">
                 <div className="text-center">

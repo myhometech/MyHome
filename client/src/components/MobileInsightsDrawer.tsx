@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Lightbulb } from "lucide-react";
@@ -16,6 +16,38 @@ export function MobileInsightsDrawer({
   className = "" 
 }: MobileInsightsDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to first insight section when drawer opens
+  useEffect(() => {
+    if (isOpen && scrollContainerRef.current) {
+      // Use a small delay to ensure the sheet is fully opened and DOM is ready
+      const timer = setTimeout(() => {
+        if (scrollContainerRef.current) {
+          // Find the first insight heading or content area
+          const firstInsightSection = scrollContainerRef.current.querySelector(
+            '[data-insight-item="first"], [data-insight-section="header"], .insight-content, [data-insight-section="insights-list"]'
+          );
+          
+          if (firstInsightSection) {
+            firstInsightSection.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'start',
+              inline: 'nearest'
+            });
+          } else {
+            // Fallback: scroll to top if no specific section found
+            scrollContainerRef.current.scrollTo({ 
+              top: 0, 
+              behavior: 'smooth' 
+            });
+          }
+        }
+      }, 150); // Small delay for sheet animation
+
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -66,8 +98,11 @@ export function MobileInsightsDrawer({
         </div>
 
         {/* Scrollable insights content */}
-        <div className="flex-1 overflow-y-auto px-4 pb-6">
-          <div className="space-y-4 pt-4">
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto px-4 pb-6"
+        >
+          <div className="space-y-4 pt-4" data-insight-section>
             <DocumentInsights 
               documentId={documentId}
               documentName={documentName}

@@ -105,8 +105,6 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   const { hasFeature } = useFeatures();
   const hasAIInsights = hasFeature('AI_SUMMARIZATION');
   
-  // Debug logging
-  console.log('🔍 [DEBUG] Enhanced Document Viewer - hasAIInsights:', hasAIInsights, 'hasFeature result:', hasFeature('AI_SUMMARIZATION'));
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -977,19 +975,12 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         </Button>
       )}
 
-      {/* AI Insights Drawer - Floating at Bottom */}
-      {true && (
-        <MobileInsightsDrawer
-          documentId={document.id}
-          documentName={document.name}
-          className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
-        />
-      )}
-      
-      {/* Debug info */}
-      <div className="fixed top-4 right-4 bg-red-500 text-white p-2 text-xs z-50 rounded">
-        DEBUG: hasAIInsights={String(hasAIInsights)}
-      </div>
+      {/* AI Insights Drawer - Always show for duo users */}
+      <MobileInsightsDrawer
+        documentId={document.id}
+        documentName={document.name}
+        className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
+      />
     </div>
   );
 }

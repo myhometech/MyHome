@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Lightbulb } from "lucide-react";
+import { ArrowUp, Lightbulb } from "lucide-react";
 import { DocumentInsights } from "@/components/document-insights";
 
 interface MobileInsightsDrawerProps {
@@ -119,8 +119,8 @@ export function MobileInsightsDrawer({
       <SheetContent 
         side="bottom" 
         className="
-          h-[50vh] min-h-[320px] max-h-[75vh]
-          sm:h-[60vh] sm:max-h-[600px]
+          h-[65vh] min-h-[400px] max-h-[80vh]
+          sm:h-[70vh] sm:max-h-[700px]
           bg-background border-t border-border
           rounded-t-xl sm:rounded-t-2xl
           p-0 mx-0
@@ -130,7 +130,7 @@ export function MobileInsightsDrawer({
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
-        {/* Header with visual indicator */}
+        {/* Header with visual indicator and back navigation */}
         <div className="
           sticky top-0 z-10 
           bg-background/95 backdrop-blur-sm border-b border-border/50 
@@ -146,19 +146,38 @@ export function MobileInsightsDrawer({
               transition-colors duration-200
             " />
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="
-              p-2 rounded-lg bg-primary/10 
-              ring-1 ring-primary/20
-            ">
-              <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="
+                p-2 rounded-lg bg-primary/10 
+                ring-1 ring-primary/20
+              ">
+                <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="
+                  text-lg sm:text-xl font-semibold text-foreground
+                  tracking-tight
+                ">
+                  AI Insights
+                </h2>
+                <p className="text-sm text-muted-foreground truncate">
+                  {documentName}
+                </p>
+              </div>
             </div>
-            <h2 className="
-              text-lg sm:text-xl font-semibold text-foreground
-              tracking-tight
-            ">
-              AI Insights
-            </h2>
+            
+            {/* Back to Document button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsOpen(false)}
+              className="shrink-0 h-8 px-3 text-xs"
+            >
+              <ArrowUp className="h-3 w-3 mr-1" />
+              Back
+            </Button>
           </div>
         </div>
 

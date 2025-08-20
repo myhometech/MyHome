@@ -468,11 +468,11 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
       {/* Mobile-optimized header - Show on mobile, hidden on desktop */}
       <div className="md:hidden flex items-center justify-between p-2 md:p-3 border-b bg-white shrink-0">
-        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden pr-2">
+        <div className="flex items-center gap-2 min-w-0 overflow-hidden" style={{ maxWidth: 'calc(100% - 80px)' }}>
           <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
-          <span className="font-medium text-sm truncate max-w-full">{document.name}</span>
+          <span className="font-medium text-sm truncate">{document.name}</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <Button 
             onClick={onDownload} 
             variant="outline" 
@@ -493,11 +493,11 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         <div className="flex flex-col flex-1 md:min-h-0 md:overflow-hidden w-full md:w-[70%]">
           {/* Desktop Preview Header - Hidden on mobile, visible on desktop */}
           <div className="hidden md:flex items-center justify-between p-3 border-b bg-gray-50">
-            <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden pr-2">
+            <div className="flex items-center gap-2 min-w-0 overflow-hidden" style={{ maxWidth: 'calc(100% - 200px)' }}>
               <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
-              <span className="font-medium text-sm truncate max-w-full">{document.name}</span>
+              <span className="font-medium text-sm truncate">{document.name}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {/* PDF page navigation */}
               {useReactPdf && numPages && numPages > 1 && (
                 <div className="flex items-center gap-1">

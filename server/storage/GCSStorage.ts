@@ -116,6 +116,12 @@ export class GCSStorage implements StorageProvider {
       });
 
       console.log(`File uploaded to GCS with metadata: ${key}`);
+      
+      // Ensure we always return a valid string path
+      if (!key || typeof key !== 'string') {
+        throw new Error(`Invalid GCS key generated: ${key} (type: ${typeof key})`);
+      }
+      
       return key; // Return the key as the storage identifier
     } catch (error: any) {
       console.error('GCS upload with metadata error:', error);

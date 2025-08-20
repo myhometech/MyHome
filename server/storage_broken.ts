@@ -917,6 +917,7 @@ export class DatabaseStorage implements IStorage {
       );
       
       console.log(`✅ Mailgun GCS upload result:`, uploadResult);
+      console.log(`🔍 DEBUG: Upload result type: ${typeof uploadResult}, value: "${uploadResult}"`);
       gcsPath = uploadResult;
       
     } catch (error) {
@@ -935,6 +936,13 @@ export class DatabaseStorage implements IStorage {
     };
 
     // Create document record
+    console.log(`🔍 DEBUG: About to create document with gcsPath: "${gcsPath}" (type: ${typeof gcsPath})`);
+    
+    // Ensure we have valid file paths before database insertion
+    if (!gcsPath || typeof gcsPath !== 'string' || gcsPath.trim() === '') {
+      throw new Error(`Invalid GCS path for email body PDF: "${gcsPath}" (type: ${typeof gcsPath})`);
+    }
+    
     const documentData: InsertDocument = {
       userId,
       categoryId: emailData.categoryId || null,

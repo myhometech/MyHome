@@ -414,8 +414,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // TICKET 3: Load household role for authenticated API routes (exclude auth routes)
   app.use('/api', (req, res, next) => {
-    // Skip middleware for auth routes
-    if (req.path.includes('/auth/')) {
+    // Skip middleware for auth routes and email-ingest webhook
+    if (req.path.includes('/auth/') || req.path === '/email-ingest') {
       console.log(`🔓 Skipping auth middleware for: ${req.method} ${req.path}`);
       return next();
     }

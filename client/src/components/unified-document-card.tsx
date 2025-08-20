@@ -534,17 +534,6 @@ export default function UnifiedDocumentCard({
         }}
       >
         <CardContent className="p-2 sm:p-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
-          {/* Insights icon in corner */}
-          {showInsights && openInsights.length > 0 && (
-            <div className="absolute top-1 right-1 z-10">
-              <div className="flex items-center justify-center w-6 h-6 bg-blue-100 border border-blue-200 rounded-full">
-                <Brain className="h-3 w-3 text-blue-600" />
-                <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-xs font-medium text-white bg-blue-600 rounded-full">
-                  {openInsights.length}
-                </span>
-              </div>
-            </div>
-          )}
 
           {/* Bulk selection checkbox */}
           {bulkMode && (
@@ -704,10 +693,40 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-            {/* Compact footer for mobile squares */}
-            <div className="mt-auto">
+            {/* Rich footer with insights and tags */}
+            <div className="mt-auto space-y-1">
+              {/* Tags row */}
+              {document.tags && document.tags.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {document.tags.slice(0, 2).map((tag, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs bg-gray-100 px-1 py-0 badge">
+                      <Tag className="h-2.5 w-2.5 mr-0.5" />
+                      <span className="truncate max-w-[40px]">{tag}</span>
+                    </Badge>
+                  ))}
+                  {document.tags.length > 2 && (
+                    <Badge variant="secondary" className="text-xs bg-gray-100 px-1 py-0 badge">
+                      +{document.tags.length - 2}
+                    </Badge>
+                  )}
+                </div>
+              )}
+              
+              {/* Bottom row with file size, category, and insights */}
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 text-xs">{formatFileSize(document.fileSize)}</span>
+                <div className="flex items-center gap-2">
+                  {/* Insights in bottom left */}
+                  {showInsights && openInsights.length > 0 && (
+                    <div className="flex items-center justify-center w-5 h-5 bg-blue-100 border border-blue-200 rounded-full">
+                      <Brain className="h-2.5 w-2.5 text-blue-600" />
+                      <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-3 h-3 text-xs font-medium text-white bg-blue-600 rounded-full">
+                        {openInsights.length}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-gray-500 text-xs">{formatFileSize(document.fileSize)}</span>
+                </div>
+                
                 {category && (
                   <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300 px-1 py-0 badge">
                     <FolderIcon className="h-2.5 w-2.5 mr-0.5" />

@@ -105,13 +105,14 @@
       box-sizing: border-box !important;
     }
     
-    /* Force card content to fit within square */
+    /* Optimized card content with less white space */
     .mobile-document-card-content {
-      padding: 0.5rem !important;
+      padding: 0.75rem !important;
       height: 100% !important;
       display: flex !important;
       flex-direction: column !important;
       box-sizing: border-box !important;
+      gap: 0.25rem !important;
     }
     
     /* Readable title for square format */

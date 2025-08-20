@@ -793,13 +793,17 @@ export default function UnifiedDocumentCard({
 
       {/* Modals */}
       {showModal && (
-        <EnhancedDocumentViewer
-          document={document}
-          onClose={() => setShowModal(false)}
-          onUpdate={onUpdate}
-          onDownload={handleDownload}
-          initialTab={modalInitialTab}
-        />
+        <div className="fixed inset-0 z-50 bg-white lg:bg-black lg:bg-opacity-50 lg:flex lg:items-center lg:justify-center">
+          <div className="w-full h-full lg:w-[95vw] lg:max-w-7xl lg:h-[90vh] lg:bg-white lg:rounded-lg lg:overflow-hidden">
+            <EnhancedDocumentViewer
+              document={document}
+              onClose={() => setShowModal(false)}
+              onUpdate={onUpdate}
+              onDownload={handleDownload}
+              initialTab={modalInitialTab}
+            />
+          </div>
+        </div>
       )}
 
       {showShareDialog && (

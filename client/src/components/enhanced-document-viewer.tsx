@@ -459,7 +459,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   }, [document.id, error]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-white mobile-document-viewer flex flex-col">
+    <div className="h-full w-full flex flex-col bg-white mobile-document-viewer">
       {/* Mobile-optimized header */}
       <div className="flex items-center justify-between p-2 md:p-3 border-b bg-white lg:hidden shrink-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">

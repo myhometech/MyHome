@@ -544,18 +544,29 @@
 
   /* Mobile-specific document viewer layout */
   @media screen and (max-width: 1024px) {
+    /* Make sure any dialog or modal containing the document viewer is full-width */
     .mobile-document-viewer {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 50;
-      background: white;
+      width: 100% !important;
+      max-width: 100vw !important;
+      height: 100% !important;
+      max-height: 100vh !important;
+    }
+
+    /* Ensure document viewer containers take full space on mobile */
+    [data-radix-dialog-content]:has(.mobile-document-viewer),
+    [role="dialog"]:has(.mobile-document-viewer) {
+      width: 100vw !important;
+      max-width: 100vw !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+      border: none !important;
     }
 
     .mobile-document-viewer iframe {
       border-radius: 0;
+      width: 100% !important;
     }
 
     /* Ensure proper viewport handling on mobile */
@@ -563,12 +574,19 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      width: 100%;
     }
 
     .mobile-document-viewer .react-pdf__Page {
       margin-bottom: 1rem;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
       max-width: calc(100vw - 1rem);
+      width: auto !important;
+    }
+
+    .mobile-document-viewer .react-pdf__Page canvas {
+      max-width: 100% !important;
+      height: auto !important;
     }
 
     /* Improve tap targets on mobile */

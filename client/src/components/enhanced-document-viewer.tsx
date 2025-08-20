@@ -466,8 +466,8 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
   return (
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
-      {/* Mobile-optimized header */}
-      <div className="flex items-center justify-between p-2 md:p-3 border-b bg-white md:hidden shrink-0">
+      {/* Mobile-optimized header - HIDDEN FOR DESKTOP TEST */}
+      <div className="hidden flex items-center justify-between p-2 md:p-3 border-b bg-white md:hidden shrink-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
           <span className="font-medium text-sm truncate">{document.name}</span>
@@ -487,12 +487,12 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         </div>
       </div>
 
-      {/* Mobile-first responsive layout */}
-      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
-        {/* Document Preview Section */}
-        <div className="flex-1 flex flex-col min-h-0 w-full md:w-2/3 lg:w-3/4 overflow-hidden">
-          {/* Desktop Preview Header - Hidden on mobile */}
-          <div className="hidden md:flex items-center justify-between p-3 border-b bg-gray-50">
+      {/* FORCED DESKTOP LAYOUT - No mobile responsive logic */}
+      <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
+        {/* Document Preview Section - Fixed to 70% width */}
+        <div className="flex flex-col min-h-0 overflow-hidden" style={{ width: '70%' }}>
+          {/* Desktop Preview Header - FORCED VISIBLE */}
+          <div className="flex items-center justify-between p-3 border-b bg-gray-50">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
               <span className="font-medium text-sm truncate">Preview</span>
@@ -718,8 +718,8 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
         </div>
 
-        {/* Document Properties Panel - DEBUG VERSION - Always visible on screens > 768px */}
-        <div className="md:flex md:w-1/3 lg:w-1/4 border-l bg-red-100 border-2 border-red-500 flex-col min-h-0" style={{ minWidth: '300px' }}>
+        {/* Document Properties Panel - FORCED VISIBLE - Fixed to 30% width */}
+        <div className="flex flex-col bg-red-100 border-2 border-red-500 min-h-0" style={{ width: '30%', minWidth: '300px' }}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <div className="p-4 bg-blue-200 border-2 border-blue-500">
               <h3 className="font-bold text-lg">SIDEBAR DEBUG</h3>

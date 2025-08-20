@@ -740,24 +740,75 @@ export default function UnifiedDocumentCard({
               </div>
             </div>
 
-            {/* Tags positioned at same level as brain icon */}
-            {document.tags && document.tags.length > 0 && (
-              <div className="absolute bottom-8 left-2">
-                <div className="flex items-center gap-1 flex-wrap">
-                  {document.tags.slice(0, 2).map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs bg-gray-100 px-1 py-0 badge">
-                      <Tag className="h-2.5 w-2.5 mr-0.5" />
-                      <span className="truncate max-w-[40px]">{tag}</span>
+            {/* Smart contextual info - positioned at same level as brain icon */}
+            {(() => {
+              // Priority 1: Expiry/Due Date
+              if (document.expiryDate) {
+                const expiryDate = new Date(document.expiryDate);
+                const isValid = !isNaN(expiryDate.getTime());
+                if (isValid) {
+                  return (
+                    <div className="absolute bottom-8 left-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge variant="secondary" className="text-xs bg-orange-50 border-orange-200 text-orange-700 px-1.5 py-0.5">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              <span className="text-xs">{format(expiryDate, 'MMM dd')}</span>
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Due: {format(expiryDate, 'MMM dd, yyyy')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  );
+                }
+              }
+              
+              // Priority 2: Insights Count
+              if (openInsights.length > 0) {
+                return (
+                  <div className="absolute bottom-8 left-2">
+                    <Badge variant="secondary" className="text-xs bg-blue-50 border-blue-200 text-blue-700 px-1.5 py-0.5">
+                      <Brain className="h-3 w-3 mr-1" />
+                      <span className="text-xs">{openInsights.length}</span>
                     </Badge>
-                  ))}
-                  {document.tags.length > 2 && (
-                    <Badge variant="secondary" className="text-xs bg-gray-100 px-1 py-0 badge">
-                      +{document.tags.length - 2}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            )}
+                  </div>
+                );
+              }
+              
+              // Priority 3: Upload Source  
+              if (document.uploadSource) {
+                const sourceIcons: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
+                  'camera': { icon: <Type className="h-3 w-3" />, label: 'Scanned', color: 'bg-green-50 border-green-200 text-green-700' },
+                  'email': { icon: <FileText className="h-3 w-3" />, label: 'Email', color: 'bg-purple-50 border-purple-200 text-purple-700' },
+                  'upload': { icon: <FileText className="h-3 w-3" />, label: 'Uploaded', color: 'bg-gray-50 border-gray-200 text-gray-700' }
+                };
+                
+                const sourceInfo = sourceIcons[document.uploadSource] || sourceIcons['upload'];
+                return (
+                  <div className="absolute bottom-8 left-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Badge variant="secondary" className={`text-xs px-1.5 py-0.5 ${sourceInfo.color}`}>
+                            {sourceInfo.icon}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{sourceInfo.label}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                );
+              }
+              
+              // No contextual info to show
+              return null;
+            })()}
 
             {/* No insights state - brain icon in bottom right */}
             {showInsights && openInsights.length === 0 && !insightsLoading && (

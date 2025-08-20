@@ -134,7 +134,7 @@ export function ImageProcessingPanel({
   return (
     <ComponentErrorBoundary componentName="Image Processing Panel">
       <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-        <Card className="w-full max-w-6xl max-h-[90vh] overflow-hidden">
+        <Card className="w-full max-w-[95vw] lg:max-w-[90vw] max-h-[90vh] overflow-hidden">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

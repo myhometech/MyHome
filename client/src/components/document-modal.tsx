@@ -152,7 +152,7 @@ export default function DocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[95vw] md:w-full max-h-[90vh] overflow-hidden mx-2">
+      <DialogContent className="max-w-[95vw] lg:max-w-[90vw] w-full max-h-[90vh] overflow-hidden mx-2">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div className="flex-1">

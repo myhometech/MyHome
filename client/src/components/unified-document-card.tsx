@@ -726,7 +726,7 @@ export default function UnifiedDocumentCard({
             )}
 
             {/* Rich footer with tags and metadata */}
-            <div className="mt-auto space-y-1">
+            <div className="mt-auto space-y-1 mb-2">
               {/* Tags row */}
               {document.tags && document.tags.length > 0 && (
                 <div className="flex items-center gap-1 flex-wrap">
@@ -759,7 +759,7 @@ export default function UnifiedDocumentCard({
 
             {/* No insights state - brain icon in bottom right */}
             {showInsights && openInsights.length === 0 && !insightsLoading && (
-              <div className="absolute bottom-2 right-2">
+              <div className="absolute bottom-1 right-1">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>

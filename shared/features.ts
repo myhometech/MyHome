@@ -84,7 +84,7 @@ export const FEATURES: Record<string, FeatureFlag> = {
   AI_SUMMARIZATION: {
     name: 'AI Document Summarization',
     description: 'Get AI-powered summaries of your documents',
-    tier: ['pro', 'duo'],
+    tier: ['free', 'beginner', 'pro', 'duo'],
     category: 'ai'
   },
   AI_TAG_SUGGESTIONS: {

@@ -682,19 +682,19 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                           pageNumber={pageNumber}
                           renderTextLayer={false}
                           renderAnnotationLayer={false}
-                          className="shadow-lg max-w-full"
-                          width={Math.min(window.innerWidth - 20, 800)}
-                          scale={window.innerWidth < 768 ? 0.9 : 1}
+                          className="shadow-lg w-full"
+                          width={window.innerWidth - 40}
+                          scale={1}
                         />
                       </Document>
                     </div>
                   </div>
                 ) : (
                   <iframe
-                    src={`${getPreviewUrl()}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
+                    src={`${getPreviewUrl()}#toolbar=1&navpanes=1&scrollbar=1&view=FitH&zoom=page-width`}
                     className="w-full h-full border-0"
                     title={document.name}
-                    style={{ height: 'calc(100% - 60px)' }}
+                    style={{ height: 'calc(100% - 60px)', width: '100vw', minWidth: '100vw' }}
                     allow="fullscreen"
                   />
                 )}

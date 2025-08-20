@@ -1,18 +1,23 @@
+
 /* Mobile Document Viewer Styles */
 
-/* Prevent iOS Safari bounce effect and ensure proper touch handling */
 .mobile-viewer {
   position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
   overflow: hidden;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+  z-index: 9999;
 }
 
-/* Prevent text selection and unwanted interactions on mobile */
+/* Prevent text selection and unwanted interactions */
 .mobile-viewer * {
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -31,89 +36,6 @@
   user-select: text;
 }
 
-/* Responsive mobile layout */
-@media (max-width: 480px) {
-  .mobile-viewer {
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh; /* Dynamic viewport height for mobile browsers */
-  }
-
-  /* Hide system UI on iOS Safari */
-  .mobile-viewer:fullscreen {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-
-  /* Custom scrollbar for mobile */
-  .mobile-viewer ::-webkit-scrollbar {
-    width: 2px;
-    height: 2px;
-  }
-  
-  .mobile-viewer ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .mobile-viewer ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 1px;
-  }
-
-  /* Ensure proper z-index stacking */
-  .mobile-viewer .viewer-header {
-    z-index: 70;
-  }
-
-  .mobile-viewer .viewer-controls {
-    z-index: 70;
-  }
-
-  .mobile-viewer .viewer-content {
-    z-index: 60;
-  }
-}
-
-/* Touch-friendly button sizes */
-@media (max-width: 480px) {
-  .mobile-viewer button {
-    min-height: 44px;
-    min-width: 44px;
-    padding: 12px;
-  }
-
-  .mobile-viewer .compact-button {
-    min-height: 36px;
-    min-width: 36px;
-    padding: 8px;
-  }
-}
-
-/* Smooth transitions for control visibility */
-.mobile-controls-enter {
-  opacity: 0;
-  transform: translateY(100%);
-}
-
-.mobile-controls-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 300ms, transform 300ms;
-}
-
-.mobile-controls-exit {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.mobile-controls-exit-active {
-  opacity: 0;
-  transform: translateY(100%);
-  transition: opacity 300ms, transform 300ms;
-}
-
 /* Ensure proper viewport handling */
 @viewport {
   width: device-width;
@@ -122,8 +44,9 @@
   user-scalable: no;
 }
 
-/* Prevent zoom on form inputs (iOS Safari) */
-@media (max-width: 480px) {
+/* Mobile-specific optimizations */
+@media (max-width: 768px) {
+  /* Prevent zoom on form inputs */
   .mobile-viewer input[type="text"],
   .mobile-viewer input[type="email"],
   .mobile-viewer input[type="password"],
@@ -131,87 +54,62 @@
   .mobile-viewer select {
     font-size: 16px !important;
   }
-}
 
-/* Improved touch targets */
-.mobile-viewer .touch-target {
-  position: relative;
-}
-
-.mobile-viewer .touch-target::after {
-  content: '';
-  position: absolute;
-  top: -10px;
-  bottom: -10px;
-  left: -10px;
-  right: -10px;
-  z-index: -1;
-}
-
-/* Landscape orientation adjustments */
-@media (max-width: 480px) and (orientation: landscape) {
-  .mobile-viewer .viewer-header {
-    padding: 8px 16px;
+  /* Touch-friendly button sizes */
+  .mobile-viewer button {
+    min-height: 44px;
+    min-width: 44px;
   }
 
-  .mobile-viewer .viewer-controls {
-    padding: 8px 16px;
+  /* Ensure PDF iframe fills screen properly */
+  .mobile-viewer iframe {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  .mobile-viewer .viewer-content {
-    padding-top: 60px;
-    padding-bottom: 60px;
+  /* Image container optimization */
+  .mobile-viewer img {
+    max-width: 100vw;
+    max-height: 100vh;
+    object-fit: contain;
   }
 }
 
 /* High DPI display optimizations */
-@media (max-width: 480px) and (-webkit-min-device-pixel-ratio: 2) {
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2) {
   .mobile-viewer img {
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
   }
 }
 
-/* Dark mode adjustments for mobile */
-@media (max-width: 480px) and (prefers-color-scheme: dark) {
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
   .mobile-viewer {
     background-color: #000;
   }
-
-  .mobile-viewer .bg-gradient-to-b {
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
-  }
-
-  .mobile-viewer .bg-gradient-to-t {
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
-  }
 }
 
-/* Force full width for PDF viewer - fix narrow width issue */
-.mobile-viewer iframe {
-  width: 100vw !important;
-  min-width: 100vw !important;
-  max-width: 100vw !important;
-  height: 100% !important;
-  border: none !important;
-}
-
-.mobile-viewer .h-full {
-  width: 100% !important;
-  min-width: 100% !important;
-}
-
-/* Ensure content takes full viewport width */
-@media (max-width: 768px) {
+/* Safe area support for notched devices */
+@supports (padding: max(0px)) {
   .mobile-viewer {
-    width: 100vw !important;
-    max-width: 100vw !important;
-    left: 0 !important;
-    right: 0 !important;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
-  
-  .mobile-viewer > * {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
+}
+
+/* Smooth transitions */
+.mobile-viewer .transition-transform {
+  transition: transform 0.2s ease-in-out;
+}
+
+.mobile-viewer .transition-opacity {
+  transition: opacity 0.3s ease-in-out;
 }

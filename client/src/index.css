@@ -92,13 +92,28 @@
       height: auto !important;
     }
     
-    /* Make cards more compact in square format */
+    /* Make cards much more compact in square format */
     .mobile-document-card .space-y-1 > *:not(:first-child) {
-      margin-top: 0.25rem;
+      margin-top: 0.125rem;
     }
     
     .mobile-document-card .space-y-3 > *:not(:first-child) {
-      margin-top: 0.25rem;
+      margin-top: 0.125rem;
+    }
+    
+    /* Reduce text sizes and spacing on mobile */
+    .mobile-document-card h3 {
+      font-size: 0.6875rem !important;
+      line-height: 1.1 !important;
+    }
+    
+    .mobile-document-card .text-xs {
+      font-size: 0.625rem !important;
+    }
+    
+    /* Tighter padding for badges */
+    .mobile-document-card .badge {
+      padding: 0.125rem 0.25rem !important;
     }
   }
   

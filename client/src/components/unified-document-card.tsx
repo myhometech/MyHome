@@ -533,10 +533,10 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-2 sm:p-4 relative mobile-document-card-content h-full flex flex-col">
+        <CardContent className="p-1 sm:p-3 relative mobile-document-card-content h-full flex flex-col">
           {/* Bulk selection checkbox */}
           {bulkMode && (
-            <div className="absolute top-2 left-2 z-10">
+            <div className="absolute top-0.5 left-0.5 z-10">
               <Button
                 variant="ghost"
                 size="sm"
@@ -544,14 +544,14 @@ export default function UnifiedDocumentCard({
                   e.stopPropagation();
                   onToggleSelection?.();
                 }}
-                className="w-6 h-6 p-0"
+                className="w-4 h-4 p-0"
               >
-                {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                {isSelected ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
               </Button>
             </div>
           )}
 
-          <div className="space-y-1 sm:space-y-3">
+          <div className="h-full flex flex-col justify-between gap-0.5">
             {/* Header with title and actions */}
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
@@ -586,9 +586,9 @@ export default function UnifiedDocumentCard({
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className={`p-1 sm:p-2 rounded-lg ${getFileTypeIconColor()} border shadow-sm`}>
-                        <div className="scale-75 sm:scale-100">
+                    <div className="flex items-center gap-1">
+                      <div className={`p-0.5 rounded ${getFileTypeIconColor()} border`}>
+                        <div className="scale-50">
                           {getFileIcon()}
                         </div>
                       </div>
@@ -612,7 +612,7 @@ export default function UnifiedDocumentCard({
                           </div>
                         </div>
                       ) : (
-                        <h3 className="font-semibold text-xs sm:text-sm leading-tight text-gray-900 truncate flex-1">
+                        <h3 className="font-semibold text-xs leading-tight text-gray-900 line-clamp-2 flex-1">
                           {document.name}
                         </h3>
                       )}

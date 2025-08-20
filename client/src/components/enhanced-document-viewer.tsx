@@ -468,19 +468,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
       {/* Mobile-optimized header - Show on mobile, hidden on desktop */}
       <div className="md:hidden flex items-center justify-between p-2 md:p-3 border-b bg-white shrink-0">
-        <div className="flex items-center gap-2 min-w-0 overflow-hidden" style={{ maxWidth: 'calc(100% - 48px)' }}>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
           <span className="font-medium text-sm truncate">{document.name}</span>
-        </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <Button 
-            onClick={onDownload} 
-            variant="outline" 
-            size="sm" 
-            className="text-xs p-1 h-8 w-8"
-          >
-            <Download className="w-3 h-3" />
-          </Button>
         </div>
       </div>
 

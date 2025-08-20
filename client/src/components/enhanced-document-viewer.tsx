@@ -466,8 +466,8 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
   return (
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
-      {/* Mobile-optimized header - Hidden on desktop */}
-      <div className="hidden">
+      {/* Mobile-optimized header - Show on mobile, hidden on desktop */}
+      <div className="md:hidden flex items-center justify-between p-2 md:p-3 border-b bg-white shrink-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
           <span className="font-medium text-sm truncate">{document.name}</span>
@@ -487,12 +487,12 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         </div>
       </div>
 
-      {/* FORCED DESKTOP LAYOUT - No mobile responsive logic */}
-      <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
-        {/* Document Preview Section - Fixed to 70% width */}
-        <div className="flex flex-col min-h-0 overflow-hidden" style={{ width: '70%' }}>
-          {/* Desktop Preview Header - FORCED VISIBLE */}
-          <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+      {/* Responsive Layout - Mobile full screen, Desktop sidebar */}
+      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+        {/* Document Preview Section - Full width on mobile, 70% on desktop */}
+        <div className="flex flex-col min-h-0 overflow-hidden w-full md:w-[70%]">
+          {/* Desktop Preview Header - Hidden on mobile, visible on desktop */}
+          <div className="hidden md:flex items-center justify-between p-3 border-b bg-gray-50">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
               <span className="font-medium text-sm truncate">Preview</span>
@@ -692,8 +692,8 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
         </div>
 
-        {/* Document Properties Panel - Laptop Sidebar */}
-        <div className="flex flex-col bg-gray-50 border-l min-h-0" style={{ width: '30%', minWidth: '300px' }}>
+        {/* Document Properties Panel - Hidden on mobile, visible on desktop */}
+        <div className="hidden md:flex flex-col bg-gray-50 border-l min-h-0 w-[30%] min-w-[300px]">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
               <TabsTrigger value="properties" className="text-xs">

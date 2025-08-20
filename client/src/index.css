@@ -74,6 +74,41 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
   }
+
+  /* Enhanced Document Viewer Mobile Optimizations */
+  @media (max-width: 1024px) {
+    /* Ensure dialog takes full screen on mobile */
+    [data-radix-dialog-content] {
+      margin: 0 !important;
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+    }
+
+    /* Fix tab content width consistency */
+    [data-state="active"][role="tabpanel"] {
+      width: 100% !important;
+      overflow-x: hidden !important;
+    }
+
+    /* Prevent horizontal scrolling in mobile document viewer */
+    .mobile-document-viewer {
+      overflow-x: hidden !important;
+      width: 100% !important;
+    }
+
+    /* Ensure consistent widths for all tabs */
+    [data-orientation="horizontal"][role="tablist"] {
+      width: 100% !important;
+    }
+
+    [data-orientation="horizontal"][role="tab"] {
+      flex: 1 !important;
+      max-width: 50% !important;
+    }
+  }
   
   /* Mobile document card styling */
   .mobile-document-card {

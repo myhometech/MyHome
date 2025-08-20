@@ -459,13 +459,34 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   }, [document.id, error]);
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white mobile-document-viewer">
+      {/* Mobile-optimized header */}
+      <div className="flex items-center justify-between p-3 border-b bg-white lg:hidden">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <span className="font-medium text-sm truncate">{document.name}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={onDownload} 
+            variant="outline" 
+            size="sm" 
+            className="text-xs"
+          >
+            <Download className="w-3 h-3" />
+          </Button>
+          <Button onClick={onClose} variant="ghost" size="sm" className="text-xs">
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
       {/* Mobile-first responsive layout */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Document Preview Section */}
         <div className="flex-1 flex flex-col min-h-0 lg:w-2/3">
-          {/* Preview Header */}
-          <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+          {/* Desktop Preview Header - Hidden on mobile */}
+          <div className="hidden lg:flex items-center justify-between p-3 border-b bg-gray-50">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
               <span className="font-medium text-sm truncate">Preview</span>
@@ -475,16 +496,16 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 onClick={onDownload} 
                 variant="outline" 
                 size="sm" 
-                className="text-xs preview-download-btn"
+                className="text-xs"
               >
                 <Download className="w-3 h-3 mr-1" />
-                <span className="hidden sm:inline">Download</span>
+                <span>Download</span>
               </Button>
             </div>
           </div>
 
           {/* Preview Content */}
-          <div className="flex-1 p-2 sm:p-4 overflow-auto bg-gray-100">
+          <div className="flex-1 p-2 lg:p-4 overflow-auto bg-gray-100">
             {isLoading && (
               <div className="flex items-center justify-center h-full bg-white rounded-lg">
                 <div className="text-center">
@@ -520,19 +541,21 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
             {!isLoading && !error && isPDF() && (
               <div className="h-full bg-white rounded-lg">
+                {/* PDF Controls - Simplified for mobile */}
                 <div className="flex items-center justify-between p-2 border-b bg-gray-50">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium">PDF Document</span>
+                    <span className="text-sm font-medium hidden sm:inline">PDF Document</span>
                     {numPages && (
                       <Badge variant="outline" className="text-xs">
-                        {numPages} pages
+                        {numPages} page{numPages > 1 ? 's' : ''}
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    {/* Page navigation - only show on desktop or when using react-pdf */}
                     {useReactPdf && numPages && numPages > 1 && (
-                      <div className="flex items-center gap-1">
+                      <div className="hidden sm:flex items-center gap-1">
                         <Button
                           onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
                           disabled={pageNumber <= 1}
@@ -554,6 +577,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                         </Button>
                       </div>
                     )}
+                    {/* View toggle - hidden on mobile */}
                     <Button
                       onClick={() => {
                         // Clear any existing timeout
@@ -581,18 +605,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                       }}
                       variant="outline"
                       size="sm"
-                      className="text-xs"
+                      className="text-xs hidden sm:flex"
                     >
-                      {useReactPdf ? 'Browser View' : 'Page View'}
-                    </Button>
-                    <Button
-                      onClick={onDownload}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-1"
-                    >
-                      <Download className="w-3 h-3" />
-                      <span className="text-xs">Download</span>
+                      {useReactPdf ? 'Browser' : 'Page'}
                     </Button>
                   </div>
                 </div>
@@ -695,21 +710,21 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
         </div>
 
-        {/* Document Properties Panel - Mobile Tab Layout */}
-        <div className="lg:w-1/3 lg:border-l bg-gray-50 flex flex-col min-h-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
-              <TabsTrigger value="properties" className="text-xs">
+        {/* Document Properties Panel - Consistent width */}
+        <div className="w-full lg:w-1/3 lg:border-l bg-gray-50 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 w-full">
+            <TabsList className="grid w-full grid-cols-2 mx-2 lg:mx-3 mt-2 lg:mt-3 shrink-0">
+              <TabsTrigger value="properties" className="text-xs w-full">
                 <Info className="w-3 h-3 mr-1" />
-                Properties
+                <span className="truncate">Properties</span>
               </TabsTrigger>
-              <TabsTrigger value="insights" className="text-xs">
+              <TabsTrigger value="insights" className="text-xs w-full">
                 <Brain className="w-3 h-3 mr-1" />
-                Insights
+                <span className="truncate">Insights</span>
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="properties" className="flex-1 m-0 flex flex-col">
+            <TabsContent value="properties" className="flex-1 m-0 flex flex-col w-full overflow-hidden">
               <div className="flex items-center justify-between p-3 border-b bg-white">
                 <div className="flex items-center gap-2">
                   <Info className="w-4 h-4 text-blue-600" />
@@ -907,7 +922,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
               </div>
             </TabsContent>
 
-            <TabsContent value="insights" className="flex-1 m-0 flex flex-col">
+            <TabsContent value="insights" className="flex-1 m-0 flex flex-col w-full overflow-hidden">
               <div className="flex items-center justify-between p-3 border-b bg-white">
                 <div className="flex items-center gap-2">
                   <Brain className="w-4 h-4 text-blue-600" />

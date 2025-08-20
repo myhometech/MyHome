@@ -759,7 +759,7 @@ export default function UnifiedDocumentCard({
 
             {/* No insights state - brain icon in bottom right */}
             {showInsights && openInsights.length === 0 && !insightsLoading && (
-              <div className="absolute bottom-4 right-2">
+              <div className="absolute bottom-8 right-2">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>

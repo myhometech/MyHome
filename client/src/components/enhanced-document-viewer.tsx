@@ -488,9 +488,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
       </div>
 
       {/* Responsive Layout - Mobile full screen, Desktop sidebar */}
-      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row md:min-h-0 md:overflow-hidden">
         {/* Document Preview Section - Full width on mobile, 70% on desktop */}
-        <div className="flex flex-col min-h-0 overflow-hidden w-full md:w-[70%]">
+        <div className="flex flex-col flex-1 md:min-h-0 md:overflow-hidden w-full md:w-[70%]">
           {/* Desktop Preview Header - Hidden on mobile, visible on desktop */}
           <div className="hidden md:flex items-center justify-between p-3 border-b bg-gray-50">
             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -556,7 +556,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
 
           {/* Preview Content */}
-          <div className="flex-1 p-0 overflow-hidden md:overflow-auto bg-gray-100 w-full">
+          <div className="flex-1 p-0 bg-gray-100 w-full overflow-auto md:overflow-auto">
             {isLoading && (
               <div className="flex items-center justify-center h-full bg-white rounded-lg">
                 <div className="text-center">
@@ -581,7 +581,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
 
             {!isLoading && !error && isImage() && (
-              <div className="flex items-center justify-center h-full bg-white p-1 overflow-hidden">
+              <div className="flex items-center justify-center h-full bg-white p-1">
                 <img
                   src={getPreviewUrl()}
                   alt={document.name}
@@ -595,7 +595,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
               <div className="h-full bg-white rounded-lg">
                 
                 {useReactPdf ? (
-                  <div className="h-full overflow-hidden md:overflow-auto bg-gray-100 p-1 md:p-4">
+                  <div className="h-full overflow-auto bg-gray-100 p-1 md:p-4">
                     <div className="flex justify-center w-full">
                       <Document
                         file={getPreviewUrl()}
@@ -668,7 +668,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 ) : (
                   <iframe
                     src={`${getPreviewUrl()}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
-                    className="w-full h-full border-0 overflow-hidden"
+                    className="w-full h-full border-0"
                     title={document.name}
                     allow="fullscreen"
                   />

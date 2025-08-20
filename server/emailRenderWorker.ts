@@ -78,8 +78,7 @@ export class EmailRenderWorker {
       this.redis = this.redisConnectionProvider || new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
         connectTimeout: 2000,
         lazyConnect: true,
-        maxRetriesPerRequest: 1,
-        retryDelayOnFailover: 100
+        maxRetriesPerRequest: 1
       });
 
       // Test Redis connection with timeout
@@ -108,8 +107,8 @@ export class EmailRenderWorker {
       this.worker = new Worker('email-pdf-render', this.processJob.bind(this), {
         connection: this.redis,
         concurrency: this.maxConcurrency,
-        removeOnComplete: 50,
-        removeOnFail: 20
+        removeOnComplete: { age: 24 * 3600, count: 50 },
+        removeOnFail: { age: 24 * 3600, count: 20 }
       });
 
       this.setupEventHandlers();
@@ -117,7 +116,8 @@ export class EmailRenderWorker {
       console.log('✅ CloudConvert EmailRenderWorker initialized successfully');
       
     } catch (error) {
-      console.error('❌ Failed to initialize EmailRenderWorker (Redis unavailable):', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('❌ Failed to initialize EmailRenderWorker (Redis unavailable):', errorMessage);
       // Clean up partial initialization
       if (this.redis) {
         try {
@@ -125,7 +125,7 @@ export class EmailRenderWorker {
         } catch {}
         this.redis = null;
       }
-      throw new Error(`EmailRenderWorker initialization failed: ${error.message}`);
+      throw new Error(`EmailRenderWorker initialization failed: ${errorMessage}`);
     }
   }
 
@@ -220,7 +220,7 @@ export class EmailRenderWorker {
       console.log(`📧 Email PDF job waiting: ${jobId}`);
     });
 
-    this.queue.on('active', (job) => {
+    this.worker.on('active', (job) => {
       this.metrics.queueDepth = Math.max(0, this.metrics.queueDepth - 1);
       console.log(`📧 Email PDF job active: ${job.id}`);
     });
@@ -286,8 +286,9 @@ export class EmailRenderWorker {
         }
       };
     } catch (error) {
-      console.error('❌ Failed to get queue status:', error);
-      return { error: error.message };
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('❌ Failed to get queue status:', errorMessage);
+      return { error: errorMessage };
     }
   }
 
@@ -296,7 +297,7 @@ export class EmailRenderWorker {
       console.log(`📧 Received ${signal}, shutting down EmailRenderWorker gracefully...`);
       this.isShuttingDown = true;
       await this.cleanup();
-      process.exit(0);
+      // Don't call process.exit(0) - let the main process handle shutdown
     };
 
     process.on('SIGTERM', () => shutdown('SIGTERM'));

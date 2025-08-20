@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useFeatures } from '@/hooks/useFeatures';
+import { MobileInsightsDrawer } from '@/components/MobileInsightsDrawer';
 // Error boundary removed to prevent import errors
 const ComponentErrorBoundary = ({ children, componentName }: { children: React.ReactNode; componentName: string }) => (
   <div>{children}</div>
@@ -166,9 +168,13 @@ export function MobileDocumentViewer({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasFeature } = useFeatures();
 
   // Detect mobile viewport
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
+
+  // Check if AI insights are enabled
+  const hasAIInsights = hasFeature('AI_SUMMARIZATION');
 
   useEffect(() => {
     const handleResize = () => {
@@ -787,6 +793,14 @@ export function MobileDocumentViewer({
             )}
           </div>
         </div>
+
+        {/* AI Insights Drawer - Mobile Only */}
+        {hasAIInsights && isMobile && (
+          <MobileInsightsDrawer
+            documentId={document.id}
+            documentName={document.name}
+          />
+        )}
       </div>
 
       <style>{`

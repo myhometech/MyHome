@@ -49,8 +49,6 @@ export function MobileInsightsDrawer({
           bg-background border-t border-border
           rounded-t-xl
           p-0
-          data-[state=open]:animate-slide-up-and-fade
-          data-[state=closed]:animate-slide-down-and-fade
         "
       >
         {/* Header with visual indicator */}
@@ -78,38 +76,6 @@ export function MobileInsightsDrawer({
         </div>
       </SheetContent>
 
-      {/* Custom styles for smooth animations */}
-      <style jsx>{`
-        @keyframes slide-up-and-fade {
-          from {
-            transform: translateY(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0%);
-            opacity: 1;
-          }
-        }
-        
-        @keyframes slide-down-and-fade {
-          from {
-            transform: translateY(0%);
-            opacity: 1;
-          }
-          to {
-            transform: translateY(100%);
-            opacity: 0;
-          }
-        }
-        
-        .animate-slide-up-and-fade {
-          animation: slide-up-and-fade 200ms ease-out;
-        }
-        
-        .animate-slide-down-and-fade {
-          animation: slide-down-and-fade 200ms ease-in;
-        }
-      `}</style>
     </Sheet>
   );
 }

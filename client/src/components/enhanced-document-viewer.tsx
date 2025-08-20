@@ -552,15 +552,6 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 </Button>
               )}
               
-              <Button 
-                onClick={onDownload} 
-                variant="outline" 
-                size="sm" 
-                className="text-xs"
-              >
-                <Download className="w-3 h-3 mr-1" />
-                Download
-              </Button>
             </div>
           </div>
 
@@ -729,6 +720,10 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={onDownload}>
+                        <Download className="w-3 h-3 mr-2" />
+                        Download
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleStartEdit}>
                         <Edit3 className="w-3 h-3 mr-2" />
                         Edit

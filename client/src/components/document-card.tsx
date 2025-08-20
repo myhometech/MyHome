@@ -824,7 +824,7 @@ export default function DocumentCard({
           onClick={() => setShowModal(false)}
         >
           <div 
-            className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden"
+            className="bg-white rounded-lg w-full max-w-[95vw] lg:max-w-[90vw] max-h-[90vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b">

@@ -657,7 +657,7 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[100vh] md:max-h-[90vh] overflow-hidden p-2 md:p-6">
+      <DialogContent className="max-w-[95vw] lg:max-w-[90vw] max-h-[100vh] md:max-h-[90vh] overflow-hidden p-2 md:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />

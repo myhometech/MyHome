@@ -754,8 +754,8 @@ export default function UnifiedDocumentCard({
                             className="text-xs bg-blue-50 border-blue-200 text-blue-700 px-1.5 py-0.5 cursor-pointer hover:bg-blue-100 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setViewerDocument(document);
-                              setActiveViewerTab('insights');
+                              setModalInitialTab('insights');
+                              setShowModal(true);
                             }}
                           >
                             <Brain className="h-3 w-3 mr-1" />

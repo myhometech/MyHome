@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, Sparkles, Tags, Check, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -123,6 +123,9 @@ export function BatchTagManager({ selectedDocuments, onComplete }: BatchTagManag
               {selectedDocuments.length} documents
             </Badge>
           </DialogTitle>
+          <DialogDescription>
+            Get AI-powered tag suggestions for multiple documents and apply them in batch
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 overflow-y-auto flex-1">

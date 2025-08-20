@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -171,9 +171,9 @@ export default function DocumentModal({
               ) : (
                 <div>
                   <DialogTitle className="text-lg font-semibold">{document.name}</DialogTitle>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <DialogDescription className="text-sm text-gray-500 mt-1">
                     {category?.name || "Uncategorized"} • {formatFileSize(document.fileSize)} • Uploaded {formatDate(document.uploadedAt)}
-                  </p>
+                  </DialogDescription>
                 </div>
               )}
             </div>

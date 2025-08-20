@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -136,6 +136,9 @@ export function ShareDocumentDialog({ documentId, documentName }: ShareDocumentD
             <Users className="h-5 w-5" />
             Share "{documentName}"
           </DialogTitle>
+          <DialogDescription>
+            Share this document with others by entering their email address and setting permissions
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">

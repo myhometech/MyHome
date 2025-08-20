@@ -808,9 +808,9 @@ export default function Home() {
             )}
           </div>
 
-          <div className="p-3 md:p-6">
+          <div className="p-4 md:p-6">
             {documentsLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="border border-gray-200 rounded-lg p-4 animate-pulse">
                     <div className="w-10 h-10 bg-gray-200 rounded-lg mb-3"></div>
@@ -849,8 +849,8 @@ export default function Home() {
             ) : (
               <div className={
                 viewMode === "grid"
-                  ? "grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-3 md:gap-4"
-                  : "space-y-3 md:space-y-4"
+                  ? "grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+                  : "space-y-4"
               }>
                 {(() => {
                   console.log('[DEBUG] About to render documents:', documents);

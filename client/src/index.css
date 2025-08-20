@@ -74,6 +74,22 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
   }
+  
+  /* Mobile document card styling */
+  .mobile-document-card {
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .mobile-document-card-content {
+    /* Ensure text doesn't get too small on mobile */
+    font-size: 0.75rem;
+  }
+  
+  @media (min-width: 640px) {
+    .mobile-document-card-content {
+      font-size: inherit;
+    }
+  }
 
   /* Touch feedback for mobile insights */
   @media (max-width: 768px) {

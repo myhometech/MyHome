@@ -533,7 +533,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-4 relative">
+        <CardContent className="p-2 sm:p-4 relative mobile-document-card-content">
           {/* Bulk selection checkbox */}
           {bulkMode && (
             <div className="absolute top-2 left-2 z-10">
@@ -551,7 +551,7 @@ export default function UnifiedDocumentCard({
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="space-y-1 sm:space-y-3">
             {/* Header with title and actions */}
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
@@ -586,9 +586,11 @@ export default function UnifiedDocumentCard({
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${getFileTypeIconColor()} border shadow-sm`}>
-                        {getFileIcon()}
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className={`p-1 sm:p-2 rounded-lg ${getFileTypeIconColor()} border shadow-sm`}>
+                        <div className="scale-75 sm:scale-100">
+                          {getFileIcon()}
+                        </div>
                       </div>
                       {isRenaming ? (
                         <div className="flex-1 space-y-2">
@@ -610,7 +612,7 @@ export default function UnifiedDocumentCard({
                           </div>
                         </div>
                       ) : (
-                        <h3 className="font-semibold text-sm leading-tight text-gray-900 truncate flex-1">
+                        <h3 className="font-semibold text-xs sm:text-sm leading-tight text-gray-900 truncate flex-1">
                           {document.name}
                         </h3>
                       )}
@@ -690,14 +692,14 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-            {/* Document metadata */}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <div className="flex items-center gap-3">
+            {/* Document metadata - mobile optimized */}
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div className="flex items-center gap-1">
                   <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                  <span className="font-medium text-gray-600">{formatFileSize(document.fileSize)}</span>
+                  <span className="font-medium text-gray-600 text-xs">{formatFileSize(document.fileSize)}</span>
                 </div>
-                <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full">
+                <div className="hidden sm:flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full">
                   <Clock className="h-3 w-3 text-gray-400" />
                   <span className="text-gray-500">{formatDate(document.uploadedAt)}</span>
                 </div>

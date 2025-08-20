@@ -294,10 +294,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   return (
     <div className="space-y-4">
       {/* Header with Generate Button - Mobile Optimized */}
-      <div 
-        className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3 sm:flex-col' : ''}`}
-        data-insight-section="header"
-      >
+      <div className={`flex items-center justify-between mb-4 ${isMobile ? 'flex-col gap-3 sm:flex-col' : ''}`}>
         <div className="flex items-center gap-2">
           <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-blue-600`} />
           <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>Smart Tips</span>
@@ -372,7 +369,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
           </div>
         </div>
       ) : (
-        <div className={`space-y-4 ${isMobile ? 'space-y-3' : 'space-y-4'}`} data-insight-section="insights-list">
+        <div className={`space-y-4 ${isMobile ? 'space-y-3' : 'space-y-4'}`}>
           {insights.filter((insight: DocumentInsight) => 
             !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
           ).map((insight: DocumentInsight, index: number) => {
@@ -384,7 +381,6 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
               <div 
                 key={insight.id} 
                 className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-xl ${isMobile ? 'p-4 space-y-3 mb-3' : 'p-6 space-y-4 mb-4'} insight-content hover:shadow-xl hover:border-gray-300/80 ${isMobile ? 'active:scale-[0.98]' : 'hover:-translate-y-2'} hover:shadow-blue-200/30 transition-all duration-300 cursor-pointer border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden`}
-                data-insight-item={index === 0 ? "first" : undefined}
                 style={{
                   animationDelay: `${index * 100}ms`
                 }}

@@ -742,7 +742,36 @@ export default function UnifiedDocumentCard({
 
             {/* Smart contextual info - positioned at same level as brain icon */}
             {(() => {
-              // Priority 1: Expiry/Due Date
+              // Priority 1: Insights Count (highest priority - clickable)
+              if (openInsights.length > 0) {
+                return (
+                  <div className="absolute bottom-8 left-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge 
+                            variant="secondary" 
+                            className="text-xs bg-blue-50 border-blue-200 text-blue-700 px-1.5 py-0.5 cursor-pointer hover:bg-blue-100 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewerDocument(document);
+                              setActiveViewerTab('insights');
+                            }}
+                          >
+                            <Brain className="h-3 w-3 mr-1" />
+                            <span className="text-xs">{openInsights.length}</span>
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click to view {openInsights.length} insight{openInsights.length > 1 ? 's' : ''}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                );
+              }
+              
+              // Priority 2: Expiry/Due Date
               if (document.expiryDate) {
                 const expiryDate = new Date(document.expiryDate);
                 const isValid = !isNaN(expiryDate.getTime());
@@ -765,18 +794,6 @@ export default function UnifiedDocumentCard({
                     </div>
                   );
                 }
-              }
-              
-              // Priority 2: Insights Count
-              if (openInsights.length > 0) {
-                return (
-                  <div className="absolute bottom-8 left-2">
-                    <Badge variant="secondary" className="text-xs bg-blue-50 border-blue-200 text-blue-700 px-1.5 py-0.5">
-                      <Brain className="h-3 w-3 mr-1" />
-                      <span className="text-xs">{openInsights.length}</span>
-                    </Badge>
-                  </div>
-                );
               }
               
               // Priority 3: Upload Source  

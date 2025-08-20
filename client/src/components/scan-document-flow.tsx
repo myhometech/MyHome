@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Camera, X, RotateCcw, Check, Plus, Trash2, Download, Wand2, Settings, ChevronLeft, ChevronRight, GripVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -686,6 +686,9 @@ export default function ScanDocumentFlow({ isOpen, onClose, onCapture }: ScanDoc
               </Button>
             </div>
           </DialogTitle>
+          <DialogDescription>
+            Use your camera to scan documents and convert them to PDF format
+          </DialogDescription>
         </DialogHeader>
         
         {/* Processing Settings Panel */}

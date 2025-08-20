@@ -620,6 +620,9 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 {selectedInsight.type.startsWith('vehicle:') && <FileText className="h-4 w-4 text-red-600" />}
                 {selectedInsight.title}
               </DialogTitle>
+              <DialogDescription>
+                View detailed information and take action on this AI-generated insight
+              </DialogDescription>
               <div className="mb-2">
                 <Badge variant={selectedInsight.priority === 'high' ? 'destructive' : selectedInsight.priority === 'medium' ? 'default' : 'secondary'} className="text-xs">
                   {selectedInsight.priority.toUpperCase()} PRIORITY

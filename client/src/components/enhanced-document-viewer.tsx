@@ -484,7 +484,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
       {/* Mobile-first responsive layout */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Document Preview Section */}
-        <div className="flex-1 flex flex-col min-h-0 lg:w-2/3">
+        <div className="flex-1 flex flex-col min-h-0 lg:w-3/4">
           {/* Desktop Preview Header - Hidden on mobile */}
           <div className="hidden lg:flex items-center justify-between p-3 border-b bg-gray-50">
             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -711,7 +711,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         </div>
 
         {/* Document Properties Panel */}
-        <div className="lg:w-1/3 lg:border-l bg-gray-50 flex flex-col min-h-0">
+        <div className="lg:w-1/4 lg:border-l bg-gray-50 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
               <TabsTrigger value="properties" className="text-xs">

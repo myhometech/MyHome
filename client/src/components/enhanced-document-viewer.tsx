@@ -719,7 +719,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         </div>
 
         {/* Document Properties Panel - Hidden on mobile, sidebar on desktop */}
-        <div className="hidden lg:flex lg:w-1/4 lg:border-l bg-gray-50 flex-col min-h-0">
+        <div className="hidden md:flex md:w-1/3 lg:w-1/4 lg:border-l bg-gray-50 flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
               <TabsTrigger value="properties" className="text-xs">

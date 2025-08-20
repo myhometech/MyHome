@@ -718,9 +718,13 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
         </div>
 
-        {/* Document Properties Panel - Hidden on mobile, sidebar on desktop */}
-        <div className="hidden md:flex md:w-1/3 lg:w-1/4 border-l bg-gray-50 flex-col min-h-0">
+        {/* Document Properties Panel - DEBUG VERSION - Always visible on screens > 768px */}
+        <div className="md:flex md:w-1/3 lg:w-1/4 border-l bg-red-100 border-2 border-red-500 flex-col min-h-0" style={{ minWidth: '300px' }}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+            <div className="p-4 bg-blue-200 border-2 border-blue-500">
+              <h3 className="font-bold text-lg">SIDEBAR DEBUG</h3>
+              <p className="text-sm">If you can see this red/blue box, the sidebar is working!</p>
+            </div>
             <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
               <TabsTrigger value="properties" className="text-xs">
                 <Info className="w-3 h-3 mr-1" />

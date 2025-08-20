@@ -414,21 +414,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // TICKET 3: Load household role for authenticated API routes (exclude auth routes)
   app.use('/api', (req, res, next) => {
-    // Enhanced debugging for webhook issues
-    console.log(`🔍 [AUTH DEBUG] Path: "${req.path}", Original URL: "${req.originalUrl}", Method: ${req.method}`);
-    console.log(`🔍 [AUTH DEBUG] Headers: User-Agent: "${req.get('User-Agent')}", Host: "${req.get('Host')}"`);
-    
-    // Skip middleware for auth routes and email-ingest webhook (more comprehensive matching)
-    if (req.path.includes('/auth/') || 
-        req.path.includes('/email-ingest') || 
-        req.originalUrl.includes('/email-ingest') ||
-        req.path === '/email-ingest' ||
-        req.originalUrl === '/api/email-ingest') {
-      console.log(`🔓 Skipping auth middleware for: ${req.method} ${req.path} (${req.originalUrl})`);
+    // Skip middleware for auth routes and email-ingest webhook
+    if (req.path.includes('/auth/') || req.path.includes('/email-ingest')) {
       return next();
     }
     
-    console.log(`🔐 Applying auth middleware for: ${req.method} ${req.path}`);
     return requireAuth(req, res, () => loadHouseholdRole(req as AuthenticatedRequest, res, next));
   });
 

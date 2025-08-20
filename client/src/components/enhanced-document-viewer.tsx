@@ -36,6 +36,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DocumentInsights } from "@/components/document-insights";
 import DocumentReferences from "./DocumentReferences";
 import EmailMetadataPanel from "./EmailMetadataPanel";
+import { MobileInsightsDrawer } from "@/components/MobileInsightsDrawer";
+import { useFeatures } from "@/hooks/useFeatures";
 import { Document, Page, pdfjs } from 'react-pdf';
 
 // Set up PDF.js worker with correct extension
@@ -99,6 +101,9 @@ interface Category {
 }
 
 export function EnhancedDocumentViewer({ document, category: propCategory, onClose, onDownload, onUpdate, initialTab = "properties" }: EnhancedDocumentViewerProps) {
+  // Feature flags for AI insights
+  const { enabledFeatures } = useFeatures();
+  const hasAIInsights = enabledFeatures.includes('AI_SUMMARIZATION');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -967,6 +972,15 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         >
           <ArrowUp className="h-4 w-4" />
         </Button>
+      )}
+
+      {/* AI Insights Drawer - Floating at Bottom */}
+      {hasAIInsights && (
+        <MobileInsightsDrawer
+          documentId={document.id}
+          documentName={document.name}
+          className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
+        />
       )}
     </div>
   );

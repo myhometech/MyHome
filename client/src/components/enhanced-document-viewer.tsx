@@ -556,7 +556,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
 
           {/* Preview Content */}
-          <div className="flex-1 p-0 overflow-auto bg-gray-100 w-full">
+          <div className="flex-1 p-0 overflow-hidden md:overflow-auto bg-gray-100 w-full">
             {isLoading && (
               <div className="flex items-center justify-center h-full bg-white rounded-lg">
                 <div className="text-center">
@@ -581,7 +581,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
 
             {!isLoading && !error && isImage() && (
-              <div className="flex items-center justify-center h-full bg-white p-1">
+              <div className="flex items-center justify-center h-full bg-white p-1 overflow-hidden">
                 <img
                   src={getPreviewUrl()}
                   alt={document.name}
@@ -595,7 +595,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
               <div className="h-full bg-white rounded-lg">
                 
                 {useReactPdf ? (
-                  <div className="h-full overflow-auto bg-gray-100 p-1 md:p-4">
+                  <div className="h-full overflow-hidden md:overflow-auto bg-gray-100 p-1 md:p-4">
                     <div className="flex justify-center w-full">
                       <Document
                         file={getPreviewUrl()}
@@ -668,7 +668,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 ) : (
                   <iframe
                     src={`${getPreviewUrl()}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
-                    className="w-full h-full border-0"
+                    className="w-full h-full border-0 overflow-hidden"
                     title={document.name}
                     allow="fullscreen"
                   />

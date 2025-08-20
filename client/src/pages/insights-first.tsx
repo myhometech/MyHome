@@ -508,7 +508,7 @@ export default function InsightsFirstPage() {
 
       {/* Document Preview Dialog */}
       <Dialog open={showDocumentPreview} onOpenChange={setShowDocumentPreview}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+        <DialogContent className="max-w-[95vw] lg:max-w-[90vw] max-h-[90vh] p-0">
           {selectedDocument && (
             <EnhancedDocumentViewer
               document={selectedDocument}

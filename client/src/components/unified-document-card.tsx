@@ -742,7 +742,7 @@ export default function UnifiedDocumentCard({
 
             {/* Tags positioned at same level as brain icon */}
             {document.tags && document.tags.length > 0 && (
-              <div className="absolute bottom-8 left-2">
+              <div className="absolute bottom-7 left-2">
                 <div className="flex items-center gap-1 flex-wrap">
                   {document.tags.slice(0, 2).map((tag, index) => (
                     <Badge key={index} variant="secondary" className="text-xs bg-gray-100 px-1 py-0 badge">

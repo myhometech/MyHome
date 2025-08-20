@@ -704,31 +704,24 @@
   min-width: 100% !important;
 }
 
-/* NUCLEAR: Force PDF iframes and all children to full viewport */
-iframe,
-.mobile-document-viewer iframe,
-.enhanced-document-viewer iframe,
-.mobile-document-viewer object,
-.enhanced-document-viewer object,
-.mobile-document-viewer embed,
-.enhanced-document-viewer embed {
-  width: 100vw !important;
-  min-width: 100vw !important;
-  max-width: 100vw !important;
+/* PDF width fitting - fit to content width, not full viewport */
+.enhanced-document-viewer iframe {
+  width: 100% !important;
   height: calc(100vh - 60px) !important;
   border: none !important;
   margin: 0 !important;
   padding: 0 !important;
 }
 
-/* Fix react-pdf Page component to fit full width */
+/* Fix react-pdf Page component to fit container properly */
 .react-pdf__Page {
   width: 100% !important;
-  max-width: 100vw !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
 }
 
 .react-pdf__Page canvas {
   width: 100% !important;
-  max-width: 100vw !important;
+  max-width: 100% !important;
   height: auto !important;
 }

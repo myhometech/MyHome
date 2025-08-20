@@ -89,15 +89,23 @@
   @media (max-width: 640px) {
     .mobile-document-card {
       aspect-ratio: 1 !important;
-      height: 160px !important;
-      max-height: 160px !important;
+      height: 140px !important;
+      max-height: 140px !important;
+      min-height: 140px !important;
       width: 100% !important;
       overflow: hidden !important;
+      flex: none !important;
+    }
+    
+    /* Ensure grid container works properly */
+    .grid .mobile-document-card {
+      width: 100% !important;
+      max-width: none !important;
     }
     
     /* Force card content to fit within square */
     .mobile-document-card-content {
-      padding: 0.75rem !important;
+      padding: 0.5rem !important;
       height: 100% !important;
       display: flex !important;
       flex-direction: column !important;

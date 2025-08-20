@@ -518,7 +518,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`mobile-document-card group hover:shadow-md hover:scale-[1.01] transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer bg-white border-gray-200 aspect-square overflow-hidden`}
+        className={`mobile-document-card group hover:shadow-md hover:scale-[1.01] transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer bg-white border-gray-200 overflow-hidden`}
         onClick={() => {
           if (isRenaming || isEditing) {
             // Prevent modal from opening when in edit/rename mode

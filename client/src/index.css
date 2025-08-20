@@ -510,4 +510,71 @@
   .text-doc-blue {
     color: var(--doc-blue);
   }
+
+  /* Mobile document viewer optimizations */
+  .mobile-document-viewer {
+    /* Enable smooth scrolling */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Touch-friendly zoom for images */
+  .touch-pinch-zoom {
+    touch-action: pinch-zoom;
+    user-select: none;
+  }
+
+  /* PDF viewer mobile optimizations */
+  .mobile-pdf-container {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent zoom on input focus on mobile */
+  @media screen and (max-width: 768px) {
+    input[type="text"], 
+    input[type="email"], 
+    input[type="password"], 
+    input[type="date"], 
+    textarea, 
+    select {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Mobile-specific document viewer layout */
+  @media screen and (max-width: 1024px) {
+    .mobile-document-viewer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      background: white;
+    }
+
+    .mobile-document-viewer iframe {
+      border-radius: 0;
+    }
+
+    /* Ensure proper viewport handling on mobile */
+    .mobile-document-viewer .react-pdf__Document {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mobile-document-viewer .react-pdf__Page {
+      margin-bottom: 1rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      max-width: calc(100vw - 1rem);
+    }
+
+    /* Improve tap targets on mobile */
+    .mobile-document-viewer button {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
 }

@@ -459,32 +459,32 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   }, [document.id, error]);
 
   return (
-    <div className="h-full flex flex-col bg-white mobile-document-viewer">
+    <div className="fixed inset-0 z-50 bg-white mobile-document-viewer flex flex-col">
       {/* Mobile-optimized header */}
-      <div className="flex items-center justify-between p-3 border-b bg-white lg:hidden">
+      <div className="flex items-center justify-between p-2 md:p-3 border-b bg-white lg:hidden shrink-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
           <span className="font-medium text-sm truncate">{document.name}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button 
             onClick={onDownload} 
             variant="outline" 
             size="sm" 
-            className="text-xs"
+            className="text-xs p-1 h-8 w-8"
           >
             <Download className="w-3 h-3" />
           </Button>
-          <Button onClick={onClose} variant="ghost" size="sm" className="text-xs">
+          <Button onClick={onClose} variant="ghost" size="sm" className="text-xs p-1 h-8 w-8">
             <X className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
       {/* Mobile-first responsive layout */}
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
         {/* Document Preview Section */}
-        <div className="flex-1 flex flex-col min-h-0 w-full lg:w-3/4">
+        <div className="flex-1 flex flex-col min-h-0 w-full lg:w-3/4 overflow-hidden">
           {/* Desktop Preview Header - Hidden on mobile */}
           <div className="hidden lg:flex items-center justify-between p-3 border-b bg-gray-50">
             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -505,7 +505,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
 
           {/* Preview Content */}
-          <div className="flex-1 p-0 overflow-auto bg-gray-100">
+          <div className="flex-1 p-0 overflow-auto bg-gray-100 w-full">
             {isLoading && (
               <div className="flex items-center justify-center h-full bg-white rounded-lg">
                 <div className="text-center">
@@ -530,11 +530,12 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
 
             {!isLoading && !error && isImage() && (
-              <div className="flex items-center justify-center h-full bg-white p-0">
+              <div className="flex items-center justify-center h-full bg-white p-1">
                 <img
                   src={getPreviewUrl()}
                   alt={document.name}
-                  className="w-full h-full object-contain rounded"
+                  className="max-w-full max-h-full object-contain touch-pinch-zoom"
+                  style={{ width: 'auto', height: 'auto' }}
                 />
               </div>
             )}
@@ -613,8 +614,8 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 </div>
                 
                 {useReactPdf ? (
-                  <div className="h-full overflow-auto bg-gray-100 p-4" style={{ height: 'calc(100% - 60px)' }}>
-                    <div className="flex justify-center">
+                  <div className="h-full overflow-auto bg-gray-100 p-1 md:p-4" style={{ height: 'calc(100% - 60px)' }}>
+                    <div className="flex justify-center w-full">
                       <Document
                         file={getPreviewUrl()}
                         onLoadSuccess={({ numPages }) => {
@@ -676,16 +677,17 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                           pageNumber={pageNumber}
                           renderTextLayer={false}
                           renderAnnotationLayer={false}
-                          className="shadow-lg"
-                          width={Math.max(800, window.innerWidth - 50)}
+                          className="shadow-lg max-w-full"
+                          width={Math.min(window.innerWidth - 20, 800)}
+                          scale={window.innerWidth < 768 ? 0.9 : 1}
                         />
                       </Document>
                     </div>
                   </div>
                 ) : (
                   <iframe
-                    src={`${getPreviewUrl()}#toolbar=1&navpanes=1&scrollbar=1`}
-                    className="w-full h-full border-0 rounded-lg"
+                    src={`${getPreviewUrl()}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
+                    className="w-full h-full border-0"
                     title={document.name}
                     style={{ height: 'calc(100% - 60px)' }}
                     allow="fullscreen"

@@ -505,7 +505,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
 
           {/* Preview Content */}
-          <div className="flex-1 p-0 overflow-auto bg-gray-100 w-full">
+          <div className="flex-1 p-0 overflow-auto bg-gray-100 w-full min-w-full">
             {isLoading && (
               <div className="flex items-center justify-center h-full bg-white rounded-lg">
                 <div className="text-center">

@@ -17,6 +17,43 @@ export function MobileInsightsDrawer({
 }: MobileInsightsDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const openTimeRef = useRef<number | null>(null);
+
+  // Analytics event tracking
+  const trackInsightsEvent = (eventType: 'open' | 'close', metadata?: Record<string, any>) => {
+    const event = {
+      type: `insights_drawer_${eventType}`,
+      documentId,
+      documentName,
+      timestamp: new Date().toISOString(),
+      ...metadata
+    };
+    
+    // Console logging for now - can be replaced with analytics service
+    console.log('🔍 [Analytics] Insights Drawer Event:', event);
+    
+    // Future: Replace with actual analytics service
+    // analytics.track(event.type, event);
+  };
+
+  // Track drawer open/close events and handle auto-scroll
+  useEffect(() => {
+    if (isOpen) {
+      // Track drawer opening
+      openTimeRef.current = Date.now();
+      trackInsightsEvent('open', {
+        hasScrollContainer: !!scrollContainerRef.current
+      });
+    } else if (openTimeRef.current !== null) {
+      // Track drawer closing and time spent
+      const timeSpent = Date.now() - openTimeRef.current;
+      trackInsightsEvent('close', {
+        timeSpentMs: timeSpent,
+        timeSpentSeconds: Math.round(timeSpent / 1000)
+      });
+      openTimeRef.current = null;
+    }
+  }, [isOpen, documentId, documentName]);
 
   // Auto-scroll to first insight section when drawer opens
   useEffect(() => {

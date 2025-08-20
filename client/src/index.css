@@ -114,13 +114,15 @@
       box-sizing: border-box !important;
     }
     
-    /* Compact text for square format */
+    /* Readable title for square format */
     .mobile-document-card h3 {
-      font-size: 0.75rem !important;
-      line-height: 1.1 !important;
+      font-size: 0.875rem !important;
+      line-height: 1.2 !important;
       margin: 0 !important;
+      font-weight: 500 !important;
+      color: #111827 !important;
       display: -webkit-box !important;
-      -webkit-line-clamp: 2 !important;
+      -webkit-line-clamp: 3 !important;
       -webkit-box-orient: vertical !important;
       overflow: hidden !important;
     }

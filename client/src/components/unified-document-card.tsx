@@ -534,6 +534,18 @@ export default function UnifiedDocumentCard({
         }}
       >
         <CardContent className="p-2 sm:p-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
+          {/* Insights icon in corner */}
+          {showInsights && openInsights.length > 0 && (
+            <div className="absolute top-1 right-1 z-10">
+              <div className="flex items-center justify-center w-6 h-6 bg-blue-100 border border-blue-200 rounded-full">
+                <Brain className="h-3 w-3 text-blue-600" />
+                <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-xs font-medium text-white bg-blue-600 rounded-full">
+                  {openInsights.length}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Bulk selection checkbox */}
           {bulkMode && (
             <div className="absolute top-0.5 left-0.5 z-10">
@@ -612,7 +624,7 @@ export default function UnifiedDocumentCard({
                           </div>
                         </div>
                       ) : (
-                        <h3 className="font-semibold text-sm leading-tight text-gray-900 line-clamp-2 flex-1 min-w-0">
+                        <h3 className="font-medium text-sm leading-tight text-gray-900 line-clamp-3 flex-1 min-w-0">
                           {document.name}
                         </h3>
                       )}
@@ -695,59 +707,17 @@ export default function UnifiedDocumentCard({
             {/* Compact footer for mobile squares */}
             <div className="mt-auto">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-600">{formatFileSize(document.fileSize)}</span>
-                {document.tags && document.tags.length > 0 && (
-                  <Badge variant="secondary" className="text-xs bg-gray-100 px-1 py-0 badge">
-                    <Tag className="h-3 w-3 mr-1" />
-                    {document.tags.length}
+                <span className="text-gray-500 text-xs">{formatFileSize(document.fileSize)}</span>
+                {category && (
+                  <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300 px-1 py-0 badge">
+                    <FolderIcon className="h-2.5 w-2.5 mr-0.5" />
+                    <span className="truncate max-w-[40px]">{category.name}</span>
                   </Badge>
                 )}
               </div>
             </div>
 
 
-            {/* Insight summary badges */}
-            {showInsights && openInsights.length > 0 && (
-              <div 
-                className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors border border-gray-100"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setInsightsExpanded(!insightsExpanded);
-                }}
-              >
-                <div className="flex items-center gap-1">
-                  <Brain className="h-3 w-3 text-blue-600" />
-                  <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                    {openInsights.length} insight{openInsights.length !== 1 ? 's' : ''}
-                  </Badge>
-                </div>
-                {criticalInsights.length > 0 && (
-                  <Badge className="text-xs bg-red-100 text-red-800 border-red-200">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    {criticalInsights.length} critical
-                  </Badge>
-                )}
-                {highestPriorityInsight && (
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs text-gray-700 truncate font-medium">
-                      {highestPriorityInsight.title}
-                    </span>
-                    {highestPriorityInsight.dueDate && (
-                      <span className="text-xs text-orange-600 ml-2 font-medium">
-                        {formatDueDate(highestPriorityInsight.dueDate)}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <div className="ml-auto">
-                  {insightsExpanded || shouldAutoExpand ? 
-                    <ChevronDown className="h-3 w-3 text-gray-500" /> : 
-                    <ChevronRight className="h-3 w-3 text-gray-500" />
-                  }
-                </div>
-              </div>
-            )}
 
             {/* Expandable insights panel */}
             {showInsights && openInsights.length > 0 && (

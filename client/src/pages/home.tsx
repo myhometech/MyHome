@@ -849,7 +849,7 @@ export default function Home() {
             ) : (
               <div className={
                 viewMode === "grid"
-                  ? "grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 md:gap-4 auto-rows-fr"
+                  ? "grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-3 md:gap-4"
                   : "space-y-3 md:space-y-4"
               }>
                 {(() => {

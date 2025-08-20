@@ -85,22 +85,24 @@
     font-size: 0.75rem;
   }
   
-  /* Compact square cards for mobile 2-column grid */
+  /* Force 2-column square grid on mobile */
   @media (max-width: 640px) {
-    .mobile-document-card {
-      aspect-ratio: 1 !important;
-      height: 140px !important;
-      max-height: 140px !important;
-      min-height: 140px !important;
-      width: 100% !important;
-      overflow: hidden !important;
-      flex: none !important;
+    .grid {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 0.5rem !important;
     }
     
-    /* Ensure grid container works properly */
-    .grid .mobile-document-card {
+    .mobile-document-card {
+      aspect-ratio: 1 !important;
+      height: auto !important;
       width: 100% !important;
-      max-width: none !important;
+      max-width: 100% !important;
+      min-height: 150px !important;
+      max-height: 150px !important;
+      overflow: hidden !important;
+      flex: none !important;
+      box-sizing: border-box !important;
     }
     
     /* Force card content to fit within square */
@@ -109,6 +111,7 @@
       height: 100% !important;
       display: flex !important;
       flex-direction: column !important;
+      box-sizing: border-box !important;
     }
     
     /* Compact text for square format */

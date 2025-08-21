@@ -470,9 +470,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
       {/* Enhanced Document Header - Mobile and Desktop */}
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#FAF4EF] to-[#F8F2E8] border-b border-gray-200 shrink-0">
         {/* Left side - Document info */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
           {/* Document type icon with colored background */}
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1E90FF] shadow-sm">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1E90FF] shadow-sm flex-shrink-0">
             {isPDF() ? (
               <FileText className="w-4 h-4 text-white" />
             ) : isImage() ? (
@@ -482,21 +482,30 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
           </div>
           
-          {/* Document name and metadata */}
-          <div className="min-w-0 flex-1">
-            <h1 className="font-semibold text-[#2B2F40] text-base md:text-lg truncate leading-tight">
+          {/* Document name and metadata - with proper overflow handling */}
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <h1 
+              className="font-semibold text-[#2B2F40] text-base md:text-lg leading-tight overflow-hidden"
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: 'vertical',
+                wordBreak: 'break-all'
+              }}
+              title={document.name}
+            >
               {document.name}
             </h1>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5 overflow-hidden">
               {category && (
                 <Badge 
                   variant="secondary" 
-                  className="text-xs px-2 py-0.5 bg-white/60 text-[#2B2F40] border-0"
+                  className="text-xs px-2 py-0.5 bg-white/60 text-[#2B2F40] border-0 flex-shrink-0"
                 >
                   {category.name}
                 </Badge>
               )}
-              <span className="text-xs text-gray-600">
+              <span className="text-xs text-gray-600 flex-shrink-0">
                 {formatFileSize(document.fileSize)}
               </span>
             </div>

@@ -194,17 +194,16 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
         />
       )}
 
-      {/* Mobile Search Overlay */}
+      {/* Mobile Search Bar - Slides down from header */}
       {showMobileSearch && (
-        <div className="fixed inset-0 bg-white z-50 md:hidden">
-          <div className="flex flex-col h-full">
-            {/* Mobile Search Header */}
-            <div className="flex items-center p-4 border-b">
+        <div className="bg-white border-b shadow-sm md:hidden">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="flex items-center space-x-3">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowMobileSearch(false)}
-                className="p-2 mr-2"
+                className="p-1.5"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -220,11 +219,6 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
                   className="w-full"
                 />
               </div>
-            </div>
-            
-            {/* Search Help Text */}
-            <div className="p-4 text-center text-gray-500">
-              <p className="text-sm">Start typing to search your documents...</p>
             </div>
           </div>
         </div>

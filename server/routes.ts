@@ -2546,7 +2546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Permissions must be 'view' or 'edit'" });
       }
 
-      const share = await storage.shareDocument(documentId, email, [permissions]);
+      const share = await storage.shareDocument(documentId, [email], permissions);
       res.json(share);
     } catch (error: any) {
       console.error("Error sharing document:", error);
@@ -3815,7 +3815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Load the source document
-      const document = await storage.getDocumentById(userId, documentId);
+      const document = await storage.getDocumentById(documentId);
       if (!document) {
         return res.status(404).json({
           errorCode: 'DOCUMENT_NOT_FOUND',
@@ -3824,7 +3824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify this is an email-sourced document
-      if (document.source !== 'email' || !document.emailContext?.messageId) {
+      if (document.source !== 'email' || !document.emailContext || !(document.emailContext as any)?.messageId) {
         return res.status(400).json({
           errorCode: 'EMAIL_CONTEXT_MISSING',
           message: 'Document is not an email attachment or missing email context'
@@ -3868,26 +3868,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           typeof doc.emailContext === 'object' &&
           'messageId' in doc.emailContext &&
           doc.emailContext.messageId === emailContext.messageId &&
-          doc.id !== result.documentId // Don't link to itself
+          doc.id !== parseInt(result.documentId) // Don't link to itself
         );
 
         // Create bidirectional references between email body PDF and attachments
         for (const siblingDoc of siblingDocs) {
           // Add reference from email body PDF to attachment (source relation)
-          await storage.addDocumentReference(result.documentId, {
-            type: 'email',
-            relation: 'source', 
-            documentId: siblingDoc.id,
-            metadata: { messageId: emailContext.messageId }
-          });
+          await storage.addDocumentReference(parseInt(result.documentId), siblingDoc.id);
 
           // Add reference from attachment to email body PDF (related relation)
-          await storage.addDocumentReference(siblingDoc.id, {
-            type: 'email',
-            relation: 'related',
-            documentId: result.documentId,
-            metadata: { messageId: emailContext.messageId }
-          });
+          await storage.addDocumentReference(siblingDoc.id, parseInt(result.documentId));
 
           linkedCount++;
         }
@@ -3956,18 +3946,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get the document to ensure user has access
-      const document = await storage.getDocumentById(userId, documentId);
+      const document = await storage.getDocumentById(documentId);
       if (!document) {
         return res.status(404).json({ error: 'Document not found' });
       }
 
       // Parse references from document
       let references = [];
-      if (document.references) {
+      if ((document as any).references) {
         try {
-          const parsedRefs = typeof document.references === 'string' 
-            ? JSON.parse(document.references) 
-            : document.references;
+          const parsedRefs = typeof (document as any).references === 'string' 
+            ? JSON.parse((document as any).references) 
+            : (document as any).references;
           references = Array.isArray(parsedRefs) ? parsedRefs : [];
         } catch (error) {
           console.warn('Failed to parse document references:', error);
@@ -4753,7 +4743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const legacyDocs = allDocs.filter((doc: any) => {
         const isEmailSource = doc.uploadSource === 'email';
         const missingEmailContext = !doc.emailContext || !doc.emailContext.messageId;
-        const withinWindow = new Date(doc.createdAt) >= sinceDate;
+        const withinWindow = new Date((doc as any).createdAt) >= sinceDate;
         const matchesUser = !userId || doc.userId === userId;
 
         return isEmailSource && missingEmailContext && withinWindow && matchesUser;
@@ -4762,9 +4752,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const previewDocs = legacyDocs.slice(0, 10).map(doc => ({
         id: doc.id,
         name: doc.name,
-        createdAt: doc.createdAt,
+        createdAt: (doc as any).createdAt,
         userId: doc.userId,
-        hasEmailContext: !!doc.emailContext?.messageId
+        hasEmailContext: !!(doc as any).emailContext?.messageId
       }));
 
       res.json({

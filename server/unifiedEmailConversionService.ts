@@ -439,6 +439,14 @@ export class UnifiedEmailConversionService {
           
           console.log(`📧 Email body PDF created: Document ID ${document.id}`);
 
+          // 🔧 MISSING PROCESSING: Trigger OCR and AI insights for email body PDF
+          try {
+            await this.processEmailDocumentOCRAndInsights(document, input.userId!);
+          } catch (processingError) {
+            console.error(`⚠️ Email body PDF processing failed for Document ID ${document.id}:`, processingError);
+            // Don't fail the entire email - processing can be retried later
+          }
+
         } else if (correspondingInput.kind === 'file') {
           // This is a converted attachment
           const originalAttachment = input.attachments.find(att => att.filename === correspondingInput.filename);
@@ -465,6 +473,14 @@ export class UnifiedEmailConversionService {
             });
 
             console.log(`📎 Converted attachment: ${originalAttachment.filename} → Document ID ${convertedDoc.id}`);
+
+            // 🔧 MISSING PROCESSING: Trigger OCR and AI insights for converted attachment PDF
+            try {
+              await this.processEmailDocumentOCRAndInsights(convertedDoc, input.userId!);
+            } catch (processingError) {
+              console.error(`⚠️ Converted attachment processing failed for Document ID ${convertedDoc.id}:`, processingError);
+              // Don't fail the entire email - processing can be retried later
+            }
           }
         }
       }
@@ -503,6 +519,14 @@ export class UnifiedEmailConversionService {
             });
 
             console.log(`📄 [SUCCESS] PDF stored: ${attachment.filename} → Document ID ${pdfDoc.id}`);
+
+            // 🔧 MISSING PROCESSING: Trigger OCR and AI insights for PDF attachments  
+            try {
+              await this.processEmailDocumentOCRAndInsights(pdfDoc, input.userId!);
+            } catch (processingError) {
+              console.error(`⚠️ PDF attachment processing failed for Document ID ${pdfDoc.id}:`, processingError);
+              // Don't fail the entire email - processing can be retried later
+            }
           } else {
             console.log(`📎 [UNHANDLED] ${attachment.filename} (action: ${classification.action}, type: ${classification.type})`);
             
@@ -761,6 +785,51 @@ export class UnifiedEmailConversionService {
     const hash = createHash('sha256');
     hash.update(content);
     return hash.digest('hex');
+  }
+
+  /**
+   * 🔧 MISSING PROCESSING: Process email documents with OCR and AI insights
+   * This was missing from the email pipeline - now matches normal document upload flow
+   */
+  private async processEmailDocumentOCRAndInsights(document: any, userId: string): Promise<void> {
+    try {
+      console.log(`🔍 Starting OCR and insights processing for email document: ${document.id} (${document.fileName})`);
+
+      // Import OCR service dynamically
+      const { processDocumentWithDateExtraction, supportsOCR } = await import('./ocrService.js');
+      
+      // Check if document supports OCR processing
+      if (!supportsOCR(document.mimeType)) {
+        console.log(`⏭️ Document ${document.id} type ${document.mimeType} doesn't support OCR - skipping`);
+        return;
+      }
+
+      // Use GCS path for OCR processing (not local file path)
+      const filePathOrGCSKey = document.gcsPath || document.filePath;
+      
+      if (!filePathOrGCSKey) {
+        console.error(`❌ No file path or GCS key found for document ${document.id}`);
+        return;
+      }
+
+      // Trigger OCR processing with date extraction
+      console.log(`🔍 Processing OCR for email document ${document.id} using path: ${filePathOrGCSKey}`);
+      
+      await processDocumentWithDateExtraction(
+        document.id,
+        document.fileName || document.name,
+        filePathOrGCSKey,
+        document.mimeType,
+        userId,
+        await import('./storage.js').then(m => m.storage) // Get storage instance
+      );
+
+      console.log(`✅ Email document ${document.id} OCR and insights processing completed`);
+
+    } catch (error) {
+      console.error(`❌ Failed to process email document ${document.id}:`, error);
+      throw error;
+    }
   }
 
   /**

@@ -4807,6 +4807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TICKET 3: Role-based access endpoints
   app.get('/api/user/role', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      console.log('🔍 [ENDPOINT] /api/user/role called for user:', req.user?.id);
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
       
@@ -4814,6 +4815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      console.log('🔍 [ENDPOINT] req.user.household:', req.user?.household);
       const household = req.user?.household;
       const roleInfo = {
         userId: user.id,
@@ -4827,6 +4829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } : null
       };
 
+      console.log('🔍 [ENDPOINT] Returning roleInfo:', roleInfo);
       res.json(roleInfo);
     } catch (error) {
       console.error("Error fetching user role:", error);

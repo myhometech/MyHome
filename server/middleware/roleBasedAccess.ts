@@ -28,23 +28,31 @@ export type HouseholdRole = keyof typeof ROLE_HIERARCHY;
  */
 export async function loadHouseholdRole(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
+    console.log('🔍 [MIDDLEWARE] loadHouseholdRole called for user:', req.user?.id);
     if (!req.user?.id) {
+      console.log('🔍 [MIDDLEWARE] No user ID found, skipping household load');
       return next();
     }
 
     // Get user's household membership
+    console.log('🔍 [MIDDLEWARE] Calling getUserHousehold for user:', req.user.id);
     const household = await storage.getUserHousehold(req.user.id);
+    console.log('🔍 [MIDDLEWARE] getUserHousehold returned:', household);
+    
     if (household) {
       req.user.household = {
         id: household.id,
         role: household.role,
         name: household.name,
       };
+      console.log('🔍 [MIDDLEWARE] Set req.user.household to:', req.user.household);
+    } else {
+      console.log('🔍 [MIDDLEWARE] No household found for user');
     }
 
     next();
   } catch (error) {
-    console.error('Error loading household role:', error);
+    console.error('❌ [MIDDLEWARE] Error loading household role:', error);
     next(); // Continue without household context
   }
 }

@@ -4805,7 +4805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // NOTE: POST /api/email-ingest is handled earlier in the file with full functionality
 
   // TICKET 3: Role-based access endpoints
-  app.get('/api/user/role', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get('/api/user/role', requireAuth, loadHouseholdRole, async (req: AuthenticatedRequest, res) => {
     try {
       console.log('🔍 [ENDPOINT] /api/user/role called for user:', req.user?.id);
       const userId = getUserId(req);

@@ -2546,7 +2546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Permissions must be 'view' or 'edit'" });
       }
 
-      const share = await storage.shareDocument(documentId, email, permissions);
+      const share = await storage.shareDocument(documentId, email, [permissions]);
       res.json(share);
     } catch (error: any) {
       console.error("Error sharing document:", error);
@@ -3526,7 +3526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { flagId } = req.params;
       const { enabled } = req.body;
 
-      await storage.toggleFeatureFlag(flagId, enabled);
+      await storage.toggleFeatureFlag(flagId);
       featureFlagService.clearCache();
 
       res.json({ success: true });
@@ -3545,7 +3545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const overrides = await storage.getFeatureFlagOverrides();
+      const overrides = await storage.getFeatureFlagOverrides("");
       res.json(overrides);
     } catch (error: any) {
       console.error("Error fetching feature flag overrides:", error);
@@ -4807,7 +4807,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TICKET 3: Role-based access endpoints
   app.get('/api/user/role', requireAuth, loadHouseholdRole, async (req: AuthenticatedRequest, res) => {
     try {
-      console.log('🔍 [ENDPOINT] /api/user/role called for user:', req.user?.id);
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
       
@@ -4815,7 +4814,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      console.log('🔍 [ENDPOINT] req.user.household:', req.user?.household);
       const household = req.user?.household;
       const roleInfo = {
         userId: user.id,
@@ -4829,7 +4827,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } : null
       };
 
-      console.log('🔍 [ENDPOINT] Returning roleInfo:', roleInfo);
       res.json(roleInfo);
     } catch (error) {
       console.error("Error fetching user role:", error);

@@ -63,7 +63,8 @@ export function SmartSearch({
       }
       const data = await response.json();
       console.log('Search response:', data);
-      return data.results || [];
+      // API returns array directly, not wrapped in results object
+      return Array.isArray(data) ? data : (data.results || []);
     },
     enabled: debouncedQuery.length > 0,
   });

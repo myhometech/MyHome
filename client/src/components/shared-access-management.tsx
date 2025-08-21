@@ -62,12 +62,14 @@ export default function SharedAccessManagement() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<'duo_partner' | 'household_user'>('household_user');
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
+  const [householdName, setHouseholdName] = useState("");
+  const [isCreatingHousehold, setIsCreatingHousehold] = useState(false);
 
   // Check if user has Duo subscription
   const isDuoUser = (user as any)?.subscriptionTier === 'duo';
 
   // TICKET 3: Get user role and household members with real API calls
-  const { data: userRole } = useQuery<UserRole>({
+  const { data: userRole, isLoading: userRoleLoading } = useQuery<UserRole>({
     queryKey: ['/api/user/role'],
     enabled: isDuoUser,
   });
@@ -159,6 +161,39 @@ export default function SharedAccessManagement() {
     });
   };
 
+  // Create household mutation
+  const createHouseholdMutation = useMutation({
+    mutationFn: async ({ name }: { name: string }) => {
+      const response = await apiRequest("POST", "/api/household/create", { name });
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Household created",
+        description: "Your household has been created successfully",
+      });
+      setHouseholdName("");
+      setIsCreatingHousehold(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/user/role'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/household/members'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "Please log in again to continue",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Failed to create household",
+        description: error.message || "Failed to create household",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Role display helpers
   const getRoleDisplay = (role: string) => {
     switch (role) {
@@ -209,7 +244,7 @@ export default function SharedAccessManagement() {
     );
   }
 
-  if (membersLoading) {
+  if (userRoleLoading || membersLoading) {
     return (
       <Card>
         <CardHeader>
@@ -232,6 +267,57 @@ export default function SharedAccessManagement() {
   const isOwner = currentUserRole === 'owner';
   const canInvite = userRole?.household?.permissions?.canInvite || false;
   const canRemove = userRole?.household?.permissions?.canRemoveMembers || false;
+
+  // Check if user needs to create a household
+  const needsHousehold = isDuoUser && !userRoleLoading && !userRole?.household;
+
+  // Show household creation form if user needs a household
+  if (needsHousehold) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Create Your Household
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p className="text-gray-600">
+              You have a Duo plan that includes shared access for up to 2 household members. 
+              Create your household to start inviting family members or partners.
+            </p>
+            
+            <div className="space-y-2">
+              <Label htmlFor="household-name">Household Name</Label>
+              <Input
+                id="household-name"
+                placeholder="e.g., The Smith Family, Our Home"
+                value={householdName}
+                onChange={(e) => setHouseholdName(e.target.value)}
+              />
+              <p className="text-xs text-gray-500">
+                You can use your address, family name, or any name that identifies your household
+              </p>
+            </div>
+            
+            <Button 
+              onClick={() => createHouseholdMutation.mutate({ name: householdName })}
+              disabled={!householdName.trim() || createHouseholdMutation.isPending}
+              className="w-full"
+            >
+              {createHouseholdMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <UserPlus className="h-4 w-4 mr-2" />
+              )}
+              Create Household
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">

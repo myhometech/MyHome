@@ -2693,6 +2693,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Household Management API for Duo Plans
 
+  // Create household for Duo users
+  app.post('/api/household/create', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { name } = req.body;
+
+      // Check if user has Duo subscription
+      const user = await storage.getUser(userId);
+      if (!user || user.subscriptionTier !== 'duo') {
+        return res.status(403).json({ message: 'Duo subscription required to create household' });
+      }
+
+      // Check if user is already in a household
+      const existingMembership = await storage.getUserHouseholdMembership(userId);
+      if (existingMembership) {
+        return res.status(400).json({ message: 'User is already in a household' });
+      }
+
+      // Create household
+      const household = await storage.createHousehold({
+        name: name || `${user.firstName || user.email}'s Household`,
+        planType: 'duo',
+        seatLimit: 2,
+        ownerId: userId,
+      });
+
+      // Create membership for the owner
+      await storage.createHouseholdMembership({
+        userId,
+        householdId: household.id,
+        role: 'owner',
+      });
+
+      res.json({ household, message: 'Household created successfully' });
+    } catch (error) {
+      console.error('Error creating household:', error);
+      res.status(500).json({ message: 'Failed to create household' });
+    }
+  });
+
   // Get household information for current user
   app.get('/api/household', requireAuth, async (req: any, res) => {
     try {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { MobileHamburgerMenu } from '@/components/mobile-hamburger-menu';
 import { UserProfileBadge } from '@/components/UserProfileBadge';
 import { SmartSearch } from '@/components/smart-search';
+import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
 
 interface HeaderProps {
   searchQuery?: string;
@@ -28,6 +29,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [selectedDocument, setSelectedDocument] = useState<any>(null);
 
   // Email forwarding functionality - use the correct formats expected by Mailgun
   const getEmailAddress = () => {
@@ -132,8 +134,8 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
           <div className="hidden md:flex flex-1 max-w-lg mx-4">
             <SmartSearch
               onDocumentSelect={(document) => {
-                // Navigate to document or handle selection
                 console.log('Document selected:', document);
+                setSelectedDocument(document);
               }}
               onSearchChange={onSearchChange}
               placeholder="Search documents..."
@@ -169,6 +171,25 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
           </div>
         </div>
       </div>
+
+      {/* Document Viewer Modal */}
+      {selectedDocument && (
+        <EnhancedDocumentViewer
+          document={selectedDocument}
+          onClose={() => setSelectedDocument(null)}
+          onDownload={() => {
+            // Download functionality
+            const link = document.createElement('a');
+            link.href = `/api/documents/${selectedDocument.id}/download`;
+            link.download = selectedDocument.name;
+            link.click();
+          }}
+          onUpdate={() => {
+            // Refresh any queries that might be affected
+            setSelectedDocument(null);
+          }}
+        />
+      )}
     </header>
   );
 }

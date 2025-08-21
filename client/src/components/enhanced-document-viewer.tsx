@@ -467,23 +467,112 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
   return (
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
-      {/* Close Button - Only show when not inside a Dialog */}
-      {showCloseButton && (
-        <Button
-          onClick={onClose}
-          variant="ghost"
-          size="sm"
-          className="absolute top-2 right-2 z-50 h-8 w-8 p-0 rounded-full bg-white/90 hover:bg-white shadow-md border"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      )}
-      
-      {/* Mobile-optimized header - Show on mobile, hidden on desktop */}
-      <div className="md:hidden flex items-center justify-between pr-12 pl-4 py-4 border-b bg-white shrink-0">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
-          <span className="font-medium text-sm truncate">{document.name}</span>
+      {/* Enhanced Document Header - Mobile and Desktop */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#FAF4EF] to-[#F8F2E8] border-b border-gray-200 shrink-0">
+        {/* Left side - Document info */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {/* Document type icon with colored background */}
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1E90FF] shadow-sm">
+            {isPDF() ? (
+              <FileText className="w-4 h-4 text-white" />
+            ) : isImage() ? (
+              <Image className="w-4 h-4 text-white" />
+            ) : (
+              <FileIcon className="w-4 h-4 text-white" />
+            )}
+          </div>
+          
+          {/* Document name and metadata */}
+          <div className="min-w-0 flex-1">
+            <h1 className="font-semibold text-[#2B2F40] text-base md:text-lg truncate leading-tight">
+              {document.name}
+            </h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              {category && (
+                <Badge 
+                  variant="secondary" 
+                  className="text-xs px-2 py-0.5 bg-white/60 text-[#2B2F40] border-0"
+                >
+                  {category.name}
+                </Badge>
+              )}
+              <span className="text-xs text-gray-600">
+                {formatFileSize(document.fileSize)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right side - Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* PDF navigation controls */}
+          {useReactPdf && numPages && numPages > 1 && (
+            <div className="hidden md:flex items-center gap-1 bg-white/60 rounded-lg px-2 py-1">
+              <Button
+                onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                disabled={pageNumber <= 1}
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+              >
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <span className="text-xs px-2 text-[#2B2F40] font-medium min-w-[3rem] text-center">
+                {pageNumber} / {numPages}
+              </span>
+              <Button
+                onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                disabled={pageNumber >= numPages}
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+              >
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+          )}
+          
+          {/* PDF view toggle */}
+          {isPDF() && (
+            <Button
+              onClick={() => {
+                if (pdfLoadTimeout) {
+                  clearTimeout(pdfLoadTimeout);
+                }
+                setUseReactPdf(!useReactPdf);
+                if (!useReactPdf) {
+                  setPageNumber(1);
+                  setNumPages(null);
+                  const timeout = setTimeout(() => {
+                    setUseReactPdf(false);
+                    toast({
+                      title: "Loading timeout",
+                      description: "Using browser view instead",
+                    });
+                  }, 10000);
+                  setPdfLoadTimeout(timeout);
+                }
+              }}
+              variant="ghost"
+              size="sm"
+              className="hidden md:flex h-8 px-3 text-xs bg-white/60 hover:bg-white text-[#2B2F40]"
+            >
+              {useReactPdf ? 'Browser' : 'Pages'}
+            </Button>
+          )}
+
+          {/* Close Button - Properly aligned */}
+          {showCloseButton && (
+            <Button
+              onClick={onClose}
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 rounded-full bg-white/80 hover:bg-white shadow-sm border border-gray-200 text-[#2B2F40] hover:text-[#1E90FF] transition-colors"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close document viewer</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -491,69 +580,32 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
       <div className="flex-1 flex flex-col md:flex-row md:min-h-0 md:overflow-hidden">
         {/* Document Preview Section - Full width on mobile, 70% on desktop */}
         <div className="flex flex-col flex-1 md:min-h-0 md:overflow-hidden w-full md:w-[70%]">
-          {/* Desktop Preview Header - Hidden on mobile, visible on desktop */}
-          <div className="hidden md:flex items-center justify-between p-3 border-b bg-gray-50">
-            <div className="flex items-center gap-2 min-w-0 overflow-hidden" style={{ maxWidth: 'calc(100% - 200px)' }}>
-              <FileIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
-              <span className="font-medium text-sm truncate">{document.name}</span>
+          {/* Additional toolbar for mobile PDF controls */}
+          {useReactPdf && numPages && numPages > 1 && (
+            <div className="md:hidden flex items-center justify-center gap-2 p-2 bg-white border-b">
+              <Button
+                onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                disabled={pageNumber <= 1}
+                variant="outline"
+                size="sm"
+                className="h-8"
+              >
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <span className="text-sm px-3 text-[#2B2F40] font-medium">
+                Page {pageNumber} of {numPages}
+              </span>
+              <Button
+                onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                disabled={pageNumber >= numPages}
+                variant="outline"
+                size="sm"
+                className="h-8"
+              >
+                <ChevronRight className="w-3 h-3" />
+              </Button>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* PDF page navigation */}
-              {useReactPdf && numPages && numPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <Button
-                    onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                    disabled={pageNumber <= 1}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <ChevronLeft className="w-3 h-3" />
-                  </Button>
-                  <span className="text-xs px-2">
-                    {pageNumber} / {numPages}
-                  </span>
-                  <Button
-                    onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-                    disabled={pageNumber >= numPages}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <ChevronRight className="w-3 h-3" />
-                  </Button>
-                </div>
-              )}
-              
-              {/* PDF view toggle */}
-              {isPDF() && (
-                <Button
-                  onClick={() => {
-                    if (pdfLoadTimeout) {
-                      clearTimeout(pdfLoadTimeout);
-                    }
-                    setUseReactPdf(!useReactPdf);
-                    if (!useReactPdf) {
-                      setPageNumber(1);
-                      setNumPages(null);
-                      const timeout = setTimeout(() => {
-                        setUseReactPdf(false);
-                        toast({
-                          title: "Loading timeout",
-                          description: "Using browser view instead",
-                        });
-                      }, 10000);
-                      setPdfLoadTimeout(timeout);
-                    }
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                >
-                  {useReactPdf ? 'Browser' : 'Page'}
-                </Button>
-              )}
-              
-            </div>
-          </div>
+          )}
 
           {/* Preview Content */}
           <div className="flex-1 pt-6 md:p-0 bg-gray-100 w-full overflow-auto md:overflow-auto">

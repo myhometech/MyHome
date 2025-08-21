@@ -844,6 +844,7 @@ export default function DocumentCard({
                 onClose={() => setShowModal(false)}
                 onUpdate={onUpdate}
                 onDownload={handleDownload}
+                showCloseButton={false}
               />
             </div>
           </div>

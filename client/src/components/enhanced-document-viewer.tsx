@@ -61,6 +61,7 @@ interface EnhancedDocumentViewerProps {
   onDownload: () => void;
   onUpdate?: () => void;
   initialTab?: string;
+  showCloseButton?: boolean; // Add prop to control close button visibility
 }
 
 interface FullDocumentDetails {
@@ -100,7 +101,7 @@ interface Category {
   color: string;
 }
 
-export function EnhancedDocumentViewer({ document, category: propCategory, onClose, onDownload, onUpdate, initialTab = "properties" }: EnhancedDocumentViewerProps) {
+export function EnhancedDocumentViewer({ document, category: propCategory, onClose, onDownload, onUpdate, initialTab = "properties", showCloseButton = true }: EnhancedDocumentViewerProps) {
   // Feature flags for AI insights
   const { hasFeature } = useFeatures();
   const hasAIInsights = hasFeature('AI_SUMMARIZATION');
@@ -466,15 +467,17 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
   return (
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
-      {/* Close Button - Always visible on top right */}
-      <Button
-        onClick={onClose}
-        variant="ghost"
-        size="sm"
-        className="absolute top-2 right-2 z-50 h-8 w-8 p-0 rounded-full bg-white/90 hover:bg-white shadow-md border"
-      >
-        <X className="h-4 w-4" />
-      </Button>
+      {/* Close Button - Only show when not inside a Dialog */}
+      {showCloseButton && (
+        <Button
+          onClick={onClose}
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 right-2 z-50 h-8 w-8 p-0 rounded-full bg-white/90 hover:bg-white shadow-md border"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
       
       {/* Mobile-optimized header - Show on mobile, hidden on desktop */}
       <div className="md:hidden flex items-center justify-between pr-12 pl-4 py-4 border-b bg-white shrink-0">

@@ -688,6 +688,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
               category={categories.find((cat: any) => cat.id === documentDetails.categoryId)}
               onClose={handleCloseDocument}
               onDownload={handleDocumentDownload}
+              showCloseButton={false}
               onUpdate={() => {
                 // Refetch data when document is updated
                 refetch();

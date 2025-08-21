@@ -3268,7 +3268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid reminder ID" });
       }
 
-      const updatedReminder = await storage.updateExpiryReminder(reminderId, userId, req.body);
+      const updatedReminder = await storage.updateExpiryReminder(reminderId, req.body);
       if (!updatedReminder) {
         return res.status(404).json({ message: "Reminder not found" });
       }
@@ -3289,7 +3289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid reminder ID" });
       }
 
-      await storage.deleteExpiryReminder(reminderId, userId);
+      await storage.deleteExpiryReminder(reminderId);
       res.json({ message: "Reminder deleted successfully" });
     } catch (error) {
       console.error("Error deleting expiry reminder:", error);
@@ -3307,7 +3307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid reminder ID" });
       }
 
-      const updatedReminder = await storage.markReminderCompleted(reminderId, userId, isCompleted);
+      const updatedReminder = await storage.markReminderCompleted(reminderId);
       if (!updatedReminder) {
         return res.status(404).json({ message: "Reminder not found" });
       }
@@ -3388,7 +3388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request body (allowing partial updates)
       const validatedData = insertManualTrackedEventSchema.partial().parse(req.body);
 
-      const event = await storage.updateManualTrackedEvent(eventId, userId, validatedData);
+      const event = await storage.updateManualTrackedEvent(eventId, validatedData);
       if (!event) {
         return res.status(404).json({ message: "Manual tracked event not found" });
       }
@@ -3412,7 +3412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserId(req);
       const eventId = req.params.id;
 
-      await storage.deleteManualTrackedEvent(eventId, userId);
+      await storage.deleteManualTrackedEvent(eventId);
       res.json({ message: "Manual tracked event deleted successfully" });
     } catch (error) {
       console.error("Error deleting manual tracked event:", error);
@@ -5110,7 +5110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', cloudConvertHealthRoutes);
 
   // TICKET 4: API endpoint to get document audit trail
-  app.get('/api/documents/:id/audit', requireAuth, requireDocumentAccess('view'), async (req: AuthenticatedRequest, res) => {
+  app.get('/api/documents/:id/audit', requireAuth, requireDocumentAccess('read'), async (req: AuthenticatedRequest, res) => {
     try {
       const documentId = parseInt(req.params.id);
       

@@ -521,6 +521,7 @@ export default function InsightsFirstPage() {
                 // Download functionality
                 window.open(`/api/documents/${selectedDocument.id}/download`, '_blank');
               }}
+              showCloseButton={false}
             />
           )}
         </DialogContent>

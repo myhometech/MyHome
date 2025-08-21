@@ -324,6 +324,12 @@ export function InsightsCalendar({
             console.log('📄 Closing document viewer from calendar');
             setSelectedDocument(null);
           }}
+          onDownload={() => {
+            const link = document.createElement('a');
+            link.href = `/api/documents/${selectedDocument.id}/download`;
+            link.download = selectedDocument.name;
+            link.click();
+          }}
           onUpdate={() => {
             console.log('📄 Document updated from calendar, refreshing');
             setSelectedDocument(null);

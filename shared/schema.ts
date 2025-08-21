@@ -292,9 +292,11 @@ export const insertEmailForwardSchema = createInsertSchema(emailForwards).omit({
 // Households table for Duo plan shared workspaces
 export const households = pgTable("households", {
   id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 255 }),
   stripeSubscriptionId: varchar("stripe_subscription_id").unique(),
   planType: varchar("plan_type", { length: 20 }).default("duo").notNull(), // Currently only 'duo'
   seatLimit: integer("seat_limit").default(2).notNull(),
+  ownerId: varchar("owner_id").references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -9,7 +9,8 @@ import {
   Settings,
   Search,
   Mail,
-  Copy
+  Copy,
+  X
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,6 +31,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   // Email forwarding functionality - use the correct formats expected by Mailgun
   const getEmailAddress = () => {
@@ -152,6 +154,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
                 size="sm"
                 className="p-2"
                 title="Search"
+                onClick={() => setShowMobileSearch(true)}
               >
                 <Search className="h-4 w-4" />
               </Button>
@@ -189,6 +192,42 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             setSelectedDocument(null);
           }}
         />
+      )}
+
+      {/* Mobile Search Overlay */}
+      {showMobileSearch && (
+        <div className="fixed inset-0 bg-white z-50 md:hidden">
+          <div className="flex flex-col h-full">
+            {/* Mobile Search Header */}
+            <div className="flex items-center p-4 border-b">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMobileSearch(false)}
+                className="p-2 mr-2"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <div className="flex-1">
+                <SmartSearch
+                  onDocumentSelect={(document) => {
+                    console.log('Mobile document selected:', document);
+                    setSelectedDocument(document);
+                    setShowMobileSearch(false);
+                  }}
+                  onSearchChange={onSearchChange}
+                  placeholder="Search documents..."
+                  className="w-full"
+                />
+              </div>
+            </div>
+            
+            {/* Search Help Text */}
+            <div className="p-4 text-center text-gray-500">
+              <p className="text-sm">Start typing to search your documents...</p>
+            </div>
+          </div>
+        </div>
       )}
     </header>
   );

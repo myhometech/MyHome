@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { MobileHamburgerMenu } from '@/components/mobile-hamburger-menu';
 import { UserProfileBadge } from '@/components/UserProfileBadge';
+import { SmartSearch } from '@/components/smart-search';
 
 interface HeaderProps {
   searchQuery?: string;
@@ -127,18 +128,17 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             </nav>
           </div>
 
-          {/* Center - Search Bar - Hidden on mobile, shown on larger screens */}
+          {/* Center - Smart Search Bar - Hidden on mobile, shown on larger screens */}
           <div className="hidden md:flex flex-1 max-w-lg mx-4">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange?.(e.target.value)}
-                className="pl-10 pr-4 w-full"
-              />
-            </div>
+            <SmartSearch
+              onDocumentSelect={(document) => {
+                // Navigate to document or handle selection
+                console.log('Document selected:', document);
+              }}
+              onSearchChange={onSearchChange}
+              placeholder="Search documents..."
+              className="w-full"
+            />
           </div>
 
           {/* Right side - Mobile optimized layout */}

@@ -266,11 +266,11 @@ export default function SharedAccessManagement() {
   }
 
   // Check if the Duo user actually has a household
-  const hasHousehold = householdData && !householdData.message; // If no error message, they have a household
+  const hasHousehold = householdData && !(householdData as any)?.message; // If no error message, they have a household
   const needsHousehold = isDuoUser && !householdLoading && !hasHousehold;
 
   // Set permissions based on actual household data
-  const currentUserRole = hasHousehold ? (householdData?.membership?.role || 'owner') : null;
+  const currentUserRole = hasHousehold ? ((householdData as any)?.membership?.role || 'owner') : null;
   const isOwner = currentUserRole === 'owner';
   const canInvite = isOwner || currentUserRole === 'duo_partner';
   const canRemove = isOwner;

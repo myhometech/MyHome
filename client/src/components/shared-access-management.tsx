@@ -265,15 +265,15 @@ export default function SharedAccessManagement() {
     );
   }
 
-  // For Duo users, assume owner role and full permissions by default
-  // The backend will enforce actual permissions
-  const currentUserRole = 'owner'; // Default for Duo users  
-  const isOwner = true;
-  const canInvite = true;
-  const canRemove = true;
+  // Check if the Duo user actually has a household
+  const hasHousehold = householdData && !householdData.message; // If no error message, they have a household
+  const needsHousehold = isDuoUser && !householdLoading && !hasHousehold;
 
-  // For Duo users, skip household creation step since they should already have one
-  const needsHousehold = false;
+  // Set permissions based on actual household data
+  const currentUserRole = hasHousehold ? (householdData?.membership?.role || 'owner') : null;
+  const isOwner = currentUserRole === 'owner';
+  const canInvite = isOwner || currentUserRole === 'duo_partner';
+  const canRemove = isOwner;
 
   // Show household creation form if user needs a household
   if (needsHousehold) {

@@ -972,17 +972,44 @@ export class PostgresStorage implements IStorage {
 
   // Email body document operations
   async createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document> {
-    // Use regular createDocument method for now
-    return this.createDocument({
-      name: `Email: ${emailData.subject || 'No Subject'}`,
-      userId,
-      fileName: `Email: ${emailData.subject || 'No Subject'}.pdf`,
-      filePath: '',
-      fileSize: pdfBuffer.length,
-      mimeType: 'application/pdf',
-      tags: emailData.tags || ['email', 'email-body'],
-      emailContext: emailData
-    });
+    console.log('📧 Creating email body document with GCS storage');
+    
+    // Import storage provider and generate unique key
+    const { storageProvider } = await import('./storage/StorageService');
+    const { nanoid } = await import('nanoid');
+    
+    const documentId = nanoid();
+    const fileName = `Email_${emailData.subject || 'No_Subject'}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const gcsKey = `${userId}/${documentId}/${fileName}`;
+    
+    try {
+      // Upload PDF buffer to GCS
+      console.log(`📧 Uploading email PDF to GCS: ${gcsKey}`);
+      const storage = storageProvider();
+      await storage.upload(pdfBuffer, gcsKey, 'application/pdf');
+      console.log(`✅ Email PDF uploaded successfully: ${gcsKey}`);
+      
+      // Create document record with GCS path
+      const document = await this.createDocument({
+        name: `Email: ${emailData.subject || 'No Subject'}`,
+        userId,
+        fileName: `Email: ${emailData.subject || 'No Subject'}.pdf`,
+        filePath: '', // Empty for GCS documents
+        gcsPath: gcsKey, // Set GCS path
+        isEncrypted: true, // Mark as cloud storage
+        fileSize: pdfBuffer.length,
+        mimeType: 'application/pdf',
+        tags: emailData.tags || ['email', 'email-body'],
+        emailContext: emailData
+      });
+      
+      console.log(`✅ Email document created: ID ${document.id}, GCS path: ${gcsKey}`);
+      return document;
+      
+    } catch (error) {
+      console.error('❌ Failed to upload email PDF to GCS:', error);
+      throw new Error(`Failed to create email document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**

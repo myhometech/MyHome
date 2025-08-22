@@ -513,7 +513,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         </div>
 
         {/* Right side - Actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 mr-1">
           {/* PDF navigation controls */}
           {useReactPdf && numPages && numPages > 1 && (
             <div className="hidden md:flex items-center gap-1 bg-white/60 rounded-lg px-2 py-1">
@@ -570,15 +570,16 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             </Button>
           )}
 
-          {/* Close Button - Properly aligned */}
+          {/* Close Button - More prominent and accessible */}
           {showCloseButton && (
             <Button
               onClick={onClose}
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 rounded-full bg-white/80 hover:bg-white shadow-sm border border-gray-200 text-[#2B2F40] hover:text-[#1E90FF] transition-colors"
+              className="h-9 w-9 p-0 ml-2 rounded-full bg-white hover:bg-gray-50 shadow-md border border-gray-300 text-gray-600 hover:text-red-500 hover:border-red-200 transition-all duration-200 flex-shrink-0"
+              data-testid="button-close-document"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
               <span className="sr-only">Close document viewer</span>
             </Button>
           )}

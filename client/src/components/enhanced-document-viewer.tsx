@@ -570,16 +570,16 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             </Button>
           )}
 
-          {/* Close Button - More prominent and accessible */}
+          {/* Close Button - Fixed positioning and visibility */}
           {showCloseButton && (
             <Button
               onClick={onClose}
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="h-9 w-9 p-0 ml-2 rounded-full bg-white hover:bg-gray-50 shadow-md border border-gray-300 text-gray-600 hover:text-red-500 hover:border-red-200 transition-all duration-200 flex-shrink-0"
+              className="h-8 w-8 p-0 ml-2 rounded-full bg-white hover:bg-gray-100 border-2 border-gray-400 text-gray-700 hover:text-red-600 hover:border-red-400 transition-colors flex-shrink-0 shadow-sm z-10"
               data-testid="button-close-document"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
               <span className="sr-only">Close document viewer</span>
             </Button>
           )}

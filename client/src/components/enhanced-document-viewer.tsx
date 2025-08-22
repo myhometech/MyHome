@@ -469,8 +469,13 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
       {/* Enhanced Document Header - Mobile and Desktop */}
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#FAF4EF] to-[#F8F2E8] border-b border-gray-200 shrink-0">
-        {/* Left side - Document info */}
-        <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
+        {/* Left side - Document info - Clickable to close */}
+        <div 
+          className="flex items-center gap-3 min-w-0 flex-1 mr-2 cursor-pointer hover:bg-white/40 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors"
+          onClick={onClose}
+          title="Click to close document viewer"
+          data-testid="header-close-document"
+        >
           {/* Document type icon with colored background */}
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1E90FF] shadow-sm flex-shrink-0">
             {isPDF() ? (
@@ -570,19 +575,6 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             </Button>
           )}
 
-          {/* Close Button - Fixed positioning and visibility */}
-          {showCloseButton && (
-            <Button
-              onClick={onClose}
-              variant="outline"
-              size="sm"
-              className="h-8 w-8 p-0 ml-2 rounded-full bg-white hover:bg-gray-100 border-2 border-gray-400 text-gray-700 hover:text-red-600 hover:border-red-400 transition-colors flex-shrink-0 shadow-sm z-10"
-              data-testid="button-close-document"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close document viewer</span>
-            </Button>
-          )}
         </div>
       </div>
 

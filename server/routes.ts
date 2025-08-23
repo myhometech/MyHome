@@ -1571,6 +1571,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId
       );
 
+      // Ensure insights is properly structured
+      if (!insights || !insights.insights || !Array.isArray(insights.insights)) {
+        return res.status(200).json({
+          success: true,
+          insights: [],
+          documentType: insights?.documentType || 'Unknown',
+          recommendedActions: insights?.recommendedActions || [],
+          processingTime: insights?.processingTime || 0,
+          confidence: insights?.confidence || 0,
+          message: "No insights could be generated for this document"
+        });
+      }
+
       // Store insights in database with TICKET 4 dashboard fields
       for (const insight of insights.insights) {
         // TICKET 4: Generate dashboard-ready message and action URL
@@ -1619,11 +1632,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        insights: insights.insights,
-        documentType: insights.documentType,
-        recommendedActions: insights.recommendedActions,
-        processingTime: insights.processingTime,
-        confidence: insights.confidence
+        insights: insights.insights || [],
+        documentType: insights.documentType || 'Unknown',
+        recommendedActions: insights.recommendedActions || [],
+        processingTime: insights.processingTime || 0,
+        confidence: insights.confidence || 0
       });
 
     } catch (error: any) {
@@ -1633,6 +1646,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error.message.includes('quota exceeded')) {
         return res.status(429).json({ 
           message: "OpenAI API quota exceeded. Please check your billing and usage limits." 
+        });
+      }
+
+      if (error.message.includes('Failed to parse AI insight response')) {
+        return res.status(200).json({ 
+          success: true,
+          insights: [],
+          documentType: 'Unknown',
+          recommendedActions: [],
+          processingTime: 0,
+          confidence: 0,
+          message: "Document processed but no insights could be extracted"
         });
       }
 

@@ -201,34 +201,77 @@ Ensure all insights are actionable and provide real value to the user.`;
     recommendedActions: string[];
   } {
     try {
+      // Handle empty or invalid responses
+      if (!response || typeof response !== 'string' || response.trim() === '') {
+        console.warn(`[${requestId}] DOC-501: Empty or invalid response received`);
+        return {
+          insights: [],
+          confidence: 0,
+          documentType: 'Unknown',
+          recommendedActions: []
+        };
+      }
+
       // Use LLM client's robust JSON parsing (TICKET 2)
       const parsed = llmClient.parseJSONResponse(response);
       
-      const insights: DocumentInsight[] = (parsed.insights || []).map((insight: any, index: number) => ({
-        id: insight.id || `insight-${Date.now()}-${index}`,
-        type: this.validateInsightType(insight.type),
-        title: insight.title || 'Untitled Insight',
-        content: insight.content || '',
-        confidence: Math.max(0, Math.min(100, (insight.confidence || 0.5) * 100)), // Convert 0-1 to 0-100 scale
-        priority: this.validatePriority(insight.priority),
-        // INSIGHT-101: Add tier classification with validation
-        tier: this.validateTier(insight.tier),
-        metadata: insight.metadata || {},
-        createdAt: new Date()
-      }));
+      // Handle malformed parsed response
+      if (!parsed || typeof parsed !== 'object') {
+        console.warn(`[${requestId}] DOC-501: Parsed response is not a valid object`);
+        return {
+          insights: [],
+          confidence: 0,
+          documentType: 'Unknown',
+          recommendedActions: []
+        };
+      }
+      
+      // Safely handle insights array
+      const rawInsights = parsed.insights;
+      let insights: DocumentInsight[] = [];
+      
+      if (Array.isArray(rawInsights) && rawInsights.length > 0) {
+        insights = rawInsights.map((insight: any, index: number) => {
+          try {
+            return {
+              id: insight?.id || `insight-${Date.now()}-${index}`,
+              type: this.validateInsightType(insight?.type),
+              title: insight?.title || 'Untitled Insight',
+              content: insight?.content || '',
+              confidence: Math.max(0, Math.min(100, (insight?.confidence || 0.5) * 100)), // Convert 0-1 to 0-100 scale
+              priority: this.validatePriority(insight?.priority),
+              // INSIGHT-101: Add tier classification with validation
+              tier: this.validateTier(insight?.tier),
+              metadata: insight?.metadata || {},
+              createdAt: new Date()
+            };
+          } catch (insightError) {
+            console.warn(`[${requestId}] DOC-501: Failed to parse insight ${index}, skipping:`, insightError);
+            return null;
+          }
+        }).filter(insight => insight !== null) as DocumentInsight[];
+      }
 
       console.log(`[${requestId}] DOC-501: Parsed ${insights.length} insights successfully`);
 
       return {
         insights,
-        confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
+        confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0.5)),
         documentType: parsed.documentType || 'Unknown',
         recommendedActions: Array.isArray(parsed.recommendedActions) ? parsed.recommendedActions : []
       };
 
     } catch (parseError) {
       console.error(`[${requestId}] DOC-501: Failed to parse AI response:`, parseError);
-      throw new Error('Failed to parse AI insight response');
+      console.error(`[${requestId}] DOC-501: Response content preview:`, response?.substring(0, 500));
+      
+      // Return empty result instead of throwing error to prevent route crashes
+      return {
+        insights: [],
+        confidence: 0,
+        documentType: 'Unknown',
+        recommendedActions: []
+      };
     }
   }
 

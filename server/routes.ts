@@ -1488,9 +1488,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // DOC-501: Generate AI insights for a document
   app.post('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
+    const startTime = Date.now();
+    let documentId: number;
+    
     try {
       const userId = getUserId(req);
-      const documentId = parseInt(req.params.id);
+      documentId = parseInt(req.params.id);
+      console.log(`🔍 [INSIGHT-DEBUG] Starting insight generation for document ${documentId}, user ${userId}`);
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
@@ -1498,16 +1502,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if AI Insight service is available
       if (!aiInsightService.isServiceAvailable()) {
+        console.log(`❌ [INSIGHT-DEBUG] AI service not available for document ${documentId}`);
         return res.status(503).json({ 
-          message: "AI Insight service not available - OpenAI API key required",
+          message: "AI Insight service not available - API key required",
           status: aiInsightService.getServiceStatus()
         });
       }
 
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
+        console.log(`❌ [INSIGHT-DEBUG] Document ${documentId} not found`);
         return res.status(404).json({ message: "Document not found" });
       }
+
+      console.log(`📄 [INSIGHT-DEBUG] Document found: ${document.name}, hasText: ${!!document.extractedText}, textLength: ${document.extractedText?.length || 0}`);
 
       // Auto-trigger OCR if extracted text is missing
       if (!document.extractedText || document.extractedText.trim() === '') {
@@ -1520,23 +1528,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        // Import OCR queue and trigger processing
-        const { ocrQueue } = await import('./ocrQueue');
-
-        // Check if document file exists before queuing OCR
-        const fileExists = document.gcsPath ? 
-          true : // Assume GCS files exist - will be verified in OCR process
-          fs.existsSync(document.filePath);
-
-        if (!fileExists && !document.gcsPath) {
-          console.error(`❌ Document file not found: ${document.filePath}`);
-          return res.status(404).json({ 
-            message: "Document file not found on disk. Cannot extract text.",
-            debug: `File path: ${document.filePath}`
-          });
-        }
-
         try {
+          // Import OCR queue and trigger processing
+          const { ocrQueue } = await import('./ocrQueue');
+
+          // Check if document file exists before queuing OCR
+          const fileExists = document.gcsPath ? 
+            true : // Assume GCS files exist - will be verified in OCR process
+            fs.existsSync(document.filePath);
+
+          if (!fileExists && !document.gcsPath) {
+            console.error(`❌ Document file not found: ${document.filePath}`);
+            return res.status(404).json({ 
+              message: "Document file not found on disk. Cannot extract text.",
+              debug: `File path: ${document.filePath}`
+            });
+          }
+
           // Queue OCR job with high priority for user-initiated request
           const jobId = await ocrQueue.addJob({
             documentId,
@@ -1569,15 +1577,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const insights = await aiInsightService.generateDocumentInsights(
-        document.name,
-        document.extractedText,
-        document.mimeType,
-        userId
-      );
+      console.log(`🤖 [INSIGHT-DEBUG] Calling AI service for document ${documentId}`);
+      
+      let insights;
+      try {
+        insights = await aiInsightService.generateDocumentInsights(
+          document.name,
+          document.extractedText,
+          document.mimeType,
+          userId
+        );
+        console.log(`✅ [INSIGHT-DEBUG] AI service returned insights:`, insights ? 'success' : 'null', insights?.insights?.length || 0, 'insights');
+      } catch (aiError: any) {
+        console.error(`❌ [INSIGHT-DEBUG] AI service failed for document ${documentId}:`, aiError);
+        return res.status(500).json({
+          success: false,
+          message: "AI insight generation failed",
+          error: aiError.message,
+          processingTime: Date.now() - startTime
+        });
+      }
 
       // Ensure insights is properly structured
       if (!insights || !insights.insights || !Array.isArray(insights.insights)) {
+        console.log(`⚠️ [INSIGHT-DEBUG] No valid insights returned for document ${documentId}:`, { 
+          hasInsights: !!insights, 
+          hasInsightsArray: !!insights?.insights, 
+          isArray: Array.isArray(insights?.insights),
+          insightsType: typeof insights?.insights
+        });
         return res.status(200).json({
           success: true,
           insights: [],
@@ -1589,39 +1617,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log(`💾 [INSIGHT-DEBUG] Storing ${insights.insights.length} insights in database for document ${documentId}`);
+
       // Store insights in database with TICKET 4 dashboard fields
-      for (const insight of insights.insights) {
-        // TICKET 4: Generate dashboard-ready message and action URL
-        const message = generateInsightMessage(insight, document.name);
-        const actionUrl = `/documents/${documentId}`;
-        const dueDate = extractDueDate(insight);
+      try {
+        for (const insight of insights.insights) {
+          try {
+            // TICKET 4: Generate dashboard-ready message and action URL with error handling
+            let message, actionUrl, dueDate;
+            
+            try {
+              message = generateInsightMessage(insight, document.name);
+              actionUrl = `/documents/${documentId}`;
+              dueDate = extractDueDate(insight);
+            } catch (helperError: any) {
+              console.error(`❌ [INSIGHT-DEBUG] Helper function error for insight ${insight.id}:`, helperError);
+              message = `${document.name}: ${insight.title || 'Untitled insight'}`;
+              actionUrl = `/documents/${documentId}`;
+              dueDate = null;
+            }
 
-        console.log('🔍 [ROUTE DEBUG] Creating insight with documentId:', documentId, 'type:', typeof documentId);
-        console.log('🔍 [ROUTE DEBUG] Insight confidence:', insight.confidence, 'rounded:', Math.round(insight.confidence * 100));
-        console.log('🔍 [ROUTE DEBUG] Processing time:', insights.processingTime, 'type:', typeof insights.processingTime);
+            console.log(`🔍 [INSIGHT-DEBUG] Processing insight: ${insight.id}, type: ${insight.type}, confidence: ${insight.confidence}`);
 
-        await storage.createDocumentInsight({
-          documentId, // Should be number from parseInt above
-          userId,
-          insightId: insight.id,
-          message, // TICKET 4: User-facing message
-          type: insight.type,
-          title: insight.title,
-          content: insight.content,
-          confidence: Math.round(insight.confidence * 100).toString(), // Convert to 0-100 scale as string
-          priority: insight.priority,
-          dueDate, // TICKET 4: Due date for actionable insights
-          actionUrl, // TICKET 4: URL to take action
-          status: 'open', // TICKET 4: Default status
-          metadata: insight.metadata || {},
-          processingTime: insights.processingTime,
-          aiModel: 'gpt-4o',
-          source: 'ai',
-          // INSIGHT-101: Add tier classification
-          tier: insight.tier,
-          insightVersion: 'v2.0',
-          generatedAt: new Date()
-        });
+            await storage.createDocumentInsight({
+              documentId, // Should be number from parseInt above
+              userId,
+              insightId: insight.id,
+              message, // TICKET 4: User-facing message
+              type: insight.type,
+              title: insight.title,
+              content: insight.content,
+              confidence: Math.round((insight.confidence || 0.5) * 100).toString(), // Convert to 0-100 scale as string
+              priority: insight.priority,
+              dueDate, // TICKET 4: Due date for actionable insights
+              actionUrl, // TICKET 4: URL to take action
+              status: 'open', // TICKET 4: Default status
+              metadata: insight.metadata || {},
+              processingTime: insights.processingTime,
+              aiModel: 'mistral-7b-instruct',
+              source: 'ai',
+              // INSIGHT-101: Add tier classification
+              tier: insight.tier,
+              insightVersion: 'v2.0',
+              generatedAt: new Date()
+            });
+            
+            console.log(`✅ [INSIGHT-DEBUG] Successfully stored insight ${insight.id}`);
+          } catch (insightError: any) {
+            console.error(`❌ [INSIGHT-DEBUG] Failed to store insight ${insight.id}:`, insightError);
+            // Continue with next insight instead of failing entire request
+          }
+        }
+      } catch (storageError: any) {
+        console.error(`❌ [INSIGHT-DEBUG] Database storage failed for document ${documentId}:`, storageError);
+        // Still return the insights even if storage failed
       }
 
       // TICKET 8: Track insights generation for browser scans

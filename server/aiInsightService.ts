@@ -25,12 +25,22 @@ class AIInsightService {
   private isAvailable: boolean = false;
 
   constructor() {
+    // Force LLM client to initialize and log status
+    console.log('🔄 [AI-SERVICE] Initializing AI Insight Service...');
     this.isAvailable = llmClient.isAvailable();
+    const status = llmClient.getStatus();
+    
+    console.log(`🔍 [AI-SERVICE] LLM Client Status:`, {
+      available: status.available,
+      provider: status.provider,
+      model: status.model,
+      reason: status.reason
+    });
+    
     if (this.isAvailable) {
-      const status = llmClient.getStatus();
-      console.log(`✅ AI Insight Service initialized with ${status.provider} (${status.model})`);
+      console.log(`✅ [AI-SERVICE] AI Insight Service initialized with ${status.provider} (${status.model})`);
     } else {
-      console.log('⚠️ AI Insight Service disabled - LLM API key not found');
+      console.log(`❌ [AI-SERVICE] AI Insight Service disabled - ${status.reason || 'LLM client not available'}`);
     }
   }
 
@@ -59,7 +69,7 @@ class AIInsightService {
 
       const hasAIInsights = await featureFlagService.isFeatureEnabled('ai_insights', {
         userId,
-        userTier: user.subscriptionTier as 'free' | 'beginner' | 'pro' | 'duo' | 'premium',
+        userTier: user.subscriptionTier as any, // Allow all subscription tiers
         sessionId: '', 
         userAgent: '',
         ipAddress: ''

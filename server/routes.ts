@@ -16,6 +16,11 @@ import { extractTextFromImage, supportsOCR, processDocumentOCRAndSummary, proces
 
 import { tagSuggestionService } from "./tagSuggestionService";
 import { aiInsightService } from "./aiInsightService";
+
+// Force AI service initialization during server startup
+console.log('🚀 [STARTUP] Forcing AI services to initialize...');
+const aiServiceStatus = aiInsightService.isServiceAvailable();
+console.log(`📊 [STARTUP] AI Insight Service Status: ${aiServiceStatus ? 'AVAILABLE' : 'DISABLED'}`);
 import { pdfConversionService } from "./pdfConversionService.js";
 import { EncryptionService } from "./encryptionService.js";
 import docxConversionService from './docxConversionService';

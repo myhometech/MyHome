@@ -59,7 +59,7 @@ class AIInsightService {
 
       const hasAIInsights = await featureFlagService.isFeatureEnabled('ai_insights', {
         userId,
-        userTier: user.subscriptionTier as 'free' | 'premium',
+        userTier: user.subscriptionTier as 'free' | 'beginner' | 'pro' | 'duo' | 'premium',
         sessionId: '', 
         userAgent: '',
         ipAddress: ''

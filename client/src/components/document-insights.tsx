@@ -478,8 +478,15 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
 
                 {/* Content section */}
                 <div className={`${isMobile ? 'space-y-1.5' : 'space-y-2'}`}>
+                  {/* Document name */}
+                  <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-xs'} text-gray-500 mb-1`}>
+                    <FileText className="h-3 w-3" />
+                    <span className="truncate">{documentName}</span>
+                  </div>
+                  
+                  {/* Short title */}
                   <h4 className={`font-semibold text-gray-900 ${isMobile ? 'text-sm' : 'text-sm'} leading-tight`}>
-                    {insight.title}
+                    {insight.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 25)}
                   </h4>
                   <div className={`text-gray-700 ${isMobile ? 'text-sm leading-snug p-2' : 'text-sm leading-relaxed p-3'} bg-gray-50/50 rounded-md border border-gray-200/50`}>
                     {insight.content}

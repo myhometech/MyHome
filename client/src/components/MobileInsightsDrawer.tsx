@@ -167,9 +167,6 @@ export function MobileInsightsDrawer({
                 ">
                   AI Insights
                 </h2>
-                <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                  {documentName}
-                </p>
               </div>
             </div>
 

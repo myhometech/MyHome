@@ -36,6 +36,14 @@ export default function UnifiedUploadButton({
   // Guard against late async completions trying to update UI after close
   const closedRef = useRef(false);
 
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+    return false;
+  });
+
   // Enhanced per-file upload tracking with progress and error handling
   type UploadItem = {
     id: string;            // stable UUID generated on enqueue
@@ -56,8 +64,15 @@ export default function UnifiedUploadButton({
     setShowUploadDialog(open);
     if (open && uploadItems.length === 0) {
       resetAllStates();
+      
+      // On mobile, auto-trigger file picker when dialog opens
+      if (isMobile && selectedFiles.length === 0) {
+        setTimeout(() => {
+          handleFileUpload();
+        }, 100); // Small delay to ensure dialog is rendered
+      }
     }
-  }, [open, uploadItems.length]);
+  }, [open, uploadItems.length, isMobile, selectedFiles.length]);
 
   // Helper function to update a specific upload item
   const updateItem = (id: string, patch: Partial<UploadItem>) => {
@@ -142,6 +157,19 @@ export default function UnifiedUploadButton({
     setShowUploadDialog(false);
     onOpenChange(false);
   };
+
+  // Update mobile detection on resize
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      const newIsMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(newIsMobile);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Helper to reset all states - used for successful uploads or explicit clear
   const resetAllStates = () => {
@@ -814,34 +842,51 @@ export default function UnifiedUploadButton({
               uploadFormContent
             ) : (
               <div className="space-y-4">
-                <Card
-                  className={`h-32 border-2 border-dashed transition-colors cursor-pointer hover:border-primary ${
-                    isDragOver
-                      ? "border-primary bg-blue-50"
-                      : "border-gray-300"
-                  }`}
-                  onDrop={handleDrop}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragOver(true);
-                  }}
-                  onDragLeave={() => setIsDragOver(false)}
-                  onClick={handleFileUpload}
-                >
-                  <CardContent className="p-4 h-full flex flex-col items-center justify-center text-center">
-                    <CloudUpload className="h-6 w-6 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-600 mb-2">Drop files here or click to browse</p>
-                    <p className="text-xs text-gray-500">PDF, JPG, PNG, WebP (max 10MB)</p>
-                  </CardContent>
-                </Card>
+                {/* Show simplified interface on mobile */}
+                {isMobile ? (
+                  <div className="text-center py-8">
+                    <CloudUpload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-lg font-medium text-gray-900 mb-2">Select Files to Upload</p>
+                    <p className="text-sm text-gray-600 mb-6">Choose documents from your device</p>
+                    <Button onClick={handleFileUpload} className="w-full bg-primary hover:bg-blue-700 text-white py-3">
+                      <Upload className="h-5 w-5 mr-2" />
+                      Choose Files from Device
+                    </Button>
+                    <p className="text-xs text-gray-500 mt-3">PDF, JPG, PNG, WebP (max 10MB)</p>
+                  </div>
+                ) : (
+                  // Desktop drag-and-drop interface
+                  <>
+                    <Card
+                      className={`h-32 border-2 border-dashed transition-colors cursor-pointer hover:border-primary ${
+                        isDragOver
+                          ? "border-primary bg-blue-50"
+                          : "border-gray-300"
+                      }`}
+                      onDrop={handleDrop}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragOver(true);
+                      }}
+                      onDragLeave={() => setIsDragOver(false)}
+                      onClick={handleFileUpload}
+                    >
+                      <CardContent className="p-4 h-full flex flex-col items-center justify-center text-center">
+                        <CloudUpload className="h-6 w-6 text-gray-400 mb-2" />
+                        <p className="text-sm text-gray-600 mb-2">Drop files here or click to browse</p>
+                        <p className="text-xs text-gray-500">PDF, JPG, PNG, WebP (max 10MB)</p>
+                      </CardContent>
+                    </Card>
 
-                <div className="text-center">
-                  <p className="text-sm text-gray-500 mb-3">Or choose files directly:</p>
-                  <Button onClick={handleFileUpload} variant="outline" className="w-full">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Choose Files
-                  </Button>
-                </div>
+                    <div className="text-center">
+                      <p className="text-sm text-gray-500 mb-3">Or choose files directly:</p>
+                      <Button onClick={handleFileUpload} variant="outline" className="w-full">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Choose Files
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </DialogContent>

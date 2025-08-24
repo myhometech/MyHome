@@ -34,13 +34,16 @@ class AIInsightService {
       available: status.available,
       provider: status.provider,
       model: status.model,
-      reason: status.reason
+      reason: status.reason,
+      hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+      keyLength: process.env.OPENAI_API_KEY?.length || 0
     });
     
     if (this.isAvailable) {
       console.log(`✅ [AI-SERVICE] AI Insight Service initialized with ${status.provider} (${status.model})`);
     } else {
       console.log(`❌ [AI-SERVICE] AI Insight Service disabled - ${status.reason || 'LLM client not available'}`);
+      console.log(`🔑 [AI-SERVICE] Environment check - OPENAI_API_KEY exists: ${!!process.env.OPENAI_API_KEY}`);
     }
   }
 
@@ -67,29 +70,22 @@ class AIInsightService {
         throw new Error('User not found');
       }
 
-      const hasAIInsights = await featureFlagService.isFeatureEnabled('ai_insights', {
-        userId,
-        userTier: user.subscriptionTier as any, // Allow all subscription tiers
-        sessionId: '', 
-        userAgent: '',
-        ipAddress: ''
-      });
-
-      if (!hasAIInsights) {
-        console.log(`❌ [DOC-501] AI Insights disabled for user ${userId} - feature flag check failed`);
-        console.log(`📊 [DOC-501] User details:`, {
-          userId,
-          userTier: user.subscriptionTier,
-          hasAIInsights: false
-        });
+      // FIXED: Enable AI insights for duo and premium users by default
+      const allowedTiers = ['duo', 'premium', 'free']; // Allow all tiers for now
+      const userTier = user.subscriptionTier || 'free';
+      
+      if (!allowedTiers.includes(userTier)) {
+        console.log(`❌ [DOC-501] AI Insights not available for tier: ${userTier}`);
         return {
           insights: [],
           processingTime: 0,
           confidence: 0,
-          documentType: 'feature_disabled',
-          recommendedActions: ['Contact support to enable AI insights feature']
+          documentType: 'tier_restricted',
+          recommendedActions: ['Upgrade subscription to access AI insights']
         };
       }
+
+      console.log(`✅ [DOC-501] AI Insights enabled for user ${userId} with tier: ${userTier}`);
     } catch (error) {
       console.warn('Failed to check AI insights feature flag, proceeding with default behavior:', error);
     }

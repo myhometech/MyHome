@@ -1504,10 +1504,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!aiInsightService.isServiceAvailable()) {
         console.log(`❌ [INSIGHT-DEBUG] AI service not available for document ${documentId}`);
         return res.status(503).json({ 
-          message: "AI Insight service not available - API key required",
+          message: "AI Insight service not available - LLM API key required",
           status: aiInsightService.getServiceStatus()
         });
       }
+
+      console.log(`✅ [INSIGHT-DEBUG] AI service is available for document ${documentId}`);
 
       const document = await storage.getDocument(documentId, userId);
       if (!document) {

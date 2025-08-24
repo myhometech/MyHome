@@ -184,6 +184,56 @@ router.post('/', upload.fields([
 
     console.log('✅ Document created successfully:', document.id);
 
+    // AUTO-GENERATE INSIGHTS: Queue insight generation for new documents
+    try {
+      const { insightJobQueue } = await import('../insightJobQueue');
+      const { documentProcessor } = await import('../documentProcessor');
+      
+      // Process document to extract text if needed
+      let extractedText = '';
+      if (document.filePath && uploadedFile.mimetype) {
+        try {
+          const processedDoc = await documentProcessor.processDocument(
+            document.filePath,
+            uploadedFile.originalname,
+            uploadedFile.mimetype
+          );
+          extractedText = processedDoc.extractedText || '';
+          
+          // Update document with extracted text
+          if (extractedText && extractedText.length > 20) {
+            await storage.updateDocument(document.id, userId, {
+              extractedText,
+              ocrConfidence: processedDoc.confidence * 100
+            });
+          }
+        } catch (processingError) {
+          console.warn('Document processing failed, will generate insights without text:', processingError);
+        }
+      }
+      
+      // Queue insight generation job
+      if (extractedText && extractedText.length > 20) {
+        const jobId = await insightJobQueue.addInsightJob({
+          documentId: document.id,
+          userId,
+          documentType: categorizationSource === 'ai' ? 'general' : 'unknown',
+          documentName: uploadedFile.originalname,
+          extractedText,
+          mimeType: uploadedFile.mimetype,
+          priority: 5
+        });
+        
+        if (jobId) {
+          console.log(`🔍 Queued insight generation job ${jobId} for document ${document.id}`);
+        }
+      } else {
+        console.log(`⚠️ Skipping insight generation for document ${document.id} - insufficient text`);
+      }
+    } catch (insightError) {
+      console.warn('Failed to queue insight generation, continuing with upload:', insightError);
+    }
+
     // Clean up temporary files
     try {
       const fs = require('fs').promises;

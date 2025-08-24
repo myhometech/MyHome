@@ -122,8 +122,14 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
       const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
         signal: AbortSignal.timeout(10000) // 10s timeout to prevent hanging requests
       });
-      if (!response.ok) throw new Error('Failed to fetch insights');
-      return await response.json();
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Failed to fetch insights:', errorData);
+        throw new Error('Failed to fetch insights');
+      }
+      const data = await response.json();
+      console.log('Fetched insights data:', data);
+      return data;
     },
     // Aggressive caching with memory optimization
     staleTime: 10 * 60 * 1000, // 10 minutes

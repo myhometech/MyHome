@@ -54,6 +54,7 @@ type LLMConfig = z.infer<typeof configSchema>;
 export class LLMClient {
   private config: LLMConfig;
   private requestCount: number = 0;
+  private openaiApiKey: string = ''; // Added for OpenAI API key
 
   constructor(config: Partial<LLMConfig> = {}) {
     // Load configuration from environment
@@ -65,7 +66,10 @@ export class LLMClient {
     };
 
     this.config = configSchema.parse(envConfig);
-    
+
+    // Store OpenAI API key separately for the isConfigured check
+    this.openaiApiKey = this.config.apiKey;
+
     if (!this.config.apiKey) {
       console.warn('⚠️ LLM Client: No API key configured. Set MISTRAL_API_KEY environment variable.');
     } else {
@@ -91,9 +95,9 @@ export class LLMClient {
       try {
         const response = await this.makeRequest(request, requestId);
         const durationMs = Date.now() - startTime;
-        
+
         console.log(`[${requestId}] LLM Success: ${response.content.length} chars, ${response.usage?.total_tokens || 0} tokens`);
-        
+
         // Log usage to database if context provided
         if (context && response.usage) {
           const provider = this.config.baseURL?.includes('together') ? 'together.ai' : 'mistral';
@@ -101,7 +105,7 @@ export class LLMClient {
           const costUsd = provider === 'together.ai' ? 
             llmUsageLogger.calculateMistralCost(response.usage.total_tokens) :
             undefined;
-            
+
           await llmUsageLogger.logUsage({
             ...context,
             provider,
@@ -113,21 +117,21 @@ export class LLMClient {
             costUsd,
           });
         }
-        
+
         return response;
 
       } catch (error) {
         lastError = this.normalizeError(error, requestId);
-        
+
         if (attempt === this.config.maxRetries || !this.shouldRetry(lastError)) {
           console.error(`[${requestId}] LLM Failed after ${attempt} attempts:`, lastError.message);
-          
+
           // Log failed usage if context provided
           if (context) {
             const provider = this.config.baseURL?.includes('together') ? 'together.ai' : 'mistral';
             const model = request.model || this.config.defaultModel;
             const durationMs = Date.now() - startTime;
-            
+
             await llmUsageLogger.logUsage({
               ...context,
               provider,
@@ -138,7 +142,7 @@ export class LLMClient {
               status: 'error',
             });
           }
-          
+
           throw lastError;
         }
 
@@ -201,11 +205,11 @@ export class LLMClient {
 
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error instanceof Error && error.name === 'AbortError') {
         throw this.createError(`Request timeout after ${timeout}ms`, 'timeout');
       }
-      
+
       throw error;
     }
   }
@@ -295,14 +299,21 @@ export class LLMClient {
    * Check if service is available
    */
   isAvailable(): boolean {
-    return !!this.config.apiKey;
+    // This method should check if the LLM service is generally available,
+    // which depends on having an API key.
+    return this.isConfigured();
   }
 
   /**
    * Alias for isAvailable() for backward compatibility
    */
-  isConfigured(): boolean {
-    return this.isAvailable();
+  private isConfigured(): boolean {
+    const hasKey = !!(this.openaiApiKey && this.openaiApiKey.length > 0);
+    console.log(`🔍 [LLM-CLIENT] API Key configured: ${hasKey ? 'YES' : 'NO'}`);
+    if (!hasKey) {
+      console.log(`❌ [LLM-CLIENT] OpenAI API key missing or empty`);
+    }
+    return hasKey;
   }
 
   /**
@@ -322,6 +333,10 @@ export class LLMClient {
    */
   updateConfig(newConfig: Partial<LLMConfig>): void {
     this.config = { ...this.config, ...newConfig };
+    // Update the internal openaiApiKey as well if it's changed
+    if (newConfig.apiKey !== undefined) {
+      this.openaiApiKey = newConfig.apiKey;
+    }
     console.log(`✅ LLM Client config updated: ${this.config.defaultModel}`);
   }
 
@@ -336,12 +351,19 @@ export class LLMClient {
 
   private normalizeError(error: any, requestId: string): LLMError {
     if (error instanceof Error) {
+      // Check for specific error types that might be missed by instanceof
+      if (error.message.includes('API key not configured')) {
+        return { ...error, type: 'api_error', status: 401 } as LLMError;
+      }
+      // Add more specific error type checks if needed
       return error as LLMError;
     }
-    
+
+    // Handle cases where error is not an Error instance
+    const errorMessage = typeof error === 'string' ? error : JSON.stringify(error);
     return this.createError(
-      typeof error === 'string' ? error : 'Unknown LLM error',
-      'api_error'
+      `LLM Error: ${errorMessage}`,
+      'api_error' // Default to api_error for unknown types
     );
   }
 
@@ -350,7 +372,7 @@ export class LLMClient {
     if (error.status && error.status >= 400 && error.status < 500 && error.status !== 429) {
       return false;
     }
-    
+
     // Retry on network errors, timeouts, and server errors
     return ['network_error', 'timeout', 'rate_limit'].includes(error.type || '') || 
            !!(error.status && error.status >= 500);

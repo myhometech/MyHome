@@ -30,7 +30,7 @@ class FeatureFlagService {
   async initializeFeatureFlags(): Promise<void> {
     try {
       console.log('Initializing feature flags in database...');
-      
+
       for (const [key, feature] of Object.entries(FEATURES)) {
         const existingFlag = await db
           .select()
@@ -51,7 +51,7 @@ class FeatureFlagService {
           console.log(`Created feature flag: ${key}`);
         }
       }
-      
+
       console.log('Feature flags initialization completed');
     } catch (error) {
       console.error('Failed to initialize feature flags:', error);
@@ -68,7 +68,7 @@ class FeatureFlagService {
     logEvent: boolean = true
   ): Promise<boolean> {
     const evaluation = await this.evaluateFeature(featureName, context);
-    
+
     if (logEvent) {
       await this.logFeatureEvent(featureName, context, evaluation);
     }
@@ -133,7 +133,7 @@ class FeatureFlagService {
 
     // Evaluate based on rollout strategy
     const enabled = await this.evaluateRolloutStrategy(flag, context);
-    
+
     return {
       enabled,
       reason: enabled ? 'tier_access' : 'rollout_percentage',
@@ -162,12 +162,12 @@ class FeatureFlagService {
           if (flag.tierRequired === 'free') return true;
           return context.userTier === 'premium';
         }
-        
+
         const userHash = this.getUserHash(context.userId, flag.name);
         const inRollout = userHash < flag.rolloutPercentage;
-        
+
         if (!inRollout) return false;
-        
+
         // User is in rollout percentage, check tier requirement
         if (flag.tierRequired === 'free') return true;
         return context.userTier === 'premium';
@@ -211,7 +211,7 @@ class FeatureFlagService {
     }
 
     const flags = await db.select().from(featureFlags);
-    
+
     this.flagCache.set(cacheKey, flags);
     this.cacheExpiry.set(cacheKey, now + this.CACHE_TTL);
 
@@ -345,7 +345,7 @@ class FeatureFlagService {
         .set({ ...flagData, updatedAt: new Date() })
         .where(eq(featureFlags.id, existing[0].id))
         .returning();
-      
+
       this.clearCache();
       return updated;
     } else {
@@ -353,7 +353,7 @@ class FeatureFlagService {
         .insert(featureFlags)
         .values(flagData)
         .returning();
-      
+
       this.clearCache();
       return created;
     }

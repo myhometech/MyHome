@@ -387,8 +387,8 @@ export function InsightsPage() {
         {selectedDocumentId && documentDetails && (
           <Dialog open={true} onOpenChange={handleCloseDocument}>
             <DialogContent className="max-w-[100vw] w-full max-h-[100vh] h-full p-0" aria-describedby="document-viewer-description">
-              <DialogTitle className="sr-only">Document Viewer</DialogTitle>
-              <DialogDescription id="document-viewer-description" className="sr-only">
+              <DialogTitle className="absolute -top-[9999px] left-0 w-1 h-1 overflow-hidden opacity-0">Document Viewer</DialogTitle>
+              <DialogDescription id="document-viewer-description" className="absolute -top-[9999px] left-0 w-1 h-1 overflow-hidden opacity-0">
                 View document details and content
               </DialogDescription>
               <EnhancedDocumentViewer

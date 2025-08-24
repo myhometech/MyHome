@@ -123,8 +123,8 @@ export function MobileInsightsDrawer({
           sm:h-[70vh] sm:max-h-[700px]
           bg-background border-t border-border
           rounded-t-xl sm:rounded-t-2xl
-          p-0 mx-0
-          max-w-none sm:max-w-screen-sm sm:mx-auto
+          p-0 mx-0 w-full
+          max-w-full sm:max-w-screen-sm sm:mx-auto
         "
         style={{
           paddingBottom: 'env(safe-area-inset-bottom)',
@@ -134,8 +134,8 @@ export function MobileInsightsDrawer({
         <div className="
           sticky top-0 z-10 
           bg-background/95 backdrop-blur-sm border-b border-border/50 
-          px-4 py-3 sm:px-6 sm:py-4
-          min-h-[60px]
+          px-3 py-3 sm:px-6 sm:py-4
+          min-h-[60px] max-w-full overflow-hidden
         ">
           <div className="flex items-center justify-center mb-2 sm:mb-3">
             {/* Drag indicator - touch-friendly */}
@@ -147,33 +147,38 @@ export function MobileInsightsDrawer({
             " />
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center justify-between min-w-0 gap-2">
+            {/* Clickable header area on mobile */}
+            <div 
+              className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2 cursor-pointer hover:bg-white/40 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors md:cursor-default md:hover:bg-transparent"
+              onClick={() => setIsOpen(false)}
+              title="Tap to close insights"
+            >
               <div className="
                 p-2 rounded-lg bg-primary/10 
                 ring-1 ring-primary/20
               ">
                 <Brain className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
-              <div>
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <h2 className="
-                  text-lg sm:text-xl font-semibold text-foreground
-                  tracking-tight
+                  text-base sm:text-lg font-semibold text-foreground
+                  tracking-tight truncate
                 ">
                   AI Insights
                 </h2>
-                <p className="text-sm text-muted-foreground truncate">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">
                   {documentName}
                 </p>
               </div>
             </div>
 
-            {/* Back to Document button */}
+            {/* Back to Document button - desktop only */}
             <Button
               variant="default"
               size="sm"
               onClick={() => setIsOpen(false)}
-              className="shrink-0 h-8 px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+              className="hidden sm:flex shrink-0 h-8 px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
             >
               <ArrowUp className="h-3 w-3 mr-1" />
               Back
@@ -186,10 +191,10 @@ export function MobileInsightsDrawer({
           ref={scrollContainerRef}
           className="
             flex-1 overflow-y-auto overflow-x-hidden
-            px-4 sm:px-6
+            px-3 sm:px-6
             pb-6 sm:pb-8
             mobile-insights-scroll mobile-insights-drawer
-            mobile-insights-small
+            mobile-insights-small max-w-full
           "
           style={{
             paddingBottom: 'max(24px, calc(24px + env(safe-area-inset-bottom)))',
@@ -197,7 +202,7 @@ export function MobileInsightsDrawer({
         >
           <div className="
             space-y-4 sm:space-y-5 pt-4 sm:pt-5
-            max-w-none sm:max-w-lg mx-auto
+            max-w-full sm:max-w-lg mx-auto
             mobile-insights-large-mobile
           " data-insight-section>
             <DocumentInsights 

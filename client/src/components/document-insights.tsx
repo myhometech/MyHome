@@ -423,7 +423,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
           </div>
         </div>
       ) : (
-        <div className={`space-y-4 ${isMobile ? 'space-y-3' : 'space-y-4'}`}>
+        <div className={`space-y-4 ${isMobile ? 'space-y-3' : 'space-y-4'} max-w-full`}>
           {insights.map((insight: DocumentInsight, index: number) => {
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
             const priorityStyle = priorityConfig[insight.priority];
@@ -432,7 +432,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
             return (
               <div 
                 key={insight.id} 
-                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-3 space-y-3 mb-3' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden`}
+                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-2 space-y-2 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden max-w-full`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className={`flex items-center gap-2 flex-wrap`}>

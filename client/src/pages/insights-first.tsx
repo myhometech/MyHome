@@ -509,7 +509,9 @@ export default function InsightsFirstPage() {
       {/* Document Preview Dialog */}
       <Dialog open={showDocumentPreview} onOpenChange={setShowDocumentPreview}>
         <DialogContent className="max-w-[95vw] lg:max-w-[90vw] max-h-[90vh] p-0">
-          <DialogTitle className="sr-only">Document Preview</DialogTitle>
+          <DialogTitle className="absolute top-4 left-4 z-10 bg-white px-2 py-1 rounded shadow-sm text-sm font-medium">
+            {selectedDocument?.name || 'Document Preview'}
+          </DialogTitle>
           <DialogDescription className="sr-only">
             Preview and view details of the selected document
           </DialogDescription>

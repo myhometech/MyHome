@@ -28,10 +28,10 @@ export function MobileInsightsDrawer({
       timestamp: new Date().toISOString(),
       ...metadata
     };
-    
+
     // Console logging for now - can be replaced with analytics service
     console.log('🔍 [Analytics] Insights Drawer Event:', event);
-    
+
     // Future: Replace with actual analytics service
     // analytics.track(event.type, event);
   };
@@ -65,7 +65,7 @@ export function MobileInsightsDrawer({
           const firstInsightSection = scrollContainerRef.current.querySelector(
             '[data-insight-item="first"], [data-insight-section="header"], .insight-content, [data-insight-section="insights-list"]'
           );
-          
+
           if (firstInsightSection) {
             firstInsightSection.scrollIntoView({ 
               behavior: 'smooth',
@@ -146,7 +146,7 @@ export function MobileInsightsDrawer({
               transition-colors duration-200
             " />
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="
@@ -167,7 +167,7 @@ export function MobileInsightsDrawer({
                 </p>
               </div>
             </div>
-            
+
             {/* Back to Document button */}
             <Button
               variant="outline"

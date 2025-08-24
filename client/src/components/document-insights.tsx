@@ -45,11 +45,11 @@ interface InsightResponse {
 
 const insightTypeConfig = {
   summary: { icon: FileText, label: 'Summary', color: 'bg-blue-100 text-blue-800' },
-  contacts: { icon: Users, label: 'Contacts', color: 'bg-accent-purple/10 text-accent-purple border-accent-purple/20' },
-  action_items: { icon: Brain, label: 'Actions', color: 'bg-accent-cyan/10 text-accent-cyan border-accent-cyan/20' },
-  key_dates: { icon: Clock, label: 'Dates', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-  financial_info: { icon: FileText, label: 'Financial', color: 'bg-amber-100 text-amber-800 border-amber-200' },
-  compliance: { icon: FileText, label: 'Compliance', color: 'bg-rose-100 text-rose-800 border-rose-200' }
+  contacts: { icon: Users, label: 'Contacts', color: 'bg-purple-100 text-purple-800' },
+  action_items: { icon: Brain, label: 'Actions', color: 'bg-cyan-100 text-cyan-800' },
+  key_dates: { icon: Clock, label: 'Dates', color: 'bg-emerald-100 text-emerald-800' },
+  financial_info: { icon: FileText, label: 'Financial', color: 'bg-amber-100 text-amber-800' },
+  compliance: { icon: FileText, label: 'Compliance', color: 'bg-rose-100 text-rose-800' }
 };
 
 const priorityConfig = {
@@ -113,12 +113,13 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
     };
   }, []);
 
-  // Show all insights without artificial limits
+  // INSIGHT-102: Fetch insights with reasonable limits
+  const limit = React.useMemo(() => isMobile ? 5 : 10, [isMobile]);
 
   const { data: insightData, isLoading, error } = useQuery({
-    queryKey: ['/api/documents', documentId, 'insights'],
+    queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
     queryFn: async () => {
-      const response = await fetch(`/api/documents/${documentId}/insights`, {
+      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
         signal: AbortSignal.timeout(10000) // 10s timeout to prevent hanging requests
       });
       if (!response.ok) {
@@ -136,10 +137,13 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
     refetchOnWindowFocus: false,
     refetchOnReconnect: false, // Disable automatic refetching
     retry: 1, // Limit retries to prevent memory pressure
-    // Return all insights without artificial limits
+    // Memory-optimized data selection
     select: (data) => {
       if (!data?.insights) return { insights: [] };
-      return data;
+      return {
+        ...data,
+        insights: data.insights.slice(0, limit)
+      };
     }
   });
 
@@ -329,101 +333,165 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   }
 
   return (
-    <div className="space-y-3">
-      {/* Simple, user-friendly header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      {/* Always show header */}
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Brain className="h-4 w-4 text-blue-600" />
-          <span className="text-sm font-medium text-gray-700">AI Insights</span>
+          <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-blue-600`} />
+          <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>Smart Tips</span>
           {insights.length > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              {insights.length}
-            </Badge>
+            <span className={`${isMobile ? 'text-sm' : 'text-xs'} text-gray-500 bg-gray-100 px-2 py-1 rounded-full`}>
+              {insights.length} insight{insights.length !== 1 ? 's' : ''}
+            </span>
           )}
         </div>
         
-        {insights.length === 0 && (
-          <Button 
-            onClick={handleGenerateInsights} 
-            disabled={isGenerating || generateInsightsMutation.isPending}
-            size="sm"
-            className="text-xs"
-          >
-            {isGenerating || generateInsightsMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <Brain className="mr-2 h-3 w-3" />
-                Generate
-              </>
-            )}
-          </Button>
-        )}
+        {/* Show generate/regenerate button */}
+        <Button 
+          onClick={handleGenerateInsights} 
+          disabled={isGenerating || generateInsightsMutation.isPending}
+          size={isMobile ? "default" : "sm"}
+          variant="outline"
+          className={`${isMobile ? 'text-sm' : 'text-xs'} touch-target hover:bg-gradient-to-r hover:from-blue-50 hover:to-accent-purple/10 hover:border-accent-purple/30 transition-all duration-300 shadow-sm hover:shadow-md`}
+          style={{ minHeight: '44px', minWidth: isMobile ? 'auto' : '44px' }}
+        >
+          {isGenerating || generateInsightsMutation.isPending ? (
+            <>
+              <Loader2 className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'} animate-spin`} />
+              {isMobile ? 'Analyzing...' : 'Analyzing...'}
+            </>
+          ) : (
+            <>
+              <Brain className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'}`} />
+              {insights.length > 0 ? (isMobile ? 'Refresh' : 'Refresh') : (isMobile ? 'Generate' : 'Generate')}
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Simple Content Area */}
-      {insights.length === 0 && !isGenerating && (
-        <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-          <Brain className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm text-gray-500 mb-3">No insights generated yet</p>
-          <p className="text-xs text-gray-400">Click "Generate" to analyze this document with AI</p>
+      {/* Content Area */}
+      {insights.length === 0 && !isGenerating && !generateInsightsMutation.isPending ? (
+        <div className="text-center py-12 px-4">
+          <div className="relative mb-6">
+            <div className="relative z-10 bg-white rounded-full p-3 shadow-lg mx-auto w-fit">
+              <Brain className="h-8 w-8 text-blue-600 mx-auto" />
+            </div>
+          </div>
+          <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-900 mb-3`}>Generate Smart Tips</h3>
+          <p className="text-gray-600 mb-6 text-sm max-w-md mx-auto leading-relaxed">
+            Click "Generate" to analyze this document and extract key insights like dates, contacts, summaries, and action items.
+          </p>
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200/50 max-w-sm mx-auto">
+            <div className="text-left">
+              <p className="text-sm font-medium text-blue-900 mb-2">Analysis will find:</p>
+              <div className="grid grid-cols-1 gap-1 text-xs text-blue-700">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                  <span>Important dates & deadlines</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+                  <span>Key contacts & companies</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>
+                  <span>Document summaries</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  <span>Financial information</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
-      
-      {isGenerating && (
-        <div className="text-center py-8 bg-blue-50 rounded-lg border border-blue-200">
-          <Loader2 className="w-8 h-8 text-blue-600 mx-auto mb-2 animate-spin" />
-          <p className="text-sm text-blue-700 mb-1">Analyzing document...</p>
-          <p className="text-xs text-blue-600">This may take up to 30 seconds</p>
+      ) : isGenerating || generateInsightsMutation.isPending ? (
+        <div className="text-center py-12 px-4">
+          <div className="relative mb-6">
+            <div className="relative z-10 bg-white rounded-full p-3 shadow-lg mx-auto w-fit">
+              <Loader2 className="h-8 w-8 text-blue-600 mx-auto animate-spin" />
+            </div>
+          </div>
+          <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-900 mb-3`}>Analyzing Document</h3>
+          <p className="text-gray-600 mb-4 text-sm max-w-md mx-auto">
+            Our AI is reading through your document to find key insights and important information...
+          </p>
+          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200/50 max-w-xs mx-auto">
+            <div className="text-xs text-blue-700 text-center">
+              This usually takes 5-15 seconds
+            </div>
+          </div>
         </div>
-      )}
-      
-      {insights.length > 0 && (
-        <div className="space-y-3">
-          {insights.map((insightItem: DocumentInsight, index: number) => {
-            const config = insightTypeConfig[insightItem.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
+      ) : (
+        <div className={`space-y-4 ${isMobile ? 'space-y-3' : 'space-y-4'}`}>
+          {insights.map((insight: DocumentInsight, index: number) => {
+            const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
+            const priorityStyle = priorityConfig[insight.priority];
             const IconComponent = config.icon;
 
             return (
               <div 
-                key={insightItem.id} 
-                className="bg-white p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+                key={insight.id} 
+                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-3 space-y-3 mb-3' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden`}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <IconComponent className="w-4 h-4 text-blue-600" />
-                    <span className="text-xs font-medium text-gray-600">{config.label}</span>
-                    {insightItem.priority === 'high' && (
-                      <Badge variant="destructive" className="text-xs px-1 py-0">High</Badge>
+                <div className="flex items-start justify-between mb-3">
+                  <div className={`flex items-center gap-2 flex-wrap`}>
+                    <div className={`p-1.5 rounded-lg ${config.color.includes('blue') ? 'bg-blue-50' : config.color.includes('green') ? 'bg-green-50' : config.color.includes('purple') ? 'bg-purple-50' : 'bg-gray-50'}`}>
+                      <IconComponent className={`h-4 w-4 ${config.color.split(' ')[1]}`} />
+                    </div>
+                    <Badge className={`${config.color} text-xs px-2 py-1 font-medium rounded-md`}>
+                      {config.label}
+                    </Badge>
+                    
+                    {insight.priority !== 'low' && (
+                      <Badge 
+                        variant="outline" 
+                        className={`${priorityStyle.color} text-xs px-2 py-1 font-medium rounded-md`}
+                      >
+                        {insight.priority === 'high' ? '🔥 High' : '⚡ Medium'}
+                      </Badge>
                     )}
                   </div>
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
-                    onClick={() => handleDeleteInsight(insightItem.id)}
-                    disabled={deleteInsightMutation.isPending}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1">
+                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                      <span className="text-xs font-medium text-gray-600">
+                        {Math.round(insight.confidence * 100)}%
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteInsight(insight.id)}
+                      disabled={deleteInsightMutation.isPending}
+                      className={`text-gray-400 hover:text-red-500 hover:bg-red-50 h-6 w-6 p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
-                
-                <h4 className="font-medium text-sm text-gray-900 mb-1">
-                  {insightItem.title}
-                </h4>
-                
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  {insightItem.content}
-                </p>
-                
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                  <span className="text-xs text-gray-400">
-                    {Math.round(insightItem.confidence * 100)}% confidence
-                  </span>
+
+                <div className="space-y-2">
+                  <h4 className={`font-semibold text-gray-900 text-sm leading-tight`}>
+                    {insight.title}
+                  </h4>
+                  <div className={`text-gray-700 text-sm leading-relaxed p-3 bg-gray-50/50 rounded-md border border-gray-200/50`}>
+                    {insight.content}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div className={`flex items-center gap-1 text-xs text-gray-500`}>
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      {new Date(insight.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {insight.priority === 'high' && (
+                    <div className="flex items-center gap-1 text-red-600 bg-red-50 rounded-md px-2 py-1">
+                      <span className="text-xs font-medium">🔥 Urgent</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

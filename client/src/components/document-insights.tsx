@@ -113,13 +113,12 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
     };
   }, []);
 
-  // INSIGHT-102: Fetch only primary insights with memory optimization
-  const limit = React.useMemo(() => isMobile ? 3 : 5, [isMobile]);
+  // Show all insights without artificial limits
 
   const { data: insightData, isLoading, error } = useQuery({
-    queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
+    queryKey: ['/api/documents', documentId, 'insights'],
     queryFn: async () => {
-      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
+      const response = await fetch(`/api/documents/${documentId}/insights`, {
         signal: AbortSignal.timeout(10000) // 10s timeout to prevent hanging requests
       });
       if (!response.ok) {
@@ -137,13 +136,10 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
     refetchOnWindowFocus: false,
     refetchOnReconnect: false, // Disable automatic refetching
     retry: 1, // Limit retries to prevent memory pressure
-    // Memory-optimized data selection
+    // Return all insights without artificial limits
     select: (data) => {
       if (!data?.insights) return { insights: [] };
-      return {
-        ...data,
-        insights: data.insights.slice(0, limit)
-      };
+      return data;
     }
   });
 

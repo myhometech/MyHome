@@ -99,7 +99,7 @@ function CompactInsightButton({ insight, onStatusUpdate }: CompactInsightButtonP
 
   return (
     <div 
-      className={`relative inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${getPriorityColor(insight.priority || 'medium')}`}
+      className={`relative inline-flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${getPriorityColor(insight.priority || 'medium')}`}
       onClick={() => {
         // Toggle between open and resolved status when clicked
         const newStatus = insight.status === 'resolved' ? 'open' : 'resolved';
@@ -114,11 +114,11 @@ function CompactInsightButton({ insight, onStatusUpdate }: CompactInsightButtonP
       
       {/* Insight icon */}
       <div className="flex-shrink-0">
-        <Brain className="h-4 w-4" />
+        <Brain className="h-3 w-3 md:h-4 md:w-4" />
       </div>
       
       {/* Insight title */}
-      <span className="truncate max-w-[200px]" title={insight.title}>
+      <span className="truncate max-w-[120px] md:max-w-[200px] text-xs md:text-sm" title={insight.title}>
         {insight.title}
       </span>
       

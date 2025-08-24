@@ -8,12 +8,14 @@ interface MobileInsightsDrawerProps {
   documentId: number;
   documentName: string;
   className?: string;
+  onDocumentClick?: (documentId: number) => void;
 }
 
 export function MobileInsightsDrawer({ 
   documentId, 
   documentName, 
-  className = "" 
+  className = "",
+  onDocumentClick 
 }: MobileInsightsDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -205,6 +207,7 @@ export function MobileInsightsDrawer({
             <DocumentInsights 
               documentId={documentId}
               documentName={documentName}
+              onDocumentClick={onDocumentClick}
             />
           </div>
         </div>

@@ -1018,6 +1018,13 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           documentId={document.id}
           documentName={document.name}
           className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
+          onDocumentClick={() => {
+            // Close the insights drawer and scroll to the top of the document
+            const scrollContainer = scrollContainerRef.current;
+            if (scrollContainer) {
+              scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
         />
       </div>
     </div>

@@ -76,9 +76,10 @@ const priorityConfig = {
 interface DocumentInsightsProps {
   documentId: number;
   documentName: string;
+  onDocumentClick?: (documentId: number) => void;
 }
 
-export function DocumentInsights({ documentId, documentName }: DocumentInsightsProps) {
+export function DocumentInsights({ documentId, documentName, onDocumentClick }: DocumentInsightsProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -429,10 +430,27 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
             const priorityStyle = priorityConfig[insight.priority];
             const IconComponent = config.icon;
 
+            const handleCardClick = (e: React.MouseEvent) => {
+              // Don't navigate if clicking on buttons or interactive elements
+              const target = e.target as HTMLElement;
+              if (target.closest('button') || 
+                  target.closest('[role="button"]') || 
+                  target.closest('[data-radix-dropdown-menu-trigger]') ||
+                  target.closest('[data-radix-dropdown-menu-content]')) {
+                return;
+              }
+              
+              // Open document viewer using callback
+              if (onDocumentClick) {
+                onDocumentClick(documentId);
+              }
+            };
+
             return (
               <div 
                 key={insight.id} 
-                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-3 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden max-w-full`}
+                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-3 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden max-w-full cursor-pointer`}
+                onClick={handleCardClick}
               >
                 {/* Mobile-first compact header */}
                 <div className={`${isMobile ? 'space-y-2' : 'flex items-start justify-between mb-3'}`}>

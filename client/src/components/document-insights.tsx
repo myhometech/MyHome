@@ -415,9 +415,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
         </div>
       ) : (
         <div className={`space-y-4 ${isMobile ? 'space-y-3' : 'space-y-4'}`}>
-          {insights.filter((insight: DocumentInsight) => 
-            !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
-          ).map((insight: DocumentInsight, index: number) => {
+          {insights.map((insight: DocumentInsight, index: number) => {
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
             const priorityStyle = priorityConfig[insight.priority];
             const IconComponent = config.icon;

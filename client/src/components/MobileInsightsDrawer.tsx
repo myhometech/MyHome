@@ -170,10 +170,10 @@ export function MobileInsightsDrawer({
 
             {/* Back to Document button */}
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={() => setIsOpen(false)}
-              className="shrink-0 h-8 px-3 text-xs"
+              className="shrink-0 h-8 px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
             >
               <ArrowUp className="h-3 w-3 mr-1" />
               Back

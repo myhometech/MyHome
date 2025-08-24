@@ -394,6 +394,13 @@ export function InsightsPage() {
               <EnhancedDocumentViewer
                 document={documentDetails}
                 onClose={handleCloseDocument}
+                onDownload={() => {
+                  // Handle document download
+                  const link = document.createElement('a');
+                  link.href = `/api/documents/${documentDetails.id}/download`;
+                  link.download = documentDetails.name;
+                  link.click();
+                }}
                 onUpdate={() => {
                   // Refetch data when document is updated
                   refetchInsights();

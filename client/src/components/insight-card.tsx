@@ -149,24 +149,24 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
       return;
     }
     
-    // Navigate to document if actionUrl exists
-    if (insight.actionUrl) {
-      setLocation(insight.actionUrl);
+    // Navigate to document using documentId
+    if (insight.documentId) {
+      setLocation(`/documents/${insight.documentId}`);
     }
   };
 
   return (
     <Card 
-      className={`compact-insight-card transition-all duration-200 hover:shadow-md cursor-pointer border-l-4 ${
+      className={`compact-insight-card transition-all duration-200 hover:shadow-md cursor-pointer border-l-2 ${
         insight.priority === 'high' ? 'border-l-red-500 bg-red-50/30' :
         insight.priority === 'medium' ? 'border-l-yellow-500 bg-yellow-50/30' :
         'border-l-green-500 bg-green-50/30'
       } ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}
       onClick={handleCardClick}
     >
-      <CardContent className="p-1.5 md:p-2">
+      <CardContent className="p-1 md:p-1.5">
         {/* Header with title, status indicator, and menu */}
-        <div className="flex items-start justify-between mb-2">
+        <div className="flex items-start justify-between mb-1">
           <div className="flex items-center space-x-2 flex-1 min-w-0">
             {/* Priority and type indicator */}
             <div className="flex items-center space-x-1">
@@ -176,7 +176,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
             
             {/* Title */}
             <div className="flex-1 min-w-0">
-              <h4 className="text-xs font-medium text-gray-900 leading-tight truncate">
+              <h4 className="text-xs font-medium text-gray-900 leading-tight truncate max-w-20">
                 {insight.message || insight.title}
               </h4>
             </div>
@@ -193,8 +193,8 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" disabled={isUpdating} data-radix-dropdown-menu-trigger className="h-6 w-6 p-0">
-                  <MoreVertical className="h-3 w-3" />
+                <Button variant="ghost" size="sm" disabled={isUpdating} data-radix-dropdown-menu-trigger className="h-4 w-4 p-0">
+                  <MoreVertical className="h-2.5 w-2.5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -221,9 +221,24 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
           </div>
         </div>
         
-        {/* Compact Summary */}
+        {/* Compact Summary with Context */}
         <p className="text-xs text-gray-600 mb-1 line-clamp-1">
-          {insight.message || insight.title}
+          {(() => {
+            const message = insight.message || insight.title;
+            // Extract document name for context if message is generic
+            if (message.includes(': ')) {
+              const parts = message.split(': ');
+              if (parts.length > 1) {
+                // Get document name from first part and action from second
+                const docName = parts[0].replace(/\.(pdf|jpg|jpeg|png|webp).*$/i, '');
+                const action = parts[1];
+                return action.includes('payment') || action.includes('due') ? 
+                  `${docName} payment due` : 
+                  action;
+              }
+            }
+            return message;
+          })()}
         </p>
         
         {/* Compact Footer */}

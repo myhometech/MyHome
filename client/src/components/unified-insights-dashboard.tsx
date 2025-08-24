@@ -355,7 +355,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   return (
     <div className="space-y-6">
       {/* High-Level Summary Cards - Mobile Optimized */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1">
         {/* All Items */}
         <Card 
           className={`border-l-4 border-l-blue-500 bg-blue-50/50 cursor-pointer hover:bg-blue-50 transition-colors ${
@@ -519,7 +519,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 {/* AI Document Insights Cards - Use the updated InsightCard component */}
                 {filteredInsights.length > 0 && (
                   <div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1">
                       {filteredInsights.slice(0, 9).map((insight) => (
                         <InsightCard
                           key={insight.id}

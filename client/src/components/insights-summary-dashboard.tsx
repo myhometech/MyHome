@@ -80,7 +80,7 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
             </div>
           </div>
         )}
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
           {[1, 2, 3, 4].map(i => (
             <Card key={i}>
               <CardContent className="p-3">
@@ -126,7 +126,7 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
       )}
 
       {/* Summary Metrics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
         {/* Total Open Insights */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
           <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'all' })}>

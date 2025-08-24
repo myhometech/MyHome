@@ -164,7 +164,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
       } ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}
       onClick={handleCardClick}
     >
-      <CardContent className="p-3">
+      <CardContent className="p-2 md:p-3">
         {/* Header with title, status indicator, and menu */}
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center space-x-2 flex-1 min-w-0">
@@ -176,7 +176,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
             
             {/* Title */}
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-medium text-gray-900 leading-tight truncate">
+              <h4 className="text-xs md:text-sm font-medium text-gray-900 leading-tight truncate">
                 {insight.message || insight.title}
               </h4>
             </div>
@@ -223,7 +223,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
         
         {/* Content */}
         {insight.content && (
-          <p className="text-sm text-gray-700 mb-2 line-clamp-2 leading-relaxed">
+          <p className="text-xs md:text-sm text-gray-700 mb-1 md:mb-2 line-clamp-2 leading-relaxed">
             {insight.content}
           </p>
         )}
@@ -232,7 +232,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
         <div className="flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center space-x-3">
             {/* Priority badge */}
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+            <span className={`inline-flex items-center px-1 md:px-2 py-0.5 rounded-full text-xs font-medium ${
               insight.priority === 'high' ? 'bg-red-100 text-red-800' :
               insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
               'bg-green-100 text-green-800'
@@ -241,7 +241,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
             </span>
             
             {/* Type */}
-            <span className="capitalize text-gray-500">
+            <span className="capitalize text-gray-500 text-xs">
               {insight.type.replace('_', ' ')}
             </span>
             
@@ -256,7 +256,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
           
           {/* Confidence if available */}
           {insight.confidence && (
-            <span className="text-gray-400">
+            <span className="text-gray-400 text-xs">
               {insight.confidence}% confidence
             </span>
           )}

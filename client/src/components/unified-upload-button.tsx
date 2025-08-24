@@ -423,11 +423,11 @@ export default function UnifiedUploadButton({
 
       if (!response.ok) {
         let errorMessage = `Upload failed with status ${response.status}`;
-        
+
         try {
           const errorData = await response.text();
           console.error(`❌ Server error response for ${item.file.name}:`, errorData);
-          
+
           // Try to parse as JSON first
           try {
             const parsedError = JSON.parse(errorData);
@@ -465,7 +465,7 @@ export default function UnifiedUploadButton({
       });
 
       let friendlyMessage = error.message;
-      
+
       // Provide more specific error messages
       if (error.name === 'AbortError') {
         friendlyMessage = 'Upload timed out. Please try again with a smaller file or check your connection.';
@@ -589,173 +589,66 @@ export default function UnifiedUploadButton({
     setCategorySuggestion(prev => prev ? { ...prev, isVisible: false } : null);
   };
 
+  const removeFile = (indexToRemove: number) => {
+    setUploadItems(prev => prev.filter((_, index) => index !== indexToRemove));
+    setSelectedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleCreateCategory = () => {
+    // Ensure name is not empty
+    if (!newCategoryData.name.trim()) {
+      toast({
+        title: "Category name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    createCategoryMutation.mutate(newCategoryData);
+  };
+
+  // Utility function to get Tailwind classes for color previews
+  const getColorClasses = (color: string) => {
+    switch (color) {
+      case "blue": return "bg-blue-500";
+      case "green": return "bg-green-500";
+      case "purple": return "bg-purple-500";
+      case "orange": return "bg-orange-500";
+      case "teal": return "bg-teal-500";
+      case "indigo": return "bg-indigo-500";
+      case "yellow": return "bg-yellow-500";
+      case "red": return "bg-red-500";
+      case "pink": return "bg-pink-500";
+      case "gray": return "bg-gray-500";
+      default: return "bg-gray-300";
+    }
+  };
+
   // Extract the upload form content for reuse
   const uploadFormContent = (
     <div className="space-y-4">
+      {/* File List */}
       <div className="space-y-2">
-        {/* Aggregate header with counts */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium">Files ({uploadItems.length})</span>
-            <div className="flex items-center gap-2 text-xs">
-              {uploadItems.filter(i => i.status === 'uploading').length > 0 && (
-                <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded">
-                  {uploadItems.filter(i => i.status === 'uploading').length} uploading
+        <Label className="text-sm font-medium">Selected Files</Label>
+        <div className="max-h-32 overflow-y-auto space-y-2">
+          {selectedFiles.map((file, index) => (
+            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+              <div className="flex-1 min-w-0 mr-3">
+                <span className="text-sm font-medium truncate block">{file.name}</span>
+                <span className="text-xs text-gray-500">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
                 </span>
-              )}
-              {uploadItems.filter(i => i.status === 'completed').length > 0 && ( // Changed from 'success' to 'completed'
-                <span className="bg-green-100 text-green-600 px-2 py-1 rounded">
-                  {uploadItems.filter(i => i.status === 'completed').length} success
-                </span>
-              )}
-              {uploadItems.filter(i => i.status === 'error').length > 0 && (
-                <span className="bg-red-100 text-red-600 px-2 py-1 rounded">
-                  {uploadItems.filter(i => i.status === 'error').length} failed
-                </span>
-              )}
-              {uploadItems.filter(i => i.status === 'canceled').length > 0 && (
-                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                  {uploadItems.filter(i => i.status === 'canceled').length} canceled
-                </span>
-              )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeFile(index)}
+                className="h-8 w-8 p-0 flex-shrink-0 hover:bg-red-50 hover:text-red-600"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              // Cancel any ongoing uploads
-              uploadItems.forEach(item => {
-                if (item.abortController) {
-                  item.abortController.abort();
-                }
-              });
-              setSelectedFiles([]);
-              setUploadItems([]);
-              setCategorySuggestion(null);
-            }}
-            className="text-xs h-6 px-2"
-          >
-            Clear All
-          </Button>
+          ))}
         </div>
-
-        {/* Per-file rows with progress */}
-        {uploadItems.map((item) => (
-          <div key={item.id} className="border rounded-lg p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className="text-gray-600">📄</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate" title={item.file.name}>
-                    {item.file.name}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {(item.file.size / 1024 / 1024).toFixed(1)} MB
-                    {item.status === 'uploading' && (
-                      <span> • {(item.bytesUploaded / 1024 / 1024).toFixed(1)} MB uploaded</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-1 rounded ${
-                    item.status === 'queued' ? 'bg-gray-100 text-gray-600' :
-                    item.status === 'uploading' ? 'bg-blue-100 text-blue-600' :
-                    item.status === 'completed' ? 'bg-green-100 text-green-600' : // Changed from 'success' to 'completed'
-                    item.status === 'error' ? 'bg-red-100 text-red-600' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {item.status === 'queued' && 'Queued'}
-                    {item.status === 'uploading' && `${item.progress}%`}
-                    {item.status === 'completed' && '✓ Success'} {/* Changed from 'success' to 'completed' */}
-                    {item.status === 'error' && '✗ Failed'}
-                    {item.status === 'canceled' && 'Canceled'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex items-center gap-1">
-                {item.status === 'uploading' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (item.abortController) {
-                        item.abortController.abort();
-                      }
-                    }}
-                    className="text-xs h-6 px-2"
-                    aria-label={`Cancel upload for ${item.file.name}`}
-                  >
-                    Cancel
-                  </Button>
-                )}
-                {item.status === 'error' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      updateItem(item.id, {
-                        status: 'queued',
-                        progress: 0,
-                        bytesUploaded: 0,
-                        errorCode: undefined,
-                        errorMessage: undefined,
-                        abortController: undefined
-                      });
-                    }}
-                    className="text-xs h-6 px-2 text-blue-600 hover:text-blue-800"
-                    aria-label={`Retry upload for ${item.file.name}`}
-                  >
-                    Retry
-                  </Button>
-                )}
-                {(item.status === 'queued' || item.status === 'error' || item.status === 'canceled') && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      // Remove from both lists
-                      setUploadItems(prev => prev.filter(i => i.id !== item.id));
-                      setSelectedFiles(prev => prev.filter(f =>
-                        f !== item.file
-                      ));
-                    }}
-                    className="text-xs h-6 px-2 text-red-600 hover:text-red-800"
-                    aria-label={`Remove ${item.file.name}`}
-                  >
-                    Remove
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Progress bar for uploading files */}
-            {item.status === 'uploading' && (
-              <div className="space-y-1">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-200 ease-out"
-                    style={{ width: `${item.progress}%` }}
-                    role="progressbar"
-                    aria-valuenow={item.progress}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`Upload progress for ${item.file.name}: ${item.progress}%`}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Error message */}
-            {item.status === 'error' && item.errorMessage && (
-              <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded" role="alert">
-                {item.errorMessage}
-              </div>
-            )}
-          </div>
-        ))}
       </div>
 
       {categorySuggestion?.isVisible && (
@@ -785,77 +678,104 @@ export default function UnifiedUploadButton({
       )}
 
       <div className="space-y-3">
-        <div>
-          <Label htmlFor="custom-name">Document Name (Optional)</Label>
+        {/* Custom Document Title */}
+        <div className="space-y-2">
+          <Label htmlFor="customName" className="text-sm font-medium">Document Title (Optional)</Label>
           <Input
-            id="custom-name"
-            placeholder="Custom name for the document"
+            id="customName"
+            placeholder="Enter a custom title for your document"
             value={uploadData.customName}
-            onChange={(e) => setUploadData({ ...uploadData, customName: e.target.value })}
+            onChange={(e) => setUploadData(prev => ({ ...prev, customName: e.target.value }))}
+            className="w-full"
           />
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Leave blank to use the original filename
+          </p>
         </div>
 
-        <div>
-          <Label htmlFor="category">Category</Label>
-          <div className="flex gap-2">
-            <Select
-              value={uploadData.categoryId}
-              onValueChange={(value) => setUploadData({ ...uploadData, categoryId: value })}
-            >
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id.toString()}>
+        {/* Category Selection */}
+        <div className="space-y-2">
+          <Label htmlFor="category" className="text-sm font-medium">
+            Category {categorySuggestion ? '(You can change this)' : '(Optional)'}
+          </Label>
+          <Select value={uploadData.categoryId} onValueChange={(value) => {
+            if (value === "create_new") {
+              setShowCreateCategory(true);
+              return;
+            }
+            setUploadData(prev => ({ ...prev, categoryId: value }));
+            // Hide suggestion when user manually changes category
+            if (categorySuggestion) {
+              setCategorySuggestion(prev => prev ? { ...prev, isVisible: false } : null);
+            }
+          }}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id.toString()}>
+                  <div className="flex items-center gap-2">
+                    <i className={`${category.icon} text-sm`}></i>
                     {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCreateCategory(true)}
-              className="px-3"
-              disabled={isFree}
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
-          {isFree && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Custom categories available with Premium
-            </p>
-          )}
+                  </div>
+                </SelectItem>
+              ))}
+              <SelectItem value="create_new" className="text-blue-600 font-medium">
+                <div className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create New Category
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div>
-          <Label htmlFor="tags">Tags (Optional)</Label>
+        {/* Tags */}
+        <div className="space-y-2">
+          <Label htmlFor="tags" className="text-sm font-medium">Tags (Optional)</Label>
           <Input
             id="tags"
-            placeholder="Add tags separated by commas"
+            placeholder="Enter tags separated by commas"
             value={uploadData.tags}
-            onChange={(e) => setUploadData({ ...uploadData, tags: e.target.value })}
+            onChange={(e) => setUploadData(prev => ({ ...prev, tags: e.target.value }))}
+            className="w-full"
+          />
+          <p className="text-xs text-gray-500">
+            Example: invoice, important, 2024
+          </p>
+        </div>
+
+        {/* Expiry Date */}
+        <div className="space-y-2">
+          <Label htmlFor="expiryDate" className="text-sm font-medium">Expiry Date (Optional)</Label>
+          <Input
+            id="expiryDate"
+            type="date"
+            value={uploadData.expiryDate}
+            onChange={(e) => setUploadData(prev => ({ ...prev, expiryDate: e.target.value }))}
+            className="w-full"
           />
         </div>
       </div>
 
-      <div className="flex gap-2 pt-4">
+      {/* Upload Button */}
+      <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
         <Button
           variant="outline"
           onClick={() => {
             resetAllStates(); // Ensure all states are reset before closing
             close();
           }}
-          className="flex-1"
+          disabled={uploadItems.some(item => item.status === 'uploading')}
+          className="w-full sm:w-auto order-2 sm:order-1"
         >
           Cancel
         </Button>
         <Button
           onClick={handleUpload}
           disabled={uploadItems.filter(item => item.status === 'queued' || item.status === 'error').length === 0 || uploadItems.some(item => item.status === 'uploading')}
-          className="flex-1"
+          className="bg-primary hover:bg-blue-700 w-full sm:w-auto order-1 sm:order-2"
         >
           {uploadItems.some(item => item.status === 'uploading') ? "Uploading..." :
            uploadItems.filter(item => item.status === 'queued' || item.status === 'error').length === 0 ? "No Files to Upload" : "Upload"}
@@ -883,7 +803,7 @@ export default function UnifiedUploadButton({
 
       {/* Fully controlled upload dialog */}
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto w-[calc(100vw-2rem)] sm:w-full">
             <DialogHeader>
               <DialogTitle>Upload Documents</DialogTitle>
               <DialogDescription>
@@ -929,77 +849,81 @@ export default function UnifiedUploadButton({
 
       {/* Create Category Dialog */}
       <Dialog open={showCreateCategory} onOpenChange={setShowCreateCategory}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md mx-4 sm:mx-auto w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Category</DialogTitle>
-            <DialogDescription>
-              Create a new category to organize your documents
-            </DialogDescription>
           </DialogHeader>
-
           <div className="space-y-4">
             <div>
-              <Label htmlFor="category-name">Category Name</Label>
+              <Label htmlFor="categoryName" className="text-sm font-medium">Category Name</Label>
               <Input
-                id="category-name"
-                placeholder="Enter category name"
+                id="categoryName"
                 value={newCategoryData.name}
-                onChange={(e) => setNewCategoryData({ ...newCategoryData, name: e.target.value })}
+                onChange={(e) => setNewCategoryData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Vacation Home, Investment Property"
+                className="w-full mt-1"
               />
             </div>
 
             <div>
-              <Label htmlFor="category-icon">Icon</Label>
-              <Select
-                value={newCategoryData.icon}
-                onValueChange={(value) => setNewCategoryData({ ...newCategoryData, icon: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableIcons.map((iconOption) => (
-                    <SelectItem key={iconOption.icon} value={iconOption.icon}>
-                      {iconOption.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-sm font-medium">Icon</Label>
+              <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto mt-2 p-1">
+                {availableIcons.map((iconOption) => (
+                  <button
+                    key={iconOption.icon}
+                    type="button"
+                    onClick={() => setNewCategoryData(prev => ({ ...prev, icon: iconOption.icon }))}
+                    className={`p-3 rounded-lg border text-center hover:bg-gray-50 transition-colors ${
+                      newCategoryData.icon === iconOption.icon
+                        ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    <i className={`${iconOption.icon} text-lg`}></i>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
-              <Label htmlFor="category-color">Color</Label>
-              <Select
-                value={newCategoryData.color}
-                onValueChange={(value) => setNewCategoryData({ ...newCategoryData, color: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableColors.map((colorOption) => (
-                    <SelectItem key={colorOption.color} value={colorOption.color}>
-                      {colorOption.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-sm font-medium">Color</Label>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
+                {availableColors.map((colorOption) => (
+                  <button
+                    key={colorOption.color}
+                    type="button"
+                    onClick={() => setNewCategoryData(prev => ({ ...prev, color: colorOption.color }))}
+                    className={`p-3 rounded-lg border text-center hover:opacity-80 transition-all ${
+                      getColorClasses(colorOption.color)
+                    } ${
+                      newCategoryData.color === colorOption.color
+                        ? "ring-2 ring-offset-1 ring-blue-500 scale-105"
+                        : ""
+                    }`}
+                  >
+                    <div className="text-xs font-medium">{colorOption.label}</div>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex gap-2 pt-4">
+            <div className="flex flex-col sm:flex-row gap-2 pt-4">
               <Button
-                variant="outline"
-                onClick={() => setShowCreateCategory(false)}
-                className="flex-1"
+                onClick={handleCreateCategory}
+                disabled={createCategoryMutation.isPending || !newCategoryData.name.trim()}
+                className="flex-1 order-1"
               >
-                Cancel
+                {createCategoryMutation.isPending ? "Creating..." : "Create Category"}
               </Button>
               <Button
-                onClick={() => createCategoryMutation.mutate(newCategoryData)}
-                disabled={!newCategoryData.name || createCategoryMutation.isPending}
-                className="flex-1"
+                variant="outline"
+                onClick={() => {
+                  setShowCreateCategory(false);
+                  setNewCategoryData({ name: "", icon: "fas fa-folder", color: "blue" });
+                }}
+                className="flex-1 order-2"
               >
-                {createCategoryMutation.isPending ? "Creating..." : "Create"}
+                Cancel
               </Button>
             </div>
           </div>

@@ -298,6 +298,65 @@
   transform: translateY(0);
 }
 
+/* Mobile Dialog Improvements */
+@media (max-width: 640px) {
+  /* Ensure dialogs are properly centered and sized on mobile */
+  .dialog-content {
+    margin: 1rem !important;
+    width: calc(100vw - 2rem) !important;
+    max-width: calc(100vw - 2rem) !important;
+    max-height: 90vh !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+  
+  /* Mobile-friendly form inputs */
+  .mobile-form input,
+  .mobile-form select,
+  .mobile-form textarea {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+    min-height: 44px !important; /* Apple touch target size */
+  }
+  
+  /* Ensure buttons are touch-friendly */
+  .mobile-form button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  /* File upload zone improvements */
+  .upload-zone {
+    padding: 1rem !important;
+    margin: 0.5rem 0 !important;
+  }
+  
+  /* Category selection improvements */
+  .category-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+  
+  .color-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* Prevent horizontal scrolling on mobile */
+@media (max-width: 640px) {
+  .modal-container {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  .modal-container * {
+    box-sizing: border-box !important;
+  }
+}
+
+
 /* Text wrapping and spacing improvements */
 .insight-content {
   word-wrap: break-word;

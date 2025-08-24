@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Brain, Calendar, PenTool, FileText, Clock, AlertCircle, Filter, RefreshCw } from 'lucide-react';
 import AddDropdownMenu from '@/components/add-dropdown-menu';
+import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { DocumentInsight } from '@shared/schema';
 
 // Manual Event interface
@@ -39,6 +41,7 @@ export function InsightsPage() {
   const [selectedTab, setSelectedTab] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
 
   // Fetch document insights
   const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights } = useQuery<{insights: DocumentInsight[]}>({
@@ -68,6 +71,18 @@ export function InsightsPage() {
       if (!response.ok) throw new Error('Failed to fetch user assets');
       return response.json();
     },
+  });
+
+  // Fetch document details when selectedDocumentId changes
+  const { data: documentDetails, isLoading: documentLoading } = useQuery({
+    queryKey: ['/api/documents', selectedDocumentId],
+    queryFn: async () => {
+      if (!selectedDocumentId) return null;
+      const response = await fetch(`/api/documents/${selectedDocumentId}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch document details');
+      return response.json();
+    },
+    enabled: !!selectedDocumentId,
   });
 
   const insights = insightsData?.insights || [];
@@ -114,6 +129,14 @@ export function InsightsPage() {
     } catch (error) {
       console.error('Failed to update insight status:', error);
     }
+  };
+
+  const handleDocumentClick = (documentId: number) => {
+    setSelectedDocumentId(documentId);
+  };
+
+  const handleCloseDocument = () => {
+    setSelectedDocumentId(null);
   };
 
   return (
@@ -280,6 +303,7 @@ export function InsightsPage() {
                         key={insight.id}
                         insight={insight}
                         onStatusUpdate={handleStatusUpdate}
+                        onDocumentClick={handleDocumentClick}
                       />
                     ))}
                   </div>
@@ -308,6 +332,7 @@ export function InsightsPage() {
                     key={insight.id}
                     insight={insight}
                     onStatusUpdate={handleStatusUpdate}
+                    onDocumentClick={handleDocumentClick}
                   />
                 ))}
               </div>
@@ -357,6 +382,41 @@ export function InsightsPage() {
         <div className="mt-12 pt-8 border-t">
           <UnifiedInsightsDashboard searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         </div>
+
+        {/* Document Viewer Modal */}
+        {selectedDocumentId && documentDetails && (
+          <Dialog open={true} onOpenChange={handleCloseDocument}>
+            <DialogContent className="max-w-[100vw] w-full max-h-[100vh] h-full p-0" aria-describedby="document-viewer-description">
+              <DialogTitle className="sr-only">Document Viewer</DialogTitle>
+              <DialogDescription id="document-viewer-description" className="sr-only">
+                View document details and content
+              </DialogDescription>
+              <EnhancedDocumentViewer
+                document={documentDetails}
+                onClose={handleCloseDocument}
+                onUpdate={() => {
+                  // Refetch data when document is updated
+                  refetchInsights();
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Loading modal for when document is being fetched */}
+        {selectedDocumentId && documentLoading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleCloseDocument}>
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+                <p className="text-gray-600 mb-4">Loading document...</p>
+                <Button variant="outline" onClick={handleCloseDocument}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -13,9 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 interface InsightCardProps {
   insight: DocumentInsight;
   onStatusUpdate?: (insightId: string, status: 'open' | 'dismissed' | 'resolved') => void;
+  onDocumentClick?: (documentId: number) => void;
 }
 
-export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
+export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: InsightCardProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -149,9 +150,9 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
       return;
     }
     
-    // Navigate to document using documentId
-    if (insight.documentId) {
-      setLocation(`/document/${insight.documentId}`);
+    // Open document viewer modal using callback
+    if (insight.documentId && onDocumentClick) {
+      onDocumentClick(insight.documentId);
     }
   };
 

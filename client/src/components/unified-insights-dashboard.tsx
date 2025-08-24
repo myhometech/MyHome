@@ -272,6 +272,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     setSelectedInsight(null);
   };
 
+  // Handle document click from insight card
+  const handleDocumentClick = (documentId: number) => {
+    setSelectedDocumentId(documentId);
+  };
+
   // Handle document download
   const handleDocumentDownload = () => {
     if (selectedDocumentId) {
@@ -525,6 +530,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           key={insight.id}
                           insight={insight}
                           onStatusUpdate={handleStatusUpdate}
+                          onDocumentClick={handleDocumentClick}
                         />
                       ))}
                       {filteredInsights.length > 9 && (

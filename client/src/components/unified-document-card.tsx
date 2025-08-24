@@ -585,23 +585,24 @@ export default function UnifiedDocumentCard({
                 ) : (
                   <div className="space-y-1">
                     <div className="flex items-start gap-2">
-                      {/* Document thumbnail with file type icon overlay */}
+                      {/* Document thumbnail */}
                       <div className="relative w-12 h-12 flex-shrink-0 rounded border border-gray-200 bg-gray-50 overflow-hidden">
                         <img
                           src={`/api/documents/${document.id}/thumbnail`}
                           alt={document.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            // Fallback to gray background if thumbnail fails to load
-                            e.currentTarget.style.display = 'none';
+                            // Fallback to file type icon if thumbnail fails to load
+                            const container = e.currentTarget.parentElement;
+                            if (container) {
+                              const iconElement = document.createElement('div');
+                              iconElement.className = `w-full h-full flex items-center justify-center ${getFileTypeIconColor().replace('bg-', 'bg-').replace('text-', 'text-')}`;
+                              iconElement.appendChild(getFileIcon());
+                              container.innerHTML = '';
+                              container.appendChild(iconElement);
+                            }
                           }}
                         />
-                        {/* File type icon overlay */}
-                        <div className={`absolute bottom-0 right-0 p-0.5 rounded-tl ${getFileTypeIconColor()} border-t border-l`}>
-                          <div className="scale-50">
-                            {getFileIcon()}
-                          </div>
-                        </div>
                       </div>
                       {isRenaming ? (
                         <div className="flex-1 space-y-2">

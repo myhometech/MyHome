@@ -827,8 +827,7 @@ export default function DocumentCard({
             className="bg-white rounded-lg w-full max-w-[95vw] lg:max-w-[90vw] max-h-[90vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold truncate modal-header-title">{document.name}</h2>
+            <div className="flex items-center justify-end p-2 border-b bg-[#FAF4EF]">
               <Button 
                 variant="ghost" 
                 size="sm" 

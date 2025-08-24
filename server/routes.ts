@@ -2140,6 +2140,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Download document
+  // Document thumbnail endpoint
+  app.get('/api/documents/:id/thumbnail', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // For GCS documents, try to serve thumbnail or fallback to original
+      if (document.gcsPath && document.isEncrypted) {
+        try {
+          const storageService = storageProvider();
+          const fileBuffer = await storageService.download(document.gcsPath);
+          
+          res.setHeader('Content-Type', document.mimeType);
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          res.send(fileBuffer);
+          return;
+        } catch (error) {
+          console.error(`Failed to serve GCS thumbnail for document ${documentId}:`, error);
+          return res.status(404).json({ message: "Thumbnail not available" });
+        }
+      }
+
+      // For local files, check if thumbnail exists  
+      if (fs.existsSync(document.filePath)) {
+        res.sendFile(path.resolve(document.filePath));
+      } else {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+    } catch (error: any) {
+      console.error('Failed to serve thumbnail:', error);
+      res.status(500).json({
+        message: 'Failed to serve thumbnail',
+        error: error.message,
+      });
+    }
+  });
+
   app.get('/api/documents/:id/download', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);

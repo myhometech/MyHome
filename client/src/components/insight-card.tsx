@@ -164,7 +164,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
       } ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}
       onClick={handleCardClick}
     >
-      <CardContent className="p-2 md:p-3">
+      <CardContent className="p-1.5 md:p-2">
         {/* Header with title, status indicator, and menu */}
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center space-x-2 flex-1 min-w-0">
@@ -176,7 +176,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
             
             {/* Title */}
             <div className="flex-1 min-w-0">
-              <h4 className="text-xs md:text-sm font-medium text-gray-900 leading-tight truncate">
+              <h4 className="text-xs font-medium text-gray-900 leading-tight truncate">
                 {insight.message || insight.title}
               </h4>
             </div>
@@ -221,43 +221,19 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
           </div>
         </div>
         
-        {/* Content */}
-        {insight.content && (
-          <p className="text-xs md:text-sm text-gray-700 mb-1 md:mb-2 line-clamp-2 leading-relaxed">
-            {insight.content}
-          </p>
-        )}
+        {/* Compact Summary */}
+        <p className="text-xs text-gray-600 mb-1 line-clamp-1">
+          {insight.message || insight.title}
+        </p>
         
-        {/* Footer with metadata */}
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center space-x-3">
-            {/* Priority badge */}
-            <span className={`inline-flex items-center px-1 md:px-2 py-0.5 rounded-full text-xs font-medium ${
-              insight.priority === 'high' ? 'bg-red-100 text-red-800' :
-              insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-green-100 text-green-800'
-            }`}>
-              {insight.priority}
-            </span>
-            
-            {/* Type */}
-            <span className="capitalize text-gray-500 text-xs">
-              {insight.type.replace('_', ' ')}
-            </span>
-            
-            {/* Due date */}
-            {dueInfo && (
-              <div className={`flex items-center space-x-1 ${dueInfo.color}`}>
-                <Calendar className="h-3 w-3" />
-                <span>{dueInfo.text}</span>
-              </div>
-            )}
-          </div>
-          
-          {/* Confidence if available */}
-          {insight.confidence && (
-            <span className="text-gray-400 text-xs">
-              {insight.confidence}% confidence
+        {/* Compact Footer */}
+        <div className="flex items-center justify-between text-xs">
+          <span className="capitalize text-gray-500 text-xs truncate">
+            {insight.type.replace('_', ' ')}
+          </span>
+          {dueInfo && (
+            <span className={`text-xs ${dueInfo.color}`}>
+              {dueInfo.text}
             </span>
           )}
         </div>

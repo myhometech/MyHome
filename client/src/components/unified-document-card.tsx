@@ -758,7 +758,7 @@ export default function UnifiedDocumentCard({
                                   return (
                                     <div 
                                       key={priority}
-                                      className={`px-1.5 py-1 text-xs font-bold ${priorityColors[priority]}`}
+                                      className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${priorityColors[priority]}`}
                                     >
                                       {count}
                                     </div>

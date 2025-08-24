@@ -201,7 +201,7 @@ export function MobileInsightsDrawer({
           }}
         >
           <div className="
-            space-y-4 sm:space-y-5 pt-4 sm:pt-5
+            space-y-3 sm:space-y-4 pt-3 sm:pt-4
             max-w-full sm:max-w-lg mx-auto
             mobile-insights-large-mobile
           " data-insight-section>

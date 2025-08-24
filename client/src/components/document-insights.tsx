@@ -423,7 +423,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
           </div>
         </div>
       ) : (
-        <div className={`space-y-4 ${isMobile ? 'space-y-3' : 'space-y-4'} max-w-full`}>
+        <div className={`space-y-2 ${isMobile ? 'space-y-2' : 'space-y-3'} max-w-full`}>
           {insights.map((insight: DocumentInsight, index: number) => {
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
             const priorityStyle = priorityConfig[insight.priority];
@@ -432,64 +432,71 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
             return (
               <div 
                 key={insight.id} 
-                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-2 space-y-2 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden max-w-full`}
+                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-3 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden max-w-full`}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`flex items-center gap-2 flex-wrap`}>
-                    <div className={`p-1.5 rounded-lg ${config.color.includes('blue') ? 'bg-blue-50' : config.color.includes('green') ? 'bg-green-50' : config.color.includes('purple') ? 'bg-purple-50' : 'bg-gray-50'}`}>
-                      <IconComponent className={`h-4 w-4 ${config.color.split(' ')[1]}`} />
-                    </div>
-                    <Badge className={`${config.color} text-xs px-2 py-1 font-medium rounded-md`}>
-                      {config.label}
-                    </Badge>
-                    
-                    {insight.priority !== 'low' && (
-                      <Badge 
-                        variant="outline" 
-                        className={`${priorityStyle.color} text-xs px-2 py-1 font-medium rounded-md`}
-                      >
-                        {insight.priority === 'high' ? '🔥 High' : '⚡ Medium'}
+                {/* Mobile-first compact header */}
+                <div className={`${isMobile ? 'space-y-2' : 'flex items-start justify-between mb-3'}`}>
+                  {/* Top row: Icon, type, and actions */}
+                  <div className={`flex items-center justify-between ${isMobile ? 'mb-2' : ''}`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`${isMobile ? 'p-1 rounded-md' : 'p-1.5 rounded-lg'} ${config.color.includes('blue') ? 'bg-blue-50' : config.color.includes('green') ? 'bg-green-50' : config.color.includes('purple') ? 'bg-purple-50' : 'bg-gray-50'}`}>
+                        <IconComponent className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} ${config.color.split(' ')[1]}`} />
+                      </div>
+                      <Badge className={`${config.color} ${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'} font-medium rounded-md`}>
+                        {config.label}
                       </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1">
-                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                      <span className="text-xs font-medium text-gray-600">
-                        {Math.round(insight.confidence * 100)}%
-                      </span>
+                      {insight.priority !== 'low' && (
+                        <Badge 
+                          variant="outline" 
+                          className={`${priorityStyle.color} ${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'} font-medium rounded-md`}
+                        >
+                          {insight.priority === 'high' ? '🔥' : '⚡'}
+                        </Badge>
+                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteInsight(insight.id)}
-                      disabled={deleteInsightMutation.isPending}
-                      className={`text-gray-400 hover:text-red-500 hover:bg-red-50 h-6 w-6 p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    
+                    {/* Right side actions */}
+                    <div className="flex items-center gap-1">
+                      <div className={`flex items-center gap-1 bg-gray-50 rounded-md ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}>
+                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                        <span className={`${isMobile ? 'text-xs' : 'text-xs'} font-medium text-gray-600`}>
+                          {Math.round(insight.confidence * 100)}%
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteInsight(insight.id)}
+                        disabled={deleteInsightMutation.isPending}
+                        className={`text-gray-400 hover:text-red-500 hover:bg-red-50 ${isMobile ? 'h-6 w-6' : 'h-6 w-6'} p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <h4 className={`font-semibold text-gray-900 text-sm leading-tight`}>
+                {/* Content section */}
+                <div className={`${isMobile ? 'space-y-1.5' : 'space-y-2'}`}>
+                  <h4 className={`font-semibold text-gray-900 ${isMobile ? 'text-sm' : 'text-sm'} leading-tight`}>
                     {insight.title}
                   </h4>
-                  <div className={`text-gray-700 text-sm leading-relaxed p-3 bg-gray-50/50 rounded-md border border-gray-200/50`}>
+                  <div className={`text-gray-700 ${isMobile ? 'text-sm leading-snug p-2' : 'text-sm leading-relaxed p-3'} bg-gray-50/50 rounded-md border border-gray-200/50`}>
                     {insight.content}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  <div className={`flex items-center gap-1 text-xs text-gray-500`}>
-                    <Clock className="h-3 w-3" />
+                {/* Footer */}
+                <div className={`flex items-center justify-between ${isMobile ? 'pt-2 mt-2' : 'pt-2'} border-t border-gray-100`}>
+                  <div className={`flex items-center gap-1 ${isMobile ? 'text-xs' : 'text-xs'} text-gray-500`}>
+                    <Clock className={`${isMobile ? 'h-3 w-3' : 'h-3 w-3'}`} />
                     <span>
                       {new Date(insight.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                   {insight.priority === 'high' && (
-                    <div className="flex items-center gap-1 text-red-600 bg-red-50 rounded-md px-2 py-1">
-                      <span className="text-xs font-medium">🔥 Urgent</span>
+                    <div className={`flex items-center gap-1 text-red-600 bg-red-50 rounded-md ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}>
+                      <span className={`${isMobile ? 'text-xs' : 'text-xs'} font-medium`}>🔥 Urgent</span>
                     </div>
                   )}
                 </div>

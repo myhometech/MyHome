@@ -151,7 +151,7 @@ export function InsightCard({ insight, onStatusUpdate }: InsightCardProps) {
     
     // Navigate to document using documentId
     if (insight.documentId) {
-      setLocation(`/documents/${insight.documentId}`);
+      setLocation(`/document/${insight.documentId}`);
     }
   };
 

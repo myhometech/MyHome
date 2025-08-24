@@ -702,39 +702,6 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-            {/* Insights Banner */}
-            {showInsights && openInsights.length > 0 && (
-              <div 
-                className={`mb-2 px-2 py-1.5 rounded text-xs font-medium flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity ${
-                  criticalInsights.length > 0 
-                    ? 'bg-red-50 text-red-800 border border-red-200' 
-                    : openInsights.some(i => i.priority === 'medium')
-                    ? 'bg-yellow-50 text-yellow-800 border border-yellow-200'
-                    : 'bg-blue-50 text-blue-800 border border-blue-200'
-                }`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onClick) {
-                    // Open document viewer with insights tab
-                    onClick('insights');
-                  } else {
-                    setModalInitialTab('insights');
-                    setShowModal(true);
-                  }
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <Brain className="h-3.5 w-3.5" />
-                  <span>
-                    {openInsights.length} insight{openInsights.length !== 1 ? 's' : ''}
-                    {criticalInsights.length > 0 && (
-                      <span className="ml-1 text-red-600 font-semibold">• {criticalInsights.length} critical</span>
-                    )}
-                  </span>
-                </div>
-                <div className="text-xs opacity-70">Tap to view</div>
-              </div>
-            )}
 
             {/* Rich footer with metadata */}
             <div className="mt-auto mb-1">
@@ -760,18 +727,46 @@ export default function UnifiedDocumentCard({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Badge 
-                            variant="secondary" 
-                            className="text-xs bg-blue-50 border-blue-200 text-blue-700 px-2 py-1 cursor-pointer hover:bg-blue-100 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setModalInitialTab('insights');
-                              setShowModal(true);
-                            }}
-                          >
-                            <Brain className="h-4 w-4 mr-1.5" />
-                            <span className="text-xs font-medium">{openInsights.length}</span>
-                          </Badge>
+                          {(() => {
+                            const priorityCounts = openInsights.reduce((acc, insight) => {
+                              acc[insight.priority] = (acc[insight.priority] || 0) + 1;
+                              return acc;
+                            }, {} as Record<string, number>);
+
+                            const priorityOrder = ['high', 'medium', 'low'];
+                            const priorityColors: Record<string, string> = {
+                              high: 'bg-red-500 text-white',
+                              medium: 'bg-orange-500 text-white', 
+                              low: 'bg-blue-500 text-white'
+                            };
+
+                            return (
+                              <div 
+                                className="flex items-center gap-0 cursor-pointer rounded overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setModalInitialTab('insights');
+                                  setShowModal(true);
+                                }}
+                              >
+                                <div className="flex items-center gap-1 px-1 py-1 bg-gray-50">
+                                  <Brain className="h-3 w-3 text-gray-600" />
+                                </div>
+                                {priorityOrder.map(priority => {
+                                  const count = priorityCounts[priority];
+                                  if (!count) return null;
+                                  return (
+                                    <div 
+                                      key={priority}
+                                      className={`px-1.5 py-1 text-xs font-bold ${priorityColors[priority]}`}
+                                    >
+                                      {count}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Click to view {openInsights.length} insight{openInsights.length > 1 ? 's' : ''}</p>

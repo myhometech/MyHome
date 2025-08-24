@@ -487,20 +487,8 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
           </div>
           
-          {/* Document name and metadata - with proper overflow handling */}
+          {/* Document metadata only - no title duplication */}
           <div className="min-w-0 flex-1 overflow-hidden">
-            <h1 
-              className="font-semibold text-[#2B2F40] text-base md:text-lg leading-tight overflow-hidden"
-              style={{
-                display: '-webkit-box',
-                WebkitLineClamp: 1,
-                WebkitBoxOrient: 'vertical',
-                wordBreak: 'break-all'
-              }}
-              title={document.name}
-            >
-              {document.name}
-            </h1>
             <div className="flex items-center gap-2 mt-0.5 overflow-hidden">
               {category && (
                 <Badge 

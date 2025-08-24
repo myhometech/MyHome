@@ -387,20 +387,20 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
       
       {insights.length > 0 && (
         <div className="space-y-3">
-          {insights.map((insight: DocumentInsight, index: number) => {
-            const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
+          {insights.map((insightItem: DocumentInsight, index: number) => {
+            const config = insightTypeConfig[insightItem.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
             const IconComponent = config.icon;
 
             return (
               <div 
-                key={insight.id} 
+                key={insightItem.id} 
                 className="bg-white p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <IconComponent className="w-4 h-4 text-blue-600" />
                     <span className="text-xs font-medium text-gray-600">{config.label}</span>
-                    {insight.priority === 'high' && (
+                    {insightItem.priority === 'high' && (
                       <Badge variant="destructive" className="text-xs px-1 py-0">High</Badge>
                     )}
                   </div>
@@ -409,7 +409,7 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
                     variant="ghost" 
                     size="sm" 
                     className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
-                    onClick={() => handleDeleteInsight(insight.id)}
+                    onClick={() => handleDeleteInsight(insightItem.id)}
                     disabled={deleteInsightMutation.isPending}
                   >
                     <Trash2 className="h-3 w-3" />
@@ -417,27 +417,21 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
                 </div>
                 
                 <h4 className="font-medium text-sm text-gray-900 mb-1">
-                  {insight.title}
+                  {insightItem.title}
                 </h4>
                 
                 <p className="text-xs text-gray-600 leading-relaxed">
-                  {insight.content}
+                  {insightItem.content}
                 </p>
                 
                 <div className="mt-2 pt-2 border-t border-gray-100">
                   <span className="text-xs text-gray-400">
-                    {Math.round(insight.confidence * 100)}% confidence
+                    {Math.round(insightItem.confidence * 100)}% confidence
                   </span>
                 </div>
               </div>
             );
           })}
-                  {insight.priority === 'high' && (
-                    <div className="flex items-center gap-1 text-red-600 bg-red-50 rounded-full px-2 py-1">
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs font-medium">Urgent</span>
-                    </div>
-                  )}
         </div>
       )}
     </div>

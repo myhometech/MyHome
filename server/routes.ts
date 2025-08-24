@@ -1649,7 +1649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               type: insight.type,
               title: insight.title,
               content: insight.content,
-              confidence: Math.round((insight.confidence || 0.5) * 100).toString(), // Convert to 0-100 scale as string
+              confidence: Math.min(100, Math.max(0, Math.round((insight.confidence || 0.5) * (insight.confidence > 1 ? 1 : 100)))).toString(), // Normalize confidence to 0-100 scale
               priority: insight.priority,
               dueDate, // TICKET 4: Due date for actionable insights
               actionUrl, // TICKET 4: URL to take action

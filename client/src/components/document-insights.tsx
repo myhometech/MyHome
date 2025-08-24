@@ -146,6 +146,8 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
   // Generate new insights mutation with memory optimization
   const generateInsightsMutation = useMutation({
     mutationFn: async (): Promise<InsightResponse> => {
+      console.log(`🔍 [INSIGHT-DEBUG] Starting insight generation for document ${documentId}`);
+      
       const response = await fetch(`/api/documents/${documentId}/insights`, {
         method: 'POST',
         headers: {
@@ -153,11 +155,24 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
         },
         signal: AbortSignal.timeout(30000) // 30s timeout
       });
+      
+      console.log(`📡 [INSIGHT-DEBUG] Response status: ${response.status}`);
+      
       if (!response.ok) {
         const errorData = await response.json();
+        console.error(`❌ [INSIGHT-DEBUG] Server error:`, errorData);
         throw new Error(errorData.message || 'Failed to generate insights');
       }
-      return await response.json();
+      
+      const result = await response.json();
+      console.log(`✅ [INSIGHT-DEBUG] Insights received:`, {
+        success: result.success,
+        insightsCount: result.insights?.length || 0,
+        documentType: result.documentType,
+        confidence: result.confidence
+      });
+      
+      return result;
     },
     onSuccess: React.useCallback((data: InsightResponse) => {
       toast({
@@ -171,14 +186,34 @@ export function DocumentInsights({ documentId, documentName }: DocumentInsightsP
       setIsGenerating(false);
     }, [documentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {
-      console.error('Error generating insights:', error);
+      console.error('❌ [INSIGHT-DEBUG] Insight generation error:', {
+        message: error.message,
+        stack: error.stack,
+        documentId,
+        documentName,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Provide specific error messages based on common issues
+      let errorMessage = error.message || "Failed to generate document insights";
+      
+      if (error.message?.includes('API key')) {
+        errorMessage = "AI service not configured. Please contact support.";
+      } else if (error.message?.includes('quota exceeded')) {
+        errorMessage = "AI service temporarily unavailable. Please try again later.";
+      } else if (error.message?.includes('feature flag') || error.message?.includes('disabled')) {
+        errorMessage = "AI insights feature not available for your account.";
+      } else if (error.message?.includes('extracted text') || error.message?.includes('insufficient text')) {
+        errorMessage = "Document text not clear enough for AI analysis. Try OCR retry first.";
+      }
+      
       toast({
         title: "Generation Failed",
-        description: error.message || "Failed to generate document insights",
+        description: errorMessage,
         variant: "destructive"
       });
       setIsGenerating(false);
-    }, [toast]),
+    }, [toast, documentId, documentName]),
     onSettled: React.useCallback(() => {
       setIsGenerating(false);
     }, [])

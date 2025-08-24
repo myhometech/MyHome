@@ -76,13 +76,18 @@ class AIInsightService {
       });
 
       if (!hasAIInsights) {
-        console.log(`[DOC-501] AI Insights disabled for user ${userId} - returning empty result`);
+        console.log(`❌ [DOC-501] AI Insights disabled for user ${userId} - feature flag check failed`);
+        console.log(`📊 [DOC-501] User details:`, {
+          userId,
+          userTier: user.subscriptionTier,
+          hasAIInsights: false
+        });
         return {
           insights: [],
           processingTime: 0,
           confidence: 0,
-          documentType: 'unknown',
-          recommendedActions: []
+          documentType: 'feature_disabled',
+          recommendedActions: ['Contact support to enable AI insights feature']
         };
       }
     } catch (error) {
@@ -94,6 +99,27 @@ class AIInsightService {
 
     try {
       console.log(`[${requestId}] DOC-501: Starting insight analysis for document: ${documentName}`);
+      console.log(`[${requestId}] DOC-501: Document details:`, {
+        textLength: extractedText?.length || 0,
+        mimeType,
+        userId,
+        hasText: !!extractedText && extractedText.trim().length > 0
+      });
+
+      // Validate extracted text
+      if (!extractedText || extractedText.trim().length < 20) {
+        console.warn(`[${requestId}] DOC-501: Insufficient text for insight generation`, {
+          textLength: extractedText?.length || 0,
+          documentName
+        });
+        return {
+          insights: [],
+          processingTime: Date.now() - startTime,
+          confidence: 0,
+          documentType: 'insufficient_text',
+          recommendedActions: ['Document needs OCR processing or contains no readable text']
+        };
+      }
 
       const flattened_prompt = this.buildMistralInsightPrompt(documentName, extractedText, mimeType);
       

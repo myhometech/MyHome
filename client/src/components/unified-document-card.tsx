@@ -585,9 +585,22 @@ export default function UnifiedDocumentCard({
                 ) : (
                   <div className="space-y-1">
                     <div className="flex items-start gap-2">
-                      <div className={`p-1 rounded ${getFileTypeIconColor()} border flex-shrink-0`}>
-                        <div className="scale-75">
-                          {getFileIcon()}
+                      {/* Document thumbnail with file type icon overlay */}
+                      <div className="relative w-12 h-12 flex-shrink-0 rounded border border-gray-200 bg-gray-50 overflow-hidden">
+                        <img
+                          src={`/api/documents/${document.id}/thumbnail`}
+                          alt={document.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback to gray background if thumbnail fails to load
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        {/* File type icon overlay */}
+                        <div className={`absolute bottom-0 right-0 p-0.5 rounded-tl ${getFileTypeIconColor()} border-t border-l`}>
+                          <div className="scale-50">
+                            {getFileIcon()}
+                          </div>
                         </div>
                       </div>
                       {isRenaming ? (

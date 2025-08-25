@@ -145,38 +145,38 @@ function DashboardOverview({ onFilterChange }: { onFilterChange: (filter: any) =
     switch (color) {
       case 'blue':
         return {
-          bg: 'bg-blue-50 dark:bg-blue-900/20',
-          border: 'border-blue-200 dark:border-blue-800',
-          icon: 'text-blue-600 dark:text-blue-400',
-          hover: 'hover:bg-blue-100 dark:hover:bg-blue-900/30'
+          bg: 'bg-gradient-to-r from-purple-50/40 to-purple-100/20 dark:bg-purple-900/20',
+          border: 'border-purple-300 dark:border-purple-800',
+          icon: 'text-purple-600 dark:text-purple-400',
+          hover: 'hover:bg-gradient-to-r hover:from-purple-100/50 hover:to-purple-200/30 dark:hover:bg-purple-900/30'
         };
       case 'red':
         return {
-          bg: 'bg-red-50 dark:bg-red-900/20',
-          border: 'border-red-200 dark:border-red-800',
-          icon: 'text-red-600 dark:text-red-400',
-          hover: 'hover:bg-red-100 dark:hover:bg-red-900/30'
+          bg: 'bg-gradient-to-r from-purple-100/50 to-purple-200/30 dark:bg-purple-900/30',
+          border: 'border-purple-400 dark:border-purple-700',
+          icon: 'text-purple-700 dark:text-purple-300',
+          hover: 'hover:bg-gradient-to-r hover:from-purple-200/60 hover:to-purple-300/40 dark:hover:bg-purple-800/40'
         };
       case 'orange':
         return {
-          bg: 'bg-orange-50 dark:bg-orange-900/20',
-          border: 'border-orange-200 dark:border-orange-800',
-          icon: 'text-orange-600 dark:text-orange-400',
-          hover: 'hover:bg-orange-100 dark:hover:bg-orange-900/30'
+          bg: 'bg-gradient-to-r from-purple-75/35 to-purple-125/25 dark:bg-purple-900/25',
+          border: 'border-purple-350 dark:border-purple-750',
+          icon: 'text-purple-650 dark:text-purple-350',
+          hover: 'hover:bg-gradient-to-r hover:from-purple-125/45 hover:to-purple-175/35 dark:hover:bg-purple-850/35'
         };
       case 'green':
         return {
-          bg: 'bg-green-50 dark:bg-green-900/20',
-          border: 'border-green-200 dark:border-green-800',
-          icon: 'text-green-600 dark:text-green-400',
-          hover: 'hover:bg-green-100 dark:hover:bg-green-900/30'
+          bg: 'bg-gradient-to-r from-purple-25/30 to-purple-75/20 dark:bg-purple-900/20',
+          border: 'border-purple-250 dark:border-purple-800',
+          icon: 'text-purple-550 dark:text-purple-400',
+          hover: 'hover:bg-gradient-to-r hover:from-purple-75/40 hover:to-purple-125/30 dark:hover:bg-purple-900/30'
         };
       default:
         return {
-          bg: 'bg-gray-50 dark:bg-gray-900/20',
-          border: 'border-gray-200 dark:border-gray-800',
-          icon: 'text-gray-600 dark:text-gray-400',
-          hover: 'hover:bg-gray-100 dark:hover:bg-gray-900/30'
+          bg: 'bg-gradient-to-r from-purple-25/20 to-purple-50/10 dark:bg-purple-900/20',
+          border: 'border-purple-200 dark:border-purple-800',
+          icon: 'text-purple-500 dark:text-purple-400',
+          hover: 'hover:bg-gradient-to-r hover:from-purple-50/30 hover:to-purple-100/20 dark:hover:bg-purple-900/30'
         };
     }
   };
@@ -268,38 +268,38 @@ function QuickActionCards() {
     switch (color) {
       case 'blue':
         return {
-          bg: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20',
-          border: 'border-blue-200 dark:border-blue-700',
-          icon: 'text-blue-600 dark:text-blue-400',
-          hover: 'hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-800/30 dark:hover:to-blue-700/30'
-        };
-      case 'purple':
-        return {
           bg: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
           border: 'border-purple-200 dark:border-purple-700',
           icon: 'text-purple-600 dark:text-purple-400',
           hover: 'hover:from-purple-100 hover:to-purple-200 dark:hover:from-purple-800/30 dark:hover:to-purple-700/30'
         };
+      case 'purple':
+        return {
+          bg: 'bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30',
+          border: 'border-purple-300 dark:border-purple-600',
+          icon: 'text-purple-700 dark:text-purple-300',
+          hover: 'hover:from-purple-200 hover:to-purple-300 dark:hover:from-purple-800/40 dark:hover:to-purple-700/40'
+        };
       case 'green':
         return {
-          bg: 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20',
-          border: 'border-green-200 dark:border-green-700',
-          icon: 'text-green-600 dark:text-green-400',
-          hover: 'hover:from-green-100 hover:to-green-200 dark:hover:from-green-800/30 dark:hover:to-green-700/30'
+          bg: 'bg-gradient-to-br from-purple-25 to-purple-75 dark:from-purple-900/15 dark:to-purple-850/15',
+          border: 'border-purple-150 dark:border-purple-750',
+          icon: 'text-purple-550 dark:text-purple-450',
+          hover: 'hover:from-purple-75 hover:to-purple-125 dark:hover:from-purple-850/25 dark:hover:to-purple-800/25'
         };
       case 'orange':
         return {
-          bg: 'bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20',
-          border: 'border-orange-200 dark:border-orange-700',
-          icon: 'text-orange-600 dark:text-orange-400',
-          hover: 'hover:from-orange-100 hover:to-orange-200 dark:hover:from-orange-800/30 dark:hover:to-orange-700/30'
+          bg: 'bg-gradient-to-br from-purple-75 to-purple-125 dark:from-purple-900/25 dark:to-purple-825/25',
+          border: 'border-purple-250 dark:border-purple-725',
+          icon: 'text-purple-625 dark:text-purple-375',
+          hover: 'hover:from-purple-125 hover:to-purple-175 dark:hover:from-purple-825/35 dark:hover:to-purple-775/35'
         };
       default:
         return {
-          bg: 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20',
-          border: 'border-gray-200 dark:border-gray-700',
-          icon: 'text-gray-600 dark:text-gray-400',
-          hover: 'hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-800/30 dark:hover:to-gray-700/30'
+          bg: 'bg-gradient-to-br from-purple-25 to-purple-50 dark:from-purple-900/10 dark:to-purple-875/10',
+          border: 'border-purple-100 dark:border-purple-800',
+          icon: 'text-purple-500 dark:text-purple-500',
+          hover: 'hover:from-purple-50 hover:to-purple-100 dark:hover:from-purple-875/20 dark:hover:to-purple-850/20'
         };
     }
   };

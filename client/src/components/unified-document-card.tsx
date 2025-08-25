@@ -771,7 +771,7 @@ export default function UnifiedDocumentCard({
 
             {/* No insights state - brain icon in bottom right */}
             {showInsights && openInsights.length === 0 && !insightsLoading && (
-              <div className="absolute bottom-8 right-2">
+              <div className="absolute bottom-10 right-2">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -803,16 +803,16 @@ export default function UnifiedDocumentCard({
 
             {/* Actions dropdown - positioned in bottom-right, aligned with insight badges */}
             {!isEditing && !isRenaming && (
-              <div className="absolute bottom-8 right-2 z-10">
+              <div className="absolute bottom-10 right-2 z-10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-7 w-7 p-0 flex-shrink-0 opacity-80 hover:opacity-100 bg-white hover:bg-white shadow-lg rounded-full border border-gray-200"
+                      className="h-6 w-6 p-0 flex-shrink-0 opacity-80 hover:opacity-100 bg-white hover:bg-white shadow-lg rounded-full border border-gray-200"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreHorizontal className="h-4 w-4" />
+                      <MoreHorizontal className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

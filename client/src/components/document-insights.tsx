@@ -54,22 +54,22 @@ const insightTypeConfig = {
 
 const priorityConfig = {
   high: { 
-    color: 'bg-red-100 text-red-800 border-red-200', 
+    color: 'bg-purple-100 text-purple-800 border-purple-200', 
     label: 'High Priority',
-    cardBorder: 'border-l-red-500',
-    cardBg: 'bg-red-50/30'
+    cardBorder: 'border-l-purple-600',
+    cardBg: 'bg-gradient-to-r from-purple-50/40 to-purple-100/20'
   },
   medium: { 
-    color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
+    color: 'bg-purple-50 text-purple-700 border-purple-150', 
     label: 'Medium Priority',
-    cardBorder: 'border-l-yellow-500',
-    cardBg: 'bg-yellow-50/30'
+    cardBorder: 'border-l-purple-400',
+    cardBg: 'bg-gradient-to-r from-purple-50/30 to-purple-75/15'
   },
   low: { 
-    color: 'bg-gray-100 text-gray-800 border-gray-200', 
+    color: 'bg-purple-25 text-purple-600 border-purple-100', 
     label: 'Low Priority',
-    cardBorder: 'border-l-gray-400',
-    cardBg: 'bg-gray-50/30'
+    cardBorder: 'border-l-purple-300',
+    cardBg: 'bg-gradient-to-r from-purple-25/20 to-purple-50/10'
   }
 };
 

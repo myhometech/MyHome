@@ -670,17 +670,23 @@ export default function UnifiedDocumentCard({
                               generateInsightsMutation.mutate();
                             }}
                           >
-                            <div className="flex items-center gap-1 px-1 py-1 bg-gray-50">
+                            <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-50 to-purple-50 border-l-2 border-l-blue-500">
                               {generateInsightsMutation.isPending ? (
-                                <Clock className="h-3 w-3 animate-spin text-gray-600" />
+                                <>
+                                  <Clock className="h-3 w-3 animate-spin text-blue-600" />
+                                  <span className="text-xs font-medium text-blue-700 ml-1">Analyzing...</span>
+                                </>
                               ) : (
-                                <Brain className="h-3 w-3 text-gray-600" />
+                                <>
+                                  <Brain className="h-3 w-3 text-blue-600" />
+                                  <span className="text-xs font-medium text-blue-700 ml-1">Generate Tips</span>
+                                </>
                               )}
                             </div>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{generateInsightsMutation.isPending ? 'Generating insights...' : 'Generate AI insights'}</p>
+                          <p>{generateInsightsMutation.isPending ? 'AI is analyzing this document...' : 'Click to generate smart tips and insights'}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -710,28 +716,31 @@ export default function UnifiedDocumentCard({
 
                             return (
                               <div 
-                                className="flex items-center gap-0 cursor-pointer rounded overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                                className="flex items-center gap-0 cursor-pointer rounded overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setModalInitialTab('insights');
                                   setShowModal(true);
                                 }}
                               >
-                                <div className="flex items-center gap-1 px-1 py-1 bg-gray-50">
-                                  <Brain className="h-3 w-3 text-gray-600" />
+                                <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-50 to-purple-50 border-l-2 border-l-blue-500">
+                                  <Brain className="h-3 w-3 text-blue-600" />
+                                  <span className="text-xs font-medium text-blue-700">Smart Tips</span>
                                 </div>
-                                {priorityOrder.map(priority => {
-                                  const count = priorityCounts[priority];
-                                  if (!count) return null;
-                                  return (
-                                    <div 
-                                      key={priority}
-                                      className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${priorityColors[priority]}`}
-                                    >
-                                      {count}
-                                    </div>
-                                  );
-                                })}
+                                <div className="flex items-center gap-1 px-1">
+                                  {priorityOrder.map(priority => {
+                                    const count = priorityCounts[priority];
+                                    if (!count) return null;
+                                    return (
+                                      <div 
+                                        key={priority}
+                                        className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${priorityColors[priority]} border border-white shadow-sm`}
+                                      >
+                                        {count}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             );
                           })()}

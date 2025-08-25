@@ -488,7 +488,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </div>
           
           {/* Document metadata only - no title */}
-          <div className="min-w-0 flex-1 overflow-hidden ml-4">
+          <div className="min-w-0 flex-1 overflow-hidden ml-8">
             <div className="flex items-center gap-2 overflow-hidden">
               {category && (
                 <Badge 

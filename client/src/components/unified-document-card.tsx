@@ -803,13 +803,13 @@ export default function UnifiedDocumentCard({
 
             {/* Actions dropdown - positioned in bottom-right */}
             {!isEditing && !isRenaming && (
-              <div className="absolute bottom-2 right-2">
+              <div className="absolute bottom-2 right-2 z-10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-6 w-6 p-0 flex-shrink-0 opacity-60 hover:opacity-100 bg-white/80 hover:bg-white shadow-sm rounded-full"
+                      className="h-8 w-8 p-0 flex-shrink-0 opacity-80 hover:opacity-100 bg-white hover:bg-white shadow-lg rounded-full border border-gray-200"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MoreHorizontal className="h-4 w-4" />

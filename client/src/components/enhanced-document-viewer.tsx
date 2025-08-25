@@ -803,7 +803,12 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                             placeholder="Enter document name"
                           />
                         </div>
-                      ) : null}
+                      ) : (
+                        <div>
+                          <Label className="text-xs text-gray-600">Document Name</Label>
+                          <p className="text-xs mt-1">{fullDocument?.name || document.name}</p>
+                        </div>
+                      )}
 
                       <div>
                         <Label className="text-xs text-gray-600">File Name</Label>

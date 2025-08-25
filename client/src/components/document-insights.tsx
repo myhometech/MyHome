@@ -59,8 +59,9 @@ const priorityConfig = {
     cardBorder: 'border-l-purple-600',
     cardBg: '',
     cardStyle: { 
-      background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 50%, #ddd6fe 100%)',
-      backgroundColor: '#f3e8ff'
+      background: 'linear-gradient(135deg, #a855f7 0%, #8b5cf6 50%, #7c3aed 100%)',
+      backgroundColor: '#a855f7',
+      color: 'white'
     }
   },
   medium: { 
@@ -69,8 +70,9 @@ const priorityConfig = {
     cardBorder: 'border-l-purple-400',
     cardBg: '',
     cardStyle: { 
-      background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)',
-      backgroundColor: '#faf5ff'
+      background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #8b5cf6 100%)',
+      backgroundColor: '#c084fc',
+      color: 'white'
     }
   },
   low: { 
@@ -79,8 +81,9 @@ const priorityConfig = {
     cardBorder: 'border-l-purple-300',
     cardBg: '',
     cardStyle: { 
-      background: 'linear-gradient(135deg, #fefbff 0%, #faf5ff 50%, #f3e8ff 100%)',
-      backgroundColor: '#fefbff'
+      background: 'linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 50%, #a78bfa 100%)',
+      backgroundColor: '#ddd6fe',
+      color: '#4c1d95'
     }
   }
 };
@@ -508,32 +511,32 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 </div>
 
                 {/* Content section */}
-                <div className={`${isMobile ? 'space-y-1.5' : 'space-y-2'}`}>
+                <div className={`${isMobile ? 'space-y-1.5' : 'space-y-2'}`} style={{ color: priorityStyle.cardStyle?.color || 'inherit' }}>
                   {/* Document name */}
-                  <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-xs'} text-gray-500 mb-1`}>
+                  <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-xs'} mb-1`} style={{ color: priorityStyle.cardStyle?.color || '#6b7280' }}>
                     <FileText className="h-3 w-3" />
                     <span className="truncate">{documentName}</span>
                   </div>
                   
                   {/* Short title */}
-                  <h4 className={`font-semibold text-gray-900 ${isMobile ? 'text-sm' : 'text-sm'} leading-tight`}>
+                  <h4 className={`font-semibold ${isMobile ? 'text-sm' : 'text-sm'} leading-tight`} style={{ color: priorityStyle.cardStyle?.color || '#111827' }}>
                     {insight.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 25)}
                   </h4>
-                  <div className={`text-gray-700 ${isMobile ? 'text-sm leading-snug p-2' : 'text-sm leading-relaxed p-3'} bg-gray-50/50 rounded-md border border-gray-200/50`}>
+                  <div className={`${isMobile ? 'text-sm leading-snug p-2' : 'text-sm leading-relaxed p-3'} bg-white/20 rounded-md border border-white/30`} style={{ color: priorityStyle.cardStyle?.color || '#374151' }}>
                     {insight.content}
                   </div>
                 </div>
 
                 {/* Footer */}
-                <div className={`flex items-center justify-between ${isMobile ? 'pt-2 mt-2' : 'pt-2'} border-t border-gray-100`}>
-                  <div className={`flex items-center gap-1 ${isMobile ? 'text-xs' : 'text-xs'} text-gray-500`}>
+                <div className={`flex items-center justify-between ${isMobile ? 'pt-2 mt-2' : 'pt-2'} border-t border-white/20`}>
+                  <div className={`flex items-center gap-1 ${isMobile ? 'text-xs' : 'text-xs'}`} style={{ color: priorityStyle.cardStyle?.color || '#6b7280' }}>
                     <Clock className={`${isMobile ? 'h-3 w-3' : 'h-3 w-3'}`} />
                     <span>
                       {new Date(insight.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                   {insight.priority === 'high' && (
-                    <div className={`flex items-center gap-1 text-red-600 bg-red-50 rounded-md ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}>
+                    <div className={`flex items-center gap-1 bg-white/30 rounded-md ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`} style={{ color: priorityStyle.cardStyle?.color || '#dc2626' }}>
                       <span className={`${isMobile ? 'text-xs' : 'text-xs'} font-medium`}>🔥 Urgent</span>
                     </div>
                   )}

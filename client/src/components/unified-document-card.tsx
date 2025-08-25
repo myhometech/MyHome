@@ -809,7 +809,7 @@ export default function UnifiedDocumentCard({
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-8 w-8 p-0 flex-shrink-0 opacity-80 hover:opacity-100 bg-white hover:bg-white shadow-lg rounded-full border border-gray-200"
+                      className="h-7 w-7 p-0 flex-shrink-0 opacity-80 hover:opacity-100 bg-white hover:bg-white shadow-lg rounded-full border border-gray-200"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MoreHorizontal className="h-4 w-4" />

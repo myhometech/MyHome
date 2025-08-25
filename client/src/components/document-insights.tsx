@@ -57,19 +57,22 @@ const priorityConfig = {
     color: 'bg-purple-100 text-purple-800 border-purple-200', 
     label: 'High Priority',
     cardBorder: 'border-l-purple-600',
-    cardBg: 'bg-gradient-to-r from-purple-100/60 to-purple-200/30'
+    cardBg: '',
+    cardStyle: { background: 'linear-gradient(to right, rgba(196, 181, 253, 0.6), rgba(167, 139, 250, 0.3))' }
   },
   medium: { 
     color: 'bg-purple-50 text-purple-700 border-purple-200', 
     label: 'Medium Priority',
     cardBorder: 'border-l-purple-400',
-    cardBg: 'bg-gradient-to-r from-purple-50/50 to-purple-100/25'
+    cardBg: '',
+    cardStyle: { background: 'linear-gradient(to right, rgba(250, 245, 255, 0.5), rgba(196, 181, 253, 0.25))' }
   },
   low: { 
     color: 'bg-purple-50 text-purple-600 border-purple-100', 
     label: 'Low Priority',
     cardBorder: 'border-l-purple-300',
-    cardBg: 'bg-gradient-to-r from-purple-50/30 to-purple-100/15'
+    cardBg: '',
+    cardStyle: { background: 'linear-gradient(to right, rgba(250, 245, 255, 0.3), rgba(196, 181, 253, 0.15))' }
   }
 };
 
@@ -449,7 +452,8 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             return (
               <div 
                 key={insight.id} 
-                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-3 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} ${priorityStyle.cardBg} overflow-hidden max-w-full cursor-pointer`}
+                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-3 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} overflow-hidden max-w-full cursor-pointer`}
+                style={priorityStyle.cardStyle}
                 onClick={handleCardClick}
               >
                 {/* Mobile-first compact header */}

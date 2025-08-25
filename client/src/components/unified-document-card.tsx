@@ -691,7 +691,7 @@ export default function UnifiedDocumentCard({
               // Priority 2: Insights Count (highest priority - clickable)
               if (openInsights.length > 0) {
                 return (
-                  <div className="absolute bottom-8 left-2">
+                  <div className="absolute bottom-10 left-2">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>

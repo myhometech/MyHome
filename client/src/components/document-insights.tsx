@@ -58,21 +58,30 @@ const priorityConfig = {
     label: 'High Priority',
     cardBorder: 'border-l-purple-600',
     cardBg: '',
-    cardStyle: { background: 'linear-gradient(to right, rgba(196, 181, 253, 0.6), rgba(167, 139, 250, 0.3))' }
+    cardStyle: { 
+      background: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 50%, #ddd6fe 100%)',
+      backgroundColor: '#f3e8ff'
+    }
   },
   medium: { 
     color: 'bg-purple-50 text-purple-700 border-purple-200', 
     label: 'Medium Priority',
     cardBorder: 'border-l-purple-400',
     cardBg: '',
-    cardStyle: { background: 'linear-gradient(to right, rgba(250, 245, 255, 0.5), rgba(196, 181, 253, 0.25))' }
+    cardStyle: { 
+      background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)',
+      backgroundColor: '#faf5ff'
+    }
   },
   low: { 
     color: 'bg-purple-50 text-purple-600 border-purple-100', 
     label: 'Low Priority',
     cardBorder: 'border-l-purple-300',
     cardBg: '',
-    cardStyle: { background: 'linear-gradient(to right, rgba(250, 245, 255, 0.3), rgba(196, 181, 253, 0.15))' }
+    cardStyle: { 
+      background: 'linear-gradient(135deg, #fefbff 0%, #faf5ff 50%, #f3e8ff 100%)',
+      backgroundColor: '#fefbff'
+    }
   }
 };
 
@@ -452,7 +461,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             return (
               <div 
                 key={insight.id} 
-                className={`group relative border border-gray-200/60 shadow-sm bg-white rounded-lg ${isMobile ? 'p-3 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} overflow-hidden max-w-full cursor-pointer`}
+                className={`group relative border border-gray-200/60 shadow-sm rounded-lg ${isMobile ? 'p-3 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} overflow-hidden max-w-full cursor-pointer`}
                 style={priorityStyle.cardStyle}
                 onClick={handleCardClick}
               >

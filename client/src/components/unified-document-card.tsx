@@ -663,23 +663,21 @@ export default function UnifiedDocumentCard({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 rounded-full hover:bg-blue-50 hover:text-blue-600 bg-white shadow-lg border border-gray-200"
+                          <div 
+                            className="flex items-center gap-0 cursor-pointer rounded overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                             onClick={(e) => {
-                              e.preventDefault();
                               e.stopPropagation();
                               generateInsightsMutation.mutate();
                             }}
-                            disabled={generateInsightsMutation.isPending}
                           >
-                            {generateInsightsMutation.isPending ? (
-                              <Clock className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Brain className="h-3 w-3 text-blue-600" />
-                            )}
-                          </Button>
+                            <div className="flex items-center gap-1 px-1 py-1 bg-gray-50">
+                              {generateInsightsMutation.isPending ? (
+                                <Clock className="h-3 w-3 animate-spin text-gray-600" />
+                              ) : (
+                                <Brain className="h-3 w-3 text-gray-600" />
+                              )}
+                            </div>
+                          </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>{generateInsightsMutation.isPending ? 'Generating insights...' : 'Generate AI insights'}</p>

@@ -22,11 +22,11 @@ interface SmartSearchProps {
   className?: string;
 }
 
-export function SmartSearch({ 
-  onDocumentSelect, 
-  onSearchChange, 
+export function SmartSearch({
+  onDocumentSelect,
+  onSearchChange,
   placeholder = "Search documents...",
-  className 
+  className
 }: SmartSearchProps) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -52,7 +52,7 @@ export function SmartSearch({
     queryKey: ["/api/documents/search", debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery.trim()) return [];
-      
+
       console.log('Making search request for:', debouncedQuery);
       const response = await fetch(`/api/documents/search?q=${encodeURIComponent(debouncedQuery)}`, {
         credentials: "include",
@@ -70,10 +70,10 @@ export function SmartSearch({
   });
 
   // Debug logging
-  console.log('SmartSearch state:', { 
-    query, 
-    debouncedQuery, 
-    isOpen, 
+  console.log('SmartSearch state:', {
+    query,
+    debouncedQuery,
+    isOpen,
     searchResultsCount: searchResults.length,
     isLoading,
     error: error?.message,
@@ -88,13 +88,13 @@ export function SmartSearch({
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          setSelectedIndex(prev => 
+          setSelectedIndex(prev =>
             prev < searchResults.length - 1 ? prev + 1 : 0
           );
           break;
         case "ArrowUp":
           e.preventDefault();
-          setSelectedIndex(prev => 
+          setSelectedIndex(prev =>
             prev > 0 ? prev - 1 : searchResults.length - 1
           );
           break;
@@ -211,7 +211,7 @@ export function SmartSearch({
           <CardContent className="p-0">
             {isLoading ? (
               <div className="p-4 text-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent-purple-600 mx-auto"></div>
                 <p className="text-sm text-gray-500 mt-2">Searching...</p>
               </div>
             ) : error ? (
@@ -225,8 +225,8 @@ export function SmartSearch({
                     key={result.id}
                     className={cn(
                       "p-3 border-b last:border-b-0 cursor-pointer transition-colors",
-                      selectedIndex === index 
-                        ? "bg-blue-50 border-blue-200" 
+                      selectedIndex === index
+                        ? "bg-accent-purple-50 border-accent-purple-200"
                         : "hover:bg-gray-50"
                     )}
                     onClick={() => handleDocumentSelect(result)}
@@ -244,13 +244,13 @@ export function SmartSearch({
                             {result.matchType}
                           </Badge>
                         </div>
-                        
+
                         {result.snippet && (
                           <p className="text-xs text-gray-600 mb-1 line-clamp-2">
                             {result.snippet}
                           </p>
                         )}
-                        
+
                         <div className="flex items-center gap-3 text-xs text-gray-500">
                           {result.categoryName && (
                             <span>{result.categoryName}</span>
@@ -258,7 +258,7 @@ export function SmartSearch({
                           <span>{formatFileSize(result.fileSize)}</span>
                           <span>{result.uploadedAt ? formatDate(result.uploadedAt.toString()) : 'Recently'}</span>
                         </div>
-                        
+
                         {result.tags && result.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
                             {result.tags.slice(0, 3).map((tag) => (

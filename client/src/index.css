@@ -31,7 +31,7 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
-  
+
   .line-clamp-3 {
     overflow: hidden;
     display: -webkit-box;
@@ -63,13 +63,13 @@
   .mobile-insight-card {
     @apply transform-gpu; /* Enable hardware acceleration */
   }
-  
+
   /* Compact insight card styling */
   .compact-insight-card {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease-in-out;
   }
-  
+
   .compact-insight-card:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
@@ -88,17 +88,17 @@
     }
   }
 
-  
+
   /* Mobile document card styling */
   .mobile-document-card {
     transition: all 0.2s ease-in-out;
   }
-  
+
   .mobile-document-card-content {
     /* Ensure text doesn't get too small on mobile */
     font-size: 0.75rem;
   }
-  
+
   /* Force 2-column square grid on mobile */
   @media (max-width: 640px) {
     .grid {
@@ -106,7 +106,7 @@
       grid-template-columns: 1fr 1fr !important;
       gap: 0.5rem !important;
     }
-    
+
     .mobile-document-card {
       aspect-ratio: 1 !important;
       height: auto !important;
@@ -118,7 +118,7 @@
       flex: none !important;
       box-sizing: border-box !important;
     }
-    
+
     /* Optimized card content with less white space */
     .mobile-document-card-content {
       padding: 0.75rem !important;
@@ -128,7 +128,7 @@
       box-sizing: border-box !important;
       gap: 0.25rem !important;
     }
-    
+
     /* Readable title for square format */
     .mobile-document-card h3 {
       font-size: 0.875rem !important;
@@ -141,25 +141,25 @@
       -webkit-box-orient: vertical !important;
       overflow: hidden !important;
     }
-    
+
     .mobile-document-card .text-xs {
       font-size: 0.625rem !important;
       line-height: 1.0 !important;
     }
-    
+
     /* Tiny badges for square cards */
     .mobile-document-card .badge {
       padding: 0.125rem 0.25rem !important;
       font-size: 0.5rem !important;
       line-height: 1.0 !important;
     }
-    
+
     /* Hide less important elements on very small cards */
     .mobile-document-card .hidden-on-mobile {
       display: none !important;
     }
   }
-  
+
   @media (min-width: 640px) {
     .mobile-document-card-content {
       font-size: inherit;
@@ -246,7 +246,7 @@
     padding: 8px !important;
     margin-left: 12px !important;
   }
-  
+
   /* Download button in preview header */
   .preview-download-btn {
     min-width: 88px !important;
@@ -254,7 +254,7 @@
     padding: 8px 12px !important;
     margin-right: 8px !important;
   }
-  
+
   /* Ensure proper spacing between modal elements */
   .modal-header-title {
     padding-right: 16px !important;
@@ -269,7 +269,7 @@
     -webkit-user-select: none;
     user-select: none;
   }
-  
+
   .preview-download-btn {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -310,7 +310,7 @@
     top: 50% !important;
     transform: translate(-50%, -50%) !important;
   }
-  
+
   /* Mobile-friendly form inputs */
   .mobile-form input,
   .mobile-form select,
@@ -318,25 +318,25 @@
     font-size: 16px !important; /* Prevent zoom on iOS */
     min-height: 44px !important; /* Apple touch target size */
   }
-  
+
   /* Ensure buttons are touch-friendly */
   .mobile-form button {
     min-height: 44px !important;
     min-width: 44px !important;
   }
-  
+
   /* File upload zone improvements */
   .upload-zone {
     padding: 1rem !important;
     margin: 0.5rem 0 !important;
   }
-  
+
   /* Category selection improvements */
   .category-grid {
     grid-template-columns: repeat(3, 1fr) !important;
     gap: 0.5rem !important;
   }
-  
+
   .color-grid {
     grid-template-columns: repeat(3, 1fr) !important;
     gap: 0.5rem !important;
@@ -350,7 +350,7 @@
     width: 100% !important;
     box-sizing: border-box !important;
   }
-  
+
   .modal-container * {
     box-sizing: border-box !important;
   }
@@ -425,23 +425,35 @@
   --destructive-foreground: hsl(220, 9.1%, 97.8%);
   --ring: hsl(220, 14.3%, 4.1%);
   --radius: 0.5rem;
-  
+
   /* Custom colors for warmer, homely feel */
   --surface: hsl(215, 25%, 98%); /* Light blue-gray surfaces */
   --text-secondary: hsl(215, 13.8%, 34.1%);
   --border-light: hsl(215, 20%, 89%);
-  
+
   /* New warm color palette */
   --warm-background: #FAF4EF; /* Linen/warm ivory */
   --trust-base: #2B2F40; /* Slate Blue for sidebars, headers */
   --sage-green: #A5C9A1; /* Secondary actions, confirmations */
   --dusty-lavender: #A1A4D6; /* Icon accents, tags */
   --soft-coral: #E28F83; /* Warm highlights, mild attention */
-  
+
   /* Document type colors (warmer tones) */
   --doc-emerald: hsl(158, 64%, 52%); /* Images - emerald green */
   --doc-red: #E74C3C; /* PDFs - calm red */
   --doc-blue: hsl(207, 90%, 54%); /* Documents - primary blue */
+
+  /* Purple theme color definitions */
+  --accent-purple-light: hsl(250, 70%, 90%); /* Lighter purple */
+  --accent-purple-dark: hsl(250, 70%, 40%); /* Darker purple */
+  --accent-purple-50: hsl(250, 70%, 95%);
+  --accent-purple-100: hsl(250, 70%, 90%);
+  --accent-purple-200: hsl(250, 70%, 85%);
+  --accent-purple-500: hsl(250, 70%, 50%);
+  --accent-purple-600: hsl(250, 70%, 40%);
+  --accent-purple-700: hsl(250, 70%, 30%);
+  --accent-purple-800: hsl(250, 70%, 20%);
+  --accent-purple-900: hsl(250, 70%, 10%);
 }
 
 /* Mobile Insights Drawer - Safe Area Support */
@@ -449,7 +461,7 @@
   .mobile-insights-safe-area {
     padding-bottom: env(safe-area-inset-bottom);
   }
-  
+
   .mobile-insights-trigger-safe {
     bottom: max(24px, calc(24px + env(safe-area-inset-bottom)));
   }
@@ -480,7 +492,7 @@
     touch-action: manipulation;
     -webkit-overflow-scrolling: touch;
   }
-  
+
   .mobile-insights-trigger {
     -webkit-tap-highlight-color: transparent;
     user-select: none;
@@ -525,13 +537,13 @@
   --destructive-foreground: hsl(0, 0%, 98%);
   --ring: hsl(220, 4.9%, 83.9%);
   --radius: 0.5rem;
-  
+
   /* Dark mode custom colors */
   --surface: hsl(220, 13%, 8%);
   --text-secondary: hsl(220, 9%, 64%);
   --accent-green: hsl(158, 64%, 52%);
   --border-light: hsl(220, 13%, 18%);
-  
+
   /* Extended color palette (same colors work in dark mode) */
   --accent-purple: hsl(239, 100%, 56%); /* #1E20FF - vibrant purple-blue */
   --accent-cyan: hsl(180, 100%, 56%); /* #1EFFFD - bright cyan */
@@ -551,81 +563,114 @@
   .bg-surface {
     background-color: hsl(var(--surface));
   }
-  
+
   .text-secondary {
     color: hsl(var(--text-secondary));
   }
-  
+
   .border-light {
     border-color: hsl(var(--border-light));
   }
-  
+
   .text-accent-green {
     color: hsl(var(--accent-green));
   }
-  
+
   .bg-accent-green {
     background-color: hsl(var(--accent-green));
   }
-  
+
+  /* Purple theme utilities */
+  .text-accent-purple-light {
+    color: var(--accent-purple-light);
+  }
+
+  .bg-accent-purple-light {
+    background-color: var(--accent-purple-light);
+  }
+
+  .border-accent-purple-light {
+    border-color: var(--accent-purple-light);
+  }
+
+  .text-accent-purple-dark {
+    color: var(--accent-purple-dark);
+  }
+
+  .bg-accent-purple-dark {
+    background-color: var(--accent-purple-dark);
+  }
+
+  .bg-accent-purple-50 {
+    background-color: var(--accent-purple-50);
+  }
+
+  .bg-accent-purple-100 {
+    background-color: var(--accent-purple-100);
+  }
+
+  .bg-accent-purple-200 {
+    background-color: var(--accent-purple-200);
+  }
+
+  .text-accent-purple-500 {
+    color: var(--accent-purple-500);
+  }
+
+  .bg-accent-purple-500 {
+    background-color: var(--accent-purple-500);
+  }
+
+  .border-accent-purple-500 {
+    border-color: var(--accent-purple-500);
+  }
+
+  .text-accent-purple-600 {
+    color: var(--accent-purple-600);
+  }
+
+  .bg-accent-purple-600 {
+    background-color: var(--accent-purple-600);
+  }
+
+  .text-accent-purple-700 {
+    color: var(--accent-purple-700);
+  }
+
+  .bg-accent-purple-700 {
+    background-color: var(--accent-purple-700);
+  }
+
+  .text-accent-purple-800 {
+    color: var(--accent-purple-800);
+  }
+
+  .bg-accent-purple-800 {
+    background-color: var(--accent-purple-800);
+  }
+
+  .text-accent-purple-900 {
+    color: var(--accent-purple-900);
+  }
+
+  .bg-accent-purple-900 {
+    background-color: var(--accent-purple-900);
+  }
+
   /* Warm color utilities */
   .bg-warm-background {
     background-color: var(--warm-background);
   }
-  
-  .bg-trust-base {
-    background-color: var(--trust-base);
-  }
-  
-  .text-trust-base {
-    color: var(--trust-base);
-  }
-  
-  .text-sage-green {
-    color: var(--sage-green);
-  }
-  
-  .bg-sage-green {
-    background-color: var(--sage-green);
-  }
-  
-  .border-sage-green {
-    border-color: var(--sage-green);
-  }
-  
-  .text-dusty-lavender {
-    color: var(--dusty-lavender);
-  }
-  
-  .bg-dusty-lavender {
-    background-color: var(--dusty-lavender);
-  }
-  
-  .border-dusty-lavender {
-    border-color: var(--dusty-lavender);
-  }
-  
-  .text-soft-coral {
-    color: var(--soft-coral);
-  }
-  
-  .bg-soft-coral {
-    background-color: var(--soft-coral);
-  }
-  
-  .border-soft-coral {
-    border-color: var(--soft-coral);
-  }
-  
+
   /* Document type color utilities */
   .text-doc-emerald {
     color: var(--doc-emerald);
   }
-  
+
   .text-doc-red {
     color: var(--doc-red);
   }
-  
+
   .text-doc-blue {
     color: var(--doc-blue);
   }

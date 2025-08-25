@@ -12,6 +12,7 @@ import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { EnhancedDocumentViewer } from "./enhanced-document-viewer";
 import type { DocumentInsight } from "@shared/schema";
+import { cn } from "@/lib/utils";
 
 import { isUnauthorizedError } from "@/lib/authUtils";
 
@@ -411,7 +412,11 @@ export default function DocumentCard({
   if (viewMode === "list") {
     return (
       <>
-        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+        <Card className={cn(
+        "group relative bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer",
+        "hover:border-accent-purple-300 hover:bg-accent-purple-50/30",
+        className
+      )}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4 flex-1" onClick={(isEditing || isRenaming) ? undefined : () => setShowModal(true)}>
@@ -576,13 +581,11 @@ export default function DocumentCard({
 
 
       <Card 
-        className={`border transition-all duration-200 cursor-pointer ${
-          bulkMode 
-            ? isSelected 
-              ? "ring-2 ring-blue-500 bg-blue-50 border-blue-400 shadow-lg scale-[1.02]" 
-              : "border-gray-300 hover:border-blue-400 hover:shadow-sm bg-white hover:bg-blue-50"
-            : "border-gray-200 hover:shadow-md"
-        }`}
+        className={cn(
+        "group relative bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer",
+        "hover:border-accent-purple-300 hover:bg-accent-purple-50/30",
+        className
+      )}
         onClick={handleCardClick}
       >
         <CardContent className="p-4">
@@ -606,7 +609,11 @@ export default function DocumentCard({
             {!bulkMode && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <Button variant="ghost" size="sm" className={cn(
+              "p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity",
+              "bg-white/90 backdrop-blur-sm border border-gray-200",
+              "hover:bg-accent-purple-50 hover:border-accent-purple-300"
+            )}>
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>

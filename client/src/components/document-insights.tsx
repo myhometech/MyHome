@@ -353,7 +353,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       {/* Always show header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-blue-600`} />
+          <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-accent-purple-600`} />
           <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>AI Insights</span>
           {insights.length > 0 && (
             <span className={`${isMobile ? 'text-sm' : 'text-xs'} text-gray-500 bg-gray-100 px-2 py-1 rounded-full`}>
@@ -368,7 +368,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           disabled={isGenerating || generateInsightsMutation.isPending}
           size={isMobile ? "default" : "sm"}
           variant="outline"
-          className={`${isMobile ? 'text-sm' : 'text-xs'} touch-target hover:bg-gradient-to-r hover:from-blue-50 hover:to-accent-purple/10 hover:border-accent-purple/30 transition-all duration-300 shadow-sm hover:shadow-md`}
+          className={`${isMobile ? 'text-sm' : 'text-xs'} touch-target hover:bg-gradient-to-r hover:from-accent-purple-50 hover:to-accent-purple-100 hover:border-accent-purple-300 transition-all duration-300 shadow-sm hover:shadow-md border-accent-purple-200 text-accent-purple-700`}
           style={{ minHeight: '44px', minWidth: isMobile ? 'auto' : '44px' }}
         >
           {isGenerating || generateInsightsMutation.isPending ? (
@@ -390,17 +390,17 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         <div className="text-center py-12 px-4">
           <div className="relative mb-6">
             <div className="relative z-10 bg-white rounded-full p-3 shadow-lg mx-auto w-fit">
-              <Brain className="h-8 w-8 text-blue-600 mx-auto" />
+              <Brain className="h-8 w-8 text-accent-purple-600 mx-auto" />
             </div>
           </div>
           <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-900 mb-3`}>Generate AI Insights</h3>
           <p className="text-gray-600 mb-6 text-sm max-w-md mx-auto leading-relaxed">
             Click "Generate" to analyze this document and extract key insights like dates, contacts, summaries, and action items.
           </p>
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200/50 max-w-sm mx-auto">
+          <div className="bg-accent-purple-50 rounded-lg p-4 border border-accent-purple-200/50 max-w-sm mx-auto">
             <div className="text-left">
-              <p className="text-sm font-medium text-blue-900 mb-2">Analysis will find:</p>
-              <div className="grid grid-cols-1 gap-1 text-xs text-blue-700">
+              <p className="text-sm font-medium text-accent-purple-900 mb-2">Analysis will find:</p>
+              <div className="grid grid-cols-1 gap-1 text-xs text-accent-purple-700">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
                   <span>Important dates & deadlines</span>
@@ -425,15 +425,15 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         <div className="text-center py-12 px-4">
           <div className="relative mb-6">
             <div className="relative z-10 bg-white rounded-full p-3 shadow-lg mx-auto w-fit">
-              <Loader2 className="h-8 w-8 text-blue-600 mx-auto animate-spin" />
+              <Loader2 className="h-8 w-8 text-accent-purple-600 mx-auto animate-spin" />
             </div>
           </div>
           <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-900 mb-3`}>Analyzing Document</h3>
           <p className="text-gray-600 mb-4 text-sm max-w-md mx-auto">
             Our AI is reading through your document to find key insights and important information...
           </p>
-          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200/50 max-w-xs mx-auto">
-            <div className="text-xs text-blue-700 text-center">
+          <div className="bg-accent-purple-50 rounded-lg p-3 border border-accent-purple-200/50 max-w-xs mx-auto">
+            <div className="text-xs text-accent-purple-700 text-center">
               This usually takes 5-15 seconds
             </div>
           </div>

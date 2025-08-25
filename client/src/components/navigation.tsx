@@ -7,7 +7,7 @@ import type { Document } from "@shared/schema";
 
 export function Navigation() {
   const [location] = useLocation();
-  
+
   // Get shared documents count
   const { data: sharedDocuments = [] } = useQuery<Document[]>({
     queryKey: ["/api/shared-with-me"],
@@ -38,7 +38,7 @@ export function Navigation() {
             <span className="text-lg sm:text-xl font-bold text-gray-900">MyHome</span>
           </div>
         </Link>
-        
+
         <div className="flex items-center space-x-1">
           {navigationItems.map((item) => (
             <Link key={item.href} href={item.href}>

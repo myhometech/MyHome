@@ -667,8 +667,8 @@ export default function Home() {
                     size="sm"
                     onClick={toggleBulkMode}
                     className={bulkMode 
-                      ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md" 
-                      : "border-2 border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 font-medium shadow-sm"
+                      ? "bg-accent-purple-600 text-white border-accent-purple-600 hover:bg-accent-purple-700 shadow-md" 
+                      : "border-2 border-accent-purple-500 text-accent-purple-600 hover:bg-accent-purple-50 hover:border-accent-purple-600 font-medium shadow-sm"
                     }
                   >
                     {bulkMode ? <X className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
@@ -700,10 +700,10 @@ export default function Home() {
 
             {/* Bulk operations bar */}
             {bulkMode && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="mt-4 p-4 bg-accent-purple-50 rounded-lg border border-accent-purple-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-blue-900">
+                    <span className="text-sm font-medium text-accent-purple-900">
                       {selectedDocuments.size > 0 
                         ? `${selectedDocuments.size} document${selectedDocuments.size !== 1 ? 's' : ''} selected`
                         : "Click on documents below to select them for bulk operations"
@@ -840,7 +840,7 @@ export default function Home() {
                 {!searchQuery && !selectedCategory && (
                   <Button
                     onClick={() => document.querySelector('[data-upload-zone]')?.scrollIntoView({ behavior: 'smooth' })}
-                    className="bg-primary hover:bg-blue-700"
+                    className="bg-accent-purple-600 hover:bg-accent-purple-700 text-white"
                   >
                     Upload Your First Document
                   </Button>

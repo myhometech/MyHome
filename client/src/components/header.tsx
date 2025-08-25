@@ -46,13 +46,13 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
   const copyEmailToClipboard = async () => {
     const emailAddress = getEmailAddress();
     console.log('Attempting to copy email:', emailAddress);
-    
+
     try {
       // Check if clipboard API is available
       if (!navigator.clipboard) {
         throw new Error('Clipboard API not available');
       }
-      
+
       await navigator.clipboard.writeText(emailAddress);
       console.log('Email successfully copied to clipboard');
       toast({
@@ -61,7 +61,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
       });
     } catch (error) {
       console.error('Failed to copy email:', error);
-      
+
       // Fallback method for older browsers
       try {
         const textArea = document.createElement('textarea');
@@ -74,7 +74,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
         textArea.select();
         document.execCommand('copy');
         textArea.remove();
-        
+
         toast({
           title: "Copied to clipboard",
           description: "Email address copied successfully",
@@ -99,7 +99,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
             <div className="md:hidden">
               <MobileHamburgerMenu />
             </div>
-            
+
             <Link href="/">
               <div className="flex items-center space-x-1 sm:space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
                 <Home className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
@@ -159,7 +159,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
                 <Search className="h-4 w-4" />
               </Button>
             </div>
-            
+
             {/* Email forwarding button */}
             <Button
               variant="ghost"

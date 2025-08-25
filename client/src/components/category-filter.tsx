@@ -41,11 +41,11 @@ export default function CategoryFilter({ categories, selectedCategory, onCategor
           variant={selectedCategory === null ? "default" : "outline"}
           size="sm"
           onClick={() => onCategoryChange(null)}
-          className={selectedCategory === null ? "bg-primary text-white" : ""}
+          className={selectedCategory === null ? "bg-purple-600 text-white" : ""}
         >
           All Documents
         </Button>
-        
+
         {categories.map((category) => (
           <Button
             key={category.id}
@@ -54,7 +54,7 @@ export default function CategoryFilter({ categories, selectedCategory, onCategor
             onClick={() => onCategoryChange(category.id)}
             className={`${
               selectedCategory === category.id
-                ? "bg-primary text-white border-primary"
+                ? "bg-purple-600 text-white border-purple-600"
                 : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
             } transition-colors`}
           >
@@ -62,7 +62,7 @@ export default function CategoryFilter({ categories, selectedCategory, onCategor
             {category.name}
           </Button>
         ))}
-        
+
         <Button
           variant="outline"
           size="sm"

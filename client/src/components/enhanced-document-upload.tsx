@@ -18,8 +18,18 @@ import {
   CheckCircle, 
   AlertCircle, 
   Loader2,
-  WifiOff
+  WifiOff,
+  Compress
 } from 'lucide-react';
+
+// Helper function to merge class names (assuming it's available globally or imported)
+// If not, you'd need to define or import a `cn` function that handles string concatenation and conditional classes.
+// For the purpose of this example, let's assume `cn` is available and works like:
+// const cn = (...classes) => classes.filter(Boolean).join(' ');
+
+// Placeholder for cn function if not globally available:
+const cn = (...classes) => classes.filter(Boolean).join(' ');
+
 
 interface UploadFile extends File {
   id: string;
@@ -58,11 +68,11 @@ export function EnhancedDocumentUpload({
   const uploadMutation = useMutation({
     mutationFn: async (file: UploadFile) => {
       const formData = new FormData();
-      
+
       // Use compressed version if available
       const fileToUpload = file.compressed || file;
       formData.append('file', fileToUpload);
-      
+
       if (categoryId) {
         formData.append('categoryId', categoryId.toString());
       }
@@ -92,11 +102,11 @@ export function EnhancedDocumentUpload({
         description: "Your document is being processed and will appear shortly in your library.",
         duration: 5000,
       });
-      
+
       // Refresh document list
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
       queryClient.invalidateQueries({ queryKey: ['/api/insights/metrics'] });
-      
+
       // Call completion callback
       onUploadComplete?.();
     },
@@ -108,16 +118,16 @@ export function EnhancedDocumentUpload({
 
   const handleImageProcessingComplete = useCallback((result: ProcessingResult) => {
     if (!processingFile) return;
-    
+
     // Replace the original file with the processed one
     const processedFile = new File([result.processedImage], `processed_${processingFile.name}`, {
       type: result.processedImage.type,
       lastModified: Date.now()
     });
-    
+
     setShowImageProcessor(false);
     setProcessingFile(null);
-    
+
     // Process the enhanced image
     processFiles([processedFile], true);
   }, [processingFile]);
@@ -192,7 +202,7 @@ export function EnhancedDocumentUpload({
 
       } catch (error: any) {
         console.error('Upload failed for file:', uploadFile.name, error);
-        
+
         setUploadFiles(prev => prev.map(f => 
           f.id === uploadFile.id 
             ? { ...f, status: 'error', error: error.message }
@@ -210,7 +220,7 @@ export function EnhancedDocumentUpload({
     setIsUploading(false);
   }, [uploadMutation, onUploadStart, onUploadComplete, categoryId, toast]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
     onDrop: processFiles,
     maxFiles,
     disabled: !isOnline || isUploading,
@@ -268,15 +278,15 @@ export function EnhancedDocumentUpload({
           <CardContent className="p-6">
             <div
               {...getRootProps()}
-              className={`
-                border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-                ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-                ${!isOnline ? 'border-gray-200 bg-gray-50 cursor-not-allowed' : ''}
-                ${isUploading ? 'cursor-not-allowed opacity-50' : ''}
-              `}
+              className={cn(
+                "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                isDragActive 
+                  ? "border-accent-purple-300 bg-accent-purple-50" 
+                  : "border-gray-300 hover:border-accent-purple-200"
+              )}
             >
               <input {...getInputProps()} />
-              
+
               {!isOnline ? (
                 <div className="flex flex-col items-center gap-2 text-gray-500">
                   <WifiOff className="w-12 h-12" />
@@ -301,6 +311,11 @@ export function EnhancedDocumentUpload({
                   <Badge variant="secondary" className="mt-2">
                     Max {maxFiles} files
                   </Badge>
+                  {/* Updated button styling */}
+                  <Button type="button" onClick={open} className="mt-4 bg-accent-purple-600 hover:bg-accent-purple-700 text-white">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Choose Files
+                  </Button>
                 </div>
               )}
             </div>
@@ -370,7 +385,7 @@ export function EnhancedDocumentUpload({
 
                       <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
                         <span>{formatFileSize(file.originalSize)}</span>
-                        
+
                         {file.compressedSize && (
                           <>
                             <Compress className="w-3 h-3" />
@@ -382,7 +397,7 @@ export function EnhancedDocumentUpload({
                             )}
                           </>
                         )}
-                        
+
                         <Badge variant={
                           file.status === 'completed' ? 'default' :
                           file.status === 'error' ? 'destructive' :
@@ -419,7 +434,7 @@ export function EnhancedDocumentUpload({
           </Card>
         )}
       </div>
-      
+
       {/* Image Processing Panel */}
       {showImageProcessor && processingFile && (
         <ImageProcessingPanel

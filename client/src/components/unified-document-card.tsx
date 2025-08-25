@@ -807,14 +807,14 @@ export default function UnifiedDocumentCard({
               <div className="absolute bottom-10 right-2 z-10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-6 w-6 p-0 flex-shrink-0 opacity-80 hover:opacity-100 bg-white hover:bg-white shadow-lg rounded-full border border-gray-200"
+                    <div 
+                      className="flex items-center gap-0 cursor-pointer rounded overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreHorizontal className="h-3 w-3" />
-                    </Button>
+                      <div className="flex items-center gap-1 px-1 py-1 bg-gray-50">
+                        <MoreHorizontal className="h-3 w-3 text-gray-600" />
+                      </div>
+                    </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={(e) => {

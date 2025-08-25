@@ -468,7 +468,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   return (
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
       {/* Enhanced Document Header - Mobile and Desktop */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-[#FAF4EF] to-[#F8F2E8] border-b border-gray-200 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#FAF4EF] border-b border-gray-200 shrink-0">
         {/* Left side - Document info - Clickable to close */}
         <div 
           className="flex items-center gap-3 min-w-0 flex-1 mr-2 cursor-pointer hover:bg-white/40 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors"
@@ -487,8 +487,11 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
           </div>
           
-          {/* Document metadata only - no title */}
-          <div className="min-w-0 flex-1 overflow-hidden ml-8">
+          {/* Document title and metadata */}
+          <div className="min-w-0 flex-1 overflow-hidden ml-4">
+            <h1 className="text-lg font-semibold text-[#2B2F40] truncate mb-1">
+              {fullDocument?.name || document.name}
+            </h1>
             <div className="flex items-center gap-2 overflow-hidden">
               {category && (
                 <Badge 

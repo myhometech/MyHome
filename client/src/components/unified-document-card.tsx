@@ -679,14 +679,14 @@ export default function UnifiedDocumentCard({
                               ) : (
                                 <>
                                   <Brain className="h-3 w-3 text-blue-600" />
-                                  <span className="text-xs font-medium text-blue-700 ml-1">Generate Tips</span>
+                                  <span className="text-xs font-medium text-blue-700 ml-1">Generate Insights</span>
                                 </>
                               )}
                             </div>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{generateInsightsMutation.isPending ? 'AI is analyzing this document...' : 'Click to generate smart tips and insights'}</p>
+                          <p>{generateInsightsMutation.isPending ? 'AI is analyzing this document...' : 'Click to generate AI insights'}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -725,7 +725,7 @@ export default function UnifiedDocumentCard({
                               >
                                 <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-50 to-purple-50 border-l-2 border-l-blue-500">
                                   <Brain className="h-3 w-3 text-blue-600" />
-                                  <span className="text-xs font-medium text-blue-700">Smart Tips</span>
+                                  <span className="text-xs font-medium text-blue-700">AI Insights</span>
                                 </div>
                                 <div className="flex items-center gap-1 px-1">
                                   {priorityOrder.map(priority => {

@@ -339,7 +339,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-blue-600`} />
-          <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>Smart Tips</span>
+          <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>AI Insights</span>
           {insights.length > 0 && (
             <span className={`${isMobile ? 'text-sm' : 'text-xs'} text-gray-500 bg-gray-100 px-2 py-1 rounded-full`}>
               {insights.length} insight{insights.length !== 1 ? 's' : ''}
@@ -378,7 +378,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
               <Brain className="h-8 w-8 text-blue-600 mx-auto" />
             </div>
           </div>
-          <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-900 mb-3`}>Generate Smart Tips</h3>
+          <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-900 mb-3`}>Generate AI Insights</h3>
           <p className="text-gray-600 mb-6 text-sm max-w-md mx-auto leading-relaxed">
             Click "Generate" to analyze this document and extract key insights like dates, contacts, summaries, and action items.
           </p>

@@ -586,12 +586,43 @@ export default function UnifiedDocumentCard({
                 ) : (
                   <div className="space-y-1">
                     <div className="flex items-start gap-2">
-                      {/* Document thumbnail */}
+                      {/* Document thumbnail or generate insights button */}
                       <div className="relative w-12 h-12 flex-shrink-0 rounded border border-gray-200 bg-gray-50 overflow-hidden">
                         {thumbnailError ? (
-                          <div className={`w-full h-full flex items-center justify-center ${getFileTypeIconColor()}`}>
-                            {getFileIcon()}
-                          </div>
+                          showInsights && openInsights.length === 0 && !insightsLoading ? (
+                            <div className="w-full h-full flex items-center justify-center bg-blue-50">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-10 w-10 p-0 rounded hover:bg-blue-100 hover:text-blue-600"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        generateInsightsMutation.mutate();
+                                      }}
+                                      disabled={generateInsightsMutation.isPending}
+                                    >
+                                      {generateInsightsMutation.isPending ? (
+                                        <Clock className="h-5 w-5 animate-spin" />
+                                      ) : (
+                                        <Brain className="h-5 w-5 text-blue-600" />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{generateInsightsMutation.isPending ? 'Generating insights...' : 'Generate AI insights'}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          ) : (
+                            <div className={`w-full h-full flex items-center justify-center ${getFileTypeIconColor()}`}>
+                              {getFileIcon()}
+                            </div>
+                          )
                         ) : (
                           <img
                             src={`/api/documents/${document.id}/thumbnail`}
@@ -769,37 +800,6 @@ export default function UnifiedDocumentCard({
               return null;
             })()}
 
-            {/* No insights state - brain icon in bottom right */}
-            {showInsights && openInsights.length === 0 && !insightsLoading && (
-              <div className="absolute bottom-10 right-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0 rounded-full hover:bg-blue-50 hover:text-blue-600 opacity-60 hover:opacity-100 transition-all"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          generateInsightsMutation.mutate();
-                        }}
-                        disabled={generateInsightsMutation.isPending}
-                      >
-                        {generateInsightsMutation.isPending ? (
-                          <Clock className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Brain className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{generateInsightsMutation.isPending ? 'Generating insights...' : 'Generate AI insights'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
 
             {/* Actions dropdown - positioned in bottom-right, aligned with insight badges */}
             {!isEditing && !isRenaming && (

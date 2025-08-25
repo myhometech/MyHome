@@ -443,17 +443,19 @@
   --doc-red: #E74C3C; /* PDFs - calm red */
   --doc-blue: hsl(207, 90%, 54%); /* Documents - primary blue */
 
-  /* Purple theme color definitions */
-  --accent-purple-light: hsl(250, 70%, 90%); /* Lighter purple */
-  --accent-purple-dark: hsl(250, 70%, 40%); /* Darker purple */
-  --accent-purple-50: hsl(250, 70%, 95%);
-  --accent-purple-100: hsl(250, 70%, 90%);
-  --accent-purple-200: hsl(250, 70%, 85%);
-  --accent-purple-500: hsl(250, 70%, 50%);
-  --accent-purple-600: hsl(250, 70%, 40%);
-  --accent-purple-700: hsl(250, 70%, 30%);
-  --accent-purple-800: hsl(250, 70%, 20%);
-  --accent-purple-900: hsl(250, 70%, 10%);
+  /* Purple theme color definitions - inspired by Coolors trending purples */
+  --accent-purple-light: #E6E6FA; /* Lavender */
+  --accent-purple-dark: #6A4C93; /* Dark purple */
+  --accent-purple-50: #F8F5FF;   /* Very light purple */
+  --accent-purple-100: #F0E6FF;  /* Light purple */
+  --accent-purple-200: #DDD6FE;  /* Soft purple */
+  --accent-purple-300: #C4B5FD;  /* Medium light purple */
+  --accent-purple-400: #A78BFA;  /* Medium purple */
+  --accent-purple-500: #8B5CF6;  /* Purple */
+  --accent-purple-600: #7C3AED;  /* Medium dark purple */
+  --accent-purple-700: #6D28D9;  /* Dark purple */
+  --accent-purple-800: #5B21B6;  /* Very dark purple */
+  --accent-purple-900: #4C1D95;  /* Deepest purple */
 }
 
 /* Mobile Insights Drawer - Safe Area Support */
@@ -655,6 +657,31 @@
 
   .bg-accent-purple-900 {
     background-color: var(--accent-purple-900);
+  }
+
+  /* Additional purple utilities */
+  .text-accent-purple-300 {
+    color: var(--accent-purple-300);
+  }
+
+  .bg-accent-purple-300 {
+    background-color: var(--accent-purple-300);
+  }
+
+  .border-accent-purple-300 {
+    border-color: var(--accent-purple-300);
+  }
+
+  .text-accent-purple-400 {
+    color: var(--accent-purple-400);
+  }
+
+  .bg-accent-purple-400 {
+    background-color: var(--accent-purple-400);
+  }
+
+  .border-accent-purple-400 {
+    border-color: var(--accent-purple-400);
   }
 
   /* Warm color utilities */

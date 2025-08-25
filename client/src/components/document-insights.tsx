@@ -44,46 +44,46 @@ interface InsightResponse {
 }
 
 const insightTypeConfig = {
-  summary: { icon: FileText, label: 'Summary', color: 'bg-blue-100 text-blue-800' },
-  contacts: { icon: Users, label: 'Contacts', color: 'bg-purple-100 text-purple-800' },
-  action_items: { icon: Brain, label: 'Actions', color: 'bg-cyan-100 text-cyan-800' },
-  key_dates: { icon: Clock, label: 'Dates', color: 'bg-emerald-100 text-emerald-800' },
-  financial_info: { icon: FileText, label: 'Financial', color: 'bg-amber-100 text-amber-800' },
-  compliance: { icon: FileText, label: 'Compliance', color: 'bg-rose-100 text-rose-800' }
+  summary: { icon: FileText, label: 'Summary', color: 'bg-accent-purple-100 text-accent-purple-800' },
+  contacts: { icon: Users, label: 'Contacts', color: 'bg-accent-purple-200 text-accent-purple-900' },
+  action_items: { icon: Brain, label: 'Actions', color: 'bg-accent-purple-300 text-accent-purple-900' },
+  key_dates: { icon: Clock, label: 'Dates', color: 'bg-accent-purple-400 text-accent-purple-900' },
+  financial_info: { icon: FileText, label: 'Financial', color: 'bg-accent-purple-500 text-white' },
+  compliance: { icon: FileText, label: 'Compliance', color: 'bg-accent-purple-600 text-white' }
 };
 
 const priorityConfig = {
   high: { 
-    color: 'bg-purple-100 text-purple-800 border-purple-200', 
+    color: 'bg-accent-purple-100 text-accent-purple-800 border-accent-purple-200', 
     label: 'High Priority',
-    cardBorder: 'border-l-purple-600',
+    cardBorder: 'border-l-accent-purple-700',
     cardBg: '',
     cardStyle: { 
-      background: 'linear-gradient(135deg, #a855f7 0%, #8b5cf6 50%, #7c3aed 100%)',
-      backgroundColor: '#a855f7',
+      background: 'linear-gradient(135deg, var(--accent-purple-600) 0%, var(--accent-purple-700) 50%, var(--accent-purple-800) 100%)',
+      backgroundColor: 'var(--accent-purple-600)',
       color: 'white'
     }
   },
   medium: { 
-    color: 'bg-purple-50 text-purple-700 border-purple-200', 
+    color: 'bg-accent-purple-50 text-accent-purple-700 border-accent-purple-200', 
     label: 'Medium Priority',
-    cardBorder: 'border-l-purple-400',
+    cardBorder: 'border-l-accent-purple-500',
     cardBg: '',
     cardStyle: { 
-      background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #8b5cf6 100%)',
-      backgroundColor: '#c084fc',
+      background: 'linear-gradient(135deg, var(--accent-purple-400) 0%, var(--accent-purple-500) 50%, var(--accent-purple-600) 100%)',
+      backgroundColor: 'var(--accent-purple-400)',
       color: 'white'
     }
   },
   low: { 
-    color: 'bg-purple-50 text-purple-600 border-purple-100', 
+    color: 'bg-accent-purple-50 text-accent-purple-600 border-accent-purple-100', 
     label: 'Low Priority',
-    cardBorder: 'border-l-purple-300',
+    cardBorder: 'border-l-accent-purple-300',
     cardBg: '',
     cardStyle: { 
-      background: 'linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 50%, #a78bfa 100%)',
-      backgroundColor: '#ddd6fe',
-      color: '#4c1d95'
+      background: 'linear-gradient(135deg, var(--accent-purple-200) 0%, var(--accent-purple-300) 50%, var(--accent-purple-400) 100%)',
+      backgroundColor: 'var(--accent-purple-200)',
+      color: 'var(--accent-purple-900)'
     }
   }
 };
@@ -402,19 +402,19 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
               <p className="text-sm font-medium text-accent-purple-900 mb-2">Analysis will find:</p>
               <div className="grid grid-cols-1 gap-1 text-xs text-accent-purple-700">
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-accent-purple-400 rounded-full"></div>
                   <span>Important dates & deadlines</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-accent-purple-500 rounded-full"></div>
                   <span>Key contacts & companies</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-accent-purple-600 rounded-full"></div>
                   <span>Document summaries</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-accent-purple-700 rounded-full"></div>
                   <span>Financial information</span>
                 </div>
               </div>
@@ -473,8 +473,8 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                   {/* Top row: Icon, type, and actions */}
                   <div className={`flex items-center justify-between ${isMobile ? 'mb-2' : ''}`}>
                     <div className="flex items-center gap-2">
-                      <div className={`${isMobile ? 'p-1 rounded-md' : 'p-1.5 rounded-lg'} ${config.color.includes('blue') ? 'bg-blue-50' : config.color.includes('green') ? 'bg-green-50' : config.color.includes('purple') ? 'bg-purple-50' : 'bg-gray-50'}`}>
-                        <IconComponent className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} ${config.color.split(' ')[1]}`} />
+                      <div className={`${isMobile ? 'p-1 rounded-md' : 'p-1.5 rounded-lg'} bg-white/20 border border-white/30`}>
+                        <IconComponent className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-white`} />
                       </div>
                       <Badge className={`${config.color} ${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'} font-medium rounded-md`}>
                         {config.label}

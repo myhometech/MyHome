@@ -66,7 +66,7 @@ export default function CategoryFilter({ categories, selectedCategory, onCategor
         <Button
           variant="outline"
           size="sm"
-          className="bg-white text-gray-600 border-gray-200 hover:bg-gray-50 transition-colors"
+          className="bg-white text-accent-purple-700 border-accent-purple-200 hover:bg-accent-purple-50 hover:border-accent-purple-300 transition-colors"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Documents

@@ -146,38 +146,38 @@ function DashboardOverview({ onFilterChange }: { onFilterChange: (filter: any) =
     switch (color) {
       case 'blue':
         return {
-          bg: 'bg-gradient-to-r from-purple-50/40 to-purple-100/20 dark:bg-purple-900/20',
-          border: 'border-purple-300 dark:border-purple-800',
-          icon: 'text-purple-600 dark:text-purple-400',
-          hover: 'hover:bg-gradient-to-r hover:from-purple-100/50 hover:to-purple-200/30 dark:hover:bg-purple-900/30'
+          bg: 'bg-gradient-to-r from-accent-purple-50/60 to-accent-purple-100/40 dark:bg-accent-purple-900/20',
+          border: 'border-accent-purple-200 dark:border-accent-purple-800',
+          icon: 'text-accent-purple-600 dark:text-accent-purple-400',
+          hover: 'hover:bg-gradient-to-r hover:from-accent-purple-100/70 hover:to-accent-purple-200/50 dark:hover:bg-accent-purple-900/30'
         };
       case 'red':
         return {
-          bg: 'bg-gradient-to-r from-purple-100/50 to-purple-200/30 dark:bg-purple-900/30',
-          border: 'border-purple-400 dark:border-purple-700',
-          icon: 'text-purple-700 dark:text-purple-300',
-          hover: 'hover:bg-gradient-to-r hover:from-purple-200/60 hover:to-purple-300/40 dark:hover:bg-purple-800/40'
+          bg: 'bg-gradient-to-r from-accent-purple-100/70 to-accent-purple-200/50 dark:bg-accent-purple-900/30',
+          border: 'border-accent-purple-300 dark:border-accent-purple-700',
+          icon: 'text-accent-purple-700 dark:text-accent-purple-300',
+          hover: 'hover:bg-gradient-to-r hover:from-accent-purple-200/80 hover:to-accent-purple-300/60 dark:hover:bg-accent-purple-800/40'
         };
       case 'orange':
         return {
-          bg: 'bg-gradient-to-r from-purple-75/35 to-purple-125/25 dark:bg-purple-900/25',
-          border: 'border-purple-350 dark:border-purple-750',
-          icon: 'text-purple-650 dark:text-purple-350',
-          hover: 'hover:bg-gradient-to-r hover:from-purple-125/45 hover:to-purple-175/35 dark:hover:bg-purple-850/35'
+          bg: 'bg-gradient-to-r from-accent-purple-75/55 to-accent-purple-125/35 dark:bg-accent-purple-900/25',
+          border: 'border-accent-purple-250 dark:border-accent-purple-750',
+          icon: 'text-accent-purple-650 dark:text-accent-purple-350',
+          hover: 'hover:bg-gradient-to-r hover:from-accent-purple-125/65 hover:to-accent-purple-175/45 dark:hover:bg-accent-purple-825/35'
         };
       case 'green':
         return {
-          bg: 'bg-gradient-to-r from-purple-25/30 to-purple-75/20 dark:bg-purple-900/20',
-          border: 'border-purple-250 dark:border-purple-800',
-          icon: 'text-purple-550 dark:text-purple-400',
-          hover: 'hover:bg-gradient-to-r hover:from-purple-75/40 hover:to-purple-125/30 dark:hover:bg-purple-900/30'
+          bg: 'bg-gradient-to-r from-accent-purple-50/50 to-accent-purple-100/30 dark:bg-accent-purple-900/20',
+          border: 'border-accent-purple-200 dark:border-accent-purple-800',
+          icon: 'text-accent-purple-600 dark:text-accent-purple-400',
+          hover: 'hover:bg-gradient-to-r hover:from-accent-purple-100/60 hover:to-accent-purple-200/40 dark:hover:bg-accent-purple-900/30'
         };
       default:
         return {
-          bg: 'bg-gradient-to-r from-purple-25/20 to-purple-50/10 dark:bg-purple-900/20',
-          border: 'border-purple-200 dark:border-purple-800',
-          icon: 'text-purple-500 dark:text-purple-400',
-          hover: 'hover:bg-gradient-to-r hover:from-purple-50/30 hover:to-purple-100/20 dark:hover:bg-purple-900/30'
+          bg: 'bg-gradient-to-r from-accent-purple-50/40 to-accent-purple-100/20 dark:bg-accent-purple-900/20',
+          border: 'border-accent-purple-200 dark:border-accent-purple-800',
+          icon: 'text-accent-purple-500 dark:text-accent-purple-400',
+          hover: 'hover:bg-gradient-to-r hover:from-accent-purple-100/50 hover:to-accent-purple-200/30 dark:hover:bg-accent-purple-900/30'
         };
     }
   };
@@ -269,38 +269,38 @@ function QuickActionCards() {
     switch (color) {
       case 'blue':
         return {
-          bg: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
-          border: 'border-purple-200 dark:border-purple-700',
-          icon: 'text-purple-600 dark:text-purple-400',
-          hover: 'hover:from-purple-100 hover:to-purple-200 dark:hover:from-purple-800/30 dark:hover:to-purple-700/30'
+          bg: 'bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 dark:from-accent-purple-900/20 dark:to-accent-purple-800/20',
+          border: 'border-accent-purple-200 dark:border-accent-purple-700',
+          icon: 'text-accent-purple-600 dark:text-accent-purple-400',
+          hover: 'hover:from-accent-purple-100 hover:to-accent-purple-200 dark:hover:from-accent-purple-800/30 dark:hover:to-accent-purple-700/30'
         };
       case 'purple':
         return {
-          bg: 'bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30',
-          border: 'border-purple-300 dark:border-purple-600',
-          icon: 'text-purple-700 dark:text-purple-300',
-          hover: 'hover:from-purple-200 hover:to-purple-300 dark:hover:from-purple-800/40 dark:hover:to-purple-700/40'
+          bg: 'bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 dark:from-accent-purple-900/30 dark:to-accent-purple-800/30',
+          border: 'border-accent-purple-300 dark:border-accent-purple-600',
+          icon: 'text-accent-purple-700 dark:text-accent-purple-300',
+          hover: 'hover:from-accent-purple-200 hover:to-accent-purple-300 dark:hover:from-accent-purple-800/40 dark:hover:to-accent-purple-700/40'
         };
       case 'green':
         return {
-          bg: 'bg-gradient-to-br from-purple-25 to-purple-75 dark:from-purple-900/15 dark:to-purple-850/15',
-          border: 'border-purple-150 dark:border-purple-750',
-          icon: 'text-purple-550 dark:text-purple-450',
-          hover: 'hover:from-purple-75 hover:to-purple-125 dark:hover:from-purple-850/25 dark:hover:to-purple-800/25'
+          bg: 'bg-gradient-to-br from-accent-purple-25 to-accent-purple-75 dark:from-accent-purple-900/15 dark:to-accent-purple-850/15',
+          border: 'border-accent-purple-150 dark:border-accent-purple-750',
+          icon: 'text-accent-purple-550 dark:text-accent-purple-450',
+          hover: 'hover:from-accent-purple-75 hover:to-accent-purple-125 dark:hover:from-accent-purple-850/25 dark:hover:to-accent-purple-800/25'
         };
       case 'orange':
         return {
-          bg: 'bg-gradient-to-br from-purple-75 to-purple-125 dark:from-purple-900/25 dark:to-purple-825/25',
-          border: 'border-purple-250 dark:border-purple-725',
-          icon: 'text-purple-625 dark:text-purple-375',
-          hover: 'hover:from-purple-125 hover:to-purple-175 dark:hover:from-purple-825/35 dark:hover:to-purple-775/35'
+          bg: 'bg-gradient-to-br from-accent-purple-75 to-accent-purple-125 dark:from-accent-purple-900/25 dark:to-accent-purple-825/25',
+          border: 'border-accent-purple-250 dark:border-accent-purple-725',
+          icon: 'text-accent-purple-625 dark:text-accent-purple-375',
+          hover: 'hover:from-accent-purple-125 hover:to-accent-purple-175 dark:hover:from-accent-purple-825/35 dark:hover:to-accent-purple-775/35'
         };
       default:
         return {
-          bg: 'bg-gradient-to-br from-purple-25 to-purple-50 dark:from-purple-900/10 dark:to-purple-875/10',
-          border: 'border-purple-100 dark:border-purple-800',
-          icon: 'text-purple-500 dark:text-purple-500',
-          hover: 'hover:from-purple-50 hover:to-purple-100 dark:hover:from-purple-875/20 dark:hover:to-purple-850/20'
+          bg: 'bg-gradient-to-br from-accent-purple-25 to-accent-purple-50 dark:from-accent-purple-900/10 dark:to-accent-purple-875/10',
+          border: 'border-accent-purple-100 dark:border-accent-purple-800',
+          icon: 'text-accent-purple-500 dark:text-accent-purple-500',
+          hover: 'hover:from-accent-purple-50 hover:to-accent-purple-100 dark:hover:from-accent-purple-875/20 dark:hover:to-accent-purple-850/20'
         };
     }
   };

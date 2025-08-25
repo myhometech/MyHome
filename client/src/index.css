@@ -405,13 +405,13 @@
 }
 
 :root {
-  --background: #FAF4EF; /* Warm ivory instead of stark white */
+  --background: #FEFCFF; /* Very light purple tint instead of warm ivory */
   --foreground: hsl(220, 14.3%, 4.1%);
   --muted: hsl(220, 4.8%, 95.9%);
   --muted-foreground: hsl(220, 5.3%, 44.7%);
-  --popover: #FAF4EF; /* Warm ivory for popovers */
+  --popover: #FEFCFF; /* Very light purple tint for popovers */
   --popover-foreground: hsl(220, 14.3%, 4.1%);
-  --card: #FAF4EF; /* Warm ivory for cards */
+  --card: #FEFCFF; /* Very light purple tint for cards */
   --card-foreground: hsl(220, 14.3%, 4.1%);
   --border: hsl(220, 5.9%, 90%);
   --input: hsl(220, 5.9%, 90%);
@@ -426,8 +426,8 @@
   --ring: hsl(220, 14.3%, 4.1%);
   --radius: 0.5rem;
 
-  /* Custom colors for warmer, homely feel */
-  --surface: hsl(215, 25%, 98%); /* Light blue-gray surfaces */
+  /* Custom colors for purple theme */
+  --surface: hsl(270, 25%, 98%); /* Light purple-tinted surfaces */
   --text-secondary: hsl(215, 13.8%, 34.1%);
   --border-light: hsl(215, 20%, 89%);
 

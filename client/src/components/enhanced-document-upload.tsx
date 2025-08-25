@@ -281,8 +281,8 @@ export function EnhancedDocumentUpload({
               className={cn(
                 "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
                 isDragActive 
-                  ? "border-accent-purple-300 bg-accent-purple-50" 
-                  : "border-gray-300 hover:border-accent-purple-200"
+                  ? "border-accent-purple-500 bg-accent-purple-50" 
+                  : "border-accent-purple-200 hover:border-accent-purple-300 bg-accent-purple-50/30"
               )}
             >
               <input {...getInputProps()} />

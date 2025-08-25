@@ -801,9 +801,9 @@ export default function UnifiedDocumentCard({
               </div>
             )}
 
-            {/* Actions dropdown - positioned in top-right */}
+            {/* Actions dropdown - positioned in bottom-right, aligned with insight badges */}
             {!isEditing && !isRenaming && (
-              <div className="absolute top-2 right-2 z-10">
+              <div className="absolute bottom-8 right-2 z-10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 

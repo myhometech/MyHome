@@ -487,21 +487,9 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             )}
           </div>
           
-          {/* Document title and metadata with better styling */}
+          {/* Document metadata only - no title */}
           <div className="min-w-0 flex-1 overflow-hidden ml-1">
-            <h1 
-              className="font-semibold text-[#2B2F40] text-base md:text-lg leading-tight overflow-hidden bg-white/50 rounded px-2 py-1"
-              style={{
-                display: '-webkit-box',
-                WebkitLineClamp: 1,
-                WebkitBoxOrient: 'vertical',
-                wordBreak: 'break-all'
-              }}
-              title={document.name}
-            >
-              {document.name}
-            </h1>
-            <div className="flex items-center gap-2 mt-1 overflow-hidden ml-2">
+            <div className="flex items-center gap-2 mt-2 overflow-hidden">
               {category && (
                 <Badge 
                   variant="secondary" 

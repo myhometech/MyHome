@@ -363,83 +363,99 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1">
         {/* All Items */}
         <Card 
-          className={`border-l-4 border-l-blue-500 bg-blue-50/50 cursor-pointer hover:bg-blue-50 transition-colors ${
-            priorityFilter === 'all' ? 'ring-2 ring-blue-500' : ''
+          className={`border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 ${
+            priorityFilter === 'all' ? 'ring-2 ring-purple-500' : ''
           }`}
+          style={{
+            background: 'linear-gradient(135deg, #9333ea 0%, #7c3aed 50%, #6b21a8 100%)',
+            color: 'white'
+          }}
           onClick={() => setPriorityFilter('all')}
         >
           <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-blue-700">All Items</p>
-                <p className="text-lg sm:text-2xl font-bold text-blue-900">
+                <p className="text-xs sm:text-sm font-medium text-white">All Items</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">
                   {insights.filter(i => i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-blue-600 hidden sm:block">Total active</p>
+                <p className="text-xs text-white/80 hidden sm:block">Total active</p>
               </div>
-              <Brain className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
+              <Brain className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
           </CardContent>
         </Card>
         {/* High Priority Items */}
         <Card 
-          className={`border-l-4 border-l-red-500 bg-red-50/50 cursor-pointer hover:bg-red-50 transition-colors ${
-            priorityFilter === 'high' ? 'ring-2 ring-red-500' : ''
+          className={`border-l-4 border-l-purple-600 cursor-pointer hover:shadow-lg transition-all duration-300 ${
+            priorityFilter === 'high' ? 'ring-2 ring-purple-600' : ''
           }`}
+          style={{
+            background: 'linear-gradient(135deg, #a855f7 0%, #8b5cf6 50%, #7c3aed 100%)',
+            color: 'white'
+          }}
           onClick={() => setPriorityFilter('high')}
         >
           <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-red-700">High Priority</p>
-                <p className="text-lg sm:text-2xl font-bold text-red-900">
+                <p className="text-xs sm:text-sm font-medium text-white">High Priority</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">
                   {insights.filter(i => i.priority === 'high' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-red-600 hidden sm:block">Urgent items</p>
+                <p className="text-xs text-white/80 hidden sm:block">Urgent items</p>
               </div>
-              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-red-500" />
+              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
           </CardContent>
         </Card>
 
         {/* Medium Priority Items */}
         <Card 
-          className={`border-l-4 border-l-yellow-500 bg-yellow-50/50 cursor-pointer hover:bg-yellow-50 transition-colors ${
-            priorityFilter === 'medium' ? 'ring-2 ring-yellow-500' : ''
+          className={`border-l-4 border-l-purple-400 cursor-pointer hover:shadow-lg transition-all duration-300 ${
+            priorityFilter === 'medium' ? 'ring-2 ring-purple-400' : ''
           }`}
+          style={{
+            background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #8b5cf6 100%)',
+            color: 'white'
+          }}
           onClick={() => setPriorityFilter('medium')}
         >
           <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-yellow-700">Medium</p>
-                <p className="text-lg sm:text-2xl font-bold text-yellow-900">
+                <p className="text-xs sm:text-sm font-medium text-white">Medium</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">
                   {insights.filter(i => i.priority === 'medium' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-yellow-600 hidden sm:block">Important items</p>
+                <p className="text-xs text-white/80 hidden sm:block">Important items</p>
               </div>
-              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500" />
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
           </CardContent>
         </Card>
 
         {/* Low Priority Items */}
         <Card 
-          className={`border-l-4 border-l-green-500 bg-green-50/50 cursor-pointer hover:bg-green-50 transition-colors ${
-            priorityFilter === 'low' ? 'ring-2 ring-green-500' : ''
+          className={`border-l-4 border-l-purple-300 cursor-pointer hover:shadow-lg transition-all duration-300 ${
+            priorityFilter === 'low' ? 'ring-2 ring-purple-300' : ''
           }`}
+          style={{
+            background: 'linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 50%, #a78bfa 100%)',
+            color: '#4c1d95'
+          }}
           onClick={() => setPriorityFilter('low')}
         >
           <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-green-700">Low</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-900">
+                <p className="text-xs sm:text-sm font-medium text-purple-900">Low</p>
+                <p className="text-lg sm:text-2xl font-bold text-purple-900">
                   {insights.filter(i => i.priority === 'low' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-green-600 hidden sm:block">General items</p>
+                <p className="text-xs text-purple-700 hidden sm:block">General items</p>
               </div>
-              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-500" />
+              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-purple-700" />
             </div>
           </CardContent>
         </Card>

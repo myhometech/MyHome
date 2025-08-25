@@ -57,19 +57,19 @@ const priorityConfig = {
     color: 'bg-purple-100 text-purple-800 border-purple-200', 
     label: 'High Priority',
     cardBorder: 'border-l-purple-600',
-    cardBg: 'bg-gradient-to-r from-purple-50/40 to-purple-100/20'
+    cardBg: 'bg-gradient-to-r from-purple-100/60 to-purple-200/30'
   },
   medium: { 
-    color: 'bg-purple-50 text-purple-700 border-purple-150', 
+    color: 'bg-purple-50 text-purple-700 border-purple-200', 
     label: 'Medium Priority',
     cardBorder: 'border-l-purple-400',
-    cardBg: 'bg-gradient-to-r from-purple-50/30 to-purple-75/15'
+    cardBg: 'bg-gradient-to-r from-purple-50/50 to-purple-100/25'
   },
   low: { 
-    color: 'bg-purple-25 text-purple-600 border-purple-100', 
+    color: 'bg-purple-50 text-purple-600 border-purple-100', 
     label: 'Low Priority',
     cardBorder: 'border-l-purple-300',
-    cardBg: 'bg-gradient-to-r from-purple-25/20 to-purple-50/10'
+    cardBg: 'bg-gradient-to-r from-purple-50/30 to-purple-100/15'
   }
 };
 

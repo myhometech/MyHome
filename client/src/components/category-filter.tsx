@@ -69,7 +69,7 @@ export default function CategoryFilter({ categories, selectedCategory, onCategor
           className="bg-white text-gray-600 border-gray-200 hover:bg-gray-50 transition-colors"
         >
           <Plus className="h-4 w-4 mr-2" />
-          More
+          Add Documents
         </Button>
       </div>
     </div>

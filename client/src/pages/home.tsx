@@ -37,7 +37,8 @@ import {
   Share2,
   AlertTriangle,
   Folder,
-  Calendar as CalendarIcon // Alias to avoid conflict if Calendar is used elsewhere
+  Calendar as CalendarIcon, // Alias to avoid conflict if Calendar is used elsewhere
+  Download // Import Download icon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

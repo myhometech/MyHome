@@ -301,7 +301,9 @@ export function EnhancedDocumentUpload({
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2">
-                  <Upload className="w-12 h-12 text-gray-400" />
+                  <Upload className={`w-12 h-12 mx-auto mb-4 ${
+                    isDragActive ? 'text-accent-purple-500' : 'text-gray-400'
+                  }`} />
                   <p className="text-lg font-medium">
                     {isDragActive ? 'Drop files here' : 'Drag & drop files here'}
                   </p>
@@ -312,7 +314,11 @@ export function EnhancedDocumentUpload({
                     Max {maxFiles} files
                   </Badge>
                   {/* Updated button styling */}
-                  <Button type="button" onClick={open} className="mt-4 bg-accent-purple-600 hover:bg-accent-purple-700 text-white">
+                  <Button 
+                    type="button" 
+                    onClick={open} 
+                    className="mt-4 bg-accent-purple-600 hover:bg-accent-purple-700 text-white"
+                  >
                     <Upload className="w-4 h-4 mr-2" />
                     Choose Files
                   </Button>

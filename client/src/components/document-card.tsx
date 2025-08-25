@@ -595,7 +595,7 @@ export default function DocumentCard({
               <div className="flex items-center mr-3">
                 <div className="w-5 h-5 flex items-center justify-center">
                   {isSelected ? (
-                    <CheckSquare className="h-5 w-5 text-blue-600" />
+                    <CheckSquare className="h-5 w-5 text-accent-purple-600" />
                   ) : (
                     <Square className="h-5 w-5 text-gray-400" />
                   )}

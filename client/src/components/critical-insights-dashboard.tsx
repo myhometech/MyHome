@@ -55,17 +55,17 @@ function getTypeLabel(type: string) {
 
 function formatDueDate(dateString?: string) {
   if (!dateString) return null;
-  
+
   try {
     const date = new Date(dateString);
     const now = new Date();
     const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Tomorrow";
     if (diffDays > 0 && diffDays <= 7) return `${diffDays} days`;
     if (diffDays < 0) return "Overdue";
-    
+
     return format(date, "MMM dd");
   } catch {
     return null;
@@ -75,10 +75,10 @@ function formatDueDate(dateString?: string) {
 export default function CriticalInsightsDashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   console.log('[DEBUG] CriticalInsightsDashboard component rendered');
   console.log('[DEBUG] Component initialized, about to start API call');
-  
+
   const { data: insights = [], isLoading, error } = useQuery<CriticalInsight[]>({
     queryKey: ['/api/insights/critical'],
     queryFn: async () => {
@@ -110,25 +110,25 @@ export default function CriticalInsightsDashboard() {
         },
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to dismiss insight');
       }
-      
+
       return response.json();
     },
     onMutate: async (insightId: string) => {
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ['/api/insights/critical'] });
-      
+
       // Snapshot the previous value
       const previousInsights = queryClient.getQueryData(['/api/insights/critical']);
-      
+
       // Optimistically update to the new value by removing the dismissed insight
       queryClient.setQueryData(['/api/insights/critical'], (old: CriticalInsight[] | undefined) => {
         return old?.filter(insight => insight.id !== insightId) ?? [];
       });
-      
+
       // Return a context object with the snapshotted value
       return { previousInsights };
     },
@@ -165,14 +165,14 @@ export default function CriticalInsightsDashboard() {
       <Card className="w-full">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
+            <AlertTriangle className="w-5 h-5 text-accent-purple-600" />
             ⚠️ Urgent Insights
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="border border-gray-200 rounded-lg p-3 animate-pulse">
+              <div key={i} className="border border-gray-200 rounded-lg p-4 transition-all hover:shadow-md">
                 <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
                 <div className="h-3 bg-gray-200 rounded w-1/2"></div>
               </div>
@@ -188,7 +188,7 @@ export default function CriticalInsightsDashboard() {
       <Card className="w-full">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
+            <AlertTriangle className="w-5 h-5 text-accent-purple-600" />
             ⚠️ Urgent Insights
           </CardTitle>
         </CardHeader>
@@ -228,14 +228,14 @@ export default function CriticalInsightsDashboard() {
     <Card className="w-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <AlertTriangle className="w-5 h-5 text-orange-600" />
+          <AlertTriangle className="w-5 h-5 text-accent-purple-600" />
           ⚠️ Urgent Insights
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {insights.map((insight) => {
           const dueDate = formatDueDate(insight.dueDate);
-          
+
           return (
             <div
               key={insight.id}
@@ -255,18 +255,18 @@ export default function CriticalInsightsDashboard() {
                       </div>
                     )}
                   </div>
-                  
+
                   <p className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">
                     {insight.message}
                   </p>
-                  
+
                   {insight.title && (
                     <p className="text-xs text-gray-600 truncate">
                       {insight.title}
                     </p>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-2 shrink-0">
                   <Link href={`/document/${insight.documentId}`}>
                     <Button size="sm" variant="outline" className="text-xs px-3 py-1">
@@ -292,7 +292,7 @@ export default function CriticalInsightsDashboard() {
             </div>
           );
         })}
-        
+
         {/* Footer CTA */}
         <div className="pt-2 border-t border-gray-200">
           <Link href="/insights">

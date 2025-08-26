@@ -96,11 +96,11 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-accent-purple-100 text-accent-purple-800 border-accent-purple-200';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-accent-purple-50 text-accent-purple-700 border-accent-purple-200';
       case 'low':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-accent-purple-25 text-accent-purple-600 border-accent-purple-100';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -109,7 +109,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-accent-purple-100 text-accent-purple-800 border-accent-purple-200';
       case 'resolved':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'dismissed':
@@ -159,9 +159,9 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
   return (
     <Card 
       className={`compact-insight-card transition-all duration-200 hover:shadow-md cursor-pointer border-l-2 ${
-        insight.priority === 'high' ? 'border-l-red-500 bg-red-50/30' :
-        insight.priority === 'medium' ? 'border-l-yellow-500 bg-yellow-50/30' :
-        'border-l-green-500 bg-green-50/30'
+        insight.priority === 'high' ? 'border-l-accent-purple-500 bg-accent-purple-50/30' :
+        insight.priority === 'medium' ? 'border-l-accent-purple-400 bg-accent-purple-50/20' :
+        'border-l-accent-purple-300 bg-accent-purple-50/10'
       } ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}
       onClick={handleCardClick}
     >
@@ -189,7 +189,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
             <div className={`w-2 h-2 rounded-full ${
               insight.status === 'resolved' ? 'bg-green-500' :
               insight.status === 'dismissed' ? 'bg-gray-400' :
-              'bg-blue-500'
+              'bg-accent-purple-500'
             }`} title={`Status: ${insight.status || 'open'}`} />
             
             <DropdownMenu>

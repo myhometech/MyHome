@@ -120,7 +120,7 @@ export function AIInsightsDashboard() {
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <Brain className="h-8 w-8 text-blue-600" />
+          <Brain className="h-8 w-8 text-accent-purple-600" />
           <div>
             <h1 className="text-2xl font-bold">AI Insights Dashboard</h1>
             <p className="text-gray-600">Intelligent document analysis and recommendations</p>
@@ -137,7 +137,7 @@ export function AIInsightsDashboard() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-blue-500" />
+              <TrendingUp className="h-5 w-5 text-accent-purple-500" />
               <div>
                 <p className="text-sm font-medium">Total Insights</p>
                 <p className="text-2xl font-bold">{insights.length}</p>
@@ -148,10 +148,10 @@ export function AIInsightsDashboard() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <AlertCircle className="h-5 w-5 text-red-500" />
+              <AlertCircle className="h-5 w-5 text-accent-purple-600" />
               <div>
                 <p className="text-sm font-medium">High Priority</p>
-                <p className="text-2xl font-bold text-red-600">{highPriorityCount}</p>
+                <p className="text-2xl font-bold text-accent-purple-700">{highPriorityCount}</p>
               </div>
             </div>
           </CardContent>
@@ -159,10 +159,10 @@ export function AIInsightsDashboard() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Clock className="h-5 w-5 text-yellow-500" />
+              <Clock className="h-5 w-5 text-accent-purple-500" />
               <div>
                 <p className="text-sm font-medium">Medium Priority</p>
-                <p className="text-2xl font-bold text-yellow-600">{mediumPriorityCount}</p>
+                <p className="text-2xl font-bold text-accent-purple-600">{mediumPriorityCount}</p>
               </div>
             </div>
           </CardContent>
@@ -170,10 +170,10 @@ export function AIInsightsDashboard() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
+              <CheckCircle className="h-5 w-5 text-accent-purple-400" />
               <div>
                 <p className="text-sm font-medium">Resolved</p>
-                <p className="text-2xl font-bold text-green-600">{resolvedCount}</p>
+                <p className="text-2xl font-bold text-accent-purple-500">{resolvedCount}</p>
               </div>
             </div>
           </CardContent>

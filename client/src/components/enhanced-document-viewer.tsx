@@ -105,7 +105,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   // Feature flags for AI insights
   const { hasFeature } = useFeatures();
   const hasAIInsights = hasFeature('AI_SUMMARIZATION');
-  
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -118,7 +118,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   const [useReactPdf, setUseReactPdf] = useState(false);
   const [pdfLoadTimeout, setPdfLoadTimeout] = useState<NodeJS.Timeout | null>(null);
   const [activeTab, setActiveTab] = useState(initialTab);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -150,7 +150,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
       name: document.name,
       mimeType: document.mimeType
     });
-    
+
     return () => {
       console.log(`🔄 [FRONTEND] EnhancedDocumentViewer unmounting for document ${document.id}`);
     };
@@ -161,26 +161,26 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
     queryKey: [`/api/documents/${document.id}`],
     queryFn: async (): Promise<FullDocumentDetails> => {
       console.log(`🔍 [FRONTEND] Fetching document details for ID ${document.id}`);
-      
+
       try {
         const response = await fetch(`/api/documents/${document.id}`, {
           credentials: 'include'
         });
-        
+
         console.log(`📡 [FRONTEND] Response status: ${response.status}`);
-        
+
         if (response.status === 401) {
           console.log(`❌ [FRONTEND] Authentication required, redirecting to login`);
           // Redirect to login for authentication failures
           window.location.href = '/';
           throw new Error('Authentication required');
         }
-        
+
         if (!response.ok) {
           console.error(`❌ [FRONTEND] Failed to fetch document: ${response.status}`);
           throw new Error(`Failed to fetch document details: ${response.status}`);
         }
-        
+
         const data = await response.json();
         console.log(`✅ [FRONTEND] Document data received:`, {
           id: data.id,
@@ -190,7 +190,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           source: data.source,
           uploadSource: data.uploadSource
         });
-        
+
         // Defensive handling of emailContext
         if (data.emailContext) {
           console.log(`📧 [FRONTEND] Email context details:`, {
@@ -199,7 +199,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             subject: data.emailContext.subject
           });
         }
-        
+
         return data;
       } catch (error) {
         console.error(`💥 [FRONTEND] Error in document fetch:`, error);
@@ -294,7 +294,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   const handleSaveEdit = () => {
     const hasNameChange = editName.trim() !== fullDocument?.name;
     const hasExpiryChange = editExpiryDate !== (fullDocument?.expiryDate || "");
-    
+
     if (hasNameChange || hasExpiryChange) {
       updateDocumentMutation.mutate({ 
         id: document.id, 
@@ -320,12 +320,12 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ documentId })
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to create email PDF');
       }
-      
+
       return response.json();
     },
     onSuccess: (data) => {
@@ -355,7 +355,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           </button>
         ) : undefined
       });
-      
+
       queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
       queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}`] });
     },
@@ -440,7 +440,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
         setError('Document loading took too long. Please try again.');
       }
     }, 5000);
-    
+
     // For images, preload to ensure they work
     if (isImage()) {
       const img = new (globalThis as any).Image();
@@ -459,7 +459,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
       setIsLoading(false);
       clearTimeout(safetyTimeout);
     }
-    
+
     return () => {
       clearTimeout(safetyTimeout);
     };
@@ -486,7 +486,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
               <FileIcon className="w-4 h-4 text-white" />
             )}
           </div>
-          
+
           {/* Document title and metadata */}
           <div className="min-w-0 flex-1 overflow-hidden ml-4">
             <h1 className="text-lg font-semibold text-[#2B2F40] truncate mb-1">
@@ -536,7 +536,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
               </Button>
             </div>
           )}
-          
+
           {/* PDF view toggle */}
           {isPDF() && (
             <Button
@@ -610,7 +610,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                 </div>
               </div>
             )}
-            
+
             {error && (
               <div className="flex items-center justify-center h-full bg-white mx-2 md:mx-0 rounded-lg md:rounded-lg mt-2 md:mt-0">
                 <div className="text-center">
@@ -638,7 +638,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
             {!isLoading && !error && isPDF() && (
               <div className="h-full bg-white mx-2 md:mx-0 rounded-lg md:rounded-lg mt-2 md:mt-0">
-                
+
                 {useReactPdf ? (
                   <div className="h-full overflow-auto bg-gray-100 p-1 md:p-4">
                     <div className="flex justify-center w-full">

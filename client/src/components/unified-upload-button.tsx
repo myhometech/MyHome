@@ -693,7 +693,7 @@ export default function UnifiedUploadButton({
             <Button variant="ghost" size="sm" onClick={dismissSuggestion}>
               <X className="h-3 w-3" />
             </Button>
-          </div></div>
+          </div>
           <Button
             variant="outline"
             size="sm"

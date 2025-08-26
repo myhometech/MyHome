@@ -644,7 +644,7 @@ export default function UnifiedDocumentCard({
               {/* Bottom row with file size and category */}
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-500 text-xs">{formatFileSize(document.fileSize)}</span>
-                
+
                 {category && (
                   <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300 px-1 py-0 badge">
                     <FolderIcon className="h-2.5 w-2.5 mr-0.5" />
@@ -693,7 +693,7 @@ export default function UnifiedDocumentCard({
                   </div>
                 );
               }
-              
+
               // Priority 2: Insights Count (highest priority - clickable)
               if (openInsights.length > 0) {
                 return (
@@ -753,7 +753,7 @@ export default function UnifiedDocumentCard({
                   </div>
                 );
               }
-              
+
               // Priority 3: Expiry/Due Date
               if (document.expiryDate) {
                 const expiryDate = new Date(document.expiryDate);
@@ -778,7 +778,7 @@ export default function UnifiedDocumentCard({
                   );
                 }
               }
-              
+
               // Priority 4: Upload Source  
               if (document.uploadSource) {
                 const sourceIcons: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
@@ -786,7 +786,7 @@ export default function UnifiedDocumentCard({
                   'email': { icon: <FileText className="h-4 w-4" />, label: 'Email', color: 'bg-purple-50 border-purple-200 text-purple-700' },
                   'upload': { icon: <FileText className="h-4 w-4" />, label: 'Uploaded', color: 'bg-gray-50 border-gray-200 text-gray-700' }
                 };
-                
+
                 const sourceInfo = sourceIcons[document.uploadSource] || sourceIcons['upload'];
                 return (
                   <div className="absolute bottom-8 left-2">
@@ -805,7 +805,7 @@ export default function UnifiedDocumentCard({
                   </div>
                 );
               }
-              
+
               // No contextual info to show
               return null;
             })()}
@@ -869,7 +869,7 @@ export default function UnifiedDocumentCard({
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(e);
-                    }} className="text-accent-purple-600">
+                    }} className="text-accent-purple-600 hover:text-accent-purple-700">
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
                     </DropdownMenuItem>

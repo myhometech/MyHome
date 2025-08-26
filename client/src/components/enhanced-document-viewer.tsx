@@ -795,24 +795,6 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                       <CardTitle className="text-xs font-medium text-gray-700">Basic Information</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 px-3 pb-3">
-                      {isEditing ? (
-                        <div>
-                          <Label htmlFor="edit-name" className="text-xs text-gray-600">Document Name</Label>
-                          <Input
-                            id="edit-name"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            className="mt-1 text-xs"
-                            placeholder="Enter document name"
-                          />
-                        </div>
-                      ) : (
-                        <div>
-                          <Label className="text-xs text-gray-600">Document Name</Label>
-                          <p className="text-xs mt-1">{fullDocument?.name || document.name}</p>
-                        </div>
-                      )}
-
                       <div>
                         <Label className="text-xs text-gray-600">File Name</Label>
                         <p className="text-xs mt-1">{fullDocument?.fileName || 'Loading...'}</p>

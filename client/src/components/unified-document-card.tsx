@@ -105,7 +105,7 @@ const insightTypeConfig = {
 };
 
 const priorityConfig = {
-  high: { color: 'border-l-red-500 bg-red-50', badgeColor: 'bg-red-100 text-red-800', icon: AlertTriangle },
+  high: { color: 'border-l-accent-purple-500 bg-accent-purple-50', badgeColor: 'bg-accent-purple-100 text-accent-purple-800', icon: AlertTriangle },
   medium: { color: 'border-l-yellow-500 bg-yellow-50', badgeColor: 'bg-yellow-100 text-yellow-800', icon: Clock },
   low: { color: 'border-l-blue-500 bg-blue-50', badgeColor: 'bg-blue-100 text-blue-800', icon: Info }
 };
@@ -133,7 +133,7 @@ function getPriorityIcon(priority: string, className = "w-4 h-4") {
   const config = priorityConfig[priority as keyof typeof priorityConfig];
   const IconComponent = config?.icon || Info;
 
-  const colorClass = priority === 'high' ? 'text-red-500' : 
+  const colorClass = priority === 'high' ? 'text-accent-purple-500' : 
                     priority === 'medium' ? 'text-yellow-500' : 'text-blue-500';
 
   return <IconComponent className={`${className} ${colorClass}`} />;
@@ -506,7 +506,7 @@ export default function UnifiedDocumentCard({
   // Determine card border color based on highest priority insight
   let cardBorderClass = "";
   if (criticalInsights.length > 0) {
-    cardBorderClass = "border-l-4 border-l-red-500";
+    cardBorderClass = "border-l-4 border-l-accent-purple-500";
   } else if (openInsights.some(i => i.priority === 'medium')) {
     cardBorderClass = "border-l-4 border-l-yellow-500";
   } else if (openInsights.length > 0) {
@@ -709,9 +709,9 @@ export default function UnifiedDocumentCard({
 
                             const priorityOrder = ['high', 'medium', 'low'];
                             const priorityColors: Record<string, string> = {
-                              high: 'bg-red-500 text-white',
+                              high: 'bg-accent-purple-500 text-white',
                               medium: 'bg-orange-500 text-white', 
-                              low: 'bg-accent-purple-500 text-white'
+                              low: 'bg-accent-purple-400 text-white'
                             };
 
                             return (
@@ -869,7 +869,7 @@ export default function UnifiedDocumentCard({
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(e);
-                    }} className="text-red-600">
+                    }} className="text-accent-purple-600">
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
                     </DropdownMenuItem>

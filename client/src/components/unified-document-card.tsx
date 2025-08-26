@@ -670,16 +670,16 @@ export default function UnifiedDocumentCard({
                               generateInsightsMutation.mutate();
                             }}
                           >
-                            <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-50 to-purple-50 border-l-2 border-l-blue-500">
+                            <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-accent-purple-50 to-accent-purple-100 border-l-2 border-l-accent-purple-500">
                               {generateInsightsMutation.isPending ? (
                                 <>
-                                  <Clock className="h-3 w-3 animate-spin text-blue-600" />
-                                  <span className="text-xs font-medium text-blue-700 ml-1">Analyzing...</span>
+                                  <Clock className="h-3 w-3 animate-spin text-accent-purple-600" />
+                                  <span className="text-xs font-medium text-accent-purple-700 ml-1">Analyzing...</span>
                                 </>
                               ) : (
                                 <>
-                                  <Brain className="h-3 w-3 text-blue-600" />
-                                  <span className="text-xs font-medium text-blue-700 ml-1">Generate Insights</span>
+                                  <Brain className="h-3 w-3 text-accent-purple-600" />
+                                  <span className="text-xs font-medium text-accent-purple-700 ml-1">Generate Insights</span>
                                 </>
                               )}
                             </div>
@@ -711,7 +711,7 @@ export default function UnifiedDocumentCard({
                             const priorityColors: Record<string, string> = {
                               high: 'bg-red-500 text-white',
                               medium: 'bg-orange-500 text-white', 
-                              low: 'bg-blue-500 text-white'
+                              low: 'bg-accent-purple-500 text-white'
                             };
 
                             return (
@@ -723,9 +723,9 @@ export default function UnifiedDocumentCard({
                                   setShowModal(true);
                                 }}
                               >
-                                <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-50 to-purple-50 border-l-2 border-l-blue-500">
-                                  <Brain className="h-3 w-3 text-blue-600" />
-                                  <span className="text-xs font-medium text-blue-700">AI Insights</span>
+                                <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-accent-purple-50 to-accent-purple-100 border-l-2 border-l-accent-purple-500">
+                                  <Brain className="h-3 w-3 text-accent-purple-600" />
+                                  <span className="text-xs font-medium text-accent-purple-700">AI Insights</span>
                                 </div>
                                 <div className="flex items-center gap-1 px-1">
                                   {priorityOrder.map(priority => {

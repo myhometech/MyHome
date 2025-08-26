@@ -96,18 +96,18 @@ interface UnifiedDocumentCardProps {
 }
 
 const insightTypeConfig = {
-  summary: { icon: FileText, label: 'Summary', color: 'bg-blue-100 text-blue-800' },
-  action_items: { icon: ListTodo, label: 'Action Items', color: 'bg-orange-100 text-orange-800' },
-  key_dates: { icon: Calendar, label: 'Key Dates', color: 'bg-purple-100 text-purple-800' },
-  financial_info: { icon: DollarSign, label: 'Financial Info', color: 'bg-green-100 text-green-800' },
-  contacts: { icon: Users, label: 'Contacts', color: 'bg-indigo-100 text-indigo-800' },
-  compliance: { icon: Shield, label: 'Compliance', color: 'bg-red-100 text-red-800' }
+  summary: { icon: FileText, label: 'Summary', color: 'bg-accent-purple-100 text-accent-purple-800' },
+  action_items: { icon: ListTodo, label: 'Action Items', color: 'bg-accent-purple-200 text-accent-purple-900' },
+  key_dates: { icon: Calendar, label: 'Key Dates', color: 'bg-accent-purple-300 text-accent-purple-900' },
+  financial_info: { icon: DollarSign, label: 'Financial Info', color: 'bg-accent-purple-400 text-white' },
+  contacts: { icon: Users, label: 'Contacts', color: 'bg-accent-purple-500 text-white' },
+  compliance: { icon: Shield, label: 'Compliance', color: 'bg-accent-purple-600 text-white' }
 };
 
 const priorityConfig = {
   high: { color: 'border-l-accent-purple-500 bg-accent-purple-50', badgeColor: 'bg-accent-purple-100 text-accent-purple-800', icon: AlertTriangle },
-  medium: { color: 'border-l-yellow-500 bg-yellow-50', badgeColor: 'bg-yellow-100 text-yellow-800', icon: Clock },
-  low: { color: 'border-l-blue-500 bg-blue-50', badgeColor: 'bg-blue-100 text-blue-800', icon: Info }
+  medium: { color: 'border-l-accent-purple-400 bg-accent-purple-25', badgeColor: 'bg-accent-purple-100 text-accent-purple-700', icon: Clock },
+  low: { color: 'border-l-accent-purple-300 bg-accent-purple-25', badgeColor: 'bg-accent-purple-50 text-accent-purple-600', icon: Info }
 };
 
 function formatDueDate(dateString?: string) {
@@ -134,7 +134,7 @@ function getPriorityIcon(priority: string, className = "w-4 h-4") {
   const IconComponent = config?.icon || Info;
 
   const colorClass = priority === 'high' ? 'text-accent-purple-500' : 
-                    priority === 'medium' ? 'text-yellow-500' : 'text-blue-500';
+                    priority === 'medium' ? 'text-accent-purple-400' : 'text-accent-purple-300';
 
   return <IconComponent className={`${className} ${colorClass}`} />;
 }
@@ -485,9 +485,9 @@ export default function UnifiedDocumentCard({
     if (document.mimeType?.startsWith("image/")) {
       return "bg-emerald-100 text-emerald-700 border-emerald-200";
     } else if (document.mimeType === "application/pdf") {
-      return "bg-red-100 text-red-700 border-red-200";
+      return "bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200";
     } else {
-      return "bg-blue-100 text-blue-700 border-blue-200";
+      return "bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200";
     }
   };
 
@@ -508,9 +508,9 @@ export default function UnifiedDocumentCard({
   if (criticalInsights.length > 0) {
     cardBorderClass = "border-l-4 border-l-accent-purple-500";
   } else if (openInsights.some(i => i.priority === 'medium')) {
-    cardBorderClass = "border-l-4 border-l-yellow-500";
+    cardBorderClass = "border-l-4 border-l-accent-purple-400";
   } else if (openInsights.length > 0) {
-    cardBorderClass = "border-l-4 border-l-blue-500";
+    cardBorderClass = "border-l-4 border-l-accent-purple-300";
   }
 
   return (

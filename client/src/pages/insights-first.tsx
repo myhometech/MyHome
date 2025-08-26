@@ -259,7 +259,7 @@ export default function InsightsFirstPage() {
 
           <AddDropdownMenu 
             size="lg" 
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-accent-purple-600 hover:bg-accent-purple-700"
             onDocumentUpload={() => {
               // Upload is now handled directly by AddDropdownMenu
             }}

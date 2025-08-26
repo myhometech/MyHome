@@ -803,7 +803,7 @@ export default function UnifiedUploadButton({
         <Button
           onClick={handleUpload}
           disabled={uploadItems.filter(item => item.status === 'queued' || item.status === 'error').length === 0 || uploadItems.some(item => item.status === 'uploading')}
-          className="bg-primary hover:bg-blue-700 w-full sm:w-auto order-1 sm:order-2"
+          className="bg-accent-purple-600 hover:bg-accent-purple-700 w-full sm:w-auto order-1 sm:order-2"
         >
           {uploadItems.some(item => item.status === 'uploading') ? "Uploading..." :
            uploadItems.filter(item => item.status === 'queued' || item.status === 'error').length === 0 ? "No Files to Upload" : "Upload"}
@@ -848,7 +848,7 @@ export default function UnifiedUploadButton({
                     <CloudUpload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-lg font-medium text-gray-900 mb-2">Select Files to Upload</p>
                     <p className="text-sm text-gray-600 mb-6">Choose documents from your device</p>
-                    <Button onClick={handleFileUpload} className="w-full bg-primary hover:bg-blue-700 text-white py-3">
+                    <Button onClick={handleFileUpload} className="w-full bg-accent-purple-600 hover:bg-accent-purple-700 text-white py-3">
                       <Upload className="h-5 w-5 mr-2" />
                       Choose Files from Device
                     </Button>

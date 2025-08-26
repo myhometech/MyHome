@@ -742,11 +742,11 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 mx-3 mt-3">
               <TabsTrigger value="properties" className="text-xs">
-                <Info className="w-3 h-3 mr-1" />
+                <Info className="w-3 h-3 mr-1 text-accent-purple-600" />
                 Properties
               </TabsTrigger>
               <TabsTrigger value="insights" className="text-xs">
-                <Brain className="w-3 h-3 mr-1" />
+                <Brain className="w-3 h-3 mr-1 text-accent-purple-600" />
                 Insights
               </TabsTrigger>
             </TabsList>
@@ -754,7 +754,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             <TabsContent value="properties" className="flex-1 m-0 flex flex-col">
               <div className="flex items-center justify-between p-3 border-b bg-white">
                 <div className="flex items-center gap-2">
-                  <Info className="w-4 h-4 text-blue-600" />
+                  <Info className="w-4 h-4 text-accent-purple-600" />
                   <span className="font-medium text-sm">Document Info</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -956,7 +956,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             <TabsContent value="insights" className="flex-1 m-0 flex flex-col">
               <div className="flex items-center justify-between p-3 border-b bg-white">
                 <div className="flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-blue-600" />
+                  <Brain className="w-4 h-4 text-accent-purple-600" />
                   <span className="font-medium text-sm">AI Insights</span>
                 </div>
               </div>

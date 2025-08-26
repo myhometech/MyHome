@@ -502,7 +502,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         size="sm"
                         onClick={() => handleDeleteInsight(insight.id)}
                         disabled={deleteInsightMutation.isPending}
-                        className={`text-gray-400 hover:text-red-500 hover:bg-red-50 ${isMobile ? 'h-6 w-6' : 'h-6 w-6'} p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
+                        className={`text-gray-400 hover:text-accent-purple-600 hover:bg-accent-purple-50 ${isMobile ? 'h-6 w-6' : 'h-6 w-6'} p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>

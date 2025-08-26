@@ -206,7 +206,7 @@ export default function InsightsFirstPage() {
     switch (priority) {
       case 'high': return 'bg-red-100 text-red-800 border-red-200';
       case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'low': return 'bg-accent-purple-100 text-accent-purple-800 border-accent-purple-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -375,7 +375,7 @@ export default function InsightsFirstPage() {
 
           {/* Bulk Operations Toolbar */}
           {bulkMode && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div className="bg-accent-purple-50 border border-accent-purple-200 rounded-lg p-3 mb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Button

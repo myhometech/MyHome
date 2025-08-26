@@ -680,20 +680,20 @@ export default function UnifiedUploadButton({
       </div>
 
       {categorySuggestion?.isVisible && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="bg-accent-purple-50 border border-accent-purple-200 rounded-lg p-3">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">
+              <p className="text-sm font-medium text-accent-purple-900">
                 Suggested Category: {categorySuggestion.suggested}
               </p>
-              <p className="text-xs text-blue-700 mt-1">
+              <p className="text-xs text-accent-purple-700 mt-1">
                 {categorySuggestion.reason} ({Math.round(categorySuggestion.confidence * 100)}% confidence)
               </p>
             </div>
             <Button variant="ghost" size="sm" onClick={dismissSuggestion}>
               <X className="h-3 w-3" />
             </Button>
-          </div>
+          </div></div>
           <Button
             variant="outline"
             size="sm"
@@ -749,7 +749,7 @@ export default function UnifiedUploadButton({
                   </div>
                 </SelectItem>
               ))}
-              <SelectItem value="create_new" className="text-blue-600 font-medium">
+              <SelectItem value="create_new" className="text-accent-purple-600 font-medium">
                 <div className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
                   Create New Category
@@ -920,7 +920,7 @@ export default function UnifiedUploadButton({
                     onClick={() => setNewCategoryData(prev => ({ ...prev, icon: iconOption.icon }))}
                     className={`p-3 rounded-lg border text-center hover:bg-gray-50 transition-colors ${
                       newCategoryData.icon === iconOption.icon
-                        ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
+                        ? "border-accent-purple-500 bg-accent-purple-50 ring-1 ring-accent-purple-500"
                         : "border-gray-200"
                     }`}
                   >
@@ -942,7 +942,7 @@ export default function UnifiedUploadButton({
                       getColorClasses(colorOption.color)
                     } ${
                       newCategoryData.color === colorOption.color
-                        ? "ring-2 ring-offset-1 ring-blue-500 scale-105"
+                        ? "ring-2 ring-offset-1 ring-accent-purple-500 scale-105"
                         : ""
                     }`}
                   >

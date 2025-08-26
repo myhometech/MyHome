@@ -137,7 +137,7 @@ export default function TopInsightsWidget() {
               No actions needed right now — but we're keeping an eye out for anything important.
             </p>
             <Link href="/">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button className="bg-accent-purple-600 hover:bg-accent-purple-700 text-white">
                 <Brain className="w-4 h-4 mr-2" />
                 Go to AI Insights Dashboard
               </Button>

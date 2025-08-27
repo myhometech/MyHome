@@ -347,7 +347,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleModalStateChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[85vh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4 mx-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
@@ -360,7 +360,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
           <div className="space-y-4">
             <div>
               <Label htmlFor="vrn">Vehicle Registration Number (VRN)</Label>
-              <div className="flex gap-2 mt-1">
+              <div className="flex flex-col sm:flex-row gap-2 mt-1">
                 <Input
                   id="vrn"
                   value={vrn}
@@ -372,14 +372,14 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
                 <Button
                   onClick={handleDVLALookup}
                   disabled={isLookingUp || hasLookedUp}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto px-4"
                 >
                   {isLookingUp ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Search className="h-4 w-4" />
                   )}
-                  {isLookingUp ? 'Looking up...' : 'Vehicle Lookup'}
+                  <span className="text-sm">{isLookingUp ? 'Looking up...' : 'Lookup'}</span>
                 </Button>
               </div>
             </div>
@@ -475,10 +475,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row justify-end gap-2">
-            <Button variant="outline" onClick={() => handleModalStateChange(false)}>
-              Cancel
-            </Button>
+          <div className="flex flex-col gap-3 mt-6">
             {hasLookedUp && (
               <Button
                 onClick={() => {
@@ -487,23 +484,32 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
                   setLookupError(null);
                 }}
                 variant="outline"
-                className="text-sm"
+                className="w-full"
               >
                 Lookup Different Vehicle
               </Button>
             )}
-            <Button
-              onClick={handleSaveVehicle}
-              disabled={!dvlaData || createVehicleMutation.isPending}
-              className="flex items-center justify-center gap-2"
-            >
-              {createVehicleMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              {createVehicleMutation.isPending ? 'Adding...' : 'Add Vehicle'}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => handleModalStateChange(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveVehicle}
+                disabled={!dvlaData || createVehicleMutation.isPending}
+                className="flex-1 flex items-center justify-center gap-2"
+              >
+                {createVehicleMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {createVehicleMutation.isPending ? 'Adding...' : 'Add Vehicle'}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
@@ -627,7 +633,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-4 mx-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
@@ -637,21 +643,21 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 
         <div className="space-y-6">
           {/* Vehicle Header */}
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col gap-3">
             <div>
               <h2 className="text-xl font-semibold">{vehicle.vrn}</h2>
               {vehicle.make && (
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm sm:text-base">
                   {vehicle.make} {vehicle.model} {vehicle.yearOfManufacture && `(${vehicle.yearOfManufacture})`}
                 </p>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {vehicle.source === 'dvla' && (
-                <Badge variant="secondary">DVLA Verified</Badge>
+                <Badge variant="secondary" className="text-xs">DVLA Verified</Badge>
               )}
               {vehicle.dvlaLastRefreshed && (
-                <Badge variant="outline" className="flex items-center gap-1">
+                <Badge variant="outline" className="flex items-center gap-1 text-xs">
                   <Clock className="h-3 w-3" />
                   Updated {new Date(vehicle.dvlaLastRefreshed).toLocaleDateString()}
                 </Badge>
@@ -673,14 +679,15 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
                   size="sm"
                   onClick={handleRefreshDvla}
                   disabled={refreshDvlaMutation.isPending}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm"
                 >
                   {refreshDvlaMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <RefreshCw className="h-4 w-4" />
                   )}
-                  {refreshDvlaMutation.isPending ? 'Refreshing...' : 'Refresh DVLA Data'}
+                  <span className="hidden sm:inline">{refreshDvlaMutation.isPending ? 'Refreshing...' : 'Refresh DVLA Data'}</span>
+                  <span className="sm:hidden">{refreshDvlaMutation.isPending ? 'Refreshing...' : 'Refresh'}</span>
                 </Button>
               )}
             </div>
@@ -695,7 +702,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
               </Alert>
             )}
             
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <Label className="text-gray-600">Make</Label>
                 <p className="font-medium">{vehicle.make || 'No data available'}</p>
@@ -742,7 +749,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
           </div>
 
           {/* Tax and MOT Status */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -776,7 +783,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 
           {/* Notes (Editable) */}
           <div className="border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
               <h3 className="font-medium flex items-center gap-2">
                 <Edit className="h-4 w-4" />
                 Personal Notes
@@ -786,7 +793,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
                   variant="outline"
                   size="sm"
                   onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 w-full sm:w-auto"
                 >
                   <Edit className="h-3 w-3" />
                   Edit
@@ -802,11 +809,11 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
                   placeholder="Add personal notes about this vehicle..."
                   className="min-h-[100px]"
                 />
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     onClick={handleSaveNotes}
                     disabled={updateVehicleMutation.isPending}
-                    className="flex items-center gap-2"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2"
                   >
                     {updateVehicleMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -819,7 +826,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
                     variant="outline"
                     onClick={handleCancelEdit}
                     disabled={updateVehicleMutation.isPending}
-                    className="flex items-center gap-2"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2"
                   >
                     <X className="h-4 w-4" />
                     Cancel
@@ -924,19 +931,20 @@ function VehicleEditModal({ vehicle, isOpen, onClose, onSaved }: {
               className="mt-1"
             />
           </div>
-          <div className="flex gap-3 justify-end">
+          <div className="flex flex-col sm:flex-row gap-2 justify-end">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
+              className="flex-1 sm:flex-none"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-2"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Save Changes
@@ -1075,20 +1083,20 @@ function AssetsTabContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-7xl mx-auto space-y-6 px-4">
       <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
+        <CardHeader className="text-center sm:text-left">
+          <div className="flex flex-col items-center sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="text-center sm:text-left">
+              <CardTitle className="flex items-center justify-center sm:justify-start gap-2">
                 <Car className="h-5 w-5" />
                 Vehicle Assets
               </CardTitle>
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-gray-600 mt-2 max-w-md mx-auto sm:mx-0">
                 Manage your vehicles, track MOT and tax expiry dates, and get AI-powered compliance insights.
               </p>
             </div>
-            <Button onClick={handleAddVehicle} className="flex items-center gap-2 w-full sm:w-auto">
+            <Button onClick={handleAddVehicle} className="flex items-center gap-2 w-full sm:w-auto max-w-xs">
               <Plus className="h-4 w-4" />
               Add Vehicle
             </Button>
@@ -1096,19 +1104,19 @@ function AssetsTabContent() {
         </CardHeader>
         <CardContent>
           {!vehicles || vehicles.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12 max-w-md mx-auto">
               <Car className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles added yet</h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 mb-6 text-sm sm:text-base">
                 Add your first vehicle to track tax, MOT, and get compliance reminders.
               </p>
-              <Button onClick={handleAddVehicle} className="flex items-center gap-2 mx-auto">
+              <Button onClick={handleAddVehicle} className="flex items-center gap-2 mx-auto w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
                 Add Your First Vehicle
               </Button>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 justify-items-center">
               {vehicles.map((vehicle) => (
                 <VehicleCard 
                   key={vehicle.id} 

@@ -466,6 +466,10 @@ export const documentInsights = pgTable("document_insights", {
   tier: varchar("tier", { length: 20 }).default("primary"), // 'primary', 'secondary'
   insightVersion: varchar("insight_version", { length: 10 }).default("v2.0"), // Version tracking for insight generation
   generatedAt: timestamp("generated_at").defaultNow(), // Timestamp for insight generation
+  // User flagging for incorrect insights
+  flagged: boolean("flagged").default(false).notNull(), // User can flag incorrect insights
+  flaggedReason: text("flagged_reason"), // Optional reason for flagging
+  flaggedAt: timestamp("flagged_at"), // When insight was flagged
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [

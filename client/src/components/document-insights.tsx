@@ -13,7 +13,9 @@ import {
   FileText, 
   Users,
   Loader2,
-  Trash2
+  Trash2,
+  Flag,
+  FlagOff
 } from 'lucide-react';
 
 interface DocumentInsight {
@@ -27,6 +29,10 @@ interface DocumentInsight {
   createdAt: string;
   // INSIGHT-101: Add tier classification
   tier?: 'primary' | 'secondary';
+  // Flagging system for incorrect insights
+  flagged?: boolean;
+  flaggedReason?: string;
+  flaggedAt?: string;
 }
 
 interface InsightResponse {
@@ -285,6 +291,50 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     deleteInsightMutation.mutate(insightId);
   }, [deleteInsightMutation]);
 
+  // Flag/unflag insight mutation
+  const flagInsightMutation = useMutation({
+    mutationFn: async ({ insightId, flagged, reason }: { insightId: string; flagged: boolean; reason?: string }) => {
+      const response = await fetch(`/api/documents/${documentId}/insights/${insightId}/flag`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ flagged, reason }),
+        signal: AbortSignal.timeout(10000)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update insight flag');
+      }
+      
+      return response.json();
+    },
+    onSuccess: React.useCallback((data: any, variables: any) => {
+      const action = variables.flagged ? 'flagged' : 'unflagged';
+      toast({
+        title: `Insight ${action}`,
+        description: variables.flagged 
+          ? "Thanks for the feedback! This insight has been flagged for review." 
+          : "Insight flag has been removed."
+      });
+      // Targeted cache invalidation
+      queryClient.invalidateQueries({
+        queryKey: ['/api/documents', documentId, 'insights']
+      });
+    }, [documentId, toast, queryClient]),
+    onError: React.useCallback((error: any) => {
+      toast({
+        title: "Flag Failed",
+        description: error.message || "Failed to update insight flag",
+        variant: "destructive"
+      });
+    }, [toast])
+  });
+
+  const handleFlagInsight = React.useCallback((insightId: string, flagged: boolean, reason?: string) => {
+    flagInsightMutation.mutate({ insightId, flagged, reason });
+  }, [flagInsightMutation]);
+
   
 
   if (isLoading) {
@@ -500,9 +550,19 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => handleFlagInsight(insight.id, !insight.flagged, insight.flagged ? undefined : "Incorrect information")}
+                        disabled={flagInsightMutation.isPending}
+                        className={`${insight.flagged ? 'text-orange-500 hover:text-orange-600' : 'text-gray-400 hover:text-orange-500'} hover:bg-orange-50 ${isMobile ? 'h-6 w-6' : 'h-6 w-6'} p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
+                        title={insight.flagged ? "Remove flag (this insight is correct)" : "Flag as incorrect"}
+                      >
+                        {insight.flagged ? <FlagOff className="h-3 w-3" /> : <Flag className="h-3 w-3" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleDeleteInsight(insight.id)}
                         disabled={deleteInsightMutation.isPending}
-                        className={`text-gray-400 hover:text-accent-purple-600 hover:bg-accent-purple-50 ${isMobile ? 'h-6 w-6' : 'h-6 w-6'} p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
+                        className={`text-gray-400 hover:text-red-600 hover:bg-red-50 ${isMobile ? 'h-6 w-6' : 'h-6 w-6'} p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>

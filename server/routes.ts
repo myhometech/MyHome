@@ -2023,6 +2023,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Flag/unflag a specific insight for incorrect information
+  app.patch('/api/documents/:id/insights/:insightId/flag', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+      const insightId = req.params.insightId;
+      const { flagged, reason } = req.body;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      // Validate flagged parameter
+      if (typeof flagged !== 'boolean') {
+        return res.status(400).json({ message: "Invalid flagged parameter - must be boolean" });
+      }
+
+      // Check if document exists and user has access
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Update insight flag status
+      const updatedInsight = await storage.flagDocumentInsight(insightId, flagged, reason);
+
+      if (!updatedInsight) {
+        return res.status(404).json({ message: "Insight not found" });
+      }
+
+      // Log the flag action for monitoring
+      const action = flagged ? 'flagged' : 'unflagged';
+      console.log(`📍 Insight ${action} by user ${userId}: document ${documentId}, insight ${insightId}, reason: ${reason || 'none'}`);
+
+      res.json({ 
+        success: true, 
+        message: `Insight ${action} successfully`,
+        insight: updatedInsight 
+      });
+
+    } catch (error) {
+      console.error("Error flagging insight:", error);
+      captureError(error as Error, req);
+      res.status(500).json({ message: "Failed to update insight flag" });
+    }
+  });
+
   // Bulk delete documents - MUST come before '/api/documents/:id' route
   app.delete('/api/documents/bulk-delete', requireAuth, async (req: any, res) => {
     try {

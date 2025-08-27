@@ -53,6 +53,7 @@ export interface IStorage {
   getCriticalInsights(userId: string): Promise<DocumentInsight[]>;
   updateInsight(id: string, updates: Partial<InsertDocumentInsight>): Promise<DocumentInsight | undefined>;
   updateInsightStatus(id: string, status: string): Promise<DocumentInsight | undefined>;
+  flagDocumentInsight(id: string, flagged: boolean, reason?: string): Promise<DocumentInsight | undefined>;
   deleteInsight(id: string): Promise<void>;
   deleteDocumentInsight(id: string): Promise<void>;
 
@@ -489,6 +490,29 @@ export class PostgresStorage implements IStorage {
     const [updatedInsight] = await this.db
       .update(documentInsights)
       .set({ status, updatedAt: new Date() })
+      .where(eq(documentInsights.id, id))
+      .returning();
+    return updatedInsight;
+  }
+
+  async flagDocumentInsight(id: string, flagged: boolean, reason?: string): Promise<DocumentInsight | undefined> {
+    const updateData: any = { 
+      flagged, 
+      updatedAt: new Date() 
+    };
+    
+    if (flagged && reason) {
+      updateData.flaggedReason = reason;
+      updateData.flaggedAt = new Date();
+    } else if (!flagged) {
+      // When unflagging, clear the reason and timestamp
+      updateData.flaggedReason = null;
+      updateData.flaggedAt = null;
+    }
+
+    const [updatedInsight] = await this.db
+      .update(documentInsights)
+      .set(updateData)
       .where(eq(documentInsights.id, id))
       .returning();
     return updatedInsight;

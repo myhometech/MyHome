@@ -912,7 +912,7 @@ function VehicleEditModal({ vehicle, isOpen, onClose, onSaved }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6 mx-auto">
         <DialogHeader>
           <DialogTitle>Edit Vehicle Notes</DialogTitle>
           <p className="text-sm text-gray-600">
@@ -1083,16 +1083,16 @@ function AssetsTabContent() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 px-4">
+    <div className="w-full max-w-6xl mx-auto space-y-6 px-4 sm:px-6">
       <Card>
-        <CardHeader className="text-center sm:text-left">
-          <div className="flex flex-col items-center sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="text-center sm:text-left">
-              <CardTitle className="flex items-center justify-center sm:justify-start gap-2">
+        <CardHeader className="text-center">
+          <div className="flex flex-col items-center gap-4 max-w-4xl mx-auto">
+            <div className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2">
                 <Car className="h-5 w-5" />
                 Vehicle Assets
               </CardTitle>
-              <p className="text-sm text-gray-600 mt-2 max-w-md mx-auto sm:mx-0">
+              <p className="text-sm text-gray-600 mt-2 max-w-2xl mx-auto">
                 Manage your vehicles, track MOT and tax expiry dates, and get AI-powered compliance insights.
               </p>
             </div>
@@ -1104,19 +1104,19 @@ function AssetsTabContent() {
         </CardHeader>
         <CardContent>
           {!vehicles || vehicles.length === 0 ? (
-            <div className="text-center py-12 max-w-md mx-auto">
+            <div className="text-center py-12 max-w-lg mx-auto">
               <Car className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles added yet</h3>
-              <p className="text-gray-600 mb-6 text-sm sm:text-base">
+              <p className="text-gray-600 mb-6 text-sm sm:text-base px-4">
                 Add your first vehicle to track tax, MOT, and get compliance reminders.
               </p>
-              <Button onClick={handleAddVehicle} className="flex items-center gap-2 mx-auto w-full sm:w-auto">
+              <Button onClick={handleAddVehicle} className="flex items-center gap-2 mx-auto w-full sm:w-auto max-w-xs">
                 <Plus className="h-4 w-4" />
                 Add Your First Vehicle
               </Button>
             </div>
           ) : (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 justify-items-center">
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 place-items-center max-w-5xl mx-auto">
               {vehicles.map((vehicle) => (
                 <VehicleCard 
                   key={vehicle.id} 

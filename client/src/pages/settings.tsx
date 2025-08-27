@@ -90,34 +90,34 @@ function VehicleCard({ vehicle, onViewDetails, onEdit, onDelete }: {
   const motDisplay = getStatusDisplay(vehicle.motStatus, vehicle.motExpiryDate);
 
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onViewDetails(vehicle)}>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-3">
-            <Car className="h-8 w-8 text-blue-600" />
-            <div>
-              <h3 className="font-semibold text-lg">{vehicle.vrn}</h3>
+    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full" onClick={() => onViewDetails(vehicle)}>
+      <CardContent className="p-4 sm:p-6 h-full flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Car className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-base sm:text-lg truncate">{vehicle.vrn}</h3>
               {vehicle.make && (
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm truncate">
                   {vehicle.make} {vehicle.model} {vehicle.yearOfManufacture && `(${vehicle.yearOfManufacture})`}
                 </p>
               )}
             </div>
           </div>
           {vehicle.source === 'dvla' && (
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-xs self-start sm:self-auto flex-shrink-0">
               DVLA Verified
             </Badge>
           )}
         </div>
         
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 flex-1">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <FileText className="h-4 w-4 text-gray-500" />
               <span className="text-sm font-medium">Tax Status</span>
             </div>
-            <p className={`text-sm ${taxDisplay.color}`}>{taxDisplay.text}</p>
+            <p className={`text-xs sm:text-sm ${taxDisplay.color} break-words`}>{taxDisplay.text}</p>
           </div>
           
           <div>
@@ -125,21 +125,21 @@ function VehicleCard({ vehicle, onViewDetails, onEdit, onDelete }: {
               <Calendar className="h-4 w-4 text-gray-500" />
               <span className="text-sm font-medium">MOT Status</span>
             </div>
-            <p className={`text-sm ${motDisplay.color}`}>{motDisplay.text}</p>
+            <p className={`text-xs sm:text-sm ${motDisplay.color} break-words`}>{motDisplay.text}</p>
           </div>
         </div>
         
         {vehicle.notes && (
           <div className="mb-4">
-            <p className="text-sm text-gray-600">{vehicle.notes}</p>
+            <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{vehicle.notes}</p>
           </div>
         )}
         
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 mt-auto">
           <Button 
             variant="outline" 
             size="sm" 
-            className="flex-1"
+            className="flex-1 text-xs sm:text-sm"
             onClick={(e) => {
               e.stopPropagation();
               onViewDetails(vehicle);
@@ -147,31 +147,34 @@ function VehicleCard({ vehicle, onViewDetails, onEdit, onDelete }: {
           >
             View Details
           </Button>
-          {onEdit && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(vehicle);
-              }}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-          )}
-          {onDelete && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(vehicle.id);
-              }}
-              className="text-red-600 hover:text-red-700"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {onEdit && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(vehicle);
+                }}
+                className="px-2"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(vehicle.id);
+                }}
+                className="text-red-600 hover:text-red-700 px-2"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -1075,19 +1078,21 @@ function AssetsTabContent() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Car className="h-5 w-5" />
-              Vehicle Assets
-            </CardTitle>
-            <Button onClick={handleAddVehicle} className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Car className="h-5 w-5" />
+                Vehicle Assets
+              </CardTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                Manage your vehicles, track MOT and tax expiry dates, and get AI-powered compliance insights.
+              </p>
+            </div>
+            <Button onClick={handleAddVehicle} className="flex items-center gap-2 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               Add Vehicle
             </Button>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
-            Manage your vehicles, track MOT and tax expiry dates, and get AI-powered compliance insights.
-          </p>
         </CardHeader>
         <CardContent>
           {!vehicles || vehicles.length === 0 ? (
@@ -1103,7 +1108,7 @@ function AssetsTabContent() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3">
               {vehicles.map((vehicle) => (
                 <VehicleCard 
                   key={vehicle.id} 

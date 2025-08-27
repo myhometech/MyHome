@@ -633,7 +633,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 mx-auto">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-3 sm:p-6 mx-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
@@ -641,7 +641,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 w-full max-w-none mx-auto">
+        <div className="space-y-6 w-full max-w-none mx-auto overflow-hidden">
           {/* Vehicle Header */}
           <div className="flex flex-col gap-3">
             <div>
@@ -666,8 +666,8 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
           </div>
 
           {/* DVLA Data (Read-only) */}
-          <div className="border rounded-lg p-4 bg-gray-50">
-            <div className="flex items-center justify-between mb-4">
+          <div className="border rounded-lg p-3 sm:p-4 bg-gray-50 w-full overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
               <h3 className="font-medium flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 DVLA Vehicle Information (Read-only)
@@ -679,7 +679,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
                   size="sm"
                   onClick={handleRefreshDvla}
                   disabled={refreshDvlaMutation.isPending}
-                  className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm"
+                  className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm shrink-0"
                 >
                   {refreshDvlaMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -702,7 +702,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
               </Alert>
             )}
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+            <div className="grid grid-cols-1 gap-3 text-sm overflow-hidden">
               <div>
                 <Label className="text-gray-600">Make</Label>
                 <p className="font-medium">{vehicle.make || 'No data available'}</p>
@@ -749,7 +749,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
           </div>
 
           {/* Tax and MOT Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 w-full max-w-full overflow-hidden">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -1116,7 +1116,7 @@ function AssetsTabContent() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 place-items-center max-w-5xl mx-auto">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 place-items-center w-full max-w-4xl mx-auto px-2">
               {vehicles.map((vehicle) => (
                 <VehicleCard 
                   key={vehicle.id} 

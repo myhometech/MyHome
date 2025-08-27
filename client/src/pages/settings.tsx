@@ -666,10 +666,10 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
           </div>
 
           {/* DVLA Data (Read-only) */}
-          <div className="border rounded-lg p-3 sm:p-4 bg-gray-50 w-full overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-              <h3 className="font-medium flex items-center gap-2">
-                <FileText className="h-4 w-4" />
+          <div className="border rounded-lg p-4 sm:p-6 bg-white w-full overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                <FileText className="h-5 w-5 text-blue-600" />
                 DVLA Vehicle Information (Read-only)
               </h3>
               {/* TICKET 8: Refresh DVLA Data Button */}
@@ -679,12 +679,12 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
                   size="sm"
                   onClick={handleRefreshDvla}
                   disabled={refreshDvlaMutation.isPending}
-                  className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm shrink-0"
+                  className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm shrink-0 border-blue-200 hover:bg-blue-50"
                 >
                   {refreshDvlaMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                   ) : (
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className="h-4 w-4 text-blue-600" />
                   )}
                   <span className="hidden sm:inline">{refreshDvlaMutation.isPending ? 'Refreshing...' : 'Refresh DVLA Data'}</span>
                   <span className="sm:hidden">{refreshDvlaMutation.isPending ? 'Refreshing...' : 'Refresh'}</span>
@@ -694,7 +694,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 
             {/* TICKET 8: Show refresh errors inline */}
             {refreshError && (
-              <Alert className="mb-4">
+              <Alert className="mb-6">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-red-600">
                   {refreshError}
@@ -702,46 +702,46 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
               </Alert>
             )}
             
-            <div className="grid grid-cols-1 gap-3 text-sm overflow-hidden">
-              <div>
-                <Label className="text-gray-600">Make</Label>
-                <p className="font-medium">{vehicle.make || 'No data available'}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 overflow-hidden">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Make</Label>
+                <p className="text-base font-semibold text-gray-900">{vehicle.make || 'No data available'}</p>
               </div>
-              <div>
-                <Label className="text-gray-600">Model</Label>
-                <p className="font-medium">{vehicle.model || 'No data available'}</p>
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Model</Label>
+                <p className="text-base font-semibold text-gray-900">{vehicle.model || 'No data available'}</p>
               </div>
-              <div>
-                <Label className="text-gray-600">Year of Manufacture</Label>
-                <p className="font-medium">{vehicle.yearOfManufacture || 'No data available'}</p>
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Year of Manufacture</Label>
+                <p className="text-base font-semibold text-gray-900">{vehicle.yearOfManufacture || 'No data available'}</p>
               </div>
-              <div>
-                <Label className="text-gray-600">Fuel Type</Label>
-                <p className="font-medium">{vehicle.fuelType || 'No data available'}</p>
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Fuel Type</Label>
+                <p className="text-base font-semibold text-gray-900">{vehicle.fuelType || 'No data available'}</p>
               </div>
-              <div>
-                <Label className="text-gray-600">Colour</Label>
-                <p className="font-medium">{vehicle.colour || 'No data available'}</p>
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Colour</Label>
+                <p className="text-base font-semibold text-gray-900">{vehicle.colour || 'No data available'}</p>
               </div>
-              <div>
-                <Label className="text-gray-600">Engine Capacity</Label>
-                <p className="font-medium">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Engine Capacity</Label>
+                <p className="text-base font-semibold text-gray-900">
                   {vehicle.engineCapacity ? `${vehicle.engineCapacity}cc` : 'No data available'}
                 </p>
               </div>
-              <div>
-                <Label className="text-gray-600">CO2 Emissions</Label>
-                <p className="font-medium">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">CO2 Emissions</Label>
+                <p className="text-base font-semibold text-gray-900">
                   {vehicle.co2Emissions ? `${vehicle.co2Emissions}g/km` : 'No data available'}
                 </p>
               </div>
-              <div>
-                <Label className="text-gray-600">Euro Status</Label>
-                <p className="font-medium">{vehicle.euroStatus || 'No data available'}</p>
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Euro Status</Label>
+                <p className="text-base font-semibold text-gray-900">{vehicle.euroStatus || 'No data available'}</p>
               </div>
-              <div>
-                <Label className="text-gray-600">Revenue Weight</Label>
-                <p className="font-medium">
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Revenue Weight</Label>
+                <p className="text-base font-semibold text-gray-900">
                   {vehicle.revenueWeight ? `${vehicle.revenueWeight}kg` : 'No data available'}
                 </p>
               </div>

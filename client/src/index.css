@@ -99,9 +99,9 @@
     font-size: 0.75rem;
   }
 
-  /* Force 2-column square grid on mobile */
+  /* Force 2-column square grid on mobile - ONLY for document cards */
   @media (max-width: 640px) {
-    .grid {
+    .grid:has(.mobile-document-card) {
       display: grid !important;
       grid-template-columns: 1fr 1fr !important;
       gap: 0.5rem !important;

@@ -537,11 +537,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                   </Badge>
                 </div>
 
-                {/* AI Document Insights Cards - Use the updated InsightCard component */}
+                {/* AI Document Insights Cards - Show all insights on mobile */}
                 {filteredInsights.length > 0 && (
                   <div>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1">
-                      {filteredInsights.slice(0, 9).map((insight) => (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-1">
+                      {filteredInsights.map((insight) => (
                         <InsightCard
                           key={insight.id}
                           insight={insight}
@@ -549,19 +549,6 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           onDocumentClick={handleDocumentClick}
                         />
                       ))}
-                      {filteredInsights.length > 9 && (
-                        <Card className="border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
-                          <CardContent className="p-4 text-center">
-                            <div className="text-gray-500">
-                              <FileText className="h-6 w-6 mx-auto mb-2" />
-                              <p className="text-sm mb-2">+{filteredInsights.length - 9} more insights</p>
-                              <Button variant="ghost" size="sm" onClick={() => setPriorityFilter('all')}>
-                                View All
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
                     </div>
                   </div>
                 )}

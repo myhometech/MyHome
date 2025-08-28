@@ -558,6 +558,28 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Ensure body can scroll on mobile */
+    min-height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Ensure main containers don't restrict height on mobile */
+  @media (max-width: 768px) {
+    html, body {
+      height: auto !important;
+      min-height: 100vh !important;
+      max-height: none !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+    
+    /* Allow page content to expand */
+    main {
+      min-height: auto !important;
+      height: auto !important;
+      max-height: none !important;
+    }
   }
 }
 

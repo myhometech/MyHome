@@ -633,7 +633,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 mx-auto">
+      <DialogContent className="w-[90vw] max-w-lg max-h-[90vh] overflow-y-auto p-4 mx-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
@@ -641,7 +641,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 w-full max-w-full mx-auto overflow-hidden">
+        <div className="space-y-4 w-full">
           {/* Vehicle Header */}
           <div className="flex flex-col gap-3">
             <div className="overflow-hidden">
@@ -666,104 +666,91 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
           </div>
 
           {/* DVLA Data (Read-only) */}
-          <div className="border rounded-lg p-3 sm:p-4 bg-white w-full">
-            <div className="flex flex-col gap-3 mb-4">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 overflow-hidden">
-                <h3 className="text-base font-semibold flex items-center gap-2 text-gray-900 break-words flex-shrink min-w-0">
-                  <FileText className="h-4 w-4 text-blue-600" />
-                  DVLA Vehicle Information (Read-only)
-                </h3>
-                {/* TICKET 8: Refresh DVLA Data Button */}
-                {vehicle.source === 'dvla' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefreshDvla}
-                    disabled={refreshDvlaMutation.isPending}
-                    className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm shrink-0 min-w-0"
-                  >
-                    {refreshDvlaMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                    <span className="hidden sm:inline">{refreshDvlaMutation.isPending ? 'Refreshing...' : 'Refresh DVLA Data'}</span>
-                    <span className="sm:hidden">{refreshDvlaMutation.isPending ? 'Refreshing...' : 'Refresh'}</span>
-                  </Button>
-                )}
-              </div>
+          <div className="bg-white rounded-lg border p-3">
+            <div className="flex flex-col gap-2 mb-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2 text-center">
+                <FileText className="h-4 w-4 text-blue-600" />
+                DVLA Vehicle Information
+              </h3>
+              {/* TICKET 8: Refresh DVLA Data Button */}
+              {vehicle.source === 'dvla' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshDvla}
+                  disabled={refreshDvlaMutation.isPending}
+                  className="flex items-center justify-center gap-2 w-full text-xs"
+                >
+                  {refreshDvlaMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  {refreshDvlaMutation.isPending ? 'Refreshing...' : 'Refresh Data'}
+                </Button>
+              )}
 
               {/* TICKET 8: Show refresh errors inline */}
               {refreshError && (
                 <Alert className="mb-2">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-red-600">
+                  <AlertDescription className="text-red-600 text-xs">
                     {refreshError}
                   </AlertDescription>
                 </Alert>
               )}
             </div>
             
-            <div className="grid grid-cols-1 gap-3 text-sm">
-              <div className="grid grid-cols-2 gap-x-4">
+            <div className="space-y-3 text-xs">
+              <div className="space-y-2">
                 <div>
-                  <Label className="text-gray-600 text-xs">Make</Label>
+                  <Label className="text-gray-600 block">Make</Label>
                   <p className="font-medium text-gray-900 break-words">{vehicle.make || 'No data available'}</p>
                 </div>
                 <div>
-                  <Label className="text-gray-600 text-xs">Model</Label>
+                  <Label className="text-gray-600 block">Model</Label>
                   <p className="font-medium text-gray-900 break-words">{vehicle.model || 'No data available'}</p>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-x-4">
                 <div>
-                  <Label className="text-gray-600 text-xs">Year of Manufacture</Label>
+                  <Label className="text-gray-600 block">Year</Label>
                   <p className="font-medium text-gray-900">{vehicle.yearOfManufacture || 'No data available'}</p>
                 </div>
                 <div>
-                  <Label className="text-gray-600 text-xs">Fuel Type</Label>
+                  <Label className="text-gray-600 block">Fuel Type</Label>
                   <p className="font-medium text-gray-900 break-words">{vehicle.fuelType || 'No data available'}</p>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-x-4">
                 <div>
-                  <Label className="text-gray-600 text-xs">Colour</Label>
+                  <Label className="text-gray-600 block">Colour</Label>
                   <p className="font-medium text-gray-900 break-words">{vehicle.colour || 'No data available'}</p>
                 </div>
                 <div>
-                  <Label className="text-gray-600 text-xs">Engine Capacity</Label>
+                  <Label className="text-gray-600 block">Engine Capacity</Label>
                   <p className="font-medium text-gray-900">
                     {vehicle.engineCapacity ? `${vehicle.engineCapacity}cc` : 'No data available'}
                   </p>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-x-4">
                 <div>
-                  <Label className="text-gray-600 text-xs">CO2 Emissions</Label>
+                  <Label className="text-gray-600 block">CO2 Emissions</Label>
                   <p className="font-medium text-gray-900">
                     {vehicle.co2Emissions ? `${vehicle.co2Emissions}g/km` : 'No data available'}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-gray-600 text-xs">Euro Status</Label>
+                  <Label className="text-gray-600 block">Euro Status</Label>
                   <p className="font-medium text-gray-900 break-words">{vehicle.euroStatus || 'No data available'}</p>
                 </div>
-              </div>
-              
-              <div>
-                <Label className="text-gray-600 text-xs">Revenue Weight</Label>
-                <p className="font-medium text-gray-900">
-                  {vehicle.revenueWeight ? `${vehicle.revenueWeight}kg` : 'No data available'}
-                </p>
+                <div>
+                  <Label className="text-gray-600 block">Revenue Weight</Label>
+                  <p className="font-medium text-gray-900">
+                    {vehicle.revenueWeight ? `${vehicle.revenueWeight}kg` : 'No data available'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Tax and MOT Status */}
-          <div className="grid grid-cols-1 gap-4 w-full max-w-full overflow-hidden">
+          <div className="space-y-3">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">

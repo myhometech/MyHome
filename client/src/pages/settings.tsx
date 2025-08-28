@@ -633,7 +633,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-3 sm:p-6 mx-auto">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 mx-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
@@ -641,13 +641,13 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 w-full max-w-none mx-auto overflow-hidden">
+        <div className="space-y-6 w-full max-w-full mx-auto overflow-hidden">
           {/* Vehicle Header */}
           <div className="flex flex-col gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">{vehicle.vrn}</h2>
+            <div className="overflow-hidden">
+              <h2 className="text-xl font-semibold break-words">{vehicle.vrn}</h2>
               {vehicle.make && (
-                <p className="text-gray-600 text-sm sm:text-base">
+                <p className="text-gray-600 text-sm sm:text-base break-words overflow-wrap-anywhere">
                   {vehicle.make} {vehicle.model} {vehicle.yearOfManufacture && `(${vehicle.yearOfManufacture})`}
                 </p>
               )}
@@ -668,8 +668,8 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
           {/* DVLA Data (Read-only) */}
           <div className="border rounded-lg p-3 sm:p-4 bg-white w-full">
             <div className="flex flex-col gap-3 mb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <h3 className="text-base font-semibold flex items-center gap-2 text-gray-900">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 overflow-hidden">
+                <h3 className="text-base font-semibold flex items-center gap-2 text-gray-900 break-words flex-shrink min-w-0">
                   <FileText className="h-4 w-4 text-blue-600" />
                   DVLA Vehicle Information (Read-only)
                 </h3>
@@ -680,7 +680,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
                     size="sm"
                     onClick={handleRefreshDvla}
                     disabled={refreshDvlaMutation.isPending}
-                    className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm shrink-0"
+                    className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm shrink-0 min-w-0"
                   >
                     {refreshDvlaMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

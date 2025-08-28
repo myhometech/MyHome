@@ -631,15 +631,29 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
   const taxDisplay = getStatusDisplay(vehicle.taxStatus, vehicle.taxDueDate);
   const motDisplay = getStatusDisplay(vehicle.motStatus, vehicle.motExpiryDate);
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="vehicle-detail-modal w-[85vw] max-w-md max-h-[85vh] overflow-y-auto p-4">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <div 
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg w-[85vw] max-w-md max-h-[85vh] overflow-y-auto p-4 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
             <Car className="h-5 w-5" />
             Vehicle Details - {vehicle.vrn}
-          </DialogTitle>
-        </DialogHeader>
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
         <div className="space-y-4 w-full">
           {/* Vehicle Header */}
@@ -852,8 +866,8 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 

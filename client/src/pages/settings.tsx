@@ -1131,7 +1131,7 @@ function AssetsTabContent() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 place-items-center w-full max-w-4xl mx-auto px-2">
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 w-full max-w-4xl mx-auto px-2">
               {vehicles.map((vehicle) => (
                 <VehicleCard 
                   key={vehicle.id} 

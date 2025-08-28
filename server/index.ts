@@ -327,6 +327,7 @@ app.use((req, res, next) => {
     console.log('🚀 REPLIT_DEPLOYMENT:', process.env.REPLIT_DEPLOYMENT);
   }
 
+  // Simple server start with better error handling
   server.listen({
     port,
     host,
@@ -338,6 +339,14 @@ app.use((req, res, next) => {
     if (isDeployment) {
       console.log('✅ DEPLOYMENT: Server successfully started and listening');
       console.log('✅ DEPLOYMENT: Routes should now be accessible');
+    }
+  }).on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`❌ Port ${port} is already in use. Killing existing processes and retrying...`);
+      process.exit(1); // Let the workflow restart handle this
+    } else {
+      console.error('❌ Server failed to start:', err);
+      process.exit(1);
     }
   });
 })();

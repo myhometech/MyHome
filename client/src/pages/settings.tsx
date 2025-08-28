@@ -404,9 +404,9 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
           {/* DVLA Data Display (Read-only) */}
           {dvlaData && (
             <div className="space-y-4">
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <h3 className="font-medium mb-3 flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
+              <div className="border rounded-lg p-4 bg-white">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900">
+                  <FileText className="h-5 w-5 text-blue-600" />
                   DVLA Vehicle Information (Read-only)
                 </h3>
                 

@@ -633,7 +633,17 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[85vw] max-w-md max-h-[85vh] overflow-y-auto p-4">
+      <DialogContent 
+        className="w-[85vw] max-w-md max-h-[85vh] overflow-y-auto p-4"
+        style={{
+          position: 'fixed',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          margin: '0',
+          zIndex: 50
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />

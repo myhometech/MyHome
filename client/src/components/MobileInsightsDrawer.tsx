@@ -197,6 +197,11 @@ export function MobileInsightsDrawer({
           "
           style={{
             paddingBottom: 'max(24px, calc(24px + env(safe-area-inset-bottom)))',
+            minHeight: '0',
+            height: 'auto',
+            maxHeight: 'none',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain'
           }}
         >
           <div className="

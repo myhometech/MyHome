@@ -488,16 +488,30 @@
   opacity: 0.5;
 }
 
-/* Touch improvements for mobile insights */
+/* Touch improvements for mobile insights - ENHANCED FOR SCROLLING */
 @media (max-width: 640px) {
   .mobile-insights-drawer {
-    touch-action: manipulation;
+    touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
   }
 
   .mobile-insights-trigger {
     -webkit-tap-highlight-color: transparent;
     user-select: none;
+  }
+  
+  /* Ensure insights content can scroll */
+  .mobile-insights-scroll {
+    height: auto !important;
+    max-height: calc(80vh - 120px) !important;
+    min-height: 200px !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }
 

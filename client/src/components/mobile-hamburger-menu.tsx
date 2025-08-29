@@ -56,18 +56,17 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
 
   const menuItems = [
     {
+      icon: MessageCircle,
+      label: "💬 Chat Assistant", 
+      href: "/chat",
+      badge: null,
+      priority: true // Always show for now
+    },
+    {
       icon: Settings,
       label: "Settings",
       href: "/settings",
-      badge: null,
-      priority: true // Mark as high priority for better positioning
-    },
-    {
-      icon: MessageCircle,
-      label: "Chat Assistant", 
-      href: "/chat",
-      badge: null,
-      feature: "CHAT_ENABLED"
+      badge: null
     },
     {
       icon: Bell,
@@ -145,11 +144,6 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
           {/* Main Menu Items */}
           <nav className="flex-1 p-3 space-y-1">
             {menuItems.map((item) => {
-              // Skip feature-gated items if user doesn't have access
-              if (item.feature && !hasFeature(item.feature as any)) {
-                return null;
-              }
-
               return (
                 <Link key={item.href} href={item.href} onClick={handleClose}>
                   <motion.div

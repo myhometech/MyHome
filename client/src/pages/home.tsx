@@ -234,7 +234,7 @@ function QuickActionCards() {
     {
       title: "Chat Assistant",
       description: "Ask questions about your documents",
-      icon: Brain,
+      icon: FolderOpen,
       color: "purple",
       action: "chat",
       feature: "CHAT_ENABLED", 
@@ -624,6 +624,29 @@ export default function Home() {
               className="pl-10"
             />
           </div>
+        </div>
+
+        {/* Chat Assistant Prominent Section - Using House Icon */}
+        <div className="mb-8">
+          <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 hover:shadow-lg transition-all duration-200 cursor-pointer" onClick={() => window.location.href = '/chat'}>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-full bg-purple-100">
+                  <FolderOpen className="h-8 w-8 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">💬 Chat with MyHome Assistant</h3>
+                  <p className="text-gray-600">Ask questions about your uploaded documents and get instant answers</p>
+                </div>
+                <div className="hidden sm:block">
+                  <Button className="bg-purple-600 hover:bg-purple-700">
+                    Open Chat
+                    <FolderOpen className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Quick Action Cards */}

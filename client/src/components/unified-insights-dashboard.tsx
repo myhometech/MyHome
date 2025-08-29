@@ -93,7 +93,7 @@ function CompactInsightButton({ insight, onStatusUpdate }: CompactInsightButtonP
     switch (status) {
       case 'resolved': return 'bg-green-500';
       case 'dismissed': return 'bg-gray-500';
-      default: return 'bg-blue-500';
+      default: return 'bg-purple-500';
     }
   };
 
@@ -478,7 +478,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
             
             {isLoading || manualEventsLoading ? (
               <div className="text-center py-4 sm:py-6">
-                <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 animate-spin mx-auto mb-2 sm:mb-4 text-blue-500" />
+                <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 animate-spin mx-auto mb-2 sm:mb-4 text-purple-500" />
                 <p className="text-sm">Loading insights...</p>
               </div>
             ) : (
@@ -620,12 +620,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                {selectedInsight.type === 'summary' && <Brain className="h-4 w-4 text-blue-600" />}
+                {selectedInsight.type === 'summary' && <Brain className="h-4 w-4 text-purple-600" />}
                 {selectedInsight.type === 'contacts' && <Users className="h-4 w-4 text-green-600" />}
                 {selectedInsight.type === 'financial_info' && <DollarSign className="h-4 w-4 text-green-600" />}
                 {selectedInsight.type === 'compliance' && <Shield className="h-4 w-4 text-orange-600" />}
                 {selectedInsight.type === 'key_dates' && <Calendar className="h-4 w-4 text-purple-600" />}
-                {selectedInsight.type === 'action_items' && <CheckCircle className="h-4 w-4 text-blue-600" />}
+                {selectedInsight.type === 'action_items' && <CheckCircle className="h-4 w-4 text-purple-600" />}
                 {selectedInsight.type.startsWith('vehicle:') && <FileText className="h-4 w-4 text-red-600" />}
                 {selectedInsight.title}
               </DialogTitle>

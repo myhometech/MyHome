@@ -597,7 +597,7 @@ export default function UnifiedUploadButton({
         console.error(`❌ Failed to upload ${item.file.name}: ${response.statusText}`);
       }
     } catch (error) {
-      console.error(`❌ Error uploading file: ${error.message}`);
+      console.error(`❌ Error uploading file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

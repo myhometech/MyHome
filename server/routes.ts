@@ -303,6 +303,42 @@ const requireAdmin = async (req: any, res: any, next: any) => {
   }
 };
 
+// Middleware to check if chat is enabled for the user
+const requireChatEnabled = async (req: any, res: any, next: any) => {
+  try {
+    const userId = getUserId(req);
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const { chatConfigService } = await import('./chatConfig.js');
+    const context = {
+      userId,
+      userTier: user.subscriptionTier as 'free' | 'beginner' | 'pro' | 'duo',
+      sessionId: req.sessionID,
+      userAgent: req.get('User-Agent'),
+      ipAddress: req.ip,
+    };
+
+    const isChatEnabled = await chatConfigService.isChatEnabled(context);
+    
+    if (!isChatEnabled) {
+      console.log(`❌ [CHAT CHECK] Chat access denied for user: ${user.email} (tier: ${user.subscriptionTier})`);
+      return res.status(403).json({ 
+        error: "Chat feature not available", 
+        message: "Chat system is not enabled for your account" 
+      });
+    }
+
+    console.log(`✅ [CHAT CHECK] Chat access granted for user: ${user.email}`);
+    next();
+  } catch (error) {
+    console.error('❌ [CHAT CHECK] Chat middleware error:', error);
+    res.status(500).json({ error: "Authorization error" });
+  }
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup error tracking middleware
   app.use(sentryRequestHandler());
@@ -3873,6 +3909,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error checking feature flag:", error);
       res.status(500).json({ message: "Failed to check feature", error: error.message });
+    }
+  });
+
+  // Chat configuration endpoint
+  app.get('/api/config', requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { chatConfigService } = await import('./chatConfig.js');
+      const context = {
+        userId,
+        userTier: user.subscriptionTier as 'free' | 'beginner' | 'pro' | 'duo',
+        sessionId: req.sessionID,
+        userAgent: req.get('User-Agent'),
+        ipAddress: req.ip,
+      };
+
+      const chatConfig = await chatConfigService.getChatConfig(context);
+
+      res.json({
+        chat: {
+          enabled: chatConfig.enabled,
+          showFilters: chatConfig.showFilters,
+          numericVerifier: chatConfig.numericVerifier,
+          maxAnswerTokens: chatConfig.maxAnswerTokens,
+          maxContextChars: chatConfig.maxContextChars,
+        }
+      });
+    } catch (error: any) {
+      console.error("Error getting config:", error);
+      res.status(500).json({ message: "Failed to get configuration", error: error.message });
     }
   });
 

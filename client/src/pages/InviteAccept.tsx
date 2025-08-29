@@ -193,7 +193,7 @@ export function InviteAccept() {
       <Card className="w-full max-w-md border-blue-200 shadow-lg">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-            <Home className="h-8 w-8 text-blue-600" />
+            <Home className="h-8 w-8 text-purple-600" />
           </div>
           <CardTitle className="text-2xl font-bold text-gray-900">Join Household</CardTitle>
           <CardDescription className="text-gray-600">

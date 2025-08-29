@@ -16,7 +16,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <Home className="h-8 w-8 text-primary" />
+              <Home className="h-8 w-8 text-purple-600" />
               <h1 className="text-2xl font-bold text-slate-900">MyHome</h1>
             </div>
             <div className="flex items-center space-x-4">

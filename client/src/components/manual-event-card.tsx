@@ -245,7 +245,7 @@ export function ManualEventCard({
           {showAssetInfo && linkedAsset && (
             <div className="flex items-center gap-2 mb-3 p-2 bg-white/80 rounded border">
               {linkedAsset.type === 'house' ? (
-                <Home className="h-4 w-4 text-blue-600" />
+                <Home className="h-4 w-4 text-purple-600" />
               ) : (
                 <Car className="h-4 w-4 text-green-600" />
               )}

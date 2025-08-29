@@ -102,7 +102,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
 
             <Link href="/">
               <div className="flex items-center space-x-1 sm:space-x-2 cursor-pointer hover:opacity-80 transition-opacity">
-                <Home className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                <Home className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
                 <h1 className="text-lg sm:text-xl font-bold text-slate-900">MyHome</h1>
               </div>
             </Link>

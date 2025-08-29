@@ -23,7 +23,7 @@ export default function BlogPost() {
             <div className="flex justify-between items-center h-16">
               <Link href="/">
                 <div className="flex items-center space-x-2">
-                  <Home className="h-8 w-8 text-primary" />
+                  <Home className="h-8 w-8 text-purple-600" />
                   <h1 className="text-2xl font-bold text-slate-900">MyHome</h1>
                 </div>
               </Link>
@@ -48,7 +48,7 @@ export default function BlogPost() {
             <div className="flex justify-between items-center h-16">
               <Link href="/">
                 <div className="flex items-center space-x-2">
-                  <Home className="h-8 w-8 text-primary" />
+                  <Home className="h-8 w-8 text-purple-600" />
                   <h1 className="text-2xl font-bold text-slate-900">MyHome</h1>
                 </div>
               </Link>

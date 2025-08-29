@@ -55,10 +55,19 @@ export interface ProcessingResult {
 export class ImageProcessor {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private ready: boolean = true; // Canvas-based processing is always ready
 
   constructor() {
     this.canvas = document.createElement('canvas');
     this.ctx = this.canvas.getContext('2d')!;
+  }
+
+  /**
+   * Check if image processing is ready
+   * For canvas-based processing, this is always true
+   */
+  isOpenCVReady(): boolean {
+    return this.ready && this.canvas && this.ctx;
   }
 
   async processImage(

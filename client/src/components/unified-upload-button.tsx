@@ -831,7 +831,7 @@ export default function UnifiedUploadButton({
 
       {/* Fully controlled upload dialog */}
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto w-[calc(100vw-2rem)] sm:w-full">
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto mx-4 sm:mx-auto w-[calc(100vw-2rem)] sm:w-full">
             <DialogHeader>
               <DialogTitle>Upload Documents</DialogTitle>
               <DialogDescription>

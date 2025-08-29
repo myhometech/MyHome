@@ -3769,6 +3769,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // LLM Adapter Abstraction - Internal endpoint for chat generation
+  app.post('/internal/llm/generate', async (req: Request, res: Response) => {
+    try {
+      // Import LLM adapter factory
+      const { LLMProviderFactory } = await import('./services/llmProviderFactory.js');
+      const { LLMGenerateRequestSchema } = await import('./services/llmAdapter.js');
+      
+      // Validate request body
+      const validatedRequest = LLMGenerateRequestSchema.parse(req.body);
+      
+      // Get LLM adapter instance
+      const llmAdapter = LLMProviderFactory.getInstance();
+      
+      // Generate response
+      const startTime = Date.now();
+      const response = await llmAdapter.generate(validatedRequest);
+      const totalLatencyMs = Date.now() - startTime;
+      
+      console.log(`[INTERNAL-LLM] Generation completed: provider=${llmAdapter.getProviderName()}, latency=${totalLatencyMs}ms`);
+      
+      // Return response in the exact format specified
+      res.json({
+        text: response.text,
+        usage: {
+          prompt_tokens: response.usage.prompt_tokens,
+          completion_tokens: response.usage.completion_tokens
+        },
+        latencyMs: totalLatencyMs
+      });
+      
+    } catch (error) {
+      const err = error as Error;
+      console.error('[INTERNAL-LLM] Generation failed:', err.message);
+      
+      // Return structured error response
+      if (err.message.includes('Validation')) {
+        return res.status(400).json({ 
+          error: 'Invalid request format', 
+          message: err.message 
+        });
+      }
+      
+      if (err.message.includes('Circuit breaker')) {
+        return res.status(503).json({ 
+          error: 'Service temporarily unavailable', 
+          message: 'LLM service is temporarily unavailable due to repeated failures' 
+        });
+      }
+      
+      res.status(500).json({ 
+        error: 'Internal server error', 
+        message: 'Failed to generate LLM response' 
+      });
+    }
+  });
+
   // Enhanced useFeatures hook endpoint - returns batch evaluation results
   app.get("/api/feature-flags/batch-evaluation", requireAuth, async (req, res) => {
     try {

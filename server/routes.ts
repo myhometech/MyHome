@@ -7,7 +7,7 @@ import { AuditLogger } from "./auditLogger";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema, createVehicleSchema, updateVehicleUserFieldsSchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema, createVehicleSchema, updateVehicleUserFieldsSchema, searchSnippetsRequestSchema } from "@shared/schema";
 import { EmailUploadLogger } from './emailUploadLogger';
 import { dvlaLookupService } from './dvlaLookupService';
 import { vehicleInsightService } from './vehicleInsightService';
@@ -4170,7 +4170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const docIdsTouched = validatedData.citations ? validatedData.citations.map(c => c.docId) : [];
         
         await storage.logDocumentEvent({
-          documentId: null, // Chat events don't have a specific document
+          documentId: undefined, // Chat events don't have a specific document
           userId: messageUserId || userId, // Use message user or requesting user
           householdId: user.subscriptionTier === 'duo' && tenantId !== userId ? tenantId : null,
           action: eventAction,
@@ -4198,6 +4198,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid request data", details: error.errors });
       }
       res.status(500).json({ error: "Failed to create message" });
+    }
+  });
+
+  // Search endpoints
+  app.post('/api/search/snippets', requireAuth, requireChatEnabled, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      // Get tenant ID for RBAC scoping
+      const tenantId = user.subscriptionTier === 'duo' ? 
+        (await storage.getUserHouseholdMembership(userId))?.householdId || userId : 
+        userId;
+
+      // Validate request body
+      const validatedData = searchSnippetsRequestSchema.parse(req.body);
+
+      // Perform search with tenant scoping
+      const searchResults = await storage.searchDocumentSnippets(validatedData, tenantId);
+
+      // Log search query for audit tracking
+      try {
+        const docIds = searchResults.results.map(r => parseInt(r.docId)).filter(id => !isNaN(id));
+        
+        await storage.logDocumentEvent({
+          documentId: undefined, // Search queries don't target a specific document
+          userId,
+          householdId: user.subscriptionTier === 'duo' && tenantId !== userId ? tenantId : null,
+          action: 'search_query',
+          metadata: {
+            query: validatedData.query,
+            filters: validatedData.filters,
+            resultCount: searchResults.results.length,
+            docIdsTouched: docIds.slice(0, 10), // Cap logged doc IDs to prevent large payloads
+          }
+        });
+      } catch (auditError) {
+        console.error('❌ [SEARCH] Failed to log search audit event:', auditError);
+        // Don't fail the request if audit logging fails
+      }
+
+      console.log(`🔍 [SEARCH] Query "${validatedData.query}" for user ${user.email} returned ${searchResults.results.length} results`);
+      
+      res.json(searchResults);
+    } catch (error: any) {
+      console.error("Error in search endpoint:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
+      }
+      res.status(500).json({ error: "Search failed" });
+    }
+  });
+
+  // Document text backfill endpoints
+  app.post('/api/admin/backfill-document-text', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { documentTextBackfillService } = await import('./documentTextBackfill');
+      const batchSize = req.body.batchSize || 10;
+      
+      const result = await documentTextBackfillService.backfillDocumentText(batchSize);
+      
+      res.json({
+        message: 'Document text backfill completed',
+        ...result
+      });
+    } catch (error: any) {
+      console.error("Error in document text backfill:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/admin/backfill-status', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { documentTextBackfillService } = await import('./documentTextBackfill');
+      const status = await documentTextBackfillService.getBackfillStatus();
+      
+      res.json(status);
+    } catch (error: any) {
+      console.error("Error getting backfill status:", error);
+      res.status(500).json({ error: "Failed to get backfill status" });
     }
   });
 

@@ -2,13 +2,15 @@ import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http';
 import { 
   users, categories, documents, emailForwards, households, userHouseholdMembership, pendingInvites,
-  documentInsights, vehicles, documentEvents, userAssets, conversations, messages,
+  documentInsights, vehicles, documentEvents, userAssets, conversations, messages, documentText,
   type User, type InsertUser, type Category, type InsertCategory, 
   type Document, type InsertDocument, type EmailForward, type InsertEmailForward, 
   type Household, type InsertHousehold, type DocumentInsight, type InsertDocumentInsight,
   type Vehicle, type InsertVehicle, type PendingInvite, type InsertPendingInvite,
   type DocumentEvent, type InsertDocumentEvent, type UserAsset, type InsertUserAsset,
-  type Conversation, type InsertConversation, type Message, type InsertMessage
+  type Conversation, type InsertConversation, type Message, type InsertMessage,
+  type DocumentText, type InsertDocumentText, type SearchSnippetsRequest, type SearchSnippetsResponse,
+  type SearchResult, type SearchSnippet
 } from '../shared/schema.js';
 
 export interface IStorage {
@@ -125,6 +127,13 @@ export interface IStorage {
   archiveConversation(id: string, tenantId: string): Promise<Conversation | undefined>;
   createMessage(message: InsertMessage): Promise<Message>;
   getConversationMessages(conversationId: string, tenantId: string, limit?: number, cursor?: string): Promise<Message[]>;
+
+  // Document search text operations
+  createDocumentText(documentText: InsertDocumentText): Promise<DocumentText>;
+  getDocumentText(docId: number): Promise<DocumentText | undefined>;
+  updateDocumentText(docId: number, updates: Partial<InsertDocumentText>): Promise<DocumentText | undefined>;
+  deleteDocumentText(docId: number): Promise<void>;
+  searchDocumentSnippets(request: SearchSnippetsRequest, tenantId: string): Promise<SearchSnippetsResponse>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -1107,6 +1116,261 @@ export class PostgresStorage implements IStorage {
     return await query
       .orderBy(messages.createdAt) // ASC for conversation messages
       .limit(limit);
+  }
+
+  // Document search text operations
+  async createDocumentText(documentTextData: InsertDocumentText): Promise<DocumentText> {
+    const [newDocumentText] = await this.db.insert(documentText).values(documentTextData).returning();
+    return newDocumentText;
+  }
+
+  async getDocumentText(docId: number): Promise<DocumentText | undefined> {
+    const [result] = await this.db.select().from(documentText).where(eq(documentText.docId, docId));
+    return result;
+  }
+
+  async updateDocumentText(docId: number, updates: Partial<InsertDocumentText>): Promise<DocumentText | undefined> {
+    const [updatedDocumentText] = await this.db
+      .update(documentText)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(documentText.docId, docId))
+      .returning();
+    return updatedDocumentText;
+  }
+
+  async deleteDocumentText(docId: number): Promise<void> {
+    await this.db.delete(documentText).where(eq(documentText.docId, docId));
+  }
+
+  async searchDocumentSnippets(request: SearchSnippetsRequest, tenantId: string): Promise<SearchSnippetsResponse> {
+    try {
+      const {
+        query,
+        filters = {},
+        limit = 20,
+        snippetLimit = 3,
+        snippetCharWindow = 280
+      } = request;
+
+      // Build the full-text search query
+      const searchQuery = sql`plainto_tsquery('english', ${query})`;
+      
+      // Base query with full-text search
+      let dbQuery = this.db
+        .select({
+          docId: documentText.docId,
+          text: documentText.text,
+          pageBreaks: documentText.pageBreaks,
+          title: documents.name,
+          score: sql<number>`ts_rank_cd(${documentText.tsv}, ${searchQuery})`,
+          // Document metadata for filtering
+          tags: documents.tags,
+          uploadedAt: documents.uploadedAt,
+          extractedText: documents.extractedText,
+          emailContext: documents.emailContext,
+          expiryDate: documents.expiryDate,
+        })
+        .from(documentText)
+        .innerJoin(documents, eq(documentText.docId, documents.id))
+        .where(and(
+          eq(documentText.tenantId, tenantId),
+          sql`${documentText.tsv} @@ ${searchQuery}`
+        ));
+
+      // Apply filters
+      const conditions: any[] = [
+        eq(documentText.tenantId, tenantId),
+        sql`${documentText.tsv} @@ ${searchQuery}`
+      ];
+
+      if (filters.docType && filters.docType.length > 0) {
+        // Filter by document tags (docType is determined by AI categorization stored in tags)
+        conditions.push(sql`EXISTS (SELECT 1 FROM unnest(COALESCE(${documents.tags}, ARRAY[]::text[])) AS tag WHERE tag = ANY(${filters.docType}))`);
+      }
+
+      if (filters.provider) {
+        // Search for provider in document text or email context
+        conditions.push(or(
+          ilike(documentText.text, `%${filters.provider}%`),
+          sql`${documents.emailContext}->>'from' ILIKE ${`%${filters.provider}%`}`
+        ));
+      }
+
+      if (filters.dateFrom || filters.dateTo) {
+        // Filter by expiry date (invoice date) or upload date as fallback
+        const dateConditions: any[] = [];
+        
+        if (filters.dateFrom) {
+          dateConditions.push(sql`COALESCE(${documents.expiryDate}, ${documents.uploadedAt}) >= ${filters.dateFrom}`);
+        }
+        
+        if (filters.dateTo) {
+          dateConditions.push(sql`COALESCE(${documents.expiryDate}, ${documents.uploadedAt}) <= ${filters.dateTo}`);
+        }
+        
+        conditions.push(and(...dateConditions));
+      }
+
+      if (filters.createdByUserId) {
+        conditions.push(eq(documents.userId, filters.createdByUserId));
+      }
+
+      // Apply all conditions
+      if (conditions.length > 2) { // More than the base conditions
+        dbQuery = dbQuery.where(and(...conditions));
+      }
+
+      // Execute query with ranking and limit
+      const searchResults = await dbQuery
+        .orderBy(sql`ts_rank_cd(${documentText.tsv}, ${searchQuery}) DESC`, desc(documents.uploadedAt))
+        .limit(limit);
+
+      // Generate snippets for each result
+      const results: SearchResult[] = [];
+      
+      for (const result of searchResults) {
+        const snippets = this.extractSnippets(
+          result.text,
+          query,
+          result.pageBreaks,
+          snippetLimit,
+          snippetCharWindow
+        );
+
+        // Extract metadata
+        const metadata = {
+          docType: result.tags?.find(tag => ['bill', 'invoice', 'statement', 'receipt', 'contract', 'insurance', 'tax'].includes(tag.toLowerCase())),
+          provider: this.extractProvider(result.text, result.emailContext),
+          invoiceDate: result.expiryDate?.toISOString().split('T')[0],
+        };
+
+        results.push({
+          docId: result.docId.toString(),
+          title: result.title,
+          score: Math.min(result.score, 1), // Normalize score to 0-1 range
+          snippets,
+          metadata: Object.keys(metadata).some(key => metadata[key as keyof typeof metadata]) ? metadata : undefined
+        });
+      }
+
+      return {
+        results,
+        totalResults: results.length,
+        hasMore: results.length === limit,
+      };
+
+    } catch (error) {
+      console.error('Error in searchDocumentSnippets:', error);
+      throw new Error('Failed to search document snippets');
+    }
+  }
+
+  private extractSnippets(
+    text: string,
+    query: string,
+    pageBreaks: number[],
+    snippetLimit: number,
+    snippetCharWindow: number
+  ): SearchSnippet[] {
+    const snippets: SearchSnippet[] = [];
+    const queryWords = query.toLowerCase().split(/\s+/);
+    const textLower = text.toLowerCase();
+
+    // Find all match positions
+    const matches: { start: number; end: number }[] = [];
+    
+    for (const word of queryWords) {
+      let index = 0;
+      while (index < textLower.length) {
+        const found = textLower.indexOf(word, index);
+        if (found === -1) break;
+        matches.push({ start: found, end: found + word.length });
+        index = found + 1;
+      }
+    }
+
+    // Sort matches by position
+    matches.sort((a, b) => a.start - b.start);
+
+    // Create snippets around matches
+    const usedRanges = new Set<string>();
+    
+    for (const match of matches.slice(0, snippetLimit)) {
+      const center = Math.floor((match.start + match.end) / 2);
+      const snippetStart = Math.max(0, center - Math.floor(snippetCharWindow / 2));
+      const snippetEnd = Math.min(text.length, snippetStart + snippetCharWindow);
+      
+      // Avoid overlapping snippets
+      const rangeKey = `${snippetStart}-${snippetEnd}`;
+      if (usedRanges.has(rangeKey)) continue;
+      usedRanges.add(rangeKey);
+
+      // Find page number using pageBreaks
+      const page = this.findPageNumber(snippetStart, pageBreaks);
+      
+      // Extract snippet text and clean it up
+      let snippetText = text.slice(snippetStart, snippetEnd);
+      if (snippetStart > 0) snippetText = '...' + snippetText;
+      if (snippetEnd < text.length) snippetText = snippetText + '...';
+
+      snippets.push({
+        text: snippetText.trim(),
+        start: snippetStart,
+        end: snippetEnd,
+        page
+      });
+
+      if (snippets.length >= snippetLimit) break;
+    }
+
+    return snippets;
+  }
+
+  private findPageNumber(charOffset: number, pageBreaks: number[]): number {
+    if (!pageBreaks.length) return 1;
+    
+    for (let i = 0; i < pageBreaks.length; i++) {
+      if (charOffset < pageBreaks[i]) {
+        return Math.max(1, i); // Pages are 1-indexed
+      }
+    }
+    
+    return pageBreaks.length; // Last page
+  }
+
+  private extractProvider(text: string, emailContext: any): string | undefined {
+    // Try to extract from email context first
+    if (emailContext?.from) {
+      const fromField = emailContext.from.toLowerCase();
+      const commonProviders = ['o2', 'vodafone', 'ee', 'three', 'bt', 'virgin', 'sky', 'council', 'hmrc', 'dvla'];
+      
+      for (const provider of commonProviders) {
+        if (fromField.includes(provider)) {
+          return provider.toUpperCase();
+        }
+      }
+    }
+
+    // Fallback to text search for provider names
+    const textLower = text.toLowerCase();
+    const providerPatterns = [
+      /\b(o2|vodafone|ee|three)\b/i,
+      /\b(british telecom|bt)\b/i,
+      /\b(virgin media|virgin)\b/i,
+      /\b(sky)\b/i,
+      /\b(council tax|council)\b/i,
+      /\b(hmrc|tax office)\b/i,
+      /\b(dvla)\b/i,
+    ];
+
+    for (const pattern of providerPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        return match[1].toUpperCase();
+      }
+    }
+
+    return undefined;
   }
 
   /**

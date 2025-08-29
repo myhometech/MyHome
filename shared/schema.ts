@@ -796,5 +796,78 @@ export const insertMessageSchema = createInsertSchema(messages, {
   createdAt: true,
 });
 
+// Document search text table for full-text search
+export const documentText = pgTable("document_text", {
+  docId: integer("doc_id").primaryKey().notNull().references(() => documents.id, { onDelete: "cascade" }),
+  tenantId: varchar("tenant_id").notNull(), // Maps to userId for individual users, householdId for Duo users
+  text: text("text").notNull(), // concatenated plain text (pages joined with delimiters)
+  pageBreaks: integer("page_breaks").array().notNull(), // cumulative char offsets where each page starts
+  tsv: text("tsv"), // generated column for FTS - using text type as tsvector isn't directly supported
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("ix_document_text_tenant").on(table.tenantId, table.docId),
+  // GIN index for full-text search will be created manually via SQL
+]);
+
+// Document search schema types
+export type DocumentText = typeof documentText.$inferSelect;
+export type InsertDocumentText = z.infer<typeof insertDocumentTextSchema>;
+
+// Document search validation schemas
+export const insertDocumentTextSchema = createInsertSchema(documentText, {
+  text: z.string().min(1, "Text content is required"),
+  pageBreaks: z.array(z.number().int().min(0)).min(1, "At least one page break is required"),
+}).omit({
+  tsv: true, // Generated column
+  updatedAt: true,
+});
+
+// Search request/response schemas
+export const searchSnippetsRequestSchema = z.object({
+  query: z.string().min(1, "Search query is required"),
+  filters: z.object({
+    docType: z.array(z.string()).optional(),
+    provider: z.string().optional(),
+    dateFrom: z.string().datetime().optional(), 
+    dateTo: z.string().datetime().optional(),
+    createdByUserId: z.string().nullable().optional(),
+  }).optional(),
+  limit: z.number().int().min(1).max(50).default(20),
+  snippetLimit: z.number().int().min(1).max(10).default(3),
+  snippetCharWindow: z.number().int().min(50).max(500).default(280),
+});
+
+export type SearchSnippetsRequest = z.infer<typeof searchSnippetsRequestSchema>;
+
+export const searchSnippetSchema = z.object({
+  text: z.string(),
+  start: z.number().int(),
+  end: z.number().int(),
+  page: z.number().int(),
+});
+
+export const searchResultSchema = z.object({
+  docId: z.string(),
+  title: z.string(),
+  score: z.number(),
+  snippets: z.array(searchSnippetSchema),
+  metadata: z.object({
+    docType: z.string().optional(),
+    provider: z.string().optional(),
+    invoiceDate: z.string().optional(),
+  }).optional(),
+});
+
+export const searchSnippetsResponseSchema = z.object({
+  results: z.array(searchResultSchema),
+  totalResults: z.number().int(),
+  hasMore: z.boolean().optional(),
+  cursor: z.string().optional(),
+});
+
+export type SearchSnippet = z.infer<typeof searchSnippetSchema>;
+export type SearchResult = z.infer<typeof searchResultSchema>;
+export type SearchSnippetsResponse = z.infer<typeof searchSnippetsResponseSchema>;
+
 // Re-export feature flag schemas
 export * from "./featureFlagSchema";

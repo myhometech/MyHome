@@ -5784,6 +5784,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ====================
+  // CONVERSATION MANAGEMENT
+  // ====================
+  
+  // GET /api/conversations - List user's conversations
+  app.get("/api/conversations", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { tenantId } = req;
+      
+      const conversations = await storage.getConversations(tenantId);
+      res.json(conversations);
+      
+    } catch (error: any) {
+      console.error(`❌ [CONVERSATIONS] List error:`, error);
+      res.status(500).json({ message: "Failed to fetch conversations" });
+    }
+  });
+
+  // POST /api/conversations - Create new conversation
+  app.post("/api/conversations", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { tenantId } = req;
+      const { title } = req.body;
+      
+      if (!title) {
+        return res.status(400).json({ message: "Title is required" });
+      }
+      
+      const conversation = await storage.createConversation({
+        tenantId,
+        userId,
+        title: String(title).slice(0, 100), // Limit title length
+      });
+      
+      res.json(conversation);
+      
+    } catch (error: any) {
+      console.error(`❌ [CONVERSATIONS] Create error:`, error);
+      res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  // GET /api/conversations/:id/messages - Get messages in a conversation
+  app.get("/api/conversations/:id/messages", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { tenantId } = req;
+      const conversationId = req.params.id;
+      
+      // Verify user has access to this conversation
+      const conversation = await storage.getConversation(conversationId, tenantId);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      
+      const messages = await storage.getMessages(conversationId, tenantId);
+      res.json(messages);
+      
+    } catch (error: any) {
+      console.error(`❌ [CONVERSATIONS] Messages error:`, error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  // ====================
   // CHAT ORCHESTRATION
   // ====================
   

@@ -12,10 +12,12 @@ import {
   Calendar,
   BarChart3,
   Settings,
-  User
+  User,
+  MessageCircle
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useFeatures } from "@/hooks/useFeatures";
 import { motion, PanInfo } from "framer-motion";
 
 interface MobileHamburgerMenuProps {
@@ -25,6 +27,7 @@ interface MobileHamburgerMenuProps {
 export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
+  const { hasFeature } = useFeatures();
 
   const handleClose = () => setIsOpen(false);
 
@@ -59,6 +62,12 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
       badge: null,
       priority: true // Mark as high priority for better positioning
     },
+    ...(hasFeature('CHAT_ENABLED') ? [{
+      icon: MessageCircle,
+      label: "Chat Assistant",
+      href: "/chat",
+      badge: null
+    }] : []),
     {
       icon: Bell,
       label: "Notifications", 

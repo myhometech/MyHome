@@ -10,7 +10,8 @@ import {
   Search,
   Mail,
   Copy,
-  X
+  X,
+  MessageCircle
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +21,7 @@ import { MobileHamburgerMenu } from '@/components/mobile-hamburger-menu';
 import { UserProfileBadge } from '@/components/UserProfileBadge';
 import { SmartSearch } from '@/components/smart-search';
 import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
+import { useFeatures } from '@/hooks/useFeatures';
 
 interface HeaderProps {
   searchQuery?: string;
@@ -30,6 +32,7 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { hasFeature } = useFeatures();
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
 
@@ -119,6 +122,18 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
                   Smart Tips
                 </Button>
               </Link>
+              {hasFeature('CHAT_ENABLED') && (
+                <Link href="/chat">
+                  <Button 
+                    variant={location === "/chat" ? "default" : "ghost"} 
+                    size="sm"
+                    className={location === "/chat" ? "" : "text-gray-600 hover:text-gray-900"}
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Chat
+                  </Button>
+                </Link>
+              )}
               <Link href="/settings">
                 <Button 
                   variant={location === "/settings" ? "default" : "ghost"} 

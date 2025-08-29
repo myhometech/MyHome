@@ -35,19 +35,26 @@ struct MainTabView: View {
                 }
                 .tag(1)
             
+            ChatView()
+                .tabItem {
+                    Image(systemName: "message.circle")
+                    Text("Chat")
+                }
+                .tag(2)
+            
             SearchView()
                 .tabItem {
                     Image(systemName: "magnifyingglass")
                     Text("Search")
                 }
-                .tag(2)
+                .tag(3)
             
             SettingsView()
                 .tabItem {
                     Image(systemName: "gearshape")
                     Text("Settings")
                 }
-                .tag(3)
+                .tag(4)
         }
         .accentColor(.blue)
     }

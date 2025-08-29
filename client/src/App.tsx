@@ -38,6 +38,7 @@ import Tasks from "@/pages/tasks";
 import Analytics from "@/pages/analytics";
 import { Support } from "@/pages/support";
 import { InviteAccept } from "@/pages/InviteAccept";
+import ChatPage from "@/pages/chat";
 
 
 function Router() {
@@ -113,6 +114,7 @@ function Router() {
           <Route path="/document/:id" component={DocumentPage} />
           <Route path="/settings" component={Settings} />
           <Route path="/support" component={Support} />
+          <Route path="/chat" component={ChatPage} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
           <Route path="/pricing" component={Pricing} />

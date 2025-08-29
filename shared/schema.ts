@@ -869,5 +869,52 @@ export type SearchSnippet = z.infer<typeof searchSnippetSchema>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchSnippetsResponse = z.infer<typeof searchSnippetsResponseSchema>;
 
+// Chat orchestration schemas
+export const chatRequestSchema = z.object({
+  conversationId: z.string().min(1, "Conversation ID is required"),
+  message: z.string().min(1, "Message is required").max(1000, "Message too long"),
+  filters: z.object({
+    provider: z.string().optional(),
+    docType: z.array(z.string()).optional(),
+    dateFrom: z.string().datetime().optional(),
+    dateTo: z.string().datetime().optional(),
+  }).optional(),
+});
+
+export type ChatRequest = z.infer<typeof chatRequestSchema>;
+
+export const citationSchema = z.object({
+  docId: z.string(),
+  page: z.number().int().min(1),
+});
+
+export const chatResponseSchema = z.object({
+  conversationId: z.string(),
+  answer: z.string(),
+  citations: z.array(citationSchema),
+  slots: z.object({
+    amount: z.string().optional(),
+    currency: z.string().optional(),
+    dueDate: z.string().optional(),
+  }).optional(),
+  confidence: z.number().min(0).max(1),
+});
+
+export type ChatResponse = z.infer<typeof chatResponseSchema>;
+
+// LLM response parsing schemas
+export const llmChatResponseSchema = z.object({
+  answer: z.string(),
+  citations: z.array(citationSchema),
+  slots: z.object({
+    amount: z.string().optional(),
+    currency: z.string().optional(),
+    dueDate: z.string().optional(),
+  }).optional(),
+  confidence: z.number().min(0).max(1),
+});
+
+export type LLMChatResponse = z.infer<typeof llmChatResponseSchema>;
+
 // Re-export feature flag schemas
 export * from "./featureFlagSchema";

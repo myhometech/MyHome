@@ -7,7 +7,7 @@ import { AuditLogger } from "./auditLogger";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema, createVehicleSchema, updateVehicleUserFieldsSchema, searchSnippetsRequestSchema } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema, createVehicleSchema, updateVehicleUserFieldsSchema, searchSnippetsRequestSchema, chatRequestSchema, ChatRequest } from "@shared/schema";
 import { EmailUploadLogger } from './emailUploadLogger';
 import { dvlaLookupService } from './dvlaLookupService';
 import { vehicleInsightService } from './vehicleInsightService';
@@ -44,6 +44,7 @@ import { renderAndCreateEmailBodyPdf } from './emailBodyPdfService';
 import { emailRenderWorker } from './emailRenderWorker';
 import { workerHealthChecker } from './workerHealthCheck';
 import { setupMultiPageScanUpload } from './routes/multiPageScanUpload';
+import { chatOrchestrationService } from './chatOrchestrationService';
 import { 
   mailgunIPWhitelist, 
   mailgunWebhookRateLimit, 
@@ -4170,7 +4171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const docIdsTouched = validatedData.citations ? validatedData.citations.map(c => c.docId) : [];
         
         await storage.logDocumentEvent({
-          documentId: undefined, // Chat events don't have a specific document
+          documentId: null, // Chat events don't have a specific document
           userId: messageUserId || userId, // Use message user or requesting user
           householdId: user.subscriptionTier === 'duo' && tenantId !== userId ? tenantId : null,
           action: eventAction,
@@ -4227,7 +4228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const docIds = searchResults.results.map(r => parseInt(r.docId)).filter(id => !isNaN(id));
         
         await storage.logDocumentEvent({
-          documentId: undefined, // Search queries don't target a specific document
+          documentId: null, // Search queries don't target a specific document
           userId,
           householdId: user.subscriptionTier === 'duo' && tenantId !== userId ? tenantId : null,
           action: 'search_query',
@@ -5779,6 +5780,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user audit trail:", error);
       res.status(500).json({ message: "Failed to fetch audit trail" });
+    }
+  });
+
+  // ====================
+  // CHAT ORCHESTRATION
+  // ====================
+  
+  // POST /api/chat - Chat orchestration endpoint with search + LLM + persistence
+  app.post("/api/chat", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { tenantId } = req;
+      
+      // Check if chat features are enabled
+      const { chatConfigService } = await import('./chatConfig.js');
+      const chatStatus = await chatConfigService.getChatStatus(req.user!);
+      
+      if (!chatStatus.enabled) {
+        return res.status(403).json({ 
+          message: chatStatus.reason || "Chat features not available" 
+        });
+      }
+      
+      // Validate request body
+      const validatedRequest: ChatRequest = chatRequestSchema.parse(req.body);
+      
+      console.log(`🤖 [CHAT] Received query: "${validatedRequest.message}" from user ${userId}`);
+      
+      // Process chat through orchestration service
+      const response = await chatOrchestrationService.processChat(
+        validatedRequest, 
+        userId, 
+        tenantId
+      );
+      
+      console.log(`✅ [CHAT] Returning response with ${response.citations.length} citations`);
+      res.json(response);
+      
+    } catch (error: any) {
+      console.error(`❌ [CHAT] Endpoint error:`, error);
+      
+      // Return structured error response matching schema
+      const fallbackResponse = {
+        conversationId: req.body.conversationId || "unknown",
+        answer: "I encountered an error processing your request. Please try again.",
+        citations: [],
+        confidence: 0.0
+      };
+      
+      res.status(500).json(fallbackResponse);
     }
   });
 

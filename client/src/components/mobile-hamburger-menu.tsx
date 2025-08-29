@@ -62,12 +62,13 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
       badge: null,
       priority: true // Mark as high priority for better positioning
     },
-    ...(hasFeature('CHAT_ENABLED') ? [{
+    {
       icon: MessageCircle,
-      label: "Chat Assistant",
+      label: "Chat Assistant", 
       href: "/chat",
-      badge: null
-    }] : []),
+      badge: null,
+      feature: "CHAT_ENABLED"
+    },
     {
       icon: Bell,
       label: "Notifications", 
@@ -143,25 +144,32 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
 
           {/* Main Menu Items */}
           <nav className="flex-1 p-3 space-y-1">
-            {menuItems.map((item) => (
-              <Link key={item.href} href={item.href} onClick={handleClose}>
-                <motion.div
-                  className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <item.icon className="h-4 w-4 text-gray-600 group-hover:text-blue-600 transition-colors" />
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
-                    {item.label}
-                  </span>
-                  {item.badge && (
-                    <Badge variant="secondary" className="ml-auto text-xs">
-                      {item.badge}
-                    </Badge>
-                  )}
-                </motion.div>
-              </Link>
-            ))}
+            {menuItems.map((item) => {
+              // Skip feature-gated items if user doesn't have access
+              if (item.feature && !hasFeature(item.feature as any)) {
+                return null;
+              }
+
+              return (
+                <Link key={item.href} href={item.href} onClick={handleClose}>
+                  <motion.div
+                    className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
+                    whileHover={{ x: 4 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <item.icon className="h-4 w-4 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                      {item.label}
+                    </span>
+                    {item.badge && (
+                      <Badge variant="secondary" className="ml-auto text-xs">
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </motion.div>
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Profile Section - Sticky Footer */}

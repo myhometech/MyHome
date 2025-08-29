@@ -228,8 +228,18 @@ function DashboardOverview({ onFilterChange }: { onFilterChange: (filter: any) =
 // Quick Action Cards Component
 function QuickActionCards() {
   const { hasFeature } = useFeatures();
+  const [, setLocation] = useLocation();
 
   const actionCards = [
+    {
+      title: "Chat Assistant",
+      description: "Ask questions about your documents",
+      icon: Brain,
+      color: "purple",
+      action: "chat",
+      feature: "CHAT_ENABLED", 
+      helpContent: helpContent.aiInsights
+    },
     {
       title: "Upload Documents",
       description: "Add new documents to your library",
@@ -242,7 +252,7 @@ function QuickActionCards() {
       title: "Add Important Date",
       description: "Track key dates and deadlines",
       icon: CalendarIcon,
-      color: "purple",
+      color: "green",
       action: "manual_event",
       helpContent: helpContent.manualEvents
     },
@@ -250,18 +260,9 @@ function QuickActionCards() {
       title: "Smart Search",
       description: "Find documents by content or keywords",
       icon: Search,
-      color: "green",
+      color: "orange",
       action: "search",
       helpContent: helpContent.search
-    },
-    {
-      title: "View Analytics",
-      description: "See insights and document trends",
-      icon: BarChart3,
-      color: "orange",
-      action: "analytics",
-      feature: "ANALYTICS",
-      helpContent: helpContent.aiInsights
     }
   ];
 
@@ -316,10 +317,30 @@ function QuickActionCards() {
         const colors = getColorClasses(card.color);
         const Icon = card.icon;
 
+        const handleClick = () => {
+          switch (card.action) {
+            case 'chat':
+              setLocation('/chat');
+              break;
+            case 'upload':
+              // Handle upload action
+              break;
+            case 'manual_event':
+              // Handle manual event action
+              break;
+            case 'search':
+              // Handle search action
+              break;
+            default:
+              break;
+          }
+        };
+
         return (
           <Card 
             key={index} 
             className={`cursor-pointer transition-all duration-200 ${colors.bg} ${colors.border} ${colors.hover} hover:shadow-lg hover:scale-105`}
+            onClick={handleClick}
           >
             <CardContent className="p-6 text-center">
               <div className="flex flex-col items-center space-y-3">

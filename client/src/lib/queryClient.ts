@@ -3,11 +3,11 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     let errorMessage = res.statusText;
-    
+
     try {
       // Read the response body as text first
       const text = await res.text();
-      
+
       if (text) {
         try {
           // Try to parse as JSON
@@ -22,7 +22,7 @@ async function throwIfResNotOk(res: Response) {
       // If reading fails entirely, use status text
       errorMessage = res.statusText;
     }
-    
+
     throw new Error(`${res.status}: ${errorMessage}`);
   }
 }
@@ -64,22 +64,52 @@ export const getQueryFn: <T>(options: {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: (failureCount, error: any) => {
-        if (error?.status === 401 || error?.status === 403) {
-          return false;
-        }
-        return failureCount < 3;
-      },
-      staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
+      staleTime: 3 * 60 * 1000, // 3 minutes (reduced from 5)
+      gcTime: 5 * 60 * 1000, // 5 minutes (reduced from 10)
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
     mutations: {
-      retry: false,
+      retry: 1,
+      gcTime: 2 * 60 * 1000, // 2 minutes for mutations
     },
   },
 });
 
-// Periodic cache cleanup to prevent memory leaks
-setInterval(() => {
-  queryClient.clear();
-}, 15 * 60 * 1000); // Clear cache every 15 minutes
+// Aggressive cleanup for memory optimization
+if (typeof window !== 'undefined') {
+  // Clear unused queries every 3 minutes
+  setInterval(() => {
+    const cache = queryClient.getQueryCache();
+    const queries = cache.getAll();
+
+    // Remove queries that haven't been used recently
+    queries.forEach((query) => {
+      const lastUsed = query.state.dataUpdatedAt || query.state.errorUpdatedAt || 0;
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+
+      if (lastUsed < fiveMinutesAgo && query.getObserversCount() === 0) {
+        cache.remove(query);
+      }
+    });
+
+    // Also clear mutation cache
+    const mutationCache = queryClient.getMutationCache();
+    const mutations = mutationCache.getAll();
+
+    mutations.forEach((mutation) => {
+      const lastUsed = mutation.state.submittedAt || 0;
+      const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+
+      if (lastUsed < tenMinutesAgo) {
+        mutationCache.remove(mutation);
+      }
+    });
+
+    console.log('🧹 Query cache cleaned:', {
+      remainingQueries: queryClient.getQueryCache().getAll().length,
+      remainingMutations: queryClient.getMutationCache().getAll().length
+    });
+  }, 3 * 60 * 1000); // Every 3 minutes
+}

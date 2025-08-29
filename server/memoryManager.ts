@@ -81,18 +81,28 @@ class MemoryManager {
     }
   }
 
-  // Start automatic GC every 2 minutes during high memory pressure
+  // Start automatic GC every 90 seconds during high memory pressure
   private startAutomaticGC(): void {
     this.gcInterval = setInterval(() => {
       const memUsage = process.memoryUsage();
       const heapPercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
       
       // More aggressive GC for React component memory leaks
-      if (heapPercent > 75) {
+      if (heapPercent > 70) { // Lowered threshold from 75% to 70%
         console.log(`🚨 AUTO-GC TRIGGERED: Heap at ${heapPercent.toFixed(1)}%`);
         this.forceGC();
+        
+        // If still high after GC, run a second pass
+        setTimeout(() => {
+          const afterMemUsage = process.memoryUsage();
+          const afterHeapPercent = (afterMemUsage.heapUsed / afterMemUsage.heapTotal) * 100;
+          if (afterHeapPercent > 85) {
+            console.log(`🔄 SECOND GC PASS: Heap still at ${afterHeapPercent.toFixed(1)}%`);
+            this.forceGC();
+          }
+        }, 2000);
       }
-    }, 2 * 60 * 1000); // Every 2 minutes (more frequent)
+    }, 90 * 1000); // Every 90 seconds (more frequent than 2 minutes)
   }
 
   // Emergency cleanup for critical memory situations

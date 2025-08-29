@@ -105,7 +105,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Optimized mobile detection with debouncing
+  // Optimized mobile detection with debouncing and AbortController
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth <= 768;
@@ -113,24 +113,40 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     return false;
   });
 
+  // AbortController for cleanup
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Create new AbortController for this effect
+    abortControllerRef.current = new AbortController();
+    
     let resizeTimer: NodeJS.Timeout | null = null;
     const handleResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
+        // Check if component is still mounted
+        if (abortControllerRef.current?.signal.aborted) return;
+        
         const newIsMobile = window.innerWidth <= 768;
         setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
         resizeTimer = null;
       }, 150); // Debounce resize events
     };
 
-    window.addEventListener('resize', handleResize, { passive: true });
+    window.addEventListener('resize', handleResize, { 
+      passive: true,
+      signal: abortControllerRef.current.signal 
+    });
+    
     return () => {
-      window.removeEventListener('resize', handleResize);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       if (resizeTimer) {
         clearTimeout(resizeTimer);
+        resizeTimer = null;
       }
     };
   }, []);
@@ -140,9 +156,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const { data: insightData, isLoading, error } = useQuery({
     queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
+      // Use React Query's built-in signal that handles component unmounting
       const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
-        signal: AbortSignal.timeout(10000) // 10s timeout to prevent hanging requests
+        signal, // Use React Query's abort signal instead of custom timeout
       });
       if (!response.ok) {
         const errorData = await response.text();
@@ -153,35 +170,40 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       console.log('Fetched insights data:', data);
       return data;
     },
-    // Aggressive caching with memory optimization
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes garbage collection
+    // Optimized caching for memory efficiency
+    staleTime: 5 * 60 * 1000, // 5 minutes (reduced from 10)
+    gcTime: 2 * 60 * 1000, // 2 minutes garbage collection (reduced from 5)
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false, // Disable automatic refetching
-    retry: 1, // Limit retries to prevent memory pressure
-    // Memory-optimized data selection
-    select: (data) => {
+    refetchOnReconnect: false,
+    retry: 1,
+    // Memory-optimized data selection with size limit
+    select: React.useCallback((data) => {
       if (!data?.insights) return { insights: [] };
+      // Further limit insights to prevent memory bloat
+      const limitedInsights = data.insights.slice(0, Math.min(limit, 20));
       return {
         ...data,
-        insights: data.insights.slice(0, limit)
+        insights: limitedInsights
       };
-    }
+    }, [limit])
   });
 
   const insights = insightData?.insights || [];
 
   // Generate new insights mutation with memory optimization
   const generateInsightsMutation = useMutation({
-    mutationFn: async (): Promise<InsightResponse> => {
+    mutationFn: async ({ signal }: { signal?: AbortSignal }): Promise<InsightResponse> => {
       console.log(`🔍 [INSIGHT-DEBUG] Starting insight generation for document ${documentId}`);
+      
+      // Use component's AbortController or passed signal
+      const requestSignal = signal || abortControllerRef.current?.signal;
       
       const response = await fetch(`/api/documents/${documentId}/insights`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        signal: AbortSignal.timeout(30000) // 30s timeout
+        signal: requestSignal
       });
       
       console.log(`📡 [INSIGHT-DEBUG] Response status: ${response.status}`);
@@ -203,17 +225,25 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       return result;
     },
     onSuccess: React.useCallback((data: InsightResponse) => {
+      // Check if component is still mounted
+      if (abortControllerRef.current?.signal.aborted) return;
+      
       toast({
         title: "Insights Generated",
         description: `Generated ${data.insights.length} insights`
       });
-      // Targeted cache invalidation
+      // Targeted cache invalidation with memory cleanup
       queryClient.invalidateQueries({
         queryKey: ['/api/documents', documentId, 'insights']
       });
       setIsGenerating(false);
     }, [documentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {
+      // Check if component is still mounted and error is not due to abort
+      if (abortControllerRef.current?.signal.aborted || error.name === 'AbortError') {
+        return; // Don't show error for intentional cancellations
+      }
+      
       console.error('❌ [INSIGHT-DEBUG] Insight generation error:', {
         message: error.message,
         stack: error.stack,
@@ -335,7 +365,18 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     flagInsightMutation.mutate({ insightId, flagged, reason });
   }, [flagInsightMutation]);
 
-  
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      // Cancel any pending requests
+      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Clear any pending timeouts
+      setIsGenerating(false);
+    };
+  }, []);
 
   if (isLoading) {
     return (

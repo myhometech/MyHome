@@ -43,6 +43,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
 import SmartHelpTooltip, { HelpBadge, HelpSection } from "@/components/smart-help-tooltip";
+import FloatingChatWidget from "@/components/floating-chat-widget";
 import type { Category, Document } from "@shared/schema";
 
 interface DocumentInsight {
@@ -525,6 +526,9 @@ export default function InsightsFirstPage() {
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* Floating Chat Widget */}
+      <FloatingChatWidget />
     </div>
   );
 }

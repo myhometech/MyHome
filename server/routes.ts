@@ -3947,6 +3947,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Chat API Endpoints
+  
+  // Create a new conversation
+  app.post('/api/conversations', requireAuth, requireChatEnabled, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Validate request body using Zod schema
+      const { insertConversationSchema } = await import('../shared/schema.js');
+      const validatedData = insertConversationSchema.parse(req.body);
+
+      // Determine tenantId (userId for individual users, householdId for Duo users)
+      let tenantId = userId;
+      if (user.subscriptionTier === 'duo') {
+        const membership = await storage.getUserHouseholdMembership(userId);
+        if (membership?.householdId) {
+          tenantId = membership.householdId;
+        }
+      }
+
+      const conversation = await storage.createConversation({
+        ...validatedData,
+        tenantId,
+        userId,
+      });
+
+      console.log(`✅ [CHAT] Created conversation ${conversation.id} for user ${user.email} (tenant: ${tenantId})`);
+      res.status(201).json(conversation);
+    } catch (error: any) {
+      console.error("Error creating conversation:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create conversation" });
+    }
+  });
+
+  // Get user's conversations (with pagination)
+  app.get('/api/conversations', requireAuth, requireChatEnabled, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Parse query parameters
+      const archived = req.query.archived === 'true';
+      const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+      const cursor = req.query.cursor;
+
+      // Determine tenantId (userId for individual users, householdId for Duo users)
+      let tenantId = userId;
+      if (user.subscriptionTier === 'duo') {
+        const membership = await storage.getUserHouseholdMembership(userId);
+        if (membership?.householdId) {
+          tenantId = membership.householdId;
+        }
+      }
+
+      const conversations = await storage.getUserConversations(tenantId, archived, limit, cursor);
+
+      res.json({
+        conversations,
+        hasMore: conversations.length === limit,
+        cursor: conversations.length > 0 ? conversations[conversations.length - 1].id : null
+      });
+    } catch (error: any) {
+      console.error("Error getting conversations:", error);
+      res.status(500).json({ error: "Failed to get conversations" });
+    }
+  });
+
+  // Get a specific conversation
+  app.get('/api/conversations/:id', requireAuth, requireChatEnabled, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Determine tenantId (userId for individual users, householdId for Duo users)
+      let tenantId = userId;
+      if (user.subscriptionTier === 'duo') {
+        const membership = await storage.getUserHouseholdMembership(userId);
+        if (membership?.householdId) {
+          tenantId = membership.householdId;
+        }
+      }
+
+      const conversation = await storage.getConversation(req.params.id, tenantId);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      res.json(conversation);
+    } catch (error: any) {
+      console.error("Error getting conversation:", error);
+      res.status(500).json({ error: "Failed to get conversation" });
+    }
+  });
+
+  // Archive a conversation
+  app.post('/api/conversations/:id/archive', requireAuth, requireChatEnabled, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Determine tenantId (userId for individual users, householdId for Duo users)
+      let tenantId = userId;
+      if (user.subscriptionTier === 'duo') {
+        const membership = await storage.getUserHouseholdMembership(userId);
+        if (membership?.householdId) {
+          tenantId = membership.householdId;
+        }
+      }
+
+      const conversation = await storage.archiveConversation(req.params.id, tenantId);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      console.log(`✅ [CHAT] Archived conversation ${conversation.id} for user ${user.email}`);
+      res.json(conversation);
+    } catch (error: any) {
+      console.error("Error archiving conversation:", error);
+      res.status(500).json({ error: "Failed to archive conversation" });
+    }
+  });
+
+  // Get messages for a conversation (with pagination)
+  app.get('/api/conversations/:id/messages', requireAuth, requireChatEnabled, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Parse query parameters
+      const limit = Math.min(parseInt(req.query.limit) || 100, 200);
+      const cursor = req.query.cursor;
+
+      // Determine tenantId (userId for individual users, householdId for Duo users)
+      let tenantId = userId;
+      if (user.subscriptionTier === 'duo') {
+        const membership = await storage.getUserHouseholdMembership(userId);
+        if (membership?.householdId) {
+          tenantId = membership.householdId;
+        }
+      }
+
+      // First verify the conversation exists and user has access
+      const conversation = await storage.getConversation(req.params.id, tenantId);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      const messages = await storage.getConversationMessages(req.params.id, tenantId, limit, cursor);
+
+      res.json({
+        messages,
+        hasMore: messages.length === limit,
+        cursor: messages.length > 0 ? messages[messages.length - 1].id : null
+      });
+    } catch (error: any) {
+      console.error("Error getting messages:", error);
+      res.status(500).json({ error: "Failed to get messages" });
+    }
+  });
+
+  // Add a message to a conversation
+  app.post('/api/conversations/:id/messages', requireAuth, requireChatEnabled, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Validate request body using Zod schema
+      const { insertMessageSchema } = await import('../shared/schema.js');
+      const validatedData = insertMessageSchema.parse(req.body);
+
+      // Determine tenantId (userId for individual users, householdId for Duo users)
+      let tenantId = userId;
+      if (user.subscriptionTier === 'duo') {
+        const membership = await storage.getUserHouseholdMembership(userId);
+        if (membership?.householdId) {
+          tenantId = membership.householdId;
+        }
+      }
+
+      // First verify the conversation exists and user has access
+      const conversation = await storage.getConversation(req.params.id, tenantId);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      // For user messages, set userId. For assistant/system messages, userId can be null
+      const messageUserId = validatedData.role === 'user' ? userId : validatedData.userId || null;
+
+      const message = await storage.createMessage({
+        ...validatedData,
+        conversationId: req.params.id,
+        tenantId,
+        userId: messageUserId,
+      });
+
+      // Log audit event for chat messages
+      try {
+        const eventAction = validatedData.role === 'user' ? 'chat_query' : 'chat_answer';
+        const docIdsTouched = validatedData.citations ? validatedData.citations.map(c => c.docId) : [];
+        
+        await storage.logDocumentEvent({
+          documentId: null, // Chat events don't have a specific document
+          userId: messageUserId || userId, // Use message user or requesting user
+          householdId: user.subscriptionTier === 'duo' && tenantId !== userId ? tenantId : null,
+          action: eventAction,
+          metadata: {
+            conversationId: req.params.id,
+            messageId: message.id,
+            role: validatedData.role,
+            model: validatedData.usage?.model,
+            tokenUsage: validatedData.usage,
+            docIdsTouched,
+            hasVerdict: !!validatedData.verdict
+          }
+        });
+      } catch (auditError) {
+        console.error('❌ [CHAT] Failed to log audit event:', auditError);
+        // Don't fail the request if audit logging fails
+      }
+
+      console.log(`✅ [CHAT] Added ${validatedData.role} message to conversation ${req.params.id} for user ${user.email}`);
+      
+      res.status(201).json(message);
+    } catch (error: any) {
+      console.error("Error creating message:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create message" });
+    }
+  });
+
   // Bulk Operations API Endpoints
 
   // Bulk update documents (tags, category, name)

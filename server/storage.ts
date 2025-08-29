@@ -2,12 +2,13 @@ import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http';
 import { 
   users, categories, documents, emailForwards, households, userHouseholdMembership, pendingInvites,
-  documentInsights, vehicles, documentEvents, userAssets,
+  documentInsights, vehicles, documentEvents, userAssets, conversations, messages,
   type User, type InsertUser, type Category, type InsertCategory, 
   type Document, type InsertDocument, type EmailForward, type InsertEmailForward, 
   type Household, type InsertHousehold, type DocumentInsight, type InsertDocumentInsight,
   type Vehicle, type InsertVehicle, type PendingInvite, type InsertPendingInvite,
-  type DocumentEvent, type InsertDocumentEvent, type UserAsset, type InsertUserAsset
+  type DocumentEvent, type InsertDocumentEvent, type UserAsset, type InsertUserAsset,
+  type Conversation, type InsertConversation, type Message, type InsertMessage
 } from '../shared/schema.js';
 
 export interface IStorage {
@@ -116,6 +117,14 @@ export interface IStorage {
   
   // Email body document operations
   createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document>;
+
+  // Chat operations
+  createConversation(conversation: InsertConversation): Promise<Conversation>;
+  getUserConversations(tenantId: string, archived?: boolean, limit?: number, cursor?: string): Promise<Conversation[]>;
+  getConversation(id: string, tenantId: string): Promise<Conversation | undefined>;
+  archiveConversation(id: string, tenantId: string): Promise<Conversation | undefined>;
+  createMessage(message: InsertMessage): Promise<Message>;
+  getConversationMessages(conversationId: string, tenantId: string, limit?: number, cursor?: string): Promise<Message[]>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -1034,6 +1043,70 @@ export class PostgresStorage implements IStorage {
       console.error('❌ Failed to upload email PDF to GCS:', error);
       throw new Error(`Failed to create email document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  // Chat operations
+  async createConversation(conversation: InsertConversation): Promise<Conversation> {
+    const [newConversation] = await this.db.insert(conversations).values(conversation).returning();
+    return newConversation;
+  }
+
+  async getUserConversations(tenantId: string, archived: boolean = false, limit: number = 50, cursor?: string): Promise<Conversation[]> {
+    let query = this.db.select().from(conversations)
+      .where(and(eq(conversations.tenantId, tenantId), eq(conversations.archived, archived)));
+
+    if (cursor) {
+      query = query.where(and(
+        eq(conversations.tenantId, tenantId), 
+        eq(conversations.archived, archived),
+        sql`${conversations.createdAt} < (SELECT created_at FROM conversations WHERE id = ${cursor})`
+      ));
+    }
+
+    return await query
+      .orderBy(desc(conversations.createdAt))
+      .limit(limit);
+  }
+
+  async getConversation(id: string, tenantId: string): Promise<Conversation | undefined> {
+    const [conversation] = await this.db.select().from(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.tenantId, tenantId)));
+    return conversation;
+  }
+
+  async archiveConversation(id: string, tenantId: string): Promise<Conversation | undefined> {
+    const [archivedConversation] = await this.db
+      .update(conversations)
+      .set({ 
+        archived: true, 
+        archivedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(and(eq(conversations.id, id), eq(conversations.tenantId, tenantId)))
+      .returning();
+    return archivedConversation;
+  }
+
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const [newMessage] = await this.db.insert(messages).values(message).returning();
+    return newMessage;
+  }
+
+  async getConversationMessages(conversationId: string, tenantId: string, limit: number = 100, cursor?: string): Promise<Message[]> {
+    let query = this.db.select().from(messages)
+      .where(and(eq(messages.conversationId, conversationId), eq(messages.tenantId, tenantId)));
+
+    if (cursor) {
+      query = query.where(and(
+        eq(messages.conversationId, conversationId), 
+        eq(messages.tenantId, tenantId),
+        sql`${messages.createdAt} > (SELECT created_at FROM messages WHERE id = ${cursor})`
+      ));
+    }
+
+    return await query
+      .orderBy(messages.createdAt) // ASC for conversation messages
+      .limit(limit);
   }
 
   /**

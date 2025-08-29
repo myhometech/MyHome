@@ -725,5 +725,76 @@ export const updateVehicleUserFieldsSchema = z.object({
   // Users can only edit manual/user fields, not DVLA fields
 }).strict();
 
+// Chat system tables for conversation persistence
+export const conversations = pgTable("conversations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tenantId: varchar("tenant_id").notNull(), // Maps to userId for individual users, householdId for Duo users
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  archived: boolean("archived").default(false),
+  archivedAt: timestamp("archived_at"),
+}, (table) => [
+  index("ix_conversations_tenant_created_at").on(table.tenantId, table.createdAt),
+  index("ix_conversations_user_created_at").on(table.userId, table.createdAt),
+]);
+
+export const messages = pgTable("messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  tenantId: varchar("tenant_id").notNull(), // Maps to userId for individual users, householdId for Duo users  
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }), // null for assistant/system messages
+  role: varchar("role", { length: 20 }).notNull(), // 'user', 'assistant', 'system'
+  content: text("content").notNull(),
+  citations: jsonb("citations"), // [{docId,page,bbox:[x1,y1,x2,y2]}]
+  verdict: jsonb("verdict"), // {grounded:boolean, confidence:float, slots:{...}}
+  usage: jsonb("usage"), // {prompt_tokens:int, completion_tokens:int, model:string}
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("ix_messages_conversation_created_at").on(table.conversationId, table.createdAt),
+  index("ix_messages_tenant_created_at").on(table.tenantId, table.createdAt),
+]);
+
+// Chat schema types
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+// Chat validation schemas
+export const insertConversationSchema = createInsertSchema(conversations, {
+  title: z.string().max(255).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  archived: true,
+  archivedAt: true,
+});
+
+export const insertMessageSchema = createInsertSchema(messages, {
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string().min(1, "Content is required"),
+  citations: z.array(z.object({
+    docId: z.number(),
+    page: z.number().optional(),
+    bbox: z.array(z.number()).length(4).optional(), // [x1,y1,x2,y2]
+  })).optional(),
+  verdict: z.object({
+    grounded: z.boolean(),
+    confidence: z.number().min(0).max(1),
+    slots: z.record(z.any()).optional(),
+  }).optional(),
+  usage: z.object({
+    prompt_tokens: z.number().int().min(0),
+    completion_tokens: z.number().int().min(0), 
+    model: z.string(),
+  }).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Re-export feature flag schemas
 export * from "./featureFlagSchema";

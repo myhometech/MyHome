@@ -104,19 +104,19 @@ export const FEATURES: Record<string, FeatureFlag> = {
   CHAT_ENABLED: {
     name: 'Chat System',
     description: 'Access to the AI chat system for document queries',
-    tier: ['pro', 'duo'],
+    tier: 'premium',
     category: 'ai'
   },
   CHAT_SHOW_FILTERS: {
     name: 'Advanced Chat Filters',
     description: 'Show advanced filters for provider, document type, and date in chat',
-    tier: ['pro', 'duo'],
+    tier: 'premium',
     category: 'ai'
   },
   CHAT_NUMERIC_VERIFIER: {
     name: 'Chat Numeric Verification',
     description: 'Enable numeric and date verification post-processing in chat responses',
-    tier: ['pro', 'duo'],
+    tier: 'premium',
     category: 'ai'
   },
 

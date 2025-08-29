@@ -206,6 +206,24 @@ router.post('/', upload.fields([
               extractedText,
               ocrConfidence: processedDoc.confidence * 100
             });
+
+            // CHAT-008: Extract structured facts after OCR
+            try {
+              const { factExtractionService } = await import('../services/factExtractionService');
+              const factResults = await factExtractionService.processDocumentFacts(
+                document.id,
+                extractedText,
+                uploadedFile.originalname,
+                userId,
+                req.user.householdId
+              );
+              
+              if (factResults.factsExtracted > 0) {
+                console.log(`📊 Extracted ${factResults.factsExtracted} facts from ${uploadedFile.originalname} (avg confidence: ${factResults.confidence.toFixed(2)})`);
+              }
+            } catch (factError) {
+              console.warn('Fact extraction failed, continuing with document processing:', factError);
+            }
           }
         } catch (processingError) {
           console.warn('Document processing failed, will generate insights without text:', processingError);
@@ -497,6 +515,41 @@ router.get('/search', async (req: AuthenticatedRequest, res) => {
     console.error('Document search error:', error);
     res.status(500).json({
       message: 'Failed to search documents',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// CHAT-008: Get structured facts for a document with RBAC
+router.get('/:id/facts', async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const documentId = parseInt(req.params.id);
+    const userId = req.user.id;
+
+    // Verify user has access to the document
+    const document = await storage.getDocument(documentId, userId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Get document facts for this user/document
+    const facts = await storage.getDocumentFacts(documentId, userId);
+    
+    res.json({
+      success: true,
+      documentId,
+      facts,
+      count: facts.length
+    });
+
+  } catch (error) {
+    console.error('Failed to get document facts:', error);
+    res.status(500).json({
+      message: 'Failed to retrieve document facts',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

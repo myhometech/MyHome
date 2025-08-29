@@ -134,6 +134,12 @@ export interface IStorage {
   updateDocumentText(docId: number, updates: Partial<InsertDocumentText>): Promise<DocumentText | undefined>;
   deleteDocumentText(docId: number): Promise<void>;
   searchDocumentSnippets(request: SearchSnippetsRequest, tenantId: string): Promise<SearchSnippetsResponse>;
+
+  // CHAT-008: Document facts operations
+  createDocumentFact(fact: InsertDocumentFact): Promise<SelectDocumentFact>;
+  getDocumentFacts(docId: number, userId: string): Promise<SelectDocumentFact[]>;
+  updateDocumentFact(id: number, updates: Partial<InsertDocumentFact>): Promise<SelectDocumentFact | undefined>;
+  deleteDocumentFact(id: number, userId: string): Promise<void>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -1379,6 +1385,33 @@ export class PostgresStorage implements IStorage {
   private deduplicateTags(tags: string[]): string[] {
     const uniqueTags = new Set(tags.filter(tag => tag && tag.trim()));
     return Array.from(uniqueTags);
+  }
+
+  // CHAT-008: Document facts operations implementation
+  async createDocumentFact(fact: InsertDocumentFact): Promise<SelectDocumentFact> {
+    const [newFact] = await this.db.insert(documentFacts).values(fact).returning();
+    return newFact;
+  }
+
+  async getDocumentFacts(docId: number, userId: string): Promise<SelectDocumentFact[]> {
+    return await this.db
+      .select()
+      .from(documentFacts) 
+      .where(and(eq(documentFacts.docId, docId), eq(documentFacts.userId, userId)))
+      .orderBy(desc(documentFacts.confidence));
+  }
+
+  async updateDocumentFact(id: number, updates: Partial<InsertDocumentFact>): Promise<SelectDocumentFact | undefined> {
+    const [updatedFact] = await this.db
+      .update(documentFacts)
+      .set(updates)
+      .where(eq(documentFacts.id, id))
+      .returning();
+    return updatedFact;
+  }
+
+  async deleteDocumentFact(id: number, userId: string): Promise<void> {
+    await this.db.delete(documentFacts).where(and(eq(documentFacts.id, id), eq(documentFacts.userId, userId)));
   }
 }
 

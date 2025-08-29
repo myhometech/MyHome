@@ -161,6 +161,35 @@ export const documents = pgTable("documents", {
   unique("doc_email_body_uniq").on(table.userId, table.messageId, table.bodyHash),
 ]);
 
+// CHAT-008: Document facts for structured field extraction
+export const documentFacts = pgTable("document_facts", {
+  id: serial("id").primaryKey(),
+  householdId: uuid("household_id"), // Tenant separation (maps to tenantId in spec)
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  docId: integer("doc_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  field: text("field").notNull(), // e.g. totalAmount, dueDate, invoiceDate, accountNumber, provider
+  value: text("value").notNull(), // normalized string value (ISO date, decimal, plain text)
+  currency: varchar("currency", { length: 10 }), // optional (e.g. GBP, USD, EUR)
+  confidence: numeric("confidence", { precision: 3, scale: 2 }).notNull(), // 0–1 (from OCR/Insight extraction)
+  page: integer("page"), // page number if known
+  bbox: jsonb("bbox"), // optional coordinates for highlight in viewer
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  // Primary indexes for fast queries
+  index("idx_document_facts_doc_field").on(table.docId, table.field),
+  index("idx_document_facts_household_field").on(table.householdId, table.field),
+  index("idx_document_facts_user_field").on(table.userId, table.field),
+  
+  // Additional query optimization indexes
+  index("idx_document_facts_field").on(table.field),
+  index("idx_document_facts_user_doc").on(table.userId, table.docId),
+  index("idx_document_facts_confidence").on(table.confidence),
+  
+  // Unique constraint: one fact per document-field combination (upsert pattern)
+  unique("unique_document_fact").on(table.docId, table.field),
+]);
+
 // Document sharing table
 export const documentShares = pgTable("document_shares", {
   id: serial("id").primaryKey(),
@@ -915,6 +944,13 @@ export const llmChatResponseSchema = z.object({
 });
 
 export type LLMChatResponse = z.infer<typeof llmChatResponseSchema>;
+
+// CHAT-008: Document facts schemas
+export const insertDocumentFactSchema = createInsertSchema(documentFacts);
+export const selectDocumentFactSchema = documentFacts.$inferSelect;
+
+export type InsertDocumentFact = typeof documentFacts.$inferInsert;
+export type SelectDocumentFact = typeof documentFacts.$inferSelect;
 
 // Re-export feature flag schemas
 export * from "./featureFlagSchema";

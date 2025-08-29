@@ -59,6 +59,9 @@ export default function UnifiedUploadButton({
 
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
 
+  // TICKET 7: Legacy scanner states removed - moved before useEffect
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
   // Sync internal dialog state with external open prop
   useEffect(() => {
     setShowUploadDialog(open);
@@ -83,9 +86,6 @@ export default function UnifiedUploadButton({
 
   // Generate stable UUID for upload items
   const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
-
-  // TICKET 7: Legacy scanner states removed
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadData, setUploadData] = useState({
     categoryId: "",
     tags: "",

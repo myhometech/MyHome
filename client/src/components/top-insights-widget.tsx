@@ -199,7 +199,7 @@ export default function TopInsightsWidget() {
                       {insight.title}
                     </p>
                   </div>
-                  <Link href={`/document/${insight.documentId}`}>
+                  <Link href={`/insights-first?documentId=${insight.documentId}`}>
                     <Button size="sm" variant="outline" className="shrink-0 text-xs">
                       View
                     </Button>
@@ -212,7 +212,7 @@ export default function TopInsightsWidget() {
         
         {insights.length >= 5 && (
           <div className="mt-4 pt-3 border-t">
-            <Link href="/">
+            <Link href="/insights-first">
               <Button variant="outline" className="w-full" size="sm">
                 <Brain className="w-4 h-4 mr-2" />
                 View All Insights

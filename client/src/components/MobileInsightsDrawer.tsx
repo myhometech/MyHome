@@ -20,24 +20,18 @@ export function MobileInsightsDrawer({
   const [isOpen, setIsOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const openTimeRef = useRef<number | null>(null);
-  const [insights, setInsights] = useState([]); // Assuming insights is an array
+  const [insights, setInsights] = useState([]);
 
   // Fetch insights to display the count
   useEffect(() => {
-    // This is a placeholder for fetching actual insights.
-    // Replace with your actual data fetching logic.
     const fetchInsights = async () => {
       try {
-        // Example: const response = await fetch(`/api/documents/${documentId}/insights`);
-        // Example: const data = await response.json();
-        // setInsights(data);
-
-        // Mock data for demonstration
-        if (documentId === 1) { // Example: document with insights
-          setInsights([{ id: 1, text: "Insight 1" }, { id: 2, text: "Insight 2" }]);
-        } else {
-          setInsights([]);
+        const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=10`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch insights');
         }
+        const data = await response.json();
+        setInsights(data.insights || []);
       } catch (error) {
         console.error("Error fetching insights:", error);
         setInsights([]);
@@ -124,16 +118,12 @@ export function MobileInsightsDrawer({
           className={`
             fixed bottom-6 left-1/2 -translate-x-1/2 z-50
             md:hidden lg:hidden
-            shadow-lg hover:shadow-xl border rounded-full px-4 py-2 transition-all duration-300 hover:scale-105
+            shadow-lg hover:shadow-xl border rounded-full px-4 py-3 transition-all duration-300 hover:scale-105
+            flex items-center gap-2
             ${insights.length > 0
-              ? "bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 hover:from-accent-purple-600 hover:to-accent-purple-700 text-white border-accent-purple-400"
+              ? "bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 hover:from-accent-purple-600 hover:to-accent-purple-700 text-white border-accent-purple-300 shadow-accent-purple-200/50"
               : "bg-white hover:bg-gray-50 border-gray-200 text-gray-700"
             }
-            
-            flex items-center gap-2
-            shadow-lg border border-border/20
-            px-4 py-3 rounded-full
-            flex items-center gap-2
             transition-all duration-200 ease-out
             min-h-[44px] min-w-[120px]
             active:scale-95 hover:shadow-xl

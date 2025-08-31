@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/header';
 import { UnifiedInsightsDashboard } from '@/components/unified-insights-dashboard';
@@ -13,6 +13,7 @@ import { Brain, Calendar, PenTool, FileText, Clock, AlertCircle, Filter, Refresh
 import AddDropdownMenu from '@/components/add-dropdown-menu';
 import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useLocation } from 'wouter';
 import type { DocumentInsight } from '@shared/schema';
 
 // Manual Event interface
@@ -45,6 +46,19 @@ export function InsightsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(12); // Show 12 insights per page
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
+  const [location] = useLocation();
+
+  // Check for documentId in URL params and auto-open document viewer
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const documentIdParam = urlParams.get('documentId');
+    if (documentIdParam) {
+      const docId = parseInt(documentIdParam, 10);
+      if (!isNaN(docId)) {
+        setSelectedDocumentId(docId);
+      }
+    }
+  }, [location]);
 
   // Fetch document insights with pagination
   const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights } = useQuery<{insights: DocumentInsight[], totalCount: number}>({

@@ -22,7 +22,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { DocumentInsight } from '@shared/schema';
-import { useLocation } from 'wouter';
+import { useLocation, setLocation } from "wouter";
 import { formatDistance } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -317,7 +317,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
           <p className="text-xs text-gray-700 line-clamp-3 leading-relaxed">
             {(() => {
               const content = insight.content.toLowerCase();
-              
+
               // Extract actionable information instead of showing generic AI text
               if (content.includes('payment') || content.includes('bill') || content.includes('due')) {
                 const amountMatch = insight.content.match(/[£$]\s*[\d,]+\.?\d*/);
@@ -327,13 +327,13 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
                 if (dateMatch) result += `Due: ${dateMatch[0]}. `;
                 if (result) return result + 'Payment action required.';
               }
-              
+
               if (content.includes('expire') || content.includes('renewal')) {
                 const dateMatch = insight.content.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
                 if (dateMatch) return `Document expires on ${dateMatch[0]}. Renewal action needed.`;
                 return 'Document renewal required. Check expiry date and initiate renewal process.';
               }
-              
+
               if (insight.type === 'contacts') {
                 const phoneMatch = insight.content.match(/\+?[\d\s\-\(\)]{10,}/);
                 const emailMatch = insight.content.match(/[\w\.-]+@[\w\.-]+\.\w+/);
@@ -342,19 +342,19 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
                 if (emailMatch) result += `Email: ${emailMatch[0]}. `;
                 return result || insight.content;
               }
-              
+
               if (insight.type === 'financial_info') {
                 const amountMatch = insight.content.match(/[£$]\s*[\d,]+\.?\d*/);
                 if (amountMatch) return `Financial amount identified: ${amountMatch[0]}. Review for accuracy and take appropriate action.`;
                 return 'Important financial information detected. Review document for monetary details and account information.';
               }
-              
+
               // For other types, show first meaningful sentence
               const sentences = insight.content.split('.').filter(s => s.trim().length > 20);
               if (sentences.length > 0) {
                 return sentences[0].trim() + '.';
               }
-              
+
               return insight.content;
             })()}
           </p>

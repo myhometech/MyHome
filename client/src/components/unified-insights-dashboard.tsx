@@ -534,40 +534,74 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                   </Badge>
                 </div>
 
-                {/* AI Document Insights Cards - Show all insights on mobile */}
+                {/* AI Document Insights Cards - Compact Layout */}
                 {filteredInsights.length > 0 && (
                   <div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-1">
-                      {filteredInsights.slice(0, showMoreInsights ? undefined : INITIAL_DISPLAY_LIMIT).map((insight) => (
-                        <InsightCard
-                          key={insight.id}
-                          insight={insight}
-                          onStatusUpdate={handleStatusUpdate}
-                          onDocumentClick={handleDocumentClick}
-                        />
-                      ))}
-                      {!showMoreInsights && filteredInsights.length > INITIAL_DISPLAY_LIMIT && (
-                        <Button
-                          variant="outline"
-                          className="border-dashed min-h-[120px] text-sm"
-                          onClick={() => setShowMoreInsights(true)}
-                        >
-                          <div className="text-center">
-                            <Plus className="h-4 w-4 mx-auto mb-1" />
-                            <div>Show {filteredInsights.length - INITIAL_DISPLAY_LIMIT} more</div>
-                          </div>
-                        </Button>
-                      )}
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
+                      {filteredInsights.slice(0, showMoreInsights ? undefined : INITIAL_DISPLAY_LIMIT).map((insight) => {
+                        // Icon mapping for different insight types
+                        const getInsightIcon = (type: string) => {
+                          switch (type) {
+                            case 'contacts': return <Users className="h-3 w-3" />;
+                            case 'summary': return <Brain className="h-3 w-3" />;
+                            case 'action_items': return <CheckCircle className="h-3 w-3" />;
+                            case 'key_dates': return <Calendar className="h-3 w-3" />;
+                            case 'financial_info': return <DollarSign className="h-3 w-3" />;
+                            case 'compliance': return <Shield className="h-3 w-3" />;
+                            default: return <FileText className="h-3 w-3" />;
+                          }
+                        };
 
-                    {showMoreInsights && filteredInsights.length > INITIAL_DISPLAY_LIMIT && (
-                      <Button 
-                        variant="ghost" 
-                        className="mt-3 w-full" 
-                        onClick={() => setShowMoreInsights(false)}
-                      >
-                        Show Less
-                      </Button>
-                    )}
+                        // Priority color mapping
+                        const getPriorityColor = (priority: string) => {
+                          switch (priority) {
+                            case 'high': return 'border-purple-600 bg-purple-600 text-white hover:bg-purple-700';
+                            case 'medium': return 'border-purple-400 bg-purple-400 text-white hover:bg-purple-500';
+                            case 'low': return 'border-purple-200 bg-purple-200 text-purple-800 hover:bg-purple-300';
+                            default: return 'border-purple-300 bg-purple-300 text-purple-800 hover:bg-purple-400';
+                          }
+                        };
+
+                        return (
+                          <div 
+                            key={insight.id}
+                            className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${getPriorityColor(insight.priority || 'medium')}`}
+                            onClick={() => {
+                              if (insight.documentId) {
+                                handleDocumentClick(insight.documentId);
+                              }
+                            }}
+                            style={{ minHeight: '70px' }}
+                          >
+                            {/* Insight type icon */}
+                            <div className="flex-shrink-0 mb-1">
+                              {getInsightIcon(insight.type)}
+                            </div>
+                            
+                            {/* Insight title - truncated */}
+                            <span className="text-center text-xs leading-tight line-clamp-2 max-w-full" title={insight.title}>
+                              {insight.title}
+                            </span>
+                            
+                            {/* Priority indicator dot */}
+                            {insight.priority === 'high' && (
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" title="High Priority" />
+                            )}
+                          </div>
+                        );
+                      })}
+                      {!showMoreInsights && filteredInsights.length > INITIAL_DISPLAY_LIMIT && (
+                        <div
+                          className="relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border border-dashed border-purple-300 bg-purple-50 text-purple-600 rounded-lg cursor-pointer transition-all duration-200 hover:bg-purple-100"
+                          onClick={() => setShowMoreInsights(true)}
+                          style={{ minHeight: '70px' }}
+                        >
+                          <Plus className="h-3 w-3 mb-1" />
+                          <span className="text-center text-xs leading-tight">
+                            +{filteredInsights.length - INITIAL_DISPLAY_LIMIT} more
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {showMoreInsights && filteredInsights.length > INITIAL_DISPLAY_LIMIT && (

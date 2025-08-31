@@ -84,7 +84,7 @@ export default function InsightsFirstPage() {
 
   // Check for documentId in URL params and auto-open document viewer
   React.useEffect(() => {
-    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const urlParams = new URLSearchParams(window.location.search);
     const documentIdParam = urlParams.get('documentId');
     if (documentIdParam) {
       const docId = parseInt(documentIdParam, 10);
@@ -97,7 +97,7 @@ export default function InsightsFirstPage() {
         }
       }
     }
-  }, [location, documents]);
+  }, [documents]);
 
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({

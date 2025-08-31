@@ -21,22 +21,22 @@ interface CriticalInsight {
 function getPriorityIcon(priority: string) {
   switch (priority) {
     case 'high':
-      return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      return <AlertTriangle className="w-4 h-4 text-purple-700" />;
     case 'medium':
-      return <Clock className="w-4 h-4 text-yellow-500" />;
+      return <Clock className="w-4 h-4 text-purple-600" />;
     default:
-      return <Info className="w-4 h-4 text-blue-500" />;
+      return <Info className="w-4 h-4 text-purple-500" />;
   }
 }
 
 function getPriorityColor(priority: string) {
   switch (priority) {
     case 'high':
-      return 'border-l-red-500 bg-red-50';
+      return 'border-l-purple-700 bg-purple-50';
     case 'medium':
-      return 'border-l-yellow-500 bg-yellow-50';
+      return 'border-l-purple-500 bg-purple-50';
     default:
-      return 'border-l-blue-500 bg-blue-50';
+      return 'border-l-purple-300 bg-purple-50';
   }
 }
 

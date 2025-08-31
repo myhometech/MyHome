@@ -67,18 +67,18 @@ const insightTypeConfig = {
   contacts: { 
     icon: Users, 
     label: 'Contacts', 
-    color: 'from-violet-500 to-violet-600',
-    bgPattern: 'bg-gradient-to-br from-violet-50 to-violet-100',
-    textColor: 'text-violet-700',
-    accent: 'border-violet-200'
+    color: 'from-purple-500 to-purple-600',
+    bgPattern: 'bg-gradient-to-br from-purple-50 to-purple-100',
+    textColor: 'text-purple-700',
+    accent: 'border-purple-200'
   },
   action_items: { 
     icon: CheckCircle, 
     label: 'Actions', 
-    color: 'from-indigo-500 to-indigo-600',
-    bgPattern: 'bg-gradient-to-br from-indigo-50 to-indigo-100',
-    textColor: 'text-indigo-700',
-    accent: 'border-indigo-200'
+    color: 'from-purple-500 to-purple-600',
+    bgPattern: 'bg-gradient-to-br from-purple-50 to-purple-100',
+    textColor: 'text-purple-700',
+    accent: 'border-purple-200'
   },
   key_dates: { 
     icon: Calendar, 

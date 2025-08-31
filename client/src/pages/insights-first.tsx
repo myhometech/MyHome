@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import Header from "@/components/header";
 import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
@@ -45,6 +45,8 @@ import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
 import SmartHelpTooltip, { HelpBadge, HelpSection } from "@/components/smart-help-tooltip";
 import FloatingChatWidget from "@/components/floating-chat-widget";
 import type { Category, Document } from "@shared/schema";
+import React from "react";
+import { useLocation } from "wouter";
 
 interface DocumentInsight {
   id: string;
@@ -77,6 +79,25 @@ export default function InsightsFirstPage() {
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
 
   const { hasFeature } = useFeatures();
+
+  const queryClient = useQueryClient();
+
+  // Check for documentId in URL params and auto-open document viewer
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const documentIdParam = urlParams.get('documentId');
+    if (documentIdParam) {
+      const docId = parseInt(documentIdParam, 10);
+      if (!isNaN(docId)) {
+        // Find the document and open it
+        const document = documents?.find(doc => doc.id === docId);
+        if (document) {
+          setSelectedDocument(document);
+          setShowDocumentPreview(true);
+        }
+      }
+    }
+  }, [location, documents]);
 
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
@@ -526,7 +547,7 @@ export default function InsightsFirstPage() {
           )}
         </DialogContent>
       </Dialog>
-      
+
       {/* Floating Chat Widget */}
       <FloatingChatWidget />
     </div>

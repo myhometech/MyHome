@@ -152,18 +152,6 @@ export default function InsightsFirstPage() {
     setSelectedDocuments(new Set());
   };
 
-  // Fetch documents
-  const { data: documents = [], isLoading: documentsLoading, error: documentsError } = useQuery<Document[]>({
-    queryKey: ["/api/documents"],
-    queryFn: async () => {
-      const response = await fetch("/api/documents", {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to fetch documents");
-      return response.json();
-    },
-  });
-
   // Fetch categories
   const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories"],

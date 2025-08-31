@@ -375,13 +375,9 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1">
         {/* All Items */}
         <Card 
-          className={`border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 ${
+          className={`bg-gradient-to-br from-purple-600 to-purple-800 border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
             priorityFilter === 'all' ? 'ring-2 ring-purple-500' : ''
           }`}
-          style={{
-            background: 'linear-gradient(135deg, #9333ea 0%, #7c3aed 50%, #6b21a8 100%)',
-            color: 'white'
-          }}
           onClick={() => setPriorityFilter('all')}
         >
           <CardContent className="p-2 sm:p-3">
@@ -397,15 +393,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
             </div>
           </CardContent>
         </Card>
+
         {/* High Priority Items */}
         <Card 
-          className={`border-l-4 border-l-purple-600 cursor-pointer hover:shadow-lg transition-all duration-300 ${
+          className={`bg-gradient-to-br from-purple-500 to-purple-700 border-l-4 border-l-purple-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
             priorityFilter === 'high' ? 'ring-2 ring-purple-600' : ''
           }`}
-          style={{
-            background: 'linear-gradient(135deg, #a855f7 0%, #8b5cf6 50%, #7c3aed 100%)',
-            color: 'white'
-          }}
           onClick={() => setPriorityFilter('high')}
         >
           <CardContent className="p-2 sm:p-3">
@@ -424,13 +417,9 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
         {/* Medium Priority Items */}
         <Card 
-          className={`border-l-4 border-l-purple-400 cursor-pointer hover:shadow-lg transition-all duration-300 ${
+          className={`bg-gradient-to-br from-purple-400 to-purple-600 border-l-4 border-l-purple-400 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
             priorityFilter === 'medium' ? 'ring-2 ring-purple-400' : ''
           }`}
-          style={{
-            background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #8b5cf6 100%)',
-            color: 'white'
-          }}
           onClick={() => setPriorityFilter('medium')}
         >
           <CardContent className="p-2 sm:p-3">
@@ -449,25 +438,21 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
         {/* Low Priority Items */}
         <Card 
-          className={`border-l-4 border-l-purple-300 cursor-pointer hover:shadow-lg transition-all duration-300 ${
+          className={`bg-gradient-to-br from-purple-300 to-purple-500 border-l-4 border-l-purple-300 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
             priorityFilter === 'low' ? 'ring-2 ring-purple-300' : ''
           }`}
-          style={{
-            background: 'linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 50%, #a78bfa 100%)',
-            color: '#4c1d95'
-          }}
           onClick={() => setPriorityFilter('low')}
         >
           <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-purple-900">Low</p>
-                <p className="text-lg sm:text-2xl font-bold text-purple-900">
+                <p className="text-xs sm:text-sm font-medium text-white">Low</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">
                   {insights.filter(i => i.priority === 'low' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-purple-700 hidden sm:block">General items</p>
+                <p className="text-xs text-white/80 hidden sm:block">General items</p>
               </div>
-              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-purple-700" />
+              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
           </CardContent>
         </Card>

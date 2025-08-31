@@ -158,7 +158,16 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Simple state for insights
   const [statusFilter] = useState<string>('all');
   
-  const INSIGHTS_PER_LOAD = 8;
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('high');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [showMoreInsights, setShowMoreInsights] = useState(false);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [selectedInsight, setSelectedInsight] = useState<DocumentInsight | null>(null);
+  const [selectedManualEvent, setSelectedManualEvent] = useState<string | null>(null);
+  
+  // Display limits
+  const INITIAL_DISPLAY_LIMIT = 8;
 
   
 
@@ -201,15 +210,6 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   });
 
   // State variables first
-  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('high');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [showMoreInsights, setShowMoreInsights] = useState(false);
-  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
-  const [selectedDocument, setSelectedDocument] = useState<any>(null);
-  const [selectedInsight, setSelectedInsight] = useState<DocumentInsight | null>(null);
-  const [selectedManualEvent, setSelectedManualEvent] = useState<string | null>(null);
-  
-  // Display limits
 
   // Fetch user assets for linking manual events to assets
   const { data: userAssets = [] } = useQuery<UserAsset[]>({

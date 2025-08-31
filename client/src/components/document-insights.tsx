@@ -492,26 +492,8 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
       {/* Content Area */}
       {insights.length === 0 && !isGenerating && !generateInsightsMutation.isPending ? (
-        <div className="text-center py-8 px-6">
-          {/* Feature Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            <div className="bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 rounded-xl p-4 border border-accent-purple-200">
-              <Calendar className="h-6 w-6 text-accent-purple-600 mx-auto mb-2" />
-              <p className="text-sm font-medium text-accent-purple-600">Key Dates</p>
-            </div>
-            <div className="bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 rounded-xl p-4 border border-accent-purple-200">
-              <Users className="h-6 w-6 text-accent-purple-500 mx-auto mb-2" />
-              <p className="text-sm font-medium text-accent-purple-600">Contacts</p>
-            </div>
-            <div className="bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 rounded-xl p-4 border border-accent-purple-200">
-              <CheckCircle className="h-6 w-6 text-accent-purple-500 mx-auto mb-2" />
-              <p className="text-sm font-medium text-accent-purple-600">Action Items</p>
-            </div>
-            <div className="bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 rounded-xl p-4 border border-accent-purple-200">
-              <DollarSign className="h-6 w-6 text-accent-purple-600 mx-auto mb-2" />
-              <p className="text-sm font-medium text-accent-purple-600">Financial Data</p>
-            </div>
-          </div>
+        <div className="text-center py-4">
+          <p className="text-gray-500 text-sm">No insights generated yet. Click "Generate" to analyze this document.</p>
         </div>
       ) : isGenerating || generateInsightsMutation.isPending ? (
         <div className="text-center py-16 px-6">

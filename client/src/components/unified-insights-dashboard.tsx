@@ -615,6 +615,82 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           return insight.title;
                         };
 
+                        // Extract actionable content from the insight
+                        const getActionableContent = (insight: DocumentInsight) => {
+                          const content = insight.content.toLowerCase();
+                          const title = insight.title.toLowerCase();
+                          
+                          // For payment/bill related insights
+                          if (content.includes('payment') || content.includes('bill') || content.includes('due')) {
+                            if (content.includes('£') || content.includes('$')) {
+                              const amountMatch = content.match(/[£$]\s*[\d,]+\.?\d*/);
+                              if (amountMatch) return `Due: ${amountMatch[0]}`;
+                            }
+                            if (content.includes('due date') || content.includes('due on')) {
+                              const dateMatch = content.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+                              if (dateMatch) return `Due: ${dateMatch[0]}`;
+                            }
+                            return 'Payment required';
+                          }
+                          
+                          // For document expiry/renewal
+                          if (content.includes('expire') || content.includes('renewal') || content.includes('renew')) {
+                            const dateMatch = content.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+                            if (dateMatch) return `Expires: ${dateMatch[0]}`;
+                            return 'Renewal needed';
+                          }
+                          
+                          // For contact information
+                          if (insight.type === 'contacts') {
+                            if (content.includes('phone') || content.includes('mobile')) {
+                              const phoneMatch = content.match(/\+?[\d\s\-\(\)]{10,}/);
+                              if (phoneMatch) return phoneMatch[0].trim();
+                            }
+                            if (content.includes('email') || content.includes('@')) {
+                              const emailMatch = content.match(/[\w\.-]+@[\w\.-]+\.\w+/);
+                              if (emailMatch) return emailMatch[0];
+                            }
+                            return 'Contact info';
+                          }
+                          
+                          // For financial information
+                          if (insight.type === 'financial_info') {
+                            if (content.includes('£') || content.includes('$')) {
+                              const amountMatch = content.match(/[£$]\s*[\d,]+\.?\d*/);
+                              if (amountMatch) return amountMatch[0];
+                            }
+                            if (content.includes('account') && content.includes('number')) {
+                              return 'Account details';
+                            }
+                            return 'Financial data';
+                          }
+                          
+                          // For action items
+                          if (insight.type === 'action_items') {
+                            if (content.includes('review')) return 'Review required';
+                            if (content.includes('submit')) return 'Submit document';
+                            if (content.includes('contact')) return 'Contact needed';
+                            if (content.includes('update')) return 'Update required';
+                            return 'Action needed';
+                          }
+                          
+                          // For key dates
+                          if (insight.type === 'key_dates') {
+                            const dateMatch = content.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+                            if (dateMatch) return dateMatch[0];
+                            return 'Important date';
+                          }
+                          
+                          // Fallback to first meaningful sentence
+                          const sentences = insight.content.split('.').filter(s => s.trim().length > 10);
+                          if (sentences.length > 0) {
+                            const firstSentence = sentences[0].trim();
+                            return firstSentence.length > 40 ? firstSentence.substring(0, 37) + '...' : firstSentence;
+                          }
+                          
+                          return insight.title;
+                        };
+
                         return (
                           <div 
                             key={insight.id}
@@ -632,8 +708,13 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             </div>
 
                             {/* Insight title - now more specific */}
-                            <span className="text-center text-xs leading-tight line-clamp-2 max-w-full font-semibold" title={getSpecificTitle(insight)}>
+                            <span className="text-center text-xs leading-tight line-clamp-1 max-w-full font-semibold" title={getSpecificTitle(insight)}>
                               {getSpecificTitle(insight)}
+                            </span>
+
+                            {/* Actionable content - replaces generic summary */}
+                            <span className="text-center text-xs leading-tight line-clamp-1 max-w-full opacity-90" title={getActionableContent(insight)}>
+                              {getActionableContent(insight)}
                             </span>
 
                             {/* Priority indicator dot */}

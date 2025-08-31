@@ -113,17 +113,17 @@ function CompactInsightButton({ insight, onStatusUpdate }: CompactInsightButtonP
         className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${getStatusColor(insight.status || 'open')}`} 
         title={`Status: ${insight.status || 'open'}`}
       />
-      
+
       {/* Insight icon */}
       <div className="flex-shrink-0">
         <Brain className="h-3 w-3 md:h-4 md:w-4" />
       </div>
-      
+
       {/* Insight title */}
       <span className="truncate max-w-[120px] md:max-w-[200px] text-xs md:text-sm" title={insight.title}>
         {insight.title}
       </span>
-      
+
       {/* Priority badge */}
       {insight.priority === 'high' && (
         <div className="flex-shrink-0">
@@ -153,12 +153,12 @@ interface UnifiedInsightsDashboardProps {
 export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: UnifiedInsightsDashboardProps) {
   const [, setLocation] = useLocation();
   const { hasFeature } = useFeatures();
-  
+
   // No longer using tabs - insights and documents are in single view
-  
+
   // Simple state for insights
   const [statusFilter] = useState<string>('all');
-  
+
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('high');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showMoreInsights, setShowMoreInsights] = useState(false);
@@ -166,11 +166,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [selectedInsight, setSelectedInsight] = useState<DocumentInsight | null>(null);
   const [selectedManualEvent, setSelectedManualEvent] = useState<string | null>(null);
-  
+
   // Display limits
   const INITIAL_DISPLAY_LIMIT = 8;
 
-  
+
 
 
 
@@ -301,7 +301,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     try {
       console.log(`[DEBUG] Current insights before update:`, insights.map(i => ({ id: i.id, title: i.title, status: i.status })));
       console.log(`[DEBUG] Updating insight ${insightId} to status: ${status}`);
-      
+
       const response = await fetch(`/api/insights/${insightId}`, {
         method: 'PATCH',
         headers: {
@@ -317,11 +317,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
       const updatedInsight = await response.json();
       console.log(`[DEBUG] Successfully updated insight:`, updatedInsight);
-      
+
       // Invalidate and refetch insights
       await queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
       await refetch();
-      
+
       console.log(`[DEBUG] Insights after refetch:`, insightsData?.insights?.map(i => ({ id: i.id, title: i.title, status: i.status })));
     } catch (error) {
       console.error('Error updating insight status:', error);
@@ -332,7 +332,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   const handleDeleteInsight = async (insightId: string) => {
     try {
       console.log(`Deleting insight ${insightId}`);
-      
+
       const response = await fetch(`/api/insights/${insightId}`, {
         method: 'DELETE',
       });
@@ -342,7 +342,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
       }
 
       console.log(`Successfully deleted insight ${insightId}`);
-      
+
       // Invalidate and refetch insights
       await queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
       await refetch();
@@ -472,7 +472,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 <span className="hidden sm:inline">Refresh</span>
               </Button>
             </div>
-            
+
             {isLoading || manualEventsLoading ? (
               <div className="text-center py-4 sm:py-6">
                 <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 animate-spin mx-auto mb-2 sm:mb-4 text-purple-500" />
@@ -484,7 +484,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <Filter className="h-4 w-4 text-gray-500" />
-                    
+
                     {/* Priority Filter */}
                     <Select value={priorityFilter} onValueChange={(value: any) => setPriorityFilter(value)}>
                       <SelectTrigger className="w-28 h-8">
@@ -497,7 +497,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                         <SelectItem value="low">Low Only</SelectItem>
                       </SelectContent>
                     </Select>
-                    
+
                     {/* Type Filter */}
                     <Select value={typeFilter} onValueChange={setTypeFilter}>
                       <SelectTrigger className="w-32 h-8">
@@ -513,7 +513,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                         <SelectItem value="summary">Summary</SelectItem>
                       </SelectContent>
                     </Select>
-                    
+
                     {/* Clear filters button */}
                     {(priorityFilter !== 'high' || typeFilter !== 'all') && (
                       <Button 
@@ -527,7 +527,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                       </Button>
                     )}
                   </div>
-                  
+
                   {/* Results count */}
                   <Badge variant="outline" className="text-xs">
                     {filteredInsights.length} insights
@@ -552,62 +552,65 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           }
                         };
 
-                        // Priority gradient mapping with subtle hierarchy
+                        // Priority gradient mapping - creating subtle hierarchy with gradients
                         const getPriorityGradient = (priority: string) => {
                           switch (priority) {
-                            case 'high': return 'border-purple-500 bg-gradient-to-br from-purple-600 via-purple-650 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg shadow-purple-500/25';
-                            case 'medium': return 'border-purple-300 bg-gradient-to-br from-purple-400 via-purple-450 to-purple-500 text-white hover:from-purple-500 hover:to-purple-600 shadow-md shadow-purple-400/20';
-                            case 'low': return 'border-purple-200 bg-gradient-to-br from-purple-100 via-purple-150 to-purple-200 text-purple-700 hover:from-purple-200 hover:to-purple-250 shadow-sm shadow-purple-300/15';
-                            default: return 'border-purple-250 bg-gradient-to-br from-purple-200 via-purple-250 to-purple-300 text-purple-700 hover:from-purple-300 hover:to-purple-350 shadow-sm shadow-purple-350/15';
+                            case 'high': return 'border-purple-300 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 text-white hover:from-purple-600 hover:to-purple-800';
+                            case 'medium': return 'border-purple-200 bg-gradient-to-br from-purple-300 via-purple-400 to-purple-500 text-white hover:from-purple-400 hover:to-purple-600';
+                            case 'low': return 'border-purple-100 bg-gradient-to-br from-purple-100 via-purple-200 to-purple-300 text-purple-800 hover:from-purple-200 hover:to-purple-400';
+                            default: return 'border-purple-150 bg-gradient-to-br from-purple-200 via-purple-300 to-purple-400 text-purple-800 hover:from-purple-300 hover:to-purple-500';
                           }
                         };
 
                         // Extract more specific title from content or metadata
                         const getSpecificTitle = (insight: DocumentInsight) => {
-                          // Check if we can extract a more specific title from the content
                           const content = insight.content.toLowerCase();
                           const title = insight.title.toLowerCase();
-                          
+
                           // For payment/bill related insights
                           if (content.includes('payment') || content.includes('bill') || content.includes('due')) {
-                            if (content.includes('peloton')) return 'Peloton Bill Due';
+                            if (content.includes('peloton')) return 'Peloton Bill';
                             if (content.includes('netflix')) return 'Netflix Payment';
-                            if (content.includes('spotify')) return 'Spotify Subscription';
+                            if (content.includes('spotify')) return 'Spotify Bill';
                             if (content.includes('mortgage')) return 'Mortgage Payment';
                             if (content.includes('credit card')) return 'Credit Card Bill';
                             if (content.includes('utilities') || content.includes('electric') || content.includes('gas')) return 'Utility Bill';
                             if (content.includes('phone') || content.includes('mobile')) return 'Phone Bill';
                             if (content.includes('internet') || content.includes('broadband')) return 'Internet Bill';
                             if (content.includes('insurance')) return 'Insurance Payment';
+                            if (content.includes('three') || content.includes('three uk')) return 'Three UK Bill';
+                            if (content.includes('amazon')) return 'Amazon Payment';
+                            if (content.includes('apple')) return 'Apple Payment';
+                            if (content.includes('google')) return 'Google Payment';
                           }
-                          
+
                           // For document expiry/renewal insights
                           if (content.includes('expire') || content.includes('renewal') || content.includes('renew')) {
-                            if (content.includes('passport')) return 'Passport Renewal';
+                            if (content.includes('passport')) return 'Passport Due';
                             if (content.includes('license') || content.includes('driving')) return 'License Renewal';
                             if (content.includes('insurance')) return 'Insurance Renewal';
                             if (content.includes('registration')) return 'Registration Due';
-                            if (content.includes('membership')) return 'Membership Renewal';
-                            if (content.includes('subscription')) return 'Subscription Renewal';
+                            if (content.includes('membership')) return 'Membership Due';
+                            if (content.includes('subscription')) return 'Subscription Due';
                           }
-                          
+
                           // For contact-related insights
                           if (insight.type === 'contacts') {
                             if (content.includes('doctor')) return 'Doctor Contact';
                             if (content.includes('lawyer') || content.includes('attorney')) return 'Legal Contact';
                             if (content.includes('insurance')) return 'Insurance Agent';
                             if (content.includes('bank')) return 'Bank Contact';
-                            if (content.includes('contractor')) return 'Contractor Info';
+                            if (content.includes('contractor')) return 'Contractor';
                           }
-                          
+
                           // For financial insights
                           if (insight.type === 'financial_info') {
-                            if (content.includes('tax')) return 'Tax Information';
+                            if (content.includes('tax')) return 'Tax Info';
                             if (content.includes('loan')) return 'Loan Details';
-                            if (content.includes('investment')) return 'Investment Info';
+                            if (content.includes('investment')) return 'Investment';
                             if (content.includes('refund')) return 'Refund Due';
                           }
-                          
+
                           // Fallback to original title if no specific match
                           return insight.title;
                         };
@@ -615,7 +618,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                         return (
                           <div 
                             key={insight.id}
-                            className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getPriorityGradient(insight.priority || 'medium')}`}
+                            className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-105 ${getPriorityGradient(insight.priority || 'medium')}`}
                             onClick={() => {
                               if (insight.documentId) {
                                 handleDocumentClick(insight.documentId);
@@ -627,12 +630,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             <div className="flex-shrink-0 mb-1">
                               {getInsightIcon(insight.type)}
                             </div>
-                            
-                            {/* Insight title - more specific */}
-                            <span className="text-center text-xs leading-tight line-clamp-2 max-w-full" title={getSpecificTitle(insight)}>
+
+                            {/* Insight title - now more specific */}
+                            <span className="text-center text-xs leading-tight line-clamp-2 max-w-full font-semibold" title={getSpecificTitle(insight)}>
                               {getSpecificTitle(insight)}
                             </span>
-                            
+
                             {/* Priority indicator dot */}
                             {insight.priority === 'high' && (
                               <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" title="High Priority" />
@@ -678,7 +681,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                         const linkedAsset = event.linkedAssetId 
                           ? userAssets.find(asset => asset.id === event.linkedAssetId)
                           : undefined;
-                        
+
                         return (
                           <CompactManualEventCard
                             key={event.id}

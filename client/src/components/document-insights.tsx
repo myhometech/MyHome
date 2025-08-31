@@ -108,25 +108,25 @@ const insightTypeConfig = {
 
 const categoryConfig = {
   financial: { 
-    badge: 'bg-gradient-to-r from-accent-purple-100 to-accent-purple-200 text-accent-purple-600 border-accent-purple-200',
+    badge: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200',
     icon: DollarSign,
     label: 'Financial',
     glow: 'shadow-accent-purple-200/50',
-    cardGradient: 'bg-gradient-to-br from-accent-purple-600 via-accent-purple-600 to-accent-purple-700'
+    cardGradient: 'bg-white'
   },
   important_dates: { 
-    badge: 'bg-gradient-to-r from-accent-purple-200 to-accent-purple-300 text-accent-purple-700 border-accent-purple-300',
+    badge: 'bg-accent-purple-200 text-accent-purple-800 border-accent-purple-300',
     icon: Calendar,
     label: 'Important Dates',
     glow: 'shadow-accent-purple-300/50',
-    cardGradient: 'bg-gradient-to-br from-accent-purple-500 via-accent-purple-600 to-accent-purple-700'
+    cardGradient: 'bg-white'
   },
   general: { 
-    badge: 'bg-gradient-to-r from-accent-purple-50 to-accent-purple-100 text-accent-purple-500 border-accent-purple-200',
+    badge: 'bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200',
     icon: CheckCircle,
     label: 'General',
     glow: 'shadow-accent-purple-100/50',
-    cardGradient: 'bg-gradient-to-br from-accent-purple-400 via-accent-purple-500 to-accent-purple-600'
+    cardGradient: 'bg-white'
   }
 };
 
@@ -589,12 +589,12 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             return (
               <div 
                 key={insight.id} 
-                className={`group relative ${categoryData.cardGradient} rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border ${config.accent} ${categoryData.glow} hover:${categoryData.glow} text-white`}
+                className="group relative bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border border-accent-purple-200 hover:border-accent-purple-300"
                 onClick={handleCardClick}
                 style={{ minHeight: isMobile ? '140px' : '160px' }}
               >
-                {/* Header Section */}
-                <div className={`${config.bgPattern} p-3 relative`}>
+                {/* Header Section with Purple Background */}
+                <div className="bg-white p-3 relative border-b border-accent-purple-100">
                   {/* Top Actions */}
                   <div className="absolute top-2 right-2 flex items-center gap-1">
                     <Button
@@ -605,7 +605,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleFlagInsight(insight.id, !insight.flagged, insight.flagged ? undefined : "Incorrect information");
                       }}
                       disabled={flagInsightMutation.isPending}
-                      className="bg-white/90 backdrop-blur-sm hover:bg-white text-gray-600 hover:text-gray-800 rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
                       title={insight.flagged ? "Remove flag" : "Flag as incorrect"}
                     >
                       {insight.flagged ? <FlagOff className="h-3.5 w-3.5" /> : <Flag className="h-3.5 w-3.5" />}
@@ -618,7 +618,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleDeleteInsight(insight.id);
                       }}
                       disabled={deleteInsightMutation.isPending}
-                      className="bg-white/90 backdrop-blur-sm hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
+                      className="bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -630,7 +630,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       <IconComponent className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <Badge className={`${categoryData.badge} border text-xs font-medium`}>
+                      <Badge className="bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200 border text-xs font-medium">
                         <CategoryIcon className="h-2 w-2 mr-1" />
                         {categoryData.label.toUpperCase()}
                       </Badge>
@@ -638,18 +638,18 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                   </div>
 
                   {/* Title */}
-                  <h3 className={`font-semibold text-sm text-white leading-tight mb-1`}>
+                  <h3 className="font-semibold text-sm text-gray-900 leading-tight mb-1">
                     {getSpecificTitle(insight)}
                   </h3>
 
                   {/* Type Label */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-white/90">
+                    <span className="text-xs font-medium text-accent-purple-600">
                       {config.label}
                     </span>
                     <div className="flex items-center gap-1">
-                      <Star className="h-2 w-2 text-yellow-300 fill-current" />
-                      <span className="text-xs text-white/80 font-medium">
+                      <Star className="h-2 w-2 text-yellow-500 fill-current" />
+                      <span className="text-xs text-gray-600 font-medium">
                         {Math.round(insight.confidence * 100)}%
                       </span>
                     </div>
@@ -657,13 +657,13 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 </div>
 
                 {/* Content Section */}
-                <div className="p-3 pt-2 flex-1">
-                  <p className="text-white/90 text-xs leading-relaxed line-clamp-3 mb-3">
+                <div className="p-3 pt-2 flex-1 bg-white">
+                  <p className="text-gray-700 text-xs leading-relaxed line-clamp-3 mb-3">
                     {insight.content}
                   </p>
 
                   {/* Metadata */}
-                  <div className="flex items-center gap-3 text-xs text-white/70 mb-2">
+                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       <span>{new Date(insight.createdAt).toLocaleDateString()}</span>
@@ -672,7 +672,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 </div>
 
                 {/* Footer Actions */}
-                <div className="border-t border-white/20 p-2 bg-accent-purple-50/80">
+                <div className="border-t border-accent-purple-100 p-2 bg-accent-purple-50">
                   <div className="flex items-center justify-between">
                     <Button
                       variant="ghost"
@@ -681,7 +681,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.stopPropagation();
                         if (onDocumentClick) onDocumentClick(documentId);
                       }}
-                      className="text-white/90 hover:text-white hover:bg-white/20 backdrop-blur-sm rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium"
+                      className="text-accent-purple-700 hover:text-accent-purple-800 hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium"
                     >
                       <Eye className="h-3 w-3 mr-1.5" />
                       View
@@ -694,7 +694,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.stopPropagation();
                         setLocation(`/document/${documentId}`);
                       }}
-                      className="text-white/90 hover:text-white hover:bg-white/20 backdrop-blur-sm rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium"
+                      className="text-accent-purple-700 hover:text-accent-purple-800 hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium"
                     >
                       Details
                       <ArrowRight className="h-3 w-3 ml-1.5" />

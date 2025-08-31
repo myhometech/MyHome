@@ -59,26 +59,26 @@ const insightTypeConfig = {
   summary: { 
     icon: FileText, 
     label: 'Summary', 
-    color: 'from-blue-500 to-blue-600',
-    bgPattern: 'bg-gradient-to-br from-blue-50 to-blue-100',
-    textColor: 'text-blue-700',
-    accent: 'border-blue-200'
+    color: 'from-purple-500 to-purple-600',
+    bgPattern: 'bg-gradient-to-br from-purple-50 to-purple-100',
+    textColor: 'text-purple-700',
+    accent: 'border-purple-200'
   },
   contacts: { 
     icon: Users, 
     label: 'Contacts', 
-    color: 'from-emerald-500 to-emerald-600',
-    bgPattern: 'bg-gradient-to-br from-emerald-50 to-emerald-100',
-    textColor: 'text-emerald-700',
-    accent: 'border-emerald-200'
+    color: 'from-violet-500 to-violet-600',
+    bgPattern: 'bg-gradient-to-br from-violet-50 to-violet-100',
+    textColor: 'text-violet-700',
+    accent: 'border-violet-200'
   },
   action_items: { 
     icon: CheckCircle, 
     label: 'Actions', 
-    color: 'from-orange-500 to-orange-600',
-    bgPattern: 'bg-gradient-to-br from-orange-50 to-orange-100',
-    textColor: 'text-orange-700',
-    accent: 'border-orange-200'
+    color: 'from-indigo-500 to-indigo-600',
+    bgPattern: 'bg-gradient-to-br from-indigo-50 to-indigo-100',
+    textColor: 'text-indigo-700',
+    accent: 'border-indigo-200'
   },
   key_dates: { 
     icon: Calendar, 
@@ -91,39 +91,39 @@ const insightTypeConfig = {
   financial_info: { 
     icon: DollarSign, 
     label: 'Financial', 
-    color: 'from-green-500 to-green-600',
-    bgPattern: 'bg-gradient-to-br from-green-50 to-green-100',
-    textColor: 'text-green-700',
-    accent: 'border-green-200'
+    color: 'from-purple-600 to-purple-700',
+    bgPattern: 'bg-gradient-to-br from-purple-50 to-purple-100',
+    textColor: 'text-purple-700',
+    accent: 'border-purple-200'
   },
   compliance: { 
     icon: AlertCircle, 
     label: 'Compliance', 
-    color: 'from-red-500 to-red-600',
-    bgPattern: 'bg-gradient-to-br from-red-50 to-red-100',
-    textColor: 'text-red-700',
-    accent: 'border-red-200'
+    color: 'from-purple-700 to-purple-800',
+    bgPattern: 'bg-gradient-to-br from-purple-50 to-purple-100',
+    textColor: 'text-purple-700',
+    accent: 'border-purple-200'
   }
 };
 
 const priorityConfig = {
   high: { 
-    badge: 'bg-red-100 text-red-800 border-red-200',
+    badge: 'bg-purple-100 text-purple-800 border-purple-200',
     icon: AlertCircle,
     label: 'High Priority',
-    glow: 'shadow-red-200/50'
+    glow: 'shadow-purple-200/50'
   },
   medium: { 
-    badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    badge: 'bg-purple-50 text-purple-700 border-purple-150',
     icon: TrendingUp,
     label: 'Medium Priority',
-    glow: 'shadow-yellow-200/50'
+    glow: 'shadow-purple-150/50'
   },
   low: { 
-    badge: 'bg-green-100 text-green-800 border-green-200',
+    badge: 'bg-purple-25 text-purple-600 border-purple-100',
     icon: CheckCircle,
     label: 'Low Priority',
-    glow: 'shadow-green-200/50'
+    glow: 'shadow-purple-100/50'
   }
 };
 
@@ -456,7 +456,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       {/* Modern Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
+          <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl">
             <Brain className="h-6 w-6 text-white" />
           </div>
           <div>
@@ -465,7 +465,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           </div>
           {insights.length > 0 && (
             <div className="ml-4">
-              <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+              <Badge variant="secondary" className="bg-purple-50 text-purple-700 border-purple-200">
                 {insights.length} insight{insights.length !== 1 ? 's' : ''}
               </Badge>
             </div>
@@ -475,7 +475,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+          className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-lg hover:shadow-xl transition-all duration-300"
           size={isMobile ? "default" : "lg"}
         >
           {isGenerating || generateInsightsMutation.isPending ? (
@@ -496,9 +496,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       {insights.length === 0 && !isGenerating && !generateInsightsMutation.isPending ? (
         <div className="text-center py-16 px-6">
           <div className="relative mb-8">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full blur-3xl opacity-30"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full blur-3xl opacity-30"></div>
             <div className="relative bg-white rounded-2xl p-6 shadow-lg mx-auto w-fit">
-              <Brain className="h-12 w-12 text-blue-600 mx-auto" />
+              <Brain className="h-12 w-12 text-purple-600 mx-auto" />
             </div>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-4">Unlock Document Intelligence</h3>
@@ -508,38 +508,38 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           
           {/* Feature Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
-              <Calendar className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-              <p className="text-sm font-medium text-blue-800">Key Dates</p>
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+              <Calendar className="h-6 w-6 text-purple-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-purple-800">Key Dates</p>
             </div>
-            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
-              <Users className="h-6 w-6 text-emerald-600 mx-auto mb-2" />
-              <p className="text-sm font-medium text-emerald-800">Contacts</p>
+            <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 border border-violet-200">
+              <Users className="h-6 w-6 text-violet-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-violet-800">Contacts</p>
             </div>
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
-              <CheckCircle className="h-6 w-6 text-orange-600 mx-auto mb-2" />
-              <p className="text-sm font-medium text-orange-800">Action Items</p>
+            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 border border-indigo-200">
+              <CheckCircle className="h-6 w-6 text-indigo-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-indigo-800">Action Items</p>
             </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
-              <DollarSign className="h-6 w-6 text-green-600 mx-auto mb-2" />
-              <p className="text-sm font-medium text-green-800">Financial Data</p>
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+              <DollarSign className="h-6 w-6 text-purple-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-purple-800">Financial Data</p>
             </div>
           </div>
         </div>
       ) : isGenerating || generateInsightsMutation.isPending ? (
         <div className="text-center py-16 px-6">
           <div className="relative mb-8">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-100 to-purple-200 rounded-full blur-3xl opacity-30 animate-pulse"></div>
             <div className="relative bg-white rounded-2xl p-6 shadow-lg mx-auto w-fit">
-              <Loader2 className="h-12 w-12 text-blue-600 mx-auto animate-spin" />
+              <Loader2 className="h-12 w-12 text-purple-600 mx-auto animate-spin" />
             </div>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 mb-4">AI Analysis in Progress</h3>
           <p className="text-gray-600 mb-6 text-lg max-w-md mx-auto">
             Our AI is carefully reading through your document to extract valuable insights...
           </p>
-          <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 max-w-xs mx-auto">
-            <div className="text-sm text-blue-700 text-center font-medium">
+          <div className="bg-purple-50 rounded-xl p-4 border border-purple-200 max-w-xs mx-auto">
+            <div className="text-sm text-purple-700 text-center font-medium">
               Usually takes 5-15 seconds
             </div>
           </div>

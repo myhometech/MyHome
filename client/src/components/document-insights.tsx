@@ -460,16 +460,16 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       {/* Modern Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-accent-purple-400 to-accent-purple-600 rounded-xl">
-            <Brain className="h-6 w-6 text-white" />
+          <div className="p-2 bg-gradient-to-br from-accent-purple-400 to-accent-purple-600 rounded-lg">
+            <Brain className="h-4 w-4 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Smart Insights</h2>
-            <p className="text-sm text-gray-500">AI-powered document analysis</p>
+            <h2 className="text-lg font-semibold text-gray-900">Smart Insights</h2>
+            <p className="text-xs text-gray-500">AI-powered document analysis</p>
           </div>
           {insights.length > 0 && (
-            <div className="ml-4">
-              <Badge variant="secondary" className="bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200">
+            <div className="ml-3">
+              <Badge variant="secondary" className="bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200 text-xs">
                 {insights.length} insight{insights.length !== 1 ? 's' : ''}
               </Badge>
             </div>
@@ -479,18 +479,18 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
-          className="bg-gradient-to-r from-accent-purple-600 to-accent-purple-700 hover:from-accent-purple-700 hover:to-accent-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-          size={isMobile ? "default" : "lg"}
+          className="bg-gradient-to-r from-accent-purple-600 to-accent-purple-700 hover:from-accent-purple-700 hover:to-accent-purple-700 text-white shadow-sm hover:shadow-md transition-all duration-200 text-sm"
+          size="sm"
         >
           {isGenerating || generateInsightsMutation.isPending ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
               Analyzing...
             </>
           ) : (
             <>
-              <Brain className="mr-2 h-4 w-4" />
-              {insights.length > 0 ? 'Refresh Insights' : 'Generate Insights'}
+              <Brain className="mr-2 h-3 w-3" />
+              {insights.length > 0 ? 'Refresh' : 'Generate'}
             </>
           )}
         </Button>

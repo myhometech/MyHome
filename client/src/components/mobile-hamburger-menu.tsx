@@ -134,8 +134,8 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
                   </Badge>
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900 text-sm">Insights</h3>
-                  <p className="text-xs text-gray-500">New insights available</p>
+                  <h3 className="font-medium text-foreground text-sm">Insights</h3>
+                  <p className="text-xs text-muted-foreground">New insights available</p>
                 </div>
               </motion.div>
             </Link>
@@ -151,8 +151,8 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
                     whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <item.icon className="h-4 w-4 text-gray-600 group-hover:text-blue-600 transition-colors" />
-                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    <item.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="text-sm font-medium text-foreground group-hover:text-foreground">
                       {item.label}
                     </span>
                     {item.badge && (
@@ -181,13 +181,13 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {(user as any)?.firstName && (user as any)?.lastName 
                       ? `${(user as any).firstName} ${(user as any).lastName}`
                       : (user as any)?.email || "User"
                     }
                   </p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     {(user as any)?.email}
                   </p>
                 </div>
@@ -196,7 +196,7 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
                     tier={getSubscriptionTier() as any} 
                     size="sm" 
                   />
-                  <User className="h-3 w-3 text-gray-400" />
+                  <User className="h-3 w-3 text-muted-foreground" />
                 </div>
               </motion.div>
             </Link>

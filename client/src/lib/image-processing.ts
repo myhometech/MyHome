@@ -67,7 +67,7 @@ export class ImageProcessor {
    * For canvas-based processing, this is always true
    */
   isOpenCVReady(): boolean {
-    return this.ready && this.canvas && this.ctx;
+    return this.ready && !!this.canvas && !!this.ctx;
   }
 
   async processImage(

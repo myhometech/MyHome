@@ -240,28 +240,40 @@ function getUserId(req: AuthenticatedRequest): string {
 
 // TICKET 4: Helper function to generate dashboard-ready messages
 function generateInsightMessage(insight: any, documentName: string): string {
+  // Validate inputs
+  if (!insight || typeof insight !== 'object') {
+    return `${documentName}: Insight not available`;
+  }
+  
   const docName = documentName.length > 30 ? documentName.substring(0, 30) + '...' : documentName;
+  const insightType = insight.type || 'unknown';
+  const insightTitle = insight.title || 'Untitled insight';
 
-  switch (insight.type) {
+  switch (insightType) {
     case 'key_dates':
-      return `${docName}: Important date identified - ${insight.title}`;
+      return `${docName}: Important date identified - ${insightTitle}`;
     case 'action_items':
-      return `${docName}: Action required - ${insight.title}`;
+      return `${docName}: Action required - ${insightTitle}`;
     case 'financial_info':
-      return `${docName}: Financial information - ${insight.title}`;
+      return `${docName}: Financial information - ${insightTitle}`;
     case 'compliance':
-      return `${docName}: Compliance requirement - ${insight.title}`;
+      return `${docName}: Compliance requirement - ${insightTitle}`;
     case 'summary':
       return `${docName}: Document summary available`;
     case 'contacts':
-      return `${docName}: Contact information found - ${insight.title}`;
+      return `${docName}: Contact information found - ${insightTitle}`;
     default:
-      return `${docName}: ${insight.title}`;
+      return `${docName}: ${insightTitle}`;
   }
 }
 
 // TICKET 4: Helper function to extract due dates from insight content
 function extractDueDate(insight: any): string | null {
+  // Validate insight object
+  if (!insight || typeof insight !== 'object') {
+    return null;
+  }
+  
   const content = (insight.content || '').toLowerCase();
   const dateRegex = /(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}-\d{1,2}-\d{4})/;
 
@@ -279,7 +291,9 @@ function extractDueDate(insight: any): string | null {
   }
 
   // For certain types, set default due dates
-  if (insight.type === 'action_items' && insight.priority === 'high') {
+  const insightType = insight.type || '';
+  const insightPriority = insight.priority || '';
+  if (insightType === 'action_items' && insightPriority === 'high') {
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
     return thirtyDaysFromNow.toISOString().split('T')[0];
@@ -4156,7 +4170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // For user messages, set userId. For assistant/system messages, userId can be null
-      const messageUserId = validatedData.role === 'user' ? userId : validatedData.userId || null;
+      const messageUserId = validatedData.role === 'user' ? userId : (validatedData.userId || null);
 
       const message = await storage.createMessage({
         ...validatedData,
@@ -4213,9 +4227,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get tenant ID for RBAC scoping
-      const tenantId = user.subscriptionTier === 'duo' ? 
-        (await storage.getUserHouseholdMembership(userId))?.householdId || userId : 
-        userId;
+      const membership = user.subscriptionTier === 'duo' ? await storage.getUserHouseholdMembership(userId) : null;
+      const tenantId = membership?.householdId || userId;
 
       // Validate request body
       const validatedData = searchSnippetsRequestSchema.parse(req.body);

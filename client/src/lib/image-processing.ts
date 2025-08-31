@@ -212,7 +212,7 @@ export class ImageProcessor {
 
     } catch (error) {
       console.error('Image processing failed:', error);
-      throw new Error(`Image processing failed: ${error.message}`);
+      throw new Error(`Image processing failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

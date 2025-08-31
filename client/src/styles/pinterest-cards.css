@@ -11,7 +11,7 @@
 
 .pinterest-insight-card:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 20px 40px rgba(139, 92, 246, 0.2);
 }
 
 .pinterest-insight-card::before {
@@ -21,7 +21,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #8b5cf6, #a855f7);
+  background: linear-gradient(90deg, #8b5cf6, #a855f7, #7c3aed);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -60,6 +60,20 @@
   border-radius: 50%;
   background: var(--priority-color, #8b5cf6);
   position: relative;
+  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
+}
+
+/* Priority color variations */
+.pinterest-priority-indicator.high {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.pinterest-priority-indicator.medium {
+  background: linear-gradient(135deg, #a855f7, #8b5cf6);
+}
+
+.pinterest-priority-indicator.low {
+  background: linear-gradient(135deg, #c084fc, #a855f7);
 }
 
 .pinterest-priority-indicator.high::after {

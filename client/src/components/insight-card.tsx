@@ -38,29 +38,29 @@ const insightTypeConfig = {
   summary: { 
     icon: Brain, 
     label: 'Summary', 
-    gradient: 'from-blue-500 to-blue-600',
-    bgGradient: 'from-blue-50 via-blue-50 to-blue-100',
-    borderColor: 'border-blue-200',
-    textColor: 'text-blue-700',
-    accentColor: 'bg-blue-500'
+    gradient: 'from-purple-500 to-purple-600',
+    bgGradient: 'from-purple-50 via-purple-50 to-purple-100',
+    borderColor: 'border-purple-200',
+    textColor: 'text-purple-700',
+    accentColor: 'bg-purple-500'
   },
   contacts: { 
     icon: Users, 
     label: 'Contacts', 
-    gradient: 'from-emerald-500 to-emerald-600',
-    bgGradient: 'from-emerald-50 via-emerald-50 to-emerald-100',
-    borderColor: 'border-emerald-200',
-    textColor: 'text-emerald-700',
-    accentColor: 'bg-emerald-500'
+    gradient: 'from-violet-500 to-violet-600',
+    bgGradient: 'from-violet-50 via-violet-50 to-violet-100',
+    borderColor: 'border-violet-200',
+    textColor: 'text-violet-700',
+    accentColor: 'bg-violet-500'
   },
   action_items: { 
     icon: CheckCircle, 
     label: 'Action Items', 
-    gradient: 'from-orange-500 to-orange-600',
-    bgGradient: 'from-orange-50 via-orange-50 to-orange-100',
-    borderColor: 'border-orange-200',
-    textColor: 'text-orange-700',
-    accentColor: 'bg-orange-500'
+    gradient: 'from-indigo-500 to-indigo-600',
+    bgGradient: 'from-indigo-50 via-indigo-50 to-indigo-100',
+    borderColor: 'border-indigo-200',
+    textColor: 'text-indigo-700',
+    accentColor: 'bg-indigo-500'
   },
   key_dates: { 
     icon: Calendar, 
@@ -74,44 +74,44 @@ const insightTypeConfig = {
   financial_info: { 
     icon: DollarSign, 
     label: 'Financial', 
-    gradient: 'from-green-500 to-green-600',
-    bgGradient: 'from-green-50 via-green-50 to-green-100',
-    borderColor: 'border-green-200',
-    textColor: 'text-green-700',
-    accentColor: 'bg-green-500'
+    gradient: 'from-purple-600 to-purple-700',
+    bgGradient: 'from-purple-50 via-purple-50 to-purple-100',
+    borderColor: 'border-purple-200',
+    textColor: 'text-purple-700',
+    accentColor: 'bg-purple-600'
   },
   compliance: { 
     icon: Shield, 
     label: 'Compliance', 
-    gradient: 'from-red-500 to-red-600',
-    bgGradient: 'from-red-50 via-red-50 to-red-100',
-    borderColor: 'border-red-200',
-    textColor: 'text-red-700',
-    accentColor: 'bg-red-500'
+    gradient: 'from-purple-700 to-purple-800',
+    bgGradient: 'from-purple-50 via-purple-50 to-purple-100',
+    borderColor: 'border-purple-200',
+    textColor: 'text-purple-700',
+    accentColor: 'bg-purple-700'
   }
 };
 
 const priorityConfig = {
   high: { 
-    badge: 'bg-red-100 text-red-800 border-red-200',
+    badge: 'bg-purple-100 text-purple-800 border-purple-200',
     icon: AlertCircle,
     label: 'High Priority',
-    dotColor: 'bg-red-500',
-    ringColor: 'ring-red-200'
+    dotColor: 'bg-purple-500',
+    ringColor: 'ring-purple-200'
   },
   medium: { 
-    badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    badge: 'bg-purple-50 text-purple-700 border-purple-150',
     icon: TrendingUp,
     label: 'Medium Priority',
-    dotColor: 'bg-yellow-500',
-    ringColor: 'ring-yellow-200'
+    dotColor: 'bg-purple-400',
+    ringColor: 'ring-purple-150'
   },
   low: { 
-    badge: 'bg-green-100 text-green-800 border-green-200',
+    badge: 'bg-purple-25 text-purple-600 border-purple-100',
     icon: CheckCircle,
     label: 'Low Priority',
-    dotColor: 'bg-green-500',
-    ringColor: 'ring-green-200'
+    dotColor: 'bg-purple-300',
+    ringColor: 'ring-purple-100'
   }
 };
 

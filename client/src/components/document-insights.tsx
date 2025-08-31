@@ -466,7 +466,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Smart Insights</h2>
-            <p className="text-xs text-gray-500">Let our AI analyze your document to extract key insights, important dates, contacts, and actionable items automatically</p>
+            <p className="text-xs text-gray-500">AI-powered document analysis</p>
           </div>
         </div>
 

@@ -108,22 +108,25 @@ const insightTypeConfig = {
 
 const priorityConfig = {
   high: { 
-    badge: 'bg-purple-100 text-purple-800 border-purple-200',
+    badge: 'bg-gradient-to-r from-purple-100 to-purple-150 text-purple-800 border-purple-200',
     icon: AlertCircle,
     label: 'High Priority',
-    glow: 'shadow-purple-200/50'
+    glow: 'shadow-purple-200/50',
+    cardGradient: 'bg-gradient-to-br from-purple-600 via-purple-650 to-purple-700'
   },
   medium: { 
-    badge: 'bg-purple-50 text-purple-700 border-purple-150',
+    badge: 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border-purple-150',
     icon: TrendingUp,
     label: 'Medium Priority',
-    glow: 'shadow-purple-150/50'
+    glow: 'shadow-purple-150/50',
+    cardGradient: 'bg-gradient-to-br from-purple-400 via-purple-450 to-purple-500'
   },
   low: { 
-    badge: 'bg-purple-25 text-purple-600 border-purple-100',
+    badge: 'bg-gradient-to-r from-purple-25 to-purple-75 text-purple-600 border-purple-100',
     icon: CheckCircle,
     label: 'Low Priority',
-    glow: 'shadow-purple-100/50'
+    glow: 'shadow-purple-100/50',
+    cardGradient: 'bg-gradient-to-br from-purple-100 via-purple-150 to-purple-200'
   }
 };
 
@@ -552,6 +555,56 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             const IconComponent = config.icon;
             const PriorityIcon = priorityData.icon;
 
+            // Extract more specific title from content or metadata
+            const getSpecificTitle = (insight: DocumentInsight) => {
+              const content = insight.content.toLowerCase();
+              const title = insight.title.toLowerCase();
+              
+              // For payment/bill related insights
+              if (content.includes('payment') || content.includes('bill') || content.includes('due')) {
+                if (content.includes('peloton')) return 'Peloton Bill Due';
+                if (content.includes('netflix')) return 'Netflix Payment';
+                if (content.includes('spotify')) return 'Spotify Subscription';
+                if (content.includes('mortgage')) return 'Mortgage Payment';
+                if (content.includes('credit card')) return 'Credit Card Bill';
+                if (content.includes('utilities') || content.includes('electric') || content.includes('gas')) return 'Utility Bill';
+                if (content.includes('phone') || content.includes('mobile')) return 'Phone Bill';
+                if (content.includes('internet') || content.includes('broadband')) return 'Internet Bill';
+                if (content.includes('insurance')) return 'Insurance Payment';
+                if (content.includes('three') || content.includes('three uk')) return 'Three UK Bill';
+              }
+              
+              // For document expiry/renewal insights
+              if (content.includes('expire') || content.includes('renewal') || content.includes('renew')) {
+                if (content.includes('passport')) return 'Passport Renewal';
+                if (content.includes('license') || content.includes('driving')) return 'License Renewal';
+                if (content.includes('insurance')) return 'Insurance Renewal';
+                if (content.includes('registration')) return 'Registration Due';
+                if (content.includes('membership')) return 'Membership Renewal';
+                if (content.includes('subscription')) return 'Subscription Renewal';
+              }
+              
+              // For contact-related insights
+              if (insight.type === 'contacts') {
+                if (content.includes('doctor')) return 'Doctor Contact';
+                if (content.includes('lawyer') || content.includes('attorney')) return 'Legal Contact';
+                if (content.includes('insurance')) return 'Insurance Agent';
+                if (content.includes('bank')) return 'Bank Contact';
+                if (content.includes('contractor')) return 'Contractor Info';
+              }
+              
+              // For financial insights
+              if (insight.type === 'financial_info') {
+                if (content.includes('tax')) return 'Tax Information';
+                if (content.includes('loan')) return 'Loan Details';
+                if (content.includes('investment')) return 'Investment Info';
+                if (content.includes('refund')) return 'Refund Due';
+              }
+              
+              // Fallback to original title if no specific match
+              return insight.title;
+            };
+
             const handleCardClick = (e: React.MouseEvent) => {
               const target = e.target as HTMLElement;
               if (target.closest('button') || 
@@ -569,7 +622,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             return (
               <div 
                 key={insight.id} 
-                className={`group relative bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border ${config.accent} ${priorityData.glow} hover:${priorityData.glow}`}
+                className={`group relative ${priorityData.cardGradient} rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border ${config.accent} ${priorityData.glow} hover:${priorityData.glow} text-white`}
                 onClick={handleCardClick}
                 style={{ minHeight: isMobile ? '140px' : '160px' }}
               >
@@ -618,18 +671,18 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                   </div>
 
                   {/* Title */}
-                  <h3 className={`font-semibold text-sm ${config.textColor} leading-tight mb-1`}>
-                    {insight.title}
+                  <h3 className={`font-semibold text-sm text-white leading-tight mb-1`}>
+                    {getSpecificTitle(insight)}
                   </h3>
 
                   {/* Type Label */}
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs font-medium ${config.textColor}`}>
+                    <span className="text-xs font-medium text-white/90">
                       {config.label}
                     </span>
                     <div className="flex items-center gap-1">
-                      <Star className="h-2 w-2 text-yellow-500 fill-current" />
-                      <span className="text-xs text-gray-600 font-medium">
+                      <Star className="h-2 w-2 text-yellow-300 fill-current" />
+                      <span className="text-xs text-white/80 font-medium">
                         {Math.round(insight.confidence * 100)}%
                       </span>
                     </div>
@@ -638,12 +691,12 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
                 {/* Content Section */}
                 <div className="p-3 pt-2 flex-1">
-                  <p className="text-gray-700 text-xs leading-relaxed line-clamp-3 mb-3">
+                  <p className="text-white/90 text-xs leading-relaxed line-clamp-3 mb-3">
                     {insight.content}
                   </p>
 
                   {/* Metadata */}
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                  <div className="flex items-center gap-3 text-xs text-white/70 mb-2">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       <span>{new Date(insight.createdAt).toLocaleDateString()}</span>
@@ -652,7 +705,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 </div>
 
                 {/* Footer Actions */}
-                <div className="border-t border-purple-100 p-2 bg-purple-50/30">
+                <div className="border-t border-white/20 p-2 bg-black/10">
                   <div className="flex items-center justify-between">
                     <Button
                       variant="ghost"
@@ -661,7 +714,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.stopPropagation();
                         if (onDocumentClick) onDocumentClick(documentId);
                       }}
-                      className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors text-xs"
+                      className="text-white hover:text-white hover:bg-white/20 transition-colors text-xs"
                     >
                       <Eye className="h-3 w-3 mr-1" />
                       View
@@ -670,7 +723,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors text-xs"
+                      className="text-white hover:text-white hover:bg-white/20 transition-colors text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (onDocumentClick) onDocumentClick(documentId);

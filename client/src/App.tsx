@@ -42,102 +42,101 @@ import ChatPage from "@/pages/chat";
 
 
 function Router() {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  // Debug info for production
+  if (typeof window !== 'undefined') {
+    console.log('Auth state:', { isAuthenticated, isLoading, hasUser: !!user });
+    // Additional debugging for white screen issue
+    if (!isLoading && !isAuthenticated) {
+      console.log('Rendering landing page for unauthenticated user');
+    }
+  }
+
   try {
-    const { isAuthenticated, isLoading, user } = useAuth();
-    const [, setLocation] = useLocation();
-
-    // Show loading state while checking authentication
-    if (isLoading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-lg">Loading...</div>
-        </div>
-      );
-    }
-
-    // Debug info for production
-    if (typeof window !== 'undefined') {
-      console.log('Auth state:', { isAuthenticated, isLoading, hasUser: !!user });
-      // Additional debugging for white screen issue
-      if (!isLoading && !isAuthenticated) {
-        console.log('Rendering landing page for unauthenticated user');
-      }
-    }
-
     return (
       <Switch>
-      {!isAuthenticated ? (
-        <>
-          <Route path="/" component={Landing} />
-          <Route path="/login" component={Login} />
-          <Route path="/register" component={Register} />
-          <Route path="/forgot-password" component={ForgotPassword} />
-          <Route path="/reset-password" component={ResetPassword} />
-          <Route path="/pricing" component={Pricing} />
-          <Route path="/blog" component={Blog} />
-          <Route path="/blog/:slug" component={BlogPost} />
-          {/* Redirect protected routes to login */}
+        {!isAuthenticated ? (
+          <>
+            <Route path="/" component={Landing} />
+            <Route path="/login" component={Login} />
+            <Route path="/register" component={Register} />
+            <Route path="/forgot-password" component={ForgotPassword} />
+            <Route path="/reset-password" component={ResetPassword} />
+            <Route path="/pricing" component={Pricing} />
+            <Route path="/blog" component={Blog} />
+            <Route path="/blog/:slug" component={BlogPost} />
+            {/* Redirect protected routes to login */}
 
+            <Route path="/settings">
+              {() => { setLocation("/login"); return null; }}
+            </Route>
+            <Route path="/support">
+              {() => { setLocation("/login"); return null; }}
+            </Route>
+            <Route path="/notifications">
+              {() => { setLocation("/login"); return null; }}
+            </Route>
+            <Route path="/tasks">
+              {() => { setLocation("/login"); return null; }}
+            </Route>
+            <Route path="/analytics">
+              {() => { setLocation("/login"); return null; }}
+            </Route>
+            <Route path="/admin">
+              {() => { setLocation("/login"); return null; }}
+            </Route>
+            <Route path="/document/:id">
+              {() => { setLocation("/login"); return null; }}
+            </Route>
+            <Route path="/documents">
+              {() => { setLocation("/login"); return null; }}
+            </Route>
+          </>
+        ) : (
+          <>
+            <Route path="/" component={InsightsFirstPage} />
+            <Route path="/documents" component={UnifiedDocuments} />
+            <Route path="/notifications" component={Notifications} />
+            <Route path="/tasks" component={Tasks} />
+            <Route path="/analytics" component={Analytics} />
+            <Route path="/document/:id" component={DocumentPage} />
+            <Route path="/settings" component={Settings} />
+            <Route path="/support" component={Support} />
+            <Route path="/chat" component={ChatPage} />
+            <Route path="/admin" component={AdminDashboard} />
+            <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
+            <Route path="/pricing" component={Pricing} />
 
-          <Route path="/settings">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-          <Route path="/support">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-          <Route path="/notifications">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-          <Route path="/tasks">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-          <Route path="/analytics">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-          <Route path="/admin">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-          <Route path="/document/:id">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-          <Route path="/documents">
-            {() => { setLocation("/login"); return null; }}
-          </Route>
-
-        </>
-      ) : (
-        <>
-          <Route path="/" component={InsightsFirstPage} />
-          <Route path="/documents" component={UnifiedDocuments} />
-          <Route path="/notifications" component={Notifications} />
-          <Route path="/tasks" component={Tasks} />
-          <Route path="/analytics" component={Analytics} />
-          <Route path="/document/:id" component={DocumentPage} />
-          <Route path="/settings" component={Settings} />
-          <Route path="/support" component={Support} />
-          <Route path="/chat" component={ChatPage} />
-          <Route path="/admin" component={AdminDashboard} />
-          <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
-          <Route path="/pricing" component={Pricing} />
-
-          <Route path="/blog" component={Blog} />
-          <Route path="/blog/:slug" component={BlogPost} />
-          {/* Redirect auth routes to home for logged in users */}
-          <Route path="/login">
-            {() => { setLocation("/"); return null; }}
-          </Route>
-          <Route path="/register">
-            {() => { setLocation("/"); return null; }}
-          </Route>
-          <Route path="/forgot-password">
-            {() => { setLocation("/"); return null; }}
-          </Route>
-        </>
-      )}
-      {/* TICKET 5: Invite accept route accessible regardless of auth status */}
-      <Route path="/invite/accept" component={InviteAccept} />
-      <Route component={NotFound} />
-    </Switch>
+            <Route path="/blog" component={Blog} />
+            <Route path="/blog/:slug" component={BlogPost} />
+            {/* Redirect auth routes to home for logged in users */}
+            <Route path="/login">
+              {() => { setLocation("/"); return null; }}
+            </Route>
+            <Route path="/register">
+              {() => { setLocation("/"); return null; }}
+            </Route>
+            <Route path="/forgot-password">
+              {() => { setLocation("/"); return null; }}
+            </Route>
+          </>
+        )}
+        {/* TICKET 5: Invite accept route accessible regardless of auth status */}
+        <Route path="/invite/accept" component={InviteAccept} />
+        <Route component={NotFound} />
+      </Switch>
+    );
   } catch (error) {
     console.error('🚨 Router rendering error:', error);
     return (

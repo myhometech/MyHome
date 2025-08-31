@@ -271,8 +271,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Handle clicking on an insight card
   const handleInsightClick = (insight: DocumentInsight) => {
     if (insight.documentId) {
-      // Navigate to insights-first page with document
-      setLocation(`/insights-first?documentId=${insight.documentId}`);
+      // Navigate directly to the document page
+      setLocation(`/document/${insight.documentId}`);
     } else {
       // Show insight details modal for standalone insights
       setSelectedInsight(insight);
@@ -286,7 +286,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle document click from insight card
   const handleDocumentClick = (documentId: number) => {
-    setLocation(`/insights-first?documentId=${documentId}`);
+    setLocation(`/document/${documentId}`);
   };
 
   // Handle document download
@@ -697,7 +697,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-105 ${getPriorityGradient(insight.priority || 'medium')}`}
                             onClick={() => {
                               if (insight.documentId) {
-                                setLocation(`/insights?documentId=${insight.documentId}`);
+                                setLocation(`/document/${insight.documentId}`);
                               }
                             }}
                             style={{ minHeight: '70px' }}

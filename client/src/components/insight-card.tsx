@@ -22,7 +22,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { DocumentInsight } from '@shared/schema';
-import { useLocation, setLocation } from "wouter";
+import { useLocation } from "wouter";
 import { formatDistance } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -164,7 +164,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
   };
 
   const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
-  const priorityData = priorityConfig[insight.priority || 'medium'];
+  const priorityData = priorityConfig[(insight.priority || 'medium') as keyof typeof priorityConfig];
   const IconComponent = config.icon;
 
   const formatDueDate = (dueDate: string | null) => {
@@ -202,8 +202,8 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       if (onDocumentClick) {
         onDocumentClick(insight.documentId);
       } else {
-        // Navigate to the insights-first page with document ID
-        setLocation(`/insights-first?documentId=${insight.documentId}`);
+        // Navigate directly to the document page
+        setLocation(`/document/${insight.documentId}`);
       }
     }
   };
@@ -379,7 +379,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
             <div className="flex items-center gap-1">
               <Star className="h-3 w-3 text-yellow-500 fill-current" />
               <span className="text-gray-600 font-medium">
-                {Math.round((insight.confidence || 0.9) * 100)}%
+                {Math.round(Number(insight.confidence || 0.9) * 100)}%
               </span>
             </div>
 

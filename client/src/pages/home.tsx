@@ -53,7 +53,37 @@ import { BatchTagManager } from "@/components/batch-tag-manager";
 import { InsightJobStatus } from "@/components/InsightJobStatus";
 import { Badge } from "@/components/ui/badge";
 
-import type { Category, Document, DocumentInsight } from "@shared/schema";
+// Added import for UnifiedInsightsDashboard and InsightsSummaryDashboard
+import { UnifiedInsightsDashboard } from "@/components/unified-insights-dashboard";
+import InsightsSummaryDashboard from "@/components/insights-summary-dashboard";
+
+
+type Category = {
+  id: number;
+  name: string;
+  icon?: string;
+  color?: string;
+};
+
+type Document = {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  categoryId: number | null;
+  tags: string[];
+  path: string;
+  // Add other relevant properties
+};
+
+type DocumentInsight = {
+  id: number;
+  documentId: number;
+  insight: string;
+  type: string;
+  createdAt: string;
+  // Add other relevant properties
+};
 
 // Dashboard Overview Cards Component
 function DashboardOverview({ onFilterChange }: { onFilterChange: (filter: any) => void }) {
@@ -560,10 +590,8 @@ export default function Home() {
   });
 
   // Mock components for demonstration purposes, replace with actual imports
-  const CriticalInsightsDashboard = () => <div className="bg-gray-100 p-4 rounded-lg">Critical Insights Dashboard</div>;
-  const TopInsightsWidget = () => <div className="bg-gray-100 p-4 rounded-lg">Top Insights Widget</div>;
-  const UnifiedInsightsDashboard = ({ filter }: { filter: any }) => <div className="bg-gray-100 p-4 rounded-lg">Unified Insights Dashboard (Filter: {JSON.stringify(filter)})</div>;
-  const YourAssetsSection = () => <div className="bg-gray-100 p-4 rounded-lg">Your Assets Section</div>;
+  // These were previously placeholders but now we have actual components imported.
+  // Removed the mock components definition.
 
   const handleFilterChange = (filter: any) => {
     // This is the filter for the UnifiedInsightsDashboard, not the main dashboard overview cards
@@ -627,6 +655,8 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Dashboard Overview Cards - Moved to the top as per the problem description */}
+        <DashboardOverview onFilterChange={handleDashboardFilter} />
 
         {/* Quick Action Cards */}
         <QuickActionCards />
@@ -658,11 +688,14 @@ export default function Home() {
           onCategoryChange={setSelectedCategory}
         />
 
-        {/* Dashboard Overview Cards - Moved above Document Library */}
-        <DashboardOverview onFilterChange={handleDashboardFilter} />
+        {/* Unified Insights Dashboard - This should now display the insights */}
+        <div className="mt-8">
+          <UnifiedInsightsDashboard filter={dashboardFilter} />
+        </div>
+
 
         {/* Documents Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mt-8">
           <div className="p-3 md:p-6 border-b border-gray-200 dark:border-gray-700">
             {bulkMode && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -905,7 +938,7 @@ export default function Home() {
           </div>
         </div>
       </main>
-      
+
       {/* Floating Chat Widget */}
       <FloatingChatWidget />
     </div>

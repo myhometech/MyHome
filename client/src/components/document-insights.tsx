@@ -467,19 +467,13 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             <h2 className="text-lg font-semibold text-gray-900">Smart Insights</h2>
             <p className="text-xs text-gray-500">AI-powered document analysis</p>
           </div>
-          {insights.length > 0 && (
-            <div className="ml-3">
-              <Badge variant="secondary" className="bg-accent-purple-50 text-accent-purple-700 border-accent-purple-200 px-2 py-1 rounded-full font-medium text-xs">
-                {insights.length} insight{insights.length !== 1 ? 's' : ''}
-              </Badge>
-            </div>
-          )}
+          
         </div>
 
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
-          className="bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 hover:from-accent-purple-600 hover:to-accent-purple-700 text-white shadow-sm hover:shadow-lg border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-accent-purple-500 hover:to-accent-purple-600 text-white shadow-sm hover:shadow-lg border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           size="sm"
         >
           {isGenerating || generateInsightsMutation.isPending ? (

@@ -530,7 +530,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           </div>
         </div>
       ) : (
-        <div className={`space-y-2 ${isMobile ? 'space-y-2' : 'space-y-3'} max-w-full`}>
+        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'} max-w-full`}>
           {insights.map((insight: DocumentInsight, index: number) => {
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
             const priorityStyle = priorityConfig[insight.priority];
@@ -555,92 +555,119 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             return (
               <div 
                 key={insight.id} 
-                className={`group relative border border-gray-200/60 shadow-sm rounded-lg ${isMobile ? 'p-3 mb-2' : 'p-4 space-y-3 mb-3'} insight-content hover:shadow-lg hover:border-gray-300/80 transition-all duration-200 border-l-4 ${priorityStyle.cardBorder} overflow-hidden max-w-full cursor-pointer`}
-                style={priorityStyle.cardStyle}
+                className={`group relative rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer ${isMobile ? 'mb-4' : 'mb-6'} border border-white/20`}
+                style={{
+                  ...priorityStyle.cardStyle,
+                  background: `linear-gradient(135deg, ${priorityStyle.cardStyle?.backgroundColor || 'var(--accent-purple-600)'} 0%, ${priorityStyle.cardStyle?.backgroundColor || 'var(--accent-purple-700)'} 100%)`,
+                  minHeight: isMobile ? '280px' : '320px'
+                }}
                 onClick={handleCardClick}
               >
-                {/* Mobile-first compact header */}
-                <div className={`${isMobile ? 'space-y-2' : 'flex items-start justify-between mb-3'}`}>
-                  {/* Top row: Icon, type, and actions */}
-                  <div className={`flex items-center justify-between ${isMobile ? 'mb-2' : ''}`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`${isMobile ? 'p-1 rounded-md' : 'p-1.5 rounded-lg'} bg-white/20 border border-white/30`}>
-                        <IconComponent className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-white`} />
+                {/* Pinterest-style header */}
+                <div className="absolute top-4 right-4 z-10">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFlagInsight(insight.id, !insight.flagged, insight.flagged ? undefined : "Incorrect information");
+                      }}
+                      disabled={flagInsightMutation.isPending}
+                      className="bg-black/20 hover:bg-black/40 text-white rounded-full h-8 w-8 p-0 backdrop-blur-sm border border-white/20"
+                      title={insight.flagged ? "Remove flag (this insight is correct)" : "Flag as incorrect"}
+                    >
+                      {insight.flagged ? <FlagOff className="h-3 w-3" /> : <Flag className="h-3 w-3" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteInsight(insight.id);
+                      }}
+                      disabled={deleteInsightMutation.isPending}
+                      className="bg-black/20 hover:bg-red-500/80 text-white rounded-full h-8 w-8 p-0 backdrop-blur-sm border border-white/20"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Type badge overlay */}
+                <div className="absolute top-4 left-4 z-10">
+                  <div className="bg-white/30 backdrop-blur-sm rounded-full px-3 py-1 border border-white/40">
+                    <span className="text-white text-xs font-semibold">{config.label}</span>
+                  </div>
+                </div>
+
+                {/* Content section - Pinterest-style */}
+                <div className="space-y-3">
+                  {/* Hero Content Area */}
+                  <div className="bg-white/30 backdrop-blur-sm rounded-xl p-4 border border-white/40">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="flex-shrink-0">
+                        <div className="w-12 h-12 bg-white/40 rounded-full flex items-center justify-center border-2 border-white/60">
+                          <IconComponent className="h-6 w-6 text-white" />
+                        </div>
                       </div>
-                      <Badge className={`${config.color} ${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'} font-medium rounded-md`}>
-                        {config.label}
-                      </Badge>
-                      {insight.priority !== 'low' && (
-                        <Badge 
-                          variant="outline" 
-                          className={`${priorityStyle.color} ${isMobile ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'} font-medium rounded-md`}
-                        >
-                          {insight.priority === 'high' ? '🔥' : '⚡'}
-                        </Badge>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-lg text-white leading-tight mb-1">
+                          {insight.title}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-white/80">
+                          <FileText className="h-4 w-4" />
+                          <span className="truncate">{documentName}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Content Preview */}
+                    <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
+                      <p className="text-white text-sm leading-relaxed line-clamp-3">
+                        {insight.content}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Action Row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        className="bg-white/30 hover:bg-white/40 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm font-medium transition-all duration-200 border border-white/40"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onDocumentClick) onDocumentClick(documentId);
+                        }}
+                      >
+                        View Document
+                      </button>
+                      {insight.priority === 'high' && (
+                        <div className="bg-red-500/80 backdrop-blur-sm rounded-lg px-3 py-1 text-white text-xs font-bold border border-red-400/50">
+                          🔥 URGENT
+                        </div>
                       )}
                     </div>
                     
-                    {/* Right side actions */}
-                    <div className="flex items-center gap-1">
-                      <div className={`flex items-center gap-1 bg-gray-50 rounded-md ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}>
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                        <span className={`${isMobile ? 'text-xs' : 'text-xs'} font-medium text-gray-600`}>
-                          {Math.round(insight.confidence * 100)}%
-                        </span>
+                    <div className="flex items-center gap-2">
+                      <div className="bg-white/30 backdrop-blur-sm rounded-lg px-3 py-1 text-white text-xs font-medium border border-white/40">
+                        {Math.round(insight.confidence * 100)}% sure
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleFlagInsight(insight.id, !insight.flagged, insight.flagged ? undefined : "Incorrect information")}
-                        disabled={flagInsightMutation.isPending}
-                        className={`${insight.flagged ? 'text-orange-500 hover:text-orange-600' : 'text-gray-400 hover:text-orange-500'} hover:bg-orange-50 ${isMobile ? 'h-6 w-6' : 'h-6 w-6'} p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
-                        title={insight.flagged ? "Remove flag (this insight is correct)" : "Flag as incorrect"}
-                      >
-                        {insight.flagged ? <FlagOff className="h-3 w-3" /> : <Flag className="h-3 w-3" />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteInsight(insight.id)}
-                        disabled={deleteInsightMutation.isPending}
-                        className={`text-gray-400 hover:text-red-600 hover:bg-red-50 ${isMobile ? 'h-6 w-6' : 'h-6 w-6'} p-0 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-all duration-200 rounded-md`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
                     </div>
                   </div>
                 </div>
 
-                {/* Content section */}
-                <div className={`${isMobile ? 'space-y-1.5' : 'space-y-2'}`} style={{ color: priorityStyle.cardStyle?.color || 'inherit' }}>
-                  {/* Document name */}
-                  <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-xs'} mb-1`} style={{ color: priorityStyle.cardStyle?.color || '#6b7280' }}>
-                    <FileText className="h-3 w-3" />
-                    <span className="truncate">{documentName}</span>
-                  </div>
-                  
-                  {/* Short title */}
-                  <h4 className={`font-semibold ${isMobile ? 'text-sm' : 'text-sm'} leading-tight`} style={{ color: priorityStyle.cardStyle?.color || '#111827' }}>
-                    {insight.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 25)}
-                  </h4>
-                  <div className={`${isMobile ? 'text-sm leading-snug p-2' : 'text-sm leading-relaxed p-3'} bg-white/20 rounded-md border border-white/30`} style={{ color: priorityStyle.cardStyle?.color || '#374151' }}>
-                    {insight.content}
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className={`flex items-center justify-between ${isMobile ? 'pt-2 mt-2' : 'pt-2'} border-t border-white/20`}>
-                  <div className={`flex items-center gap-1 ${isMobile ? 'text-xs' : 'text-xs'}`} style={{ color: priorityStyle.cardStyle?.color || '#6b7280' }}>
-                    <Clock className={`${isMobile ? 'h-3 w-3' : 'h-3 w-3'}`} />
-                    <span>
-                      {new Date(insight.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {insight.priority === 'high' && (
-                    <div className={`flex items-center gap-1 bg-white/30 rounded-md ${isMobile ? 'px-1.5 py-0.5' : 'px-2 py-1'}`} style={{ color: priorityStyle.cardStyle?.color || '#dc2626' }}>
-                      <span className={`${isMobile ? 'text-xs' : 'text-xs'} font-medium`}>🔥 Urgent</span>
+                {/* Elegant bottom timestamp */}
+                <div className="absolute bottom-4 left-4 right-4">
+                  <div className="flex items-center justify-between text-white/70">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Clock className="h-3 w-3" />
+                      <span>{new Date(insight.createdAt).toLocaleDateString()}</span>
                     </div>
-                  )}
+                    <div className="text-xs">
+                      AI Generated
+                    </div>
+                  </div>
                 </div>
               </div>
             );

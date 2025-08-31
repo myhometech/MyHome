@@ -552,20 +552,70 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           }
                         };
 
-                        // Priority color mapping
-                        const getPriorityColor = (priority: string) => {
+                        // Priority gradient mapping with subtle hierarchy
+                        const getPriorityGradient = (priority: string) => {
                           switch (priority) {
-                            case 'high': return 'border-purple-600 bg-purple-600 text-white hover:bg-purple-700';
-                            case 'medium': return 'border-purple-400 bg-purple-400 text-white hover:bg-purple-500';
-                            case 'low': return 'border-purple-200 bg-purple-200 text-purple-800 hover:bg-purple-300';
-                            default: return 'border-purple-300 bg-purple-300 text-purple-800 hover:bg-purple-400';
+                            case 'high': return 'border-purple-500 bg-gradient-to-br from-purple-600 via-purple-650 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg shadow-purple-500/25';
+                            case 'medium': return 'border-purple-300 bg-gradient-to-br from-purple-400 via-purple-450 to-purple-500 text-white hover:from-purple-500 hover:to-purple-600 shadow-md shadow-purple-400/20';
+                            case 'low': return 'border-purple-200 bg-gradient-to-br from-purple-100 via-purple-150 to-purple-200 text-purple-700 hover:from-purple-200 hover:to-purple-250 shadow-sm shadow-purple-300/15';
+                            default: return 'border-purple-250 bg-gradient-to-br from-purple-200 via-purple-250 to-purple-300 text-purple-700 hover:from-purple-300 hover:to-purple-350 shadow-sm shadow-purple-350/15';
                           }
+                        };
+
+                        // Extract more specific title from content or metadata
+                        const getSpecificTitle = (insight: DocumentInsight) => {
+                          // Check if we can extract a more specific title from the content
+                          const content = insight.content.toLowerCase();
+                          const title = insight.title.toLowerCase();
+                          
+                          // For payment/bill related insights
+                          if (content.includes('payment') || content.includes('bill') || content.includes('due')) {
+                            if (content.includes('peloton')) return 'Peloton Bill Due';
+                            if (content.includes('netflix')) return 'Netflix Payment';
+                            if (content.includes('spotify')) return 'Spotify Subscription';
+                            if (content.includes('mortgage')) return 'Mortgage Payment';
+                            if (content.includes('credit card')) return 'Credit Card Bill';
+                            if (content.includes('utilities') || content.includes('electric') || content.includes('gas')) return 'Utility Bill';
+                            if (content.includes('phone') || content.includes('mobile')) return 'Phone Bill';
+                            if (content.includes('internet') || content.includes('broadband')) return 'Internet Bill';
+                            if (content.includes('insurance')) return 'Insurance Payment';
+                          }
+                          
+                          // For document expiry/renewal insights
+                          if (content.includes('expire') || content.includes('renewal') || content.includes('renew')) {
+                            if (content.includes('passport')) return 'Passport Renewal';
+                            if (content.includes('license') || content.includes('driving')) return 'License Renewal';
+                            if (content.includes('insurance')) return 'Insurance Renewal';
+                            if (content.includes('registration')) return 'Registration Due';
+                            if (content.includes('membership')) return 'Membership Renewal';
+                            if (content.includes('subscription')) return 'Subscription Renewal';
+                          }
+                          
+                          // For contact-related insights
+                          if (insight.type === 'contacts') {
+                            if (content.includes('doctor')) return 'Doctor Contact';
+                            if (content.includes('lawyer') || content.includes('attorney')) return 'Legal Contact';
+                            if (content.includes('insurance')) return 'Insurance Agent';
+                            if (content.includes('bank')) return 'Bank Contact';
+                            if (content.includes('contractor')) return 'Contractor Info';
+                          }
+                          
+                          // For financial insights
+                          if (insight.type === 'financial_info') {
+                            if (content.includes('tax')) return 'Tax Information';
+                            if (content.includes('loan')) return 'Loan Details';
+                            if (content.includes('investment')) return 'Investment Info';
+                            if (content.includes('refund')) return 'Refund Due';
+                          }
+                          
+                          // Fallback to original title if no specific match
+                          return insight.title;
                         };
 
                         return (
                           <div 
                             key={insight.id}
-                            className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${getPriorityColor(insight.priority || 'medium')}`}
+                            className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${getPriorityGradient(insight.priority || 'medium')}`}
                             onClick={() => {
                               if (insight.documentId) {
                                 handleDocumentClick(insight.documentId);
@@ -578,9 +628,9 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                               {getInsightIcon(insight.type)}
                             </div>
                             
-                            {/* Insight title - truncated */}
-                            <span className="text-center text-xs leading-tight line-clamp-2 max-w-full" title={insight.title}>
-                              {insight.title}
+                            {/* Insight title - more specific */}
+                            <span className="text-center text-xs leading-tight line-clamp-2 max-w-full" title={getSpecificTitle(insight)}>
+                              {getSpecificTitle(insight)}
                             </span>
                             
                             {/* Priority indicator dot */}

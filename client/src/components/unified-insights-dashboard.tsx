@@ -552,13 +552,13 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           }
                         };
 
-                        // Priority gradient mapping - creating subtle hierarchy with gradients
+                        // Priority gradient mapping - creating subtle hierarchy with purple gradients
                         const getPriorityGradient = (priority: string) => {
                           switch (priority) {
-                            case 'high': return 'border-purple-300 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 text-white hover:from-purple-600 hover:to-purple-800';
-                            case 'medium': return 'border-purple-200 bg-gradient-to-br from-purple-300 via-purple-400 to-purple-500 text-white hover:from-purple-400 hover:to-purple-600';
-                            case 'low': return 'border-purple-100 bg-gradient-to-br from-purple-100 via-purple-200 to-purple-300 text-purple-800 hover:from-purple-200 hover:to-purple-400';
-                            default: return 'border-purple-150 bg-gradient-to-br from-purple-200 via-purple-300 to-purple-400 text-purple-800 hover:from-purple-300 hover:to-purple-500';
+                            case 'high': return 'border-purple-400 bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 text-white hover:from-purple-700 hover:to-purple-900 shadow-lg hover:shadow-purple-500/25';
+                            case 'medium': return 'border-purple-300 bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 text-white hover:from-purple-500 hover:to-purple-700 shadow-md hover:shadow-purple-400/20';
+                            case 'low': return 'border-purple-200 bg-gradient-to-br from-purple-300 via-purple-400 to-purple-500 text-white hover:from-purple-400 hover:to-purple-600 shadow-sm hover:shadow-purple-300/15';
+                            default: return 'border-purple-250 bg-gradient-to-br from-purple-300 via-purple-400 to-purple-500 text-white hover:from-purple-400 hover:to-purple-600 shadow-md hover:shadow-purple-400/20';
                           }
                         };
 

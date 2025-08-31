@@ -151,7 +151,7 @@ interface UnifiedInsightsDashboardProps {
 }
 
 export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: UnifiedInsightsDashboardProps) {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { hasFeature } = useFeatures();
 
   // No longer using tabs - insights and documents are in single view
@@ -271,8 +271,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Handle clicking on an insight card
   const handleInsightClick = (insight: DocumentInsight) => {
     if (insight.documentId) {
-      // Open document modal if insight has associated document
-      handleOpenDocument(insight.documentId);
+      // Navigate to insights-first page with document
+      setLocation(`/insights-first?documentId=${insight.documentId}`);
     } else {
       // Show insight details modal for standalone insights
       setSelectedInsight(insight);
@@ -286,7 +286,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle document click from insight card
   const handleDocumentClick = (documentId: number) => {
-    setSelectedDocumentId(documentId);
+    setLocation(`/insights-first?documentId=${documentId}`);
   };
 
   // Handle document download

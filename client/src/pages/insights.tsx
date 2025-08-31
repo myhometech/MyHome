@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Brain, Calendar, PenTool, FileText, Clock, AlertCircle, Filter, RefreshCw } from 'lucide-react';
+import { Brain, Calendar, PenTool, FileText, Clock, AlertCircle, Filter, RefreshCw, X } from 'lucide-react';
 import AddDropdownMenu from '@/components/add-dropdown-menu';
 import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -41,13 +41,23 @@ export function InsightsPage() {
   const [selectedTab, setSelectedTab] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(12); // Show 12 insights per page
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
 
-  // Fetch document insights
-  const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights } = useQuery<{insights: DocumentInsight[]}>({
-    queryKey: ['/api/insights', 'all'],
+  // Fetch document insights with pagination
+  const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights } = useQuery<{insights: DocumentInsight[], totalCount: number}>({
+    queryKey: ['/api/insights', statusFilter, priorityFilter, typeFilter, currentPage, pageSize],
     queryFn: async () => {
-      const response = await fetch('/api/insights?status=all');
+      const params = new URLSearchParams({
+        status: statusFilter,
+        priority: priorityFilter !== 'all' ? priorityFilter : '',
+        type: typeFilter !== 'all' ? typeFilter : '',
+        page: currentPage.toString(),
+        limit: pageSize.toString()
+      });
+      const response = await fetch(`/api/insights?${params}`);
       if (!response.ok) throw new Error('Failed to fetch insights');
       return response.json();
     },
@@ -87,16 +97,16 @@ export function InsightsPage() {
 
   const insights = insightsData?.insights || [];
 
-  // Filter insights based on filters and exclude unwanted types
+  // Filter insights based on search query (other filters handled by API)
   const filteredInsights = insights.filter(insight => {
-    const matchesStatus = statusFilter === 'all' || insight.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || insight.priority === priorityFilter;
-    const matchesSearch = searchQuery === "" || 
+    return searchQuery === "" || 
       insight.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       insight.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const notExcludedType = !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type);
-    return matchesStatus && matchesPriority && matchesSearch && notExcludedType;
   });
+
+  // Calculate pagination info
+  const totalPages = Math.ceil((insightsData?.totalCount || 0) / pageSize);
+  const totalInsights = insightsData?.totalCount || 0;
 
   // Filter manual events based on search
   const filteredManualEvents = manualEvents.filter(event => {
@@ -211,15 +221,15 @@ export function InsightsPage() {
           </Card>
         </div>
 
-        {/* Filters */}
+        {/* Enhanced Filters */}
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4 mb-4">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-medium">Filters:</span>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -230,7 +240,7 @@ export function InsightsPage() {
                   <SelectItem value="dismissed">Dismissed</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <Select value={priorityFilter} onValueChange={(value) => { setPriorityFilter(value); setCurrentPage(1); }}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -241,6 +251,59 @@ export function InsightsPage() {
                   <SelectItem value="low">Low</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={typeFilter} onValueChange={(value) => { setTypeFilter(value); setCurrentPage(1); }}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="summary">Summary</SelectItem>
+                  <SelectItem value="action_items">Action Items</SelectItem>
+                  <SelectItem value="key_dates">Key Dates</SelectItem>
+                  <SelectItem value="financial_info">Financial</SelectItem>
+                  <SelectItem value="contacts">Contacts</SelectItem>
+                  <SelectItem value="compliance">Compliance</SelectItem>
+                </SelectContent>
+              </Select>
+              {(statusFilter !== 'all' || priorityFilter !== 'all' || typeFilter !== 'all') && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setPriorityFilter('all');
+                    setTypeFilter('all');
+                    setCurrentPage(1);
+                  }}
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span>Showing {Math.min(pageSize, filteredInsights.length)} of {totalInsights} insights</span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1 || insightsLoading}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-xs px-2">Page {currentPage} of {totalPages}</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages || insightsLoading}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

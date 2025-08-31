@@ -1823,6 +1823,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sort = req.query.sort as string;
       // TICKET 9: Support filtering insights with due dates for calendar view
       const hasDueDate = req.query.has_due_date === 'true';
+      // Pagination parameters
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
 
       let insights = await storage.getInsights(userId, status === 'all' ? undefined : status, type, priority);
 
@@ -1872,8 +1875,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       res.json({
-        insights: enhancedInsights,
-        total: enhancedInsights.length,
+        insights: enhancedInsights.slice((page - 1) * limit, page * limit),
+        totalCount: enhancedInsights.length,
+        currentPage: page,
+        totalPages: Math.ceil(enhancedInsights.length / limit),
+        pageSize: limit,
         filters: { status, type, priority, sort, has_due_date: hasDueDate }
       });
 

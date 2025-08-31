@@ -20,7 +20,8 @@ import {
   Grid,
   FileText,
   MoreHorizontal,
-  Trash2
+  Trash2,
+  Plus
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -157,6 +158,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Simple state for insights
   const [statusFilter] = useState<string>('all');
   
+  const INSIGHTS_PER_LOAD = 8;
 
   
 
@@ -165,16 +167,22 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
 
 
-  // Fetch all insights (simplified)
+  // Fetch insights with pagination support
   const {
     data: insightsData,
     isLoading,
     error,
     refetch
   } = useQuery<InsightsResponse>({
-    queryKey: ['/api/insights', 'all'],
+    queryKey: ['/api/insights', statusFilter, priorityFilter, typeFilter],
     queryFn: async () => {
-      const response = await fetch('/api/insights?status=all');
+      const params = new URLSearchParams({
+        status: statusFilter,
+        priority: priorityFilter !== 'all' ? priorityFilter : '',
+        type: typeFilter !== 'all' ? typeFilter : '',
+        limit: '50' // Get more insights for local filtering
+      });
+      const response = await fetch(`/api/insights?${params}`);
       if (!response.ok) throw new Error('Failed to fetch insights');
       return response.json();
     },
@@ -195,10 +203,13 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // State variables first
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('high');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [showMoreInsights, setShowMoreInsights] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<any>(null);
   const [selectedInsight, setSelectedInsight] = useState<DocumentInsight | null>(null);
   const [selectedManualEvent, setSelectedManualEvent] = useState<string | null>(null);
+  
+  // Display limits
 
   // Fetch user assets for linking manual events to assets
   const { data: userAssets = [] } = useQuery<UserAsset[]>({
@@ -541,7 +552,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                 {filteredInsights.length > 0 && (
                   <div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-1">
-                      {filteredInsights.map((insight) => (
+                      {filteredInsights.slice(0, showMoreInsights ? undefined : INITIAL_DISPLAY_LIMIT).map((insight) => (
                         <InsightCard
                           key={insight.id}
                           insight={insight}
@@ -549,7 +560,39 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           onDocumentClick={handleDocumentClick}
                         />
                       ))}
+                      {!showMoreInsights && filteredInsights.length > INITIAL_DISPLAY_LIMIT && (
+                        <Button
+                          variant="outline"
+                          className="border-dashed min-h-[120px] text-sm"
+                          onClick={() => setShowMoreInsights(true)}
+                        >
+                          <div className="text-center">
+                            <Plus className="h-4 w-4 mx-auto mb-1" />
+                            <div>Show {filteredInsights.length - INITIAL_DISPLAY_LIMIT} more</div>
+                          </div>
+                        </Button>
+                      )}
+
+                    {showMoreInsights && filteredInsights.length > INITIAL_DISPLAY_LIMIT && (
+                      <Button 
+                        variant="ghost" 
+                        className="mt-3 w-full" 
+                        onClick={() => setShowMoreInsights(false)}
+                      >
+                        Show Less
+                      </Button>
+                    )}
                     </div>
+
+                    {showMoreInsights && filteredInsights.length > INITIAL_DISPLAY_LIMIT && (
+                      <Button 
+                        variant="ghost" 
+                        className="mt-3 w-full" 
+                        onClick={() => setShowMoreInsights(false)}
+                      >
+                        Show Less
+                      </Button>
+                    )}
                   </div>
                 )}
 

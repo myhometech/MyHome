@@ -443,21 +443,21 @@
   --doc-red: #E74C3C; /* PDFs - calm red */
   --doc-blue: hsl(207, 90%, 54%); /* Documents - primary blue */
 
-  /* Purple theme color definitions - custom gradient palette */
+  /* Purple theme color definitions - #5A189A as primary */
   --accent-purple-50: #E0AAFF;   /* Lightest purple */
   --accent-purple-100: #C77DFF;  /* Light purple */
   --accent-purple-200: #9D4EDD;  /* Medium light purple */
   --accent-purple-300: #7B2CBF;  /* Medium purple */
-  --accent-purple-400: #5A189A;  /* Medium dark purple */
-  --accent-purple-500: #3C096C;  /* Dark purple */
-  --accent-purple-600: #240046;  /* Primary dashboard dark */
-  --accent-purple-700: #10002B;  /* Deepest purple */
-  --accent-purple-800: #10002B;  /* Deepest purple (duplicate for compatibility) */
-  --accent-purple-900: #10002B;  /* Deepest purple (duplicate for compatibility) */
+  --accent-purple-400: #5A189A;  /* PRIMARY COLOR */
+  --accent-purple-500: #5A189A;  /* PRIMARY COLOR */
+  --accent-purple-600: #5A189A;  /* PRIMARY COLOR */
+  --accent-purple-700: #5A189A;  /* PRIMARY COLOR */
+  --accent-purple-800: #5A189A;  /* PRIMARY COLOR */
+  --accent-purple-900: #5A189A;  /* PRIMARY COLOR */
   
   /* Additional shades for better gradients */
   --accent-purple-light: #E0AAFF; /* Alias for lightest */
-  --accent-purple-dark: #240046;  /* Alias for primary dark */
+  --accent-purple-dark: #5A189A;  /* Alias for primary */
 }
 
 /* Mobile Insights Drawer - Safe Area Support */

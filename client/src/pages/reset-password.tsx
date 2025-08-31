@@ -38,7 +38,7 @@ export default function ResetPassword() {
   // Extract token from URL query params - clear from URL after extraction for security
   const urlParams = new URLSearchParams(location.split('?')[1] || '');
   const token = urlParams.get('token');
-  
+
   // Clear sensitive token from URL after extraction
   React.useEffect(() => {
     if (token && window.history.replaceState) {
@@ -134,7 +134,7 @@ export default function ResetPassword() {
             <div className="text-center text-sm text-gray-600 dark:text-gray-300">
               You can now log in with your new password.
             </div>
-            
+
             <div className="text-center">
               <Link href="/login" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-500">
                 <ArrowLeft className="h-4 w-4" />
@@ -161,20 +161,20 @@ export default function ResetPassword() {
             <Alert variant="destructive">
               <AlertDescription>{tokenError}</AlertDescription>
             </Alert>
-            
+
             <div className="text-center space-y-4">
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Please request a new password reset link.
               </p>
-              
+
               <div className="flex flex-col gap-2">
                 <Link href="/forgot-password">
                   <Button className="w-full">
                     Request New Reset Link
                   </Button>
                 </Link>
-                
-                <Link href="/login" className="inline-flex items-center justify-center gap-2 text-sm text-blue-600 hover:text-blue-500">
+
+                <Link href="/login" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-500">
                   <ArrowLeft className="h-4 w-4" />
                   Back to login
                 </Link>
@@ -271,7 +271,7 @@ export default function ResetPassword() {
           </Form>
 
           <div className="text-center">
-            <Link href="/login" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-500">
+            <Link href="/login" className="inline-flex items-center gap-2 text-sm text-accent-purple-600 hover:text-accent-purple-500">
               <ArrowLeft className="h-4 w-4" />
               Back to login
             </Link>

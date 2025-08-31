@@ -545,7 +545,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           </div>
         </div>
       ) : (
-        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
+        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
           {insights.map((insight: DocumentInsight, index: number) => {
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
             const priorityData = priorityConfig[insight.priority];
@@ -569,14 +569,14 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             return (
               <div 
                 key={insight.id} 
-                className={`group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-500 transform hover:scale-[1.02] overflow-hidden cursor-pointer border border-gray-100 ${priorityData.glow} hover:${priorityData.glow}`}
+                className={`group relative bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border ${config.accent} ${priorityData.glow} hover:${priorityData.glow}`}
                 onClick={handleCardClick}
-                style={{ minHeight: isMobile ? '320px' : '360px' }}
+                style={{ minHeight: isMobile ? '200px' : '220px' }}
               >
                 {/* Header Section */}
-                <div className={`${config.bgPattern} p-6 relative`}>
+                <div className={`${config.bgPattern} p-4 relative`}>
                   {/* Top Actions */}
-                  <div className="absolute top-4 right-4 flex items-center gap-2">
+                  <div className="absolute top-2 right-2 flex items-center gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -585,7 +585,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleFlagInsight(insight.id, !insight.flagged, insight.flagged ? undefined : "Incorrect information");
                       }}
                       disabled={flagInsightMutation.isPending}
-                      className="bg-white/80 hover:bg-white text-gray-600 rounded-full h-8 w-8 p-0 shadow-sm"
+                      className="bg-white/80 hover:bg-white text-gray-600 rounded-full h-6 w-6 p-0 shadow-sm"
                       title={insight.flagged ? "Remove flag" : "Flag as incorrect"}
                     >
                       {insight.flagged ? <FlagOff className="h-3 w-3" /> : <Flag className="h-3 w-3" />}
@@ -598,37 +598,37 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleDeleteInsight(insight.id);
                       }}
                       disabled={deleteInsightMutation.isPending}
-                      className="bg-white/80 hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-full h-8 w-8 p-0 shadow-sm"
+                      className="bg-white/80 hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-full h-6 w-6 p-0 shadow-sm"
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
 
                   {/* Icon and Type */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`p-3 bg-gradient-to-r ${config.color} rounded-xl shadow-lg`}>
-                      <IconComponent className="h-6 w-6 text-white" />
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={`p-2 bg-gradient-to-r ${config.color} rounded-lg shadow-md`}>
+                      <IconComponent className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <Badge className={`${priorityData.badge} border font-medium`}>
-                        <PriorityIcon className="h-3 w-3 mr-1" />
-                        {priorityData.label}
+                      <Badge className={`${priorityData.badge} border text-xs font-medium`}>
+                        <PriorityIcon className="h-2 w-2 mr-1" />
+                        {insight.priority.toUpperCase()}
                       </Badge>
                     </div>
                   </div>
 
                   {/* Title */}
-                  <h3 className={`font-bold text-lg ${config.textColor} leading-tight mb-2`}>
+                  <h3 className={`font-semibold text-sm ${config.textColor} leading-tight mb-1`}>
                     {insight.title}
                   </h3>
 
                   {/* Type Label */}
                   <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${config.textColor}`}>
+                    <span className={`text-xs font-medium ${config.textColor}`}>
                       {config.label}
                     </span>
                     <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                      <Star className="h-2 w-2 text-yellow-500 fill-current" />
                       <span className="text-xs text-gray-600 font-medium">
                         {Math.round(insight.confidence * 100)}%
                       </span>
@@ -637,26 +637,22 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 </div>
 
                 {/* Content Section */}
-                <div className="p-6 flex-1">
-                  <p className="text-gray-700 text-sm leading-relaxed line-clamp-4 mb-4">
+                <div className="p-4 pt-2 flex-1">
+                  <p className="text-gray-700 text-xs leading-relaxed line-clamp-3 mb-3">
                     {insight.content}
                   </p>
 
                   {/* Metadata */}
-                  <div className="flex items-center gap-4 text-xs text-gray-500 mb-4">
+                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       <span>{new Date(insight.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <FileText className="h-3 w-3" />
-                      <span className="truncate max-w-20">{documentName}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Footer Actions */}
-                <div className="border-t border-gray-100 p-4 bg-gray-50/50">
+                <div className="border-t border-purple-100 p-3 bg-purple-50/30">
                   <div className="flex items-center justify-between">
                     <Button
                       variant="ghost"
@@ -665,23 +661,23 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.stopPropagation();
                         if (onDocumentClick) onDocumentClick(documentId);
                       }}
-                      className="text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors text-xs"
                     >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Document
+                      <Eye className="h-3 w-3 mr-1" />
+                      View
                     </Button>
                     
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                      className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (onDocumentClick) onDocumentClick(documentId);
                       }}
                     >
                       Details
-                      <ArrowRight className="h-4 w-4 ml-1" />
+                      <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
                   </div>
                 </div>

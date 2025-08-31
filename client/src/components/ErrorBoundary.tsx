@@ -72,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      // Default error UI
+      // Default error UI with detailed debugging info
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
           <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
@@ -88,18 +88,32 @@ export class ErrorBoundary extends Component<Props, State> {
               We've encountered an unexpected error. Our team has been notified and we're working on a fix.
             </p>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {/* Always show error details for debugging */}
+            {this.state.error && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3 mb-4">
                 <p className="text-sm text-red-800 dark:text-red-400 font-mono text-left">
-                  {this.state.error.message}
+                  <strong>Error:</strong> {this.state.error.name}: {this.state.error.message}
+                </p>
+                <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                  <strong>Route:</strong> {window.location.pathname}
                 </p>
                 {this.state.errorInfo && (
                   <details className="mt-2">
                     <summary className="text-sm text-red-700 dark:text-red-300 cursor-pointer">
                       Component Stack
                     </summary>
-                    <pre className="text-xs text-red-700 dark:text-red-300 mt-1 overflow-auto">
+                    <pre className="text-xs text-red-700 dark:text-red-300 mt-1 overflow-auto max-h-32">
                       {this.state.errorInfo.componentStack}
+                    </pre>
+                  </details>
+                )}
+                {this.state.error.stack && (
+                  <details className="mt-2">
+                    <summary className="text-sm text-red-700 dark:text-red-300 cursor-pointer">
+                      Stack Trace
+                    </summary>
+                    <pre className="text-xs text-red-700 dark:text-red-300 mt-1 overflow-auto max-h-32">
+                      {this.state.error.stack}
                     </pre>
                   </details>
                 )}

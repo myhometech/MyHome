@@ -67,6 +67,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      // Emergency bypass - if user clicks "Force Load App", bypass error boundary
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('bypass') === 'true') {
+        console.log('🚨 BYPASSING ERROR BOUNDARY - forcing app load');
+        return this.props.children;
+      }
+
       // Custom fallback UI
       if (this.props.fallback) {
         return this.props.fallback;
@@ -120,33 +127,45 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
             )}
             
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-3">
               <Button
-                onClick={this.handleRetry}
-                variant="default"
-                className="flex items-center justify-center gap-2"
+                onClick={() => {
+                  window.location.href = window.location.pathname + '?bypass=true';
+                }}
+                variant="destructive"
+                className="flex items-center justify-center gap-2 w-full"
               >
-                <RefreshCw className="h-4 w-4" />
-                Try Again
+                🚨 Force Load App (Bypass Error)
               </Button>
               
-              <Button
-                onClick={this.handleReload}
-                variant="outline"
-                className="flex items-center justify-center gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Reload Page
-              </Button>
-              
-              <Button
-                onClick={this.handleGoHome}
-                variant="outline"
-                className="flex items-center justify-center gap-2"
-              >
-                <Home className="h-4 w-4" />
-                Go Home
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  onClick={this.handleRetry}
+                  variant="default"
+                  className="flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Try Again
+                </Button>
+                
+                <Button
+                  onClick={this.handleReload}
+                  variant="outline"
+                  className="flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Reload Page
+                </Button>
+                
+                <Button
+                  onClick={this.handleGoHome}
+                  variant="outline"
+                  className="flex items-center justify-center gap-2"
+                >
+                  <Home className="h-4 w-4" />
+                  Go Home
+                </Button>
+              </div>
             </div>
             
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">

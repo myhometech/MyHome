@@ -413,8 +413,8 @@ export default function DocumentCard({
     return (
       <>
         <Card className={cn(
-        "group relative bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer",
-        "hover:border-accent-purple-300 hover:bg-accent-purple-50/30",
+        "group relative bg-gradient-to-r from-white to-accent-purple-50/15 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer",
+        "hover:border-accent-purple-300 hover:bg-gradient-to-r hover:from-accent-purple-50/25 hover:to-accent-purple-100/15",
         className
       )}>
           <CardContent className="p-4">
@@ -582,8 +582,8 @@ export default function DocumentCard({
 
       <Card 
         className={cn(
-        "group relative bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer",
-        "hover:border-accent-purple-300 hover:bg-accent-purple-50/30",
+        "group relative bg-gradient-to-br from-white to-accent-purple-50/20 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer",
+        "hover:border-accent-purple-300 hover:bg-gradient-to-br hover:from-accent-purple-50/30 hover:to-accent-purple-100/20",
         className
       )}
         onClick={handleCardClick}

@@ -457,23 +457,23 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   return (
     <div className="space-y-6">
-      {/* Modern Header */}
-      <div className="flex items-center justify-between">
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-accent-purple-500 to-accent-purple-600 rounded-xl shadow-sm">
+          <div className="p-2.5 bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 rounded-xl shadow-sm">
             <Brain className="h-4 w-4 text-white" />
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Smart Insights</h2>
             <p className="text-xs text-gray-500">AI-powered document analysis</p>
           </div>
-          
         </div>
 
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
-          className="bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 hover:from-accent-purple-600 hover:to-accent-purple-700 text-white shadow-sm hover:shadow-lg border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-gradient-to-r from-accent-purple-400 to-accent-purple-500 hover:from-accent-purple-500 hover:to-accent-purple-600 text-white shadow-sm hover:shadow-lg border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           size="sm"
         >
           {isGenerating || generateInsightsMutation.isPending ? (

@@ -314,7 +314,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const handleGenerateInsights = React.useCallback(() => {
     setIsGenerating(true);
-    generateInsightsMutation.mutate();
+    generateInsightsMutation.mutate({});
   }, [generateInsightsMutation]);
 
   const handleDeleteInsight = React.useCallback((insightId: string) => {

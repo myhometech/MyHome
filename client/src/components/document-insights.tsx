@@ -253,9 +253,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     onSuccess: React.useCallback((data: InsightResponse) => {
       if (abortControllerRef.current?.signal.aborted) return;
 
+      const actualInsightCount = data.insights?.length || 0;
       toast({
         title: "Insights Generated",
-        description: `Generated ${data.insights.length} insights`
+        description: `Generated ${actualInsightCount} insight${actualInsightCount === 1 ? '' : 's'}`
       });
       queryClient.invalidateQueries({
         queryKey: ['/api/documents', documentId, 'insights']

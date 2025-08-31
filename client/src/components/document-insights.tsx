@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,6 +140,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -204,7 +206,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: 1,
-    select: React.useCallback((data) => {
+    select: React.useCallback((data: any) => {
       if (!data?.insights) return { insights: [] };
       const limitedInsights = data.insights.slice(0, Math.min(limit, 20));
       return {

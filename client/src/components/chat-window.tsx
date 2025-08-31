@@ -255,7 +255,7 @@ export function ChatWindow() {
                 </Button>
                 <h1 className="font-semibold">
                   {selectedConversation ? 
-                    conversations.find(c => c.id === selectedConversation)?.title || "Chat" 
+                    conversations.find((c: Conversation) => c.id === selectedConversation)?.title || "Chat" 
                     : "Document Assistant"
                   }
                 </h1>

@@ -48,6 +48,7 @@ interface DocumentCardProps {
   isSelected?: boolean;
   onToggleSelection?: () => void;
   onUpdate?: () => void;
+  className?: string;
 }
 
 export default function DocumentCard({ 
@@ -57,7 +58,8 @@ export default function DocumentCard({
   bulkMode = false,
   isSelected = false,
   onToggleSelection,
-  onUpdate 
+  onUpdate,
+  className 
 }: DocumentCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);

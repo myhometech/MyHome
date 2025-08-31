@@ -136,12 +136,13 @@ export default function TopInsightsWidget() {
             <p className="text-gray-600 mb-4">
               No actions needed right now — but we're keeping an eye out for anything important.
             </p>
-            <Link href="/">
-              <Button className="bg-accent-purple-600 hover:bg-accent-purple-700 text-white">
-                <Brain className="w-4 h-4 mr-2" />
-                Go to AI Insights Dashboard
-              </Button>
-            </Link>
+            <Button 
+              className="bg-accent-purple-600 hover:bg-accent-purple-700 text-white"
+              onClick={() => window.location.href = '/insights'}
+            >
+              <Brain className="w-4 h-4 mr-2" />
+              Go to AI Insights Dashboard
+            </Button>
           </div>
         </CardContent>
       </Card>

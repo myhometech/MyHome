@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { AlertTriangle, Clock, Info, CheckCircle, ArrowRight, Calendar, FileText, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ function formatDueDate(dateString?: string) {
 }
 
 export default function CriticalInsightsDashboard() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -269,12 +269,15 @@ export default function CriticalInsightsDashboard() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <Link href={`/insights-first?documentId=${insight.documentId}`}>
-                    <Button size="sm" variant="outline" className="text-xs px-3 py-1">
-                      <FileText className="w-3 h-3 mr-1" />
-                      View
-                    </Button>
-                  </Link>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="text-xs px-3 py-1"
+                    onClick={() => setLocation(`/document/${insight.documentId}`)}
+                  >
+                    <FileText className="w-3 h-3 mr-1" />
+                    View
+                  </Button>
                   <Button
                     size="sm"
                     variant="ghost"

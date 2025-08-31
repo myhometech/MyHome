@@ -88,7 +88,7 @@ type DocumentInsight = {
 // Component to show insights from all documents
 function InsightsFromAllDocuments() {
   const [, setLocation] = useLocation();
-  
+
   // Fetch all documents to get their insights
   const { data: documents = [] } = useQuery({
     queryKey: ["/api/documents"],
@@ -178,15 +178,15 @@ function InsightsFromAllDocuments() {
                   {insight.category?.replace('_', ' ').toUpperCase() || 'GENERAL'}
                 </Badge>
               </div>
-              
+
               <h3 className="font-semibold text-white mb-2 line-clamp-2">
                 {insight.title || 'Document Insight'}
               </h3>
-              
+
               <p className="text-sm text-white/90 line-clamp-2 mb-3">
                 {insight.content || 'AI-generated insight from your document'}
               </p>
-              
+
               <div className="flex items-center justify-between text-xs text-white/80">
                 <span>{insight.documentName}</span>
                 <span>{insight.confidence ? `${Math.round(insight.confidence * 100)}%` : '95%'}</span>
@@ -891,6 +891,11 @@ export default function Home() {
               <InsightsFromAllDocuments />
             </CardContent>
           </Card>
+        </div>
+
+        {/* Unified Insights Dashboard - This should now display the insights */}
+        <div className="mt-8">
+          <UnifiedInsightsDashboard searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         </div>
 
         {/* Search and Filter Controls */}

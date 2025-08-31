@@ -697,7 +697,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-105 ${getPriorityGradient(insight.priority || 'medium')}`}
                             onClick={() => {
                               if (insight.documentId) {
-                                handleDocumentClick(insight.documentId);
+                                setLocation(`/insights?documentId=${insight.documentId}`);
                               }
                             }}
                             style={{ minHeight: '70px' }}

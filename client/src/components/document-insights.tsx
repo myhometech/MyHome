@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
@@ -154,13 +153,13 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     if (typeof window === 'undefined') return;
 
     abortControllerRef.current = new AbortController();
-    
+
     let resizeTimer: NodeJS.Timeout | null = null;
     const handleResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         if (abortControllerRef.current?.signal.aborted) return;
-        
+
         const newIsMobile = window.innerWidth <= 768;
         setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
         resizeTimer = null;
@@ -171,7 +170,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       passive: true,
       signal: abortControllerRef.current.signal 
     });
-    
+
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -220,9 +219,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const generateInsightsMutation = useMutation({
     mutationFn: async ({ signal }: { signal?: AbortSignal }): Promise<InsightResponse> => {
       console.log(`🔍 [INSIGHT-DEBUG] Starting insight generation for document ${documentId}`);
-      
+
       const requestSignal = signal || abortControllerRef.current?.signal;
-      
+
       const response = await fetch(`/api/documents/${documentId}/insights`, {
         method: 'POST',
         headers: {
@@ -230,15 +229,15 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         },
         signal: requestSignal
       });
-      
+
       console.log(`📡 [INSIGHT-DEBUG] Response status: ${response.status}`);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         console.error(`❌ [INSIGHT-DEBUG] Server error:`, errorData);
         throw new Error(errorData.message || 'Failed to generate insights');
       }
-      
+
       const result = await response.json();
       console.log(`✅ [INSIGHT-DEBUG] Insights received:`, {
         success: result.success,
@@ -246,12 +245,12 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         documentType: result.documentType,
         confidence: result.confidence
       });
-      
+
       return result;
     },
     onSuccess: React.useCallback((data: InsightResponse) => {
       if (abortControllerRef.current?.signal.aborted) return;
-      
+
       toast({
         title: "Insights Generated",
         description: `Generated ${data.insights.length} insights`
@@ -265,7 +264,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       if (abortControllerRef.current?.signal.aborted || error.name === 'AbortError') {
         return;
       }
-      
+
       console.error('❌ [INSIGHT-DEBUG] Insight generation error:', {
         message: error.message,
         stack: error.stack,
@@ -273,9 +272,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         documentName,
         timestamp: new Date().toISOString()
       });
-      
+
       let errorMessage = error.message || "Failed to generate document insights";
-      
+
       if (error.message?.includes('API key')) {
         errorMessage = "AI service not configured. Please contact support.";
       } else if (error.message?.includes('quota exceeded')) {
@@ -285,7 +284,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       } else if (error.message?.includes('extracted text') || error.message?.includes('insufficient text')) {
         errorMessage = "Document text not clear enough for AI analysis. Try OCR retry first.";
       }
-      
+
       toast({
         title: "Generation Failed",
         description: errorMessage,
@@ -350,11 +349,11 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         body: JSON.stringify({ flagged, reason }),
         signal: AbortSignal.timeout(10000)
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to update insight flag');
       }
-      
+
       return response.json();
     },
     onSuccess: React.useCallback((data: any, variables: any) => {
@@ -474,7 +473,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             </div>
           )}
         </div>
-        
+
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
@@ -508,7 +507,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           <p className="text-gray-600 mb-8 text-lg max-w-2xl mx-auto leading-relaxed">
             Let our AI analyze your document to extract key insights, important dates, contacts, and actionable items automatically.
           </p>
-          
+
           {/* Feature Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
@@ -559,7 +558,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             const getSpecificTitle = (insight: DocumentInsight) => {
               const content = insight.content.toLowerCase();
               const title = insight.title.toLowerCase();
-              
+
               // For payment/bill related insights
               if (content.includes('payment') || content.includes('bill') || content.includes('due')) {
                 if (content.includes('peloton')) return 'Peloton Bill Due';
@@ -573,7 +572,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 if (content.includes('insurance')) return 'Insurance Payment';
                 if (content.includes('three') || content.includes('three uk')) return 'Three UK Bill';
               }
-              
+
               // For document expiry/renewal insights
               if (content.includes('expire') || content.includes('renewal') || content.includes('renew')) {
                 if (content.includes('passport')) return 'Passport Renewal';
@@ -583,7 +582,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 if (content.includes('membership')) return 'Membership Renewal';
                 if (content.includes('subscription')) return 'Subscription Renewal';
               }
-              
+
               // For contact-related insights
               if (insight.type === 'contacts') {
                 if (content.includes('doctor')) return 'Doctor Contact';
@@ -592,7 +591,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 if (content.includes('bank')) return 'Bank Contact';
                 if (content.includes('contractor')) return 'Contractor Info';
               }
-              
+
               // For financial insights
               if (insight.type === 'financial_info') {
                 if (content.includes('tax')) return 'Tax Information';
@@ -600,7 +599,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 if (content.includes('investment')) return 'Investment Info';
                 if (content.includes('refund')) return 'Refund Due';
               }
-              
+
               // Fallback to original title if no specific match
               return insight.title;
             };
@@ -613,7 +612,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                   target.closest('[data-radix-dropdown-menu-content]')) {
                 return;
               }
-              
+
               if (onDocumentClick) {
                 onDocumentClick(documentId);
               }
@@ -719,15 +718,15 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       <Eye className="h-3 w-3 mr-1" />
                       View
                     </Button>
-                    
+
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-white hover:text-white hover:bg-white/20 transition-colors text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (onDocumentClick) onDocumentClick(documentId);
+                        setLocation(`/insights?documentId=${documentId}`);
                       }}
+                      className="text-white hover:text-white hover:bg-white/20 transition-colors text-xs"
                     >
                       Details
                       <ArrowRight className="h-3 w-3 ml-1" />

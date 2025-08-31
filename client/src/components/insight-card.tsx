@@ -187,7 +187,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
 
   const dueInfo = formatDueDate(insight.dueDate);
 
-  // Handle card click to open document
+  // Handle card click to navigate to insights page
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('button') || 
@@ -197,8 +197,8 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       return;
     }
 
-    if (insight.documentId && onDocumentClick) {
-      onDocumentClick(insight.documentId);
+    if (insight.documentId) {
+      setLocation(`/insights?documentId=${insight.documentId}`);
     }
   };
 

@@ -209,13 +209,13 @@ export default function CriticalInsightsDashboard() {
       <Card className="w-full">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <CheckCircle className="w-5 h-5 text-green-600" />
+            <CheckCircle className="w-5 h-5 text-purple-600" />
             All Clear
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-6">
-            <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+            <CheckCircle className="w-12 h-12 text-purple-500 mx-auto mb-3" />
             <p className="text-gray-600 mb-2">All clear — nothing needs your attention.</p>
             <p className="text-sm text-gray-500">Your documents are up to date</p>
           </div>
@@ -228,7 +228,7 @@ export default function CriticalInsightsDashboard() {
     <Card className="w-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <AlertTriangle className="w-5 h-5 text-accent-purple-600" />
+          <AlertTriangle className="w-5 h-5 text-purple-600" />
           ⚠️ Urgent Insights
         </CardTitle>
       </CardHeader>

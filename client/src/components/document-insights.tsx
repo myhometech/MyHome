@@ -571,10 +571,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 key={insight.id} 
                 className={`group relative bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border ${config.accent} ${priorityData.glow} hover:${priorityData.glow}`}
                 onClick={handleCardClick}
-                style={{ minHeight: isMobile ? '200px' : '220px' }}
+                style={{ minHeight: isMobile ? '140px' : '160px' }}
               >
                 {/* Header Section */}
-                <div className={`${config.bgPattern} p-4 relative`}>
+                <div className={`${config.bgPattern} p-3 relative`}>
                   {/* Top Actions */}
                   <div className="absolute top-2 right-2 flex items-center gap-1">
                     <Button
@@ -637,7 +637,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 </div>
 
                 {/* Content Section */}
-                <div className="p-4 pt-2 flex-1">
+                <div className="p-3 pt-2 flex-1">
                   <p className="text-gray-700 text-xs leading-relaxed line-clamp-3 mb-3">
                     {insight.content}
                   </p>
@@ -652,7 +652,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 </div>
 
                 {/* Footer Actions */}
-                <div className="border-t border-purple-100 p-3 bg-purple-50/30">
+                <div className="border-t border-purple-100 p-2 bg-purple-50/30">
                   <div className="flex items-center justify-between">
                     <Button
                       variant="ghost"

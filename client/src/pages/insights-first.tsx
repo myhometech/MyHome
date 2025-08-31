@@ -205,10 +205,10 @@ export default function InsightsFirstPage() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-accent-purple-100 text-accent-purple-800 border-accent-purple-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'high': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'medium': return 'bg-purple-50 text-purple-700 border-purple-150';
+      case 'low': return 'bg-purple-25 text-purple-600 border-purple-100';
+      default: return 'bg-purple-50 text-purple-700 border-purple-200';
     }
   };
 

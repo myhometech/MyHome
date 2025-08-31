@@ -38,23 +38,23 @@ const insightTypeConfig = {
   summary: { 
     icon: FileText, 
     label: 'Summary', 
-    gradient: 'from-blue-400 via-blue-500 to-blue-600',
-    bgGradient: 'from-blue-50 via-white to-blue-100',
-    shadow: 'shadow-blue-200/40'
+    gradient: 'from-purple-400 via-purple-500 to-purple-600',
+    bgGradient: 'from-purple-50 via-white to-purple-100',
+    shadow: 'shadow-purple-200/40'
   },
   contacts: { 
     icon: Users, 
     label: 'Contacts', 
-    gradient: 'from-emerald-400 via-emerald-500 to-emerald-600',
-    bgGradient: 'from-emerald-50 via-white to-emerald-100',
-    shadow: 'shadow-emerald-200/40'
+    gradient: 'from-violet-400 via-violet-500 to-violet-600',
+    bgGradient: 'from-violet-50 via-white to-violet-100',
+    shadow: 'shadow-violet-200/40'
   },
   action_items: { 
     icon: CheckCircle, 
     label: 'Actions', 
-    gradient: 'from-orange-400 via-orange-500 to-orange-600',
-    bgGradient: 'from-orange-50 via-white to-orange-100',
-    shadow: 'shadow-orange-200/40'
+    gradient: 'from-indigo-400 via-indigo-500 to-indigo-600',
+    bgGradient: 'from-indigo-50 via-white to-indigo-100',
+    shadow: 'shadow-indigo-200/40'
   },
   key_dates: { 
     icon: Calendar, 
@@ -66,16 +66,16 @@ const insightTypeConfig = {
   financial_info: { 
     icon: DollarSign, 
     label: 'Financial', 
-    gradient: 'from-green-400 via-green-500 to-green-600',
-    bgGradient: 'from-green-50 via-white to-green-100',
-    shadow: 'shadow-green-200/40'
+    gradient: 'from-purple-600 via-purple-700 to-purple-800',
+    bgGradient: 'from-purple-50 via-white to-purple-100',
+    shadow: 'shadow-purple-200/40'
   },
   compliance: { 
     icon: AlertCircle, 
     label: 'Compliance', 
-    gradient: 'from-red-400 via-red-500 to-red-600',
-    bgGradient: 'from-red-50 via-white to-red-100',
-    shadow: 'shadow-red-200/40'
+    gradient: 'from-purple-700 via-purple-800 to-purple-900',
+    bgGradient: 'from-purple-50 via-white to-purple-100',
+    shadow: 'shadow-purple-200/40'
   }
 };
 

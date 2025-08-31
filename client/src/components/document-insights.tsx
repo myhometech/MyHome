@@ -152,36 +152,36 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
   React.useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window !== 'undefined') {
+      abortControllerRef.current = new AbortController();
 
-    abortControllerRef.current = new AbortController();
+      let resizeTimer: NodeJS.Timeout | null = null;
+      const handleResize = () => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (abortControllerRef.current?.signal.aborted) return;
 
-    let resizeTimer: NodeJS.Timeout | null = null;
-    const handleResize = () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        if (abortControllerRef.current?.signal.aborted) return;
+          const newIsMobile = window.innerWidth <= 768;
+          setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
+          resizeTimer = null;
+        }, 150);
+      };
 
-        const newIsMobile = window.innerWidth <= 768;
-        setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
-        resizeTimer = null;
-      }, 150);
-    };
+      window.addEventListener('resize', handleResize, { 
+        passive: true,
+        signal: abortControllerRef.current.signal 
+      });
 
-    window.addEventListener('resize', handleResize, { 
-      passive: true,
-      signal: abortControllerRef.current.signal 
-    });
-
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (resizeTimer) {
-        clearTimeout(resizeTimer);
-        resizeTimer = null;
-      }
-    };
+      return () => {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        if (resizeTimer) {
+          clearTimeout(resizeTimer);
+          resizeTimer = null;
+        }
+      };
+    }
   }, []);
 
   const limit = React.useMemo(() => isMobile ? 5 : 10, [isMobile]);

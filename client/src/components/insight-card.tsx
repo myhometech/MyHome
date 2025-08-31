@@ -1,9 +1,27 @@
+
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertCircle, Calendar, CheckCircle, Clock, ExternalLink, MoreVertical, Target, User, Zap } from 'lucide-react';
+import { 
+  AlertCircle, 
+  Calendar, 
+  CheckCircle, 
+  Clock, 
+  ExternalLink, 
+  MoreVertical, 
+  Target, 
+  User, 
+  Zap,
+  DollarSign,
+  Users,
+  Brain,
+  FileText,
+  Shield,
+  Star,
+  TrendingUp
+} from 'lucide-react';
 import { DocumentInsight } from '@shared/schema';
 import { useLocation } from 'wouter';
 import { formatDistance } from 'date-fns';
@@ -16,11 +34,94 @@ interface InsightCardProps {
   onDocumentClick?: (documentId: number) => void;
 }
 
+// Enhanced type configurations with Pinterest-style gradients and styling
+const insightTypeConfig = {
+  summary: { 
+    icon: Brain, 
+    label: 'Summary', 
+    gradient: 'from-blue-500 to-blue-600',
+    bgGradient: 'from-blue-50 via-blue-50 to-blue-100',
+    borderColor: 'border-blue-200',
+    textColor: 'text-blue-700',
+    accentColor: 'bg-blue-500'
+  },
+  contacts: { 
+    icon: Users, 
+    label: 'Contacts', 
+    gradient: 'from-emerald-500 to-emerald-600',
+    bgGradient: 'from-emerald-50 via-emerald-50 to-emerald-100',
+    borderColor: 'border-emerald-200',
+    textColor: 'text-emerald-700',
+    accentColor: 'bg-emerald-500'
+  },
+  action_items: { 
+    icon: CheckCircle, 
+    label: 'Action Items', 
+    gradient: 'from-orange-500 to-orange-600',
+    bgGradient: 'from-orange-50 via-orange-50 to-orange-100',
+    borderColor: 'border-orange-200',
+    textColor: 'text-orange-700',
+    accentColor: 'bg-orange-500'
+  },
+  key_dates: { 
+    icon: Calendar, 
+    label: 'Key Dates', 
+    gradient: 'from-purple-500 to-purple-600',
+    bgGradient: 'from-purple-50 via-purple-50 to-purple-100',
+    borderColor: 'border-purple-200',
+    textColor: 'text-purple-700',
+    accentColor: 'bg-purple-500'
+  },
+  financial_info: { 
+    icon: DollarSign, 
+    label: 'Financial', 
+    gradient: 'from-green-500 to-green-600',
+    bgGradient: 'from-green-50 via-green-50 to-green-100',
+    borderColor: 'border-green-200',
+    textColor: 'text-green-700',
+    accentColor: 'bg-green-500'
+  },
+  compliance: { 
+    icon: Shield, 
+    label: 'Compliance', 
+    gradient: 'from-red-500 to-red-600',
+    bgGradient: 'from-red-50 via-red-50 to-red-100',
+    borderColor: 'border-red-200',
+    textColor: 'text-red-700',
+    accentColor: 'bg-red-500'
+  }
+};
+
+const priorityConfig = {
+  high: { 
+    badge: 'bg-red-100 text-red-800 border-red-200',
+    icon: AlertCircle,
+    label: 'High Priority',
+    dotColor: 'bg-red-500',
+    ringColor: 'ring-red-200'
+  },
+  medium: { 
+    badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    icon: TrendingUp,
+    label: 'Medium Priority',
+    dotColor: 'bg-yellow-500',
+    ringColor: 'ring-yellow-200'
+  },
+  low: { 
+    badge: 'bg-green-100 text-green-800 border-green-200',
+    icon: CheckCircle,
+    label: 'Low Priority',
+    dotColor: 'bg-green-500',
+    ringColor: 'ring-green-200'
+  }
+};
+
 export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: InsightCardProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ insightId, status }: { insightId: string; status: 'open' | 'dismissed' | 'resolved' }) => {
@@ -63,61 +164,9 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
     }
   };
 
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case 'medium':
-        return <Target className="h-4 w-4 text-yellow-500" />;
-      case 'low':
-        return <Zap className="h-4 w-4 text-green-500" />;
-      default:
-        return <Target className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'key_dates':
-        return <Calendar className="h-4 w-4" />;
-      case 'action_items':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'financial_info':
-        return <Target className="h-4 w-4" />;
-      case 'contacts':
-        return <User className="h-4 w-4" />;
-      case 'compliance':
-        return <AlertCircle className="h-4 w-4" />;
-      default:
-        return <Zap className="h-4 w-4" />;
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'bg-accent-purple-100 text-accent-purple-800 border-accent-purple-200';
-      case 'medium':
-        return 'bg-accent-purple-50 text-accent-purple-700 border-accent-purple-200';
-      case 'low':
-        return 'bg-accent-purple-25 text-accent-purple-600 border-accent-purple-100';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open':
-        return 'bg-accent-purple-100 text-accent-purple-800 border-accent-purple-200';
-      case 'resolved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'dismissed':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
+  const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
+  const priorityData = priorityConfig[insight.priority || 'medium'];
+  const IconComponent = config.icon;
 
   const formatDueDate = (dueDate: string | null) => {
     if (!dueDate) return null;
@@ -127,13 +176,13 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays < 0) {
-      return { text: `${Math.abs(diffDays)} days ago`, color: 'text-red-600' };
+      return { text: `${Math.abs(diffDays)} days ago`, color: 'text-red-600', urgent: true };
     } else if (diffDays === 0) {
-      return { text: 'Today', color: 'text-red-600' };
+      return { text: 'Today', color: 'text-red-600', urgent: true };
     } else if (diffDays <= 7) {
-      return { text: `${diffDays} days`, color: 'text-yellow-600' };
+      return { text: `${diffDays} days`, color: 'text-yellow-600', urgent: false };
     } else {
-      return { text: formatDistance(date, now, { addSuffix: true }), color: 'text-gray-600' };
+      return { text: formatDistance(date, now, { addSuffix: true }), color: 'text-gray-600', urgent: false };
     }
   };
 
@@ -141,7 +190,6 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
 
   // Handle card click to open document
   const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on buttons, dropdown menus, or interactive elements
     const target = e.target as HTMLElement;
     if (target.closest('button') || 
         target.closest('[role="button"]') || 
@@ -150,7 +198,6 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       return;
     }
     
-    // Open document viewer modal using callback
     if (insight.documentId && onDocumentClick) {
       onDocumentClick(insight.documentId);
     }
@@ -158,47 +205,61 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
 
   return (
     <Card 
-      className={`compact-insight-card transition-all duration-200 hover:shadow-md cursor-pointer border-l-2 ${
-        insight.priority === 'high' ? 'border-l-accent-purple-500 bg-accent-purple-50/30' :
-        insight.priority === 'medium' ? 'border-l-accent-purple-400 bg-accent-purple-50/20' :
-        'border-l-accent-purple-300 bg-accent-purple-50/10'
-      } ${insight.status === 'dismissed' ? 'opacity-60' : ''}`}
+      className={`group relative overflow-hidden rounded-xl transition-all duration-300 cursor-pointer transform hover:scale-[1.02] hover:shadow-xl ${config.borderColor} border-2 ${
+        insight.status === 'dismissed' ? 'opacity-60' : ''
+      } ${
+        insight.priority === 'high' ? 'ring-2 ring-red-100' : ''
+      }`}
+      style={{ minHeight: '200px' }}
       onClick={handleCardClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <CardContent className="p-1 md:p-1.5">
-        {/* Header with title, status indicator, and menu */}
-        <div className="flex items-start justify-between mb-1">
-          <div className="flex items-center space-x-2 flex-1 min-w-0">
-            {/* Priority and type indicator */}
-            <div className="flex items-center space-x-1">
-              {getPriorityIcon(insight.priority)}
-              {getTypeIcon(insight.type)}
+      {/* Gradient Background Header */}
+      <div className={`absolute top-0 left-0 right-0 h-16 bg-gradient-to-r ${config.gradient} opacity-90`}>
+        <div className="absolute inset-0 bg-white/10"></div>
+      </div>
+
+      {/* Content Background */}
+      <div className={`absolute top-12 left-0 right-0 bottom-0 bg-gradient-to-br ${config.bgGradient}`}>
+        <div className="absolute inset-0 bg-white/60"></div>
+      </div>
+
+      <CardContent className="relative p-4 h-full flex flex-col">
+        {/* Header Section */}
+        <div className="flex items-start justify-between mb-3 relative z-10">
+          <div className="flex items-center space-x-3">
+            {/* Icon with enhanced styling */}
+            <div className={`p-2.5 bg-white rounded-xl shadow-lg ${config.borderColor} border`}>
+              <IconComponent className={`h-5 w-5 ${config.textColor}`} />
             </div>
             
-            {/* Title */}
-            <div className="flex-1 min-w-0">
-              <h4 className="text-xs font-medium text-gray-900 leading-tight truncate max-w-20">
-                {insight.message || insight.title}
-              </h4>
+            {/* Category Badge */}
+            <div>
+              <Badge className={`${config.textColor} bg-white/80 border ${config.borderColor} font-medium text-xs px-2 py-1`}>
+                {config.label}
+              </Badge>
             </div>
           </div>
           
-          {/* Status and menu */}
-          <div className="flex items-center space-x-1">
-            {/* Compact status indicator */}
-            <div className={`w-2 h-2 rounded-full ${
-              insight.status === 'resolved' ? 'bg-green-500' :
-              insight.status === 'dismissed' ? 'bg-gray-400' :
-              'bg-accent-purple-500'
-            }`} title={`Status: ${insight.status || 'open'}`} />
+          {/* Priority Indicator & Menu */}
+          <div className="flex items-center space-x-2">
+            {/* Priority dot with enhanced visibility */}
+            <div className={`w-3 h-3 rounded-full ${priorityData.dotColor} ${insight.priority === 'high' ? 'animate-pulse' : ''}`} 
+                 title={`${priorityData.label}`} />
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" disabled={isUpdating} data-radix-dropdown-menu-trigger className="h-4 w-4 p-0">
-                  <MoreVertical className="h-2.5 w-2.5" />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  disabled={isUpdating} 
+                  className="h-8 w-8 p-0 bg-white/80 hover:bg-white border border-gray-200 rounded-lg"
+                >
+                  <MoreVertical className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="bg-white/95 backdrop-blur-sm">
                 <DropdownMenuItem onClick={() => handleStatusUpdate('resolved')}>
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Mark Resolved
@@ -222,37 +283,70 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
           </div>
         </div>
         
-        {/* Compact Summary with Context */}
-        <p className="text-xs text-gray-600 mb-1 line-clamp-1">
-          {(() => {
-            const message = insight.message || insight.title;
-            // Extract document name for context if message is generic
-            if (message.includes(': ')) {
-              const parts = message.split(': ');
-              if (parts.length > 1) {
-                // Get document name from first part and action from second
-                const docName = parts[0].replace(/\.(pdf|jpg|jpeg|png|webp).*$/i, '');
-                const action = parts[1];
-                return action.includes('payment') || action.includes('due') ? 
-                  `${docName} payment due` : 
-                  action;
-              }
-            }
-            return message;
-          })()}
-        </p>
-        
-        {/* Compact Footer */}
-        <div className="flex items-center justify-between text-xs">
-          <span className="capitalize text-gray-500 text-xs truncate">
-            {insight.type.replace('_', ' ')}
-          </span>
-          {dueInfo && (
-            <span className={`text-xs ${dueInfo.color}`}>
-              {dueInfo.text}
+        {/* Title Section */}
+        <div className="mb-3 relative z-10">
+          <h4 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2 mb-1">
+            {insight.message || insight.title}
+          </h4>
+          
+          {/* Status indicator */}
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${
+              insight.status === 'resolved' ? 'bg-green-500' :
+              insight.status === 'dismissed' ? 'bg-gray-400' :
+              'bg-purple-500'
+            }`} />
+            <span className="text-xs text-gray-600 capitalize">
+              {insight.status || 'open'}
             </span>
-          )}
+          </div>
         </div>
+        
+        {/* Content Summary */}
+        <div className="flex-1 mb-3 relative z-10">
+          <p className="text-xs text-gray-700 line-clamp-3 leading-relaxed">
+            {insight.content}
+          </p>
+        </div>
+        
+        {/* Footer Section */}
+        <div className="space-y-2 relative z-10">
+          {/* Due Date */}
+          {dueInfo && (
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
+              dueInfo.urgent ? 'bg-red-50 border border-red-200' : 'bg-gray-50 border border-gray-200'
+            }`}>
+              <Calendar className="w-3 h-3 text-gray-500" />
+              <span className={`text-xs font-medium ${dueInfo.color}`}>
+                {dueInfo.text}
+              </span>
+            </div>
+          )}
+          
+          {/* Confidence & Type */}
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1">
+              <Star className="h-3 w-3 text-yellow-500 fill-current" />
+              <span className="text-gray-600 font-medium">
+                {Math.round((insight.confidence || 0.9) * 100)}%
+              </span>
+            </div>
+            
+            <span className="text-gray-500 capitalize">
+              {insight.type.replace('_', ' ')}
+            </span>
+          </div>
+        </div>
+        
+        {/* Hover effect overlay */}
+        <div className={`absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 transition-opacity duration-300 ${
+          isHovered ? 'opacity-100' : ''
+        }`} />
+        
+        {/* Left accent border */}
+        <div className={`absolute left-0 top-0 bottom-0 w-1 ${config.accentColor} transition-all duration-300 ${
+          isHovered ? 'w-2' : ''
+        }`} />
       </CardContent>
     </Card>
   );

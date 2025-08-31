@@ -37,6 +37,7 @@ import { ManualEventCard, CompactManualEventCard } from '@/components/manual-eve
 import { ManualEventViewer } from '@/components/manual-event-viewer';
 import SmartHelpTooltip, { HelpBadge } from '@/components/smart-help-tooltip';
 import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
+import '@/styles/pinterest-cards.css';
 
 import { useFeatures } from '@/hooks/useFeatures';
 import type { DocumentInsight } from '@shared/schema';

@@ -82,6 +82,18 @@ export default function InsightsFirstPage() {
 
   const queryClient = useQueryClient();
 
+  // Fetch documents
+  const { data: documents = [], isLoading: documentsLoading, error: documentsError } = useQuery<Document[]>({
+    queryKey: ["/api/documents"],
+    queryFn: async () => {
+      const response = await fetch("/api/documents", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch documents");
+      return response.json();
+    },
+  });
+
   // Check for documentId in URL params and auto-open document viewer
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);

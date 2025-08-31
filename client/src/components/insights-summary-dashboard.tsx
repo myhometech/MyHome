@@ -128,21 +128,21 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
       {/* Summary Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
         {/* Total Open Insights */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400">
-          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', category: 'all', type: 'all' })}>
-            <div className="flex items-center justify-between">
+        <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-500 to-accent-purple-600 text-white border-0 shadow-md">
+          <CardContent className="p-3 md:p-4" onClick={() => onFilterChange({ status: 'open', category: 'all', type: 'all' })}>
+            <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-xs md:text-sm font-medium text-white/90">Open Items</p>
                 <p className="text-xl md:text-2xl font-bold text-white">{metrics.open}</p>
               </div>
-              <div className="h-8 w-8 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <ListTodo className="h-4 w-4 md:h-6 md:w-6 text-white" />
+              <div className="h-10 w-10 md:h-12 md:w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <ListTodo className="h-5 w-5 md:h-6 md:w-6 text-white" />
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="w-full mt-1 md:mt-2 text-xs h-6 md:h-8 text-white hover:bg-white/20"
+              className="w-full text-xs h-7 md:h-8 text-white hover:bg-white/20 rounded-lg font-medium"
               onClick={(e) => {
                 e.stopPropagation();
                 onFilterChange({ status: 'open', category: 'all', type: 'all' });
@@ -155,21 +155,21 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
         </Card>
 
         {/* Financial */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br from-accent-purple-600 to-accent-purple-700 text-white border-accent-purple-500">
-          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', category: 'financial', type: 'all' })}>
-            <div className="flex items-center justify-between">
+        <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-600 to-accent-purple-700 text-white border-0 shadow-md">
+          <CardContent className="p-3 md:p-4" onClick={() => onFilterChange({ status: 'open', category: 'financial', type: 'all' })}>
+            <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-xs md:text-sm font-medium text-white/90">Financial</p>
                 <p className="text-xl md:text-2xl font-bold text-white">{metrics.byCategory?.financial || 0}</p>
               </div>
-              <div className="h-8 w-8 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-4 w-4 md:h-6 md:w-6 text-white" />
+              <div className="h-10 w-10 md:h-12 md:w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-white" />
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="w-full mt-1 md:mt-2 text-xs h-6 md:h-8 text-white hover:bg-white/20"
+              className="w-full text-xs h-7 md:h-8 text-white hover:bg-white/20 rounded-lg font-medium"
               onClick={(e) => {
                 e.stopPropagation();
                 onFilterChange({ status: 'open', category: 'financial', type: 'all' });
@@ -181,55 +181,55 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
           </CardContent>
         </Card>
 
-        {/* Manual Events */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 text-white border-accent-purple-300">
-          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', category: 'all', type: 'manual_event' })}>
-            <div className="flex items-center justify-between">
+        {/* Important Dates */}
+        <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 text-white border-0 shadow-md">
+          <CardContent className="p-3 md:p-4" onClick={() => onFilterChange({ status: 'open', category: 'important_dates', type: 'all' })}>
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-xs md:text-sm font-medium text-white/90">Manual Events</p>
-                <p className="text-xl md:text-2xl font-bold text-white">{metrics.manualEvents}</p>
+                <p className="text-xs md:text-sm font-medium text-white/90">Important Dates</p>
+                <p className="text-xl md:text-2xl font-bold text-white">{metrics.byCategory?.important_dates || 0}</p>
               </div>
-              <div className="h-8 w-8 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <Calendar className="h-4 w-4 md:h-6 md:w-6 text-white" />
+              <div className="h-10 w-10 md:h-12 md:w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <Calendar className="h-5 w-5 md:h-6 md:w-6 text-white" />
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="w-full mt-1 md:mt-2 text-xs h-6 md:h-8 text-white hover:bg-white/20"
+              className="w-full text-xs h-7 md:h-8 text-white hover:bg-white/20 rounded-lg font-medium"
               onClick={(e) => {
                 e.stopPropagation();
-                onFilterChange({ status: 'open', category: 'all', type: 'manual_event' });
+                onFilterChange({ status: 'open', category: 'important_dates', type: 'all' });
               }}
             >
-              <span className="hidden sm:inline">View Events</span>
+              <span className="hidden sm:inline">View Dates</span>
               <span className="sm:hidden">View</span>
             </Button>
           </CardContent>
         </Card>
 
-        {/* Resolved */}
-        <Card className="cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br from-accent-purple-300 to-accent-purple-400 text-white border-accent-purple-200">
-          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'resolved', category: 'all', type: 'all' })}>
-            <div className="flex items-center justify-between">
+        {/* General */}
+        <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-300 to-accent-purple-400 text-white border-0 shadow-md">
+          <CardContent className="p-3 md:p-4" onClick={() => onFilterChange({ status: 'resolved', category: 'all', type: 'all' })}>
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-xs md:text-sm font-medium text-white/90">Resolved</p>
-                <p className="text-xl md:text-2xl font-bold text-white">{metrics.resolved}</p>
+                <p className="text-xs md:text-sm font-medium text-white/90">General</p>
+                <p className="text-xl md:text-2xl font-bold text-white">{metrics.byCategory?.general || 0}</p>
               </div>
-              <div className="h-8 w-8 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 md:h-6 md:w-6 text-white" />
+              <div className="h-10 w-10 md:h-12 md:w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-white" />
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="w-full mt-1 md:mt-2 text-xs h-6 md:h-8 text-white hover:bg-white/20"
+              className="w-full text-xs h-7 md:h-8 text-white hover:bg-white/20 rounded-lg font-medium"
               onClick={(e) => {
                 e.stopPropagation();
-                onFilterChange({ status: 'resolved', category: 'all', type: 'all' });
+                onFilterChange({ status: 'open', category: 'general', type: 'all' });
               }}
             >
-              <span className="hidden sm:inline">View Resolved</span>
+              <span className="hidden sm:inline">View General</span>
               <span className="sm:hidden">View</span>
             </Button>
           </CardContent>

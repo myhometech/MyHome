@@ -587,14 +587,14 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             };
 
             return (
-              <div 
+              <Card 
                 key={insight.id} 
-                className="group relative bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border border-accent-purple-200 hover:border-accent-purple-300"
+                className={`group relative overflow-hidden cursor-pointer border-2 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${config.bgPattern} ${config.accent} hover:border-accent-purple-300`}
                 onClick={handleCardClick}
                 style={{ minHeight: isMobile ? '140px' : '160px' }}
               >
                 {/* Header Section with Purple Background */}
-                <div className="bg-white p-3 relative border-b border-accent-purple-100">
+                <CardHeader className={`bg-gradient-to-r ${config.color} text-white p-4 relative`}>
                   {/* Top Actions */}
                   <div className="absolute top-2 right-2 flex items-center gap-1">
                     <Button
@@ -605,7 +605,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleFlagInsight(insight.id, !insight.flagged, insight.flagged ? undefined : "Incorrect information");
                       }}
                       disabled={flagInsightMutation.isPending}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
+                      className="bg-white/20 hover:bg-white/30 text-white hover:text-white rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
                       title={insight.flagged ? "Remove flag" : "Flag as incorrect"}
                     >
                       {insight.flagged ? <FlagOff className="h-3.5 w-3.5" /> : <Flag className="h-3.5 w-3.5" />}
@@ -618,62 +618,58 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleDeleteInsight(insight.id);
                       }}
                       disabled={deleteInsightMutation.isPending}
-                      className="bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
+                      className="bg-white/20 hover:bg-red-500 hover:text-white text-white rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
 
-                  {/* Icon and Type */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className={`p-2 bg-gradient-to-r ${config.color} rounded-lg shadow-md`}>
-                      <IconComponent className="h-4 w-4 text-white" />
+                  {/* Icon and Category Badge */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-white/20 rounded-lg shadow-sm">
+                      <IconComponent className="h-5 w-5 text-white" />
                     </div>
-                    <div>
-                      <Badge className="bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200 border text-xs font-medium">
-                        <CategoryIcon className="h-2 w-2 mr-1" />
-                        {categoryData.label.toUpperCase()}
-                      </Badge>
-                    </div>
+                    <Badge className="bg-white/20 text-white border-white/30 text-xs font-medium">
+                      <CategoryIcon className="h-3 w-3 mr-1" />
+                      {categoryData.label.toUpperCase()}
+                    </Badge>
                   </div>
 
                   {/* Title */}
-                  <h3 className="font-semibold text-sm text-gray-900 leading-tight mb-1">
+                  <CardTitle className="text-sm text-white leading-tight mb-2">
                     {getSpecificTitle(insight)}
-                  </h3>
+                  </CardTitle>
 
-                  {/* Type Label */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-accent-purple-600">
+                  {/* Type and Confidence */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-white/90">
                       {config.label}
                     </span>
                     <div className="flex items-center gap-1">
-                      <Star className="h-2 w-2 text-yellow-500 fill-current" />
-                      <span className="text-xs text-gray-600 font-medium">
+                      <Star className="h-3 w-3 text-yellow-300 fill-current" />
+                      <span className="text-xs text-white/90 font-medium">
                         {Math.round(insight.confidence * 100)}%
                       </span>
                     </div>
                   </div>
-                </div>
+                </CardHeader>
 
                 {/* Content Section */}
-                <div className="p-3 pt-2 flex-1 bg-white">
-                  <p className="text-gray-700 text-xs leading-relaxed line-clamp-3 mb-3">
+                <CardContent className="p-4 flex-1 bg-white">
+                  <p className={`text-sm leading-relaxed line-clamp-3 mb-3 ${config.textColor}`}>
                     {insight.content}
                   </p>
 
                   {/* Metadata */}
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       <span>{new Date(insight.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
-                </div>
 
-                {/* Footer Actions */}
-                <div className="border-t border-accent-purple-100 p-2 bg-accent-purple-50">
-                  <div className="flex items-center justify-between">
+                  {/* Footer Actions */}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -681,7 +677,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.stopPropagation();
                         if (onDocumentClick) onDocumentClick(documentId);
                       }}
-                      className="text-accent-purple-700 hover:text-accent-purple-800 hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium"
+                      className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}
                     >
                       <Eye className="h-3 w-3 mr-1.5" />
                       View
@@ -694,17 +690,14 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.stopPropagation();
                         setLocation(`/document/${documentId}`);
                       }}
-                      className="text-accent-purple-700 hover:text-accent-purple-800 hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium"
+                      className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}
                     >
                       Details
                       <ArrowRight className="h-3 w-3 ml-1.5" />
                     </Button>
                   </div>
-                </div>
-
-                {/* Priority Accent Border */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${config.color}`}></div>
-              </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

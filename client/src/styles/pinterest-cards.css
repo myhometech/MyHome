@@ -1,17 +1,17 @@
 
-/* Pinterest-inspired insight cards styling */
+/* Pinterest-inspired insight cards styling with purple theme */
 .pinterest-insight-card {
   position: relative;
   overflow: hidden;
   border-radius: 16px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
 }
 
 .pinterest-insight-card:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(139, 92, 246, 0.15);
 }
 
 .pinterest-insight-card::before {
@@ -21,7 +21,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--accent-color, #8b5cf6), var(--accent-color-secondary, #a855f7));
+  background: linear-gradient(90deg, #8b5cf6, #a855f7);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -70,7 +70,7 @@
   right: -2px;
   bottom: -2px;
   border-radius: 50%;
-  border: 2px solid var(--priority-color, #ef4444);
+  border: 2px solid var(--priority-color, #8b5cf6);
   opacity: 0.3;
   animation: pulse 2s infinite;
 }
@@ -194,7 +194,7 @@
 /* Enhanced hover effects */
 .pinterest-insight-card:hover .pinterest-card-icon {
   transform: scale(1.05);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 12px rgba(139, 92, 246, 0.25);
 }
 
 .pinterest-insight-card:hover .pinterest-priority-indicator.high {

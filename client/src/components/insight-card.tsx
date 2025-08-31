@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -174,7 +173,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
     const now = new Date();
     const diffTime = date.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
       return { text: `${Math.abs(diffDays)} days ago`, color: 'text-red-600', urgent: true };
     } else if (diffDays === 0) {
@@ -197,9 +196,18 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
         target.closest('[data-radix-dropdown-menu-content]')) {
       return;
     }
-    
+
     if (insight.documentId && onDocumentClick) {
       onDocumentClick(insight.documentId);
+    }
+  };
+
+  // Status indicator
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'resolved': return 'bg-purple-500';
+      case 'dismissed': return 'bg-gray-400';
+      default: return 'bg-purple-600';
     }
   };
 
@@ -233,7 +241,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
             <div className={`p-2.5 bg-white rounded-xl shadow-lg ${config.borderColor} border`}>
               <IconComponent className={`h-5 w-5 ${config.textColor}`} />
             </div>
-            
+
             {/* Category Badge */}
             <div>
               <Badge className={`${config.textColor} bg-white/80 border ${config.borderColor} font-medium text-xs px-2 py-1`}>
@@ -241,13 +249,13 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
               </Badge>
             </div>
           </div>
-          
+
           {/* Priority Indicator & Menu */}
           <div className="flex items-center space-x-2">
             {/* Priority dot with enhanced visibility */}
             <div className={`w-3 h-3 rounded-full ${priorityData.dotColor} ${insight.priority === 'high' ? 'animate-pulse' : ''}`} 
                  title={`${priorityData.label}`} />
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -282,33 +290,29 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
             </DropdownMenu>
           </div>
         </div>
-        
+
         {/* Title Section */}
         <div className="mb-3 relative z-10">
           <h4 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2 mb-1">
             {insight.message || insight.title}
           </h4>
-          
+
           {/* Status indicator */}
           <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${
-              insight.status === 'resolved' ? 'bg-green-500' :
-              insight.status === 'dismissed' ? 'bg-gray-400' :
-              'bg-purple-500'
-            }`} />
+            <div className={`w-2 h-2 rounded-full ${getStatusColor(insight.status || 'open')}`} />
             <span className="text-xs text-gray-600 capitalize">
               {insight.status || 'open'}
             </span>
           </div>
         </div>
-        
+
         {/* Content Summary */}
         <div className="flex-1 mb-3 relative z-10">
           <p className="text-xs text-gray-700 line-clamp-3 leading-relaxed">
             {insight.content}
           </p>
         </div>
-        
+
         {/* Footer Section */}
         <div className="space-y-2 relative z-10">
           {/* Due Date */}
@@ -322,7 +326,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
               </span>
             </div>
           )}
-          
+
           {/* Confidence & Type */}
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1">
@@ -331,18 +335,18 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
                 {Math.round((insight.confidence || 0.9) * 100)}%
               </span>
             </div>
-            
+
             <span className="text-gray-500 capitalize">
               {insight.type.replace('_', ' ')}
             </span>
           </div>
         </div>
-        
+
         {/* Hover effect overlay */}
         <div className={`absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 transition-opacity duration-300 ${
           isHovered ? 'opacity-100' : ''
         }`} />
-        
+
         {/* Left accent border */}
         <div className={`absolute left-0 top-0 bottom-0 w-1 ${config.accentColor} transition-all duration-300 ${
           isHovered ? 'w-2' : ''

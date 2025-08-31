@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Brain, Calendar, AlertTriangle, Info, CheckCircle, Clock } from "lucide-react";
+import { Brain, Calendar, AlertTriangle, Info, CheckCircle, Clock, DollarSign } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,17 +45,17 @@ function getCategoryColor(category: string) {
 
 function formatDueDate(dateString?: string) {
   if (!dateString) return null;
-  
+
   try {
     const date = new Date(dateString);
     const now = new Date();
     const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return "Due today";
     if (diffDays === 1) return "Due tomorrow";
     if (diffDays > 0 && diffDays <= 7) return `Due in ${diffDays} days`;
     if (diffDays < 0) return "Overdue";
-    
+
     return format(date, "MMM dd, yyyy");
   } catch {
     return null;
@@ -210,7 +210,7 @@ export default function TopInsightsWidget() {
             );
           })}
         </div>
-        
+
         {insights.length >= 5 && (
           <div className="mt-4 pt-3 border-t">
             <Link href="/insights-first">

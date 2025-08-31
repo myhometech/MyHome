@@ -251,8 +251,8 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
 
             {/* Category Badge */}
             <div>
-              <Badge className={`${config.textColor} bg-white/80 border ${config.borderColor} font-medium text-xs px-2 py-1`}>
-                {config.label}
+              <Badge className={`text-xs ${categoryData.badge}`}>
+                {categoryData.label.toUpperCase()}
               </Badge>
             </div>
           </div>

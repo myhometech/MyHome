@@ -129,7 +129,7 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
         {/* Total Open Insights */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'all' })}>
+          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', category: 'all', type: 'all' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs md:text-sm font-medium text-gray-600">Open Items</p>
@@ -145,7 +145,7 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
               className="w-full mt-1 md:mt-2 text-xs h-6 md:h-8"
               onClick={(e) => {
                 e.stopPropagation();
-                onFilterChange({ status: 'open', priority: 'all', type: 'all' });
+                onFilterChange({ status: 'open', category: 'all', type: 'all' });
               }}
             >
               <span className="hidden sm:inline">View All Open</span>
@@ -183,7 +183,7 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
 
         {/* Manual Events */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', priority: 'all', type: 'manual_event' })}>
+          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', category: 'all', type: 'manual_event' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs md:text-sm font-medium text-gray-600">Manual Events</p>
@@ -199,7 +199,7 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
               className="w-full mt-1 md:mt-2 text-xs h-6 md:h-8"
               onClick={(e) => {
                 e.stopPropagation();
-                onFilterChange({ status: 'open', priority: 'all', type: 'manual_event' });
+                onFilterChange({ status: 'open', category: 'all', type: 'manual_event' });
               }}
             >
               <span className="hidden sm:inline">View Events</span>
@@ -210,7 +210,7 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
 
         {/* Resolved */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'resolved', priority: 'all', type: 'all' })}>
+          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'resolved', category: 'all', type: 'all' })}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs md:text-sm font-medium text-gray-600">Resolved</p>
@@ -226,7 +226,7 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
               className="w-full mt-1 md:mt-2 text-xs h-6 md:h-8"
               onClick={(e) => {
                 e.stopPropagation();
-                onFilterChange({ status: 'resolved', priority: 'all', type: 'all' });
+                onFilterChange({ status: 'resolved', category: 'all', type: 'all' });
               }}
             >
               <span className="hidden sm:inline">View Resolved</span>

@@ -793,8 +793,8 @@ export default function DocumentCard({
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <div className={`w-2 h-2 rounded-full ${
-                                insight.priority === 'high' ? 'bg-red-500' : 
-                                insight.priority === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'
+                                insight.category === 'financial' ? 'bg-blue-500' : 
+                                insight.category === 'important_dates' ? 'bg-yellow-500' : 'bg-green-500'
                               }`}></div>
                               <div className="text-sm font-semibold text-gray-800">
                                 {insight.type.replace('_', ' ').toUpperCase()}
@@ -802,7 +802,8 @@ export default function DocumentCard({
                             </div>
                             <div className="text-sm text-gray-700 mb-2 leading-relaxed">{insight.content}</div>
                             <div className={`text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1 ${
-                              insight.priority === 'high' ? 'bg-red-100 text-red-700' : 
+                              insight.category === 'financial' ? 'bg-blue-100 text-blue-600' : 
+                              insight.category === 'important_dates' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'd-700' : 
                               insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'
                             }`}>
                               {insight.priority === 'high' ? '🔥' : insight.priority === 'medium' ? '⚡' : '💡'} 

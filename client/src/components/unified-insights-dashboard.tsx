@@ -158,6 +158,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Simple state for insights
   const [statusFilter] = useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'financial' | 'important_dates' | 'general'>('all');
 
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'financial' | 'important_dates' | 'general'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -519,7 +520,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => { setCategoryFilter('all'); setTypeFilter('all'); }}
+                        onClick={() => { setCategoryFilter('all'); setTypeFilter('all'); setPriorityFilter('all'); }}
                         className="h-8 px-2 text-xs text-gray-500 hover:text-gray-700"
                       >
                         <X className="h-3 w-3 mr-1" />
@@ -796,7 +797,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                       }
                     </p>
                     {insights.length > 0 && (
-                      <Button variant="outline" onClick={() => { setPriorityFilter('all'); setTypeFilter('all'); }}>
+                      <Button variant="outline" onClick={() => { setCategoryFilter('all'); setTypeFilter('all'); setPriorityFilter('all'); }}>
                         Clear Filters
                       </Button>
                     )}

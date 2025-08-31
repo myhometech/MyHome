@@ -277,10 +277,10 @@ export default function UnifiedDocumentCard({
     i.status === 'open' && 
     !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(i.type)
   );
-  const criticalInsights = openInsights.filter(i => i.priority === 'high');
+  const criticalInsights = openInsights.filter(i => i.category === 'financial');
   const highestPriorityInsight = openInsights.sort((a, b) => {
-    const priorityOrder = { high: 3, medium: 2, low: 1 };
-    return priorityOrder[b.priority] - priorityOrder[a.priority];
+    const categoryOrder = { financial: 3, important_dates: 2, general: 1 };
+    return categoryOrder[b.category] - categoryOrder[a.category];
   })[0];
 
   // Auto-expand critical insights
@@ -702,16 +702,16 @@ export default function UnifiedDocumentCard({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           {(() => {
-                            const priorityCounts = openInsights.reduce((acc, insight) => {
-                              acc[insight.priority] = (acc[insight.priority] || 0) + 1;
+                            const categoryCounts = openInsights.reduce((acc, insight) => {
+                              acc[insight.category] = (acc[insight.category] || 0) + 1;
                               return acc;
                             }, {} as Record<string, number>);
 
-                            const priorityOrder = ['high', 'medium', 'low'];
-                            const priorityColors: Record<string, string> = {
-                              high: 'bg-accent-purple-500 text-white',
-                              medium: 'bg-orange-500 text-white', 
-                              low: 'bg-accent-purple-400 text-white'
+                            const categoryOrder = ['financial', 'important_dates', 'general'];
+                            const categoryColors: Record<string, string> = {
+                              financial: 'bg-blue-500 text-white',
+                              important_dates: 'bg-yellow-500 text-white', 
+                              general: 'bg-green-500 text-white'
                             };
 
                             return (
@@ -728,13 +728,13 @@ export default function UnifiedDocumentCard({
                                   <span className="text-xs font-medium text-accent-purple-700">AI Insights</span>
                                 </div>
                                 <div className="flex items-center gap-1 px-1">
-                                  {priorityOrder.map(priority => {
-                                    const count = priorityCounts[priority];
+                                  {categoryOrder.map(category => {
+                                    const count = categoryCounts[category];
                                     if (!count) return null;
                                     return (
                                       <div 
-                                        key={priority}
-                                        className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${priorityColors[priority]} border border-white shadow-sm`}
+                                        key={category}
+                                        className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${categoryColors[category]} border border-white shadow-sm`}
                                       >
                                         {count}
                                       </div>

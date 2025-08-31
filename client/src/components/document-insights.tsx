@@ -672,7 +672,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 </div>
 
                 {/* Footer Actions */}
-                <div className="border-t border-white/20 p-2 bg-black/10">
+                <div className="border-t border-white/20 p-2 bg-accent-purple-50/80">
                   <div className="flex items-center justify-between">
                     <Button
                       variant="ghost"

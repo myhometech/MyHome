@@ -74,13 +74,23 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.children;
       }
 
-      // Auto-bypass on mobile after 3 seconds if user hasn't interacted
-      setTimeout(() => {
-        if (this.state.hasError && !urlParams.get('bypass')) {
-          console.log('🚨 AUTO-BYPASSING ERROR BOUNDARY after 3 seconds');
+      // IMMEDIATE mobile detection and bypass
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        console.log('🚨 MOBILE DETECTED - Immediate bypass in 1 second');
+        setTimeout(() => {
           window.location.href = window.location.pathname + '?bypass=true';
-        }
-      }, 3000);
+        }, 1000);
+      } else {
+        // Desktop gets 3 second delay
+        setTimeout(() => {
+          if (this.state.hasError && !urlParams.get('bypass')) {
+            console.log('🚨 AUTO-BYPASSING ERROR BOUNDARY after 3 seconds');
+            window.location.href = window.location.pathname + '?bypass=true';
+          }
+        }, 3000);
+      }
 
       // Custom fallback UI
       if (this.props.fallback) {
@@ -100,7 +110,9 @@ export class ErrorBoundary extends Component<Props, State> {
             </h1>
             
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Auto-bypassing in 3 seconds...
+              {/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                ? "Auto-bypassing in 1 second..." 
+                : "Auto-bypassing in 3 seconds..."}
             </p>
 
             {/* Show simple error info */}

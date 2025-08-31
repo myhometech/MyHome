@@ -33,7 +33,6 @@ import Pricing from "@/pages/pricing";
 import DocumentPage from "@/pages/document";
 import UnifiedDocuments from "@/pages/unified-documents";
 import InsightsFirstPage from "@/pages/insights-first";
-import { InsightsPage } from "@/pages/insights";
 import Notifications from "@/pages/notifications";
 import Tasks from "@/pages/tasks";
 import Analytics from "@/pages/analytics";
@@ -43,28 +42,29 @@ import ChatPage from "@/pages/chat";
 
 
 function Router() {
-  const { isAuthenticated, isLoading, user } = useAuth();
-  const [, setLocation] = useLocation();
+  try {
+    const { isAuthenticated, isLoading, user } = useAuth();
+    const [, setLocation] = useLocation();
 
-  // Show loading state while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
-  }
-
-  // Debug info for production
-  if (typeof window !== 'undefined') {
-    console.log('Auth state:', { isAuthenticated, isLoading, hasUser: !!user });
-    // Additional debugging for white screen issue
-    if (!isLoading && !isAuthenticated) {
-      console.log('Rendering landing page for unauthenticated user');
+    // Show loading state while checking authentication
+    if (isLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-lg">Loading...</div>
+        </div>
+      );
     }
-  }
 
-  return (
+    // Debug info for production
+    if (typeof window !== 'undefined') {
+      console.log('Auth state:', { isAuthenticated, isLoading, hasUser: !!user });
+      // Additional debugging for white screen issue
+      if (!isLoading && !isAuthenticated) {
+        console.log('Rendering landing page for unauthenticated user');
+      }
+    }
+
+    return (
       <Switch>
       {!isAuthenticated ? (
         <>
@@ -109,7 +109,6 @@ function Router() {
         <>
           <Route path="/" component={InsightsFirstPage} />
           <Route path="/documents" component={UnifiedDocuments} />
-          <Route path="/insights" component={InsightsPage} />
           <Route path="/notifications" component={Notifications} />
           <Route path="/tasks" component={Tasks} />
           <Route path="/analytics" component={Analytics} />
@@ -139,10 +138,45 @@ function Router() {
       <Route path="/invite/accept" component={InviteAccept} />
       <Route component={NotFound} />
     </Switch>
-  );
+  } catch (error) {
+    console.error('🚨 Router rendering error:', error);
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
+          <h1 className="text-xl font-semibold text-red-600 mb-2">Router Error</h1>
+          <p className="text-gray-600 mb-4">
+            Router failed to render: {error instanceof Error ? error.message : 'Unknown error'}
+          </p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 }
 
 function App() {
+  // Emergency bypass: if user adds ?no-error-boundary=true, completely disable ErrorBoundary
+  const urlParams = new URLSearchParams(window.location.search);
+  const disableErrorBoundary = urlParams.get('no-error-boundary') === 'true';
+  
+  if (disableErrorBoundary) {
+    console.log('🚨 ERROR BOUNDARY COMPLETELY DISABLED');
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <NetworkStatusBanner />
+          <Router />
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

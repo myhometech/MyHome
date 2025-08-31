@@ -169,12 +169,37 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Display limits
   const INITIAL_DISPLAY_LIMIT = 8;
 
+  const categoryConfig = {
+    financial: { 
+      badge: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200',
+      icon: DollarSign,
+      label: 'Financial',
+      glow: 'shadow-accent-purple-200/50',
+      cardGradient: 'bg-white'
+    },
+    important_dates: { 
+      badge: 'bg-accent-purple-200 text-accent-purple-800 border-accent-purple-300',
+      icon: Calendar,
+      label: 'Important Dates',
+      glow: 'shadow-accent-purple-300/50',
+      cardGradient: 'bg-white'
+    },
+    general: { 
+      badge: 'bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200',
+      icon: CheckCircle,
+      label: 'General',
+      glow: 'shadow-accent-purple-100/50',
+      cardGradient: 'bg-white'
+    }
+  };
 
-
-
-
-
-
+  // Helper function to safely get category config
+  const getCategoryConfig = (category: string | undefined | null) => {
+    const validCategory = category && categoryConfig[category as keyof typeof categoryConfig] 
+      ? category as keyof typeof categoryConfig 
+      : 'general';
+    return categoryConfig[validCategory];
+  };
 
   // Fetch insights with pagination support
   const {
@@ -196,8 +221,6 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
       return response.json();
     },
   });
-
-
 
   // Fetch manual events
   const { data: manualEvents = [], isLoading: manualEventsLoading } = useQuery<ManualEvent[]>({
@@ -350,7 +373,17 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     }
   };
 
-
+  // Calculate counts for each category for the summary cards
+  const categoryStats = React.useMemo(() => {
+    const stats: Record<string, number> = {
+      all: insights.filter(i => i.status !== 'resolved').length,
+    };
+    Object.keys(categoryConfig).forEach(categoryKey => {
+      const category = categoryKey as keyof typeof categoryConfig;
+      stats[category] = insights.filter(i => i.category === category && i.status !== 'resolved').length;
+    });
+    return stats;
+  }, [insights]);
 
   if (error) {
     return (
@@ -372,89 +405,33 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     <div className="space-y-6">
       {/* High-Level Summary Cards - Mobile Optimized */}
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1">
-        {/* All Items */}
-        <Card 
-          className={`bg-gradient-to-br from-purple-600 to-purple-800 border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            categoryFilter === 'all' ? 'ring-2 ring-purple-500' : ''
-          }`}
-          onClick={() => setCategoryFilter('all')}
-        >
-          <CardContent className="p-2 sm:p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-white">All Items</p>
-                <p className="text-lg sm:text-2xl font-bold text-white">
-                  {insights.filter(i => i.status !== 'resolved').length}
-                </p>
-                <p className="text-xs text-white/80 hidden sm:block">Total active</p>
-              </div>
-              <Brain className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Financial Items */}
-        <Card 
-          className={`bg-gradient-to-br from-accent-purple-600 to-accent-purple-800 border-l-4 border-l-accent-purple-700 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            categoryFilter === 'financial' ? 'ring-2 ring-accent-purple-600' : ''
-          }`}
-          onClick={() => setCategoryFilter('financial')}
-        >
-          <CardContent className="p-2 sm:p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-white">Financial</p>
-                <p className="text-lg sm:text-2xl font-bold text-white">
-                  {insights.filter(i => i.category === 'financial' && i.status !== 'resolved').length}
-                </p>
-                <p className="text-xs text-white/80 hidden sm:block">Money matters</p>
-              </div>
-              <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Important Dates Items */}
-        <Card 
-          className={`bg-gradient-to-br from-accent-purple-500 to-accent-purple-700 border-l-4 border-l-accent-purple-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            categoryFilter === 'important_dates' ? 'ring-2 ring-accent-purple-600' : ''
-          }`}
-          onClick={() => setCategoryFilter('important_dates')}
-        >
-          <CardContent className="p-2 sm:p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-white">Important Dates</p>
-                <p className="text-lg sm:text-2xl font-bold text-white">
-                  {insights.filter(i => i.category === 'important_dates' && i.status !== 'resolved').length}
-                </p>
-                <p className="text-xs text-white/80 hidden sm:block">Key deadlines</p>
-              </div>
-              <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* General Items */}
-        <Card 
-          className={`bg-gradient-to-br from-accent-purple-400 to-accent-purple-600 border-l-4 border-l-accent-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            categoryFilter === 'general' ? 'ring-2 ring-accent-purple-500' : ''
-          }`}
-          onClick={() => setCategoryFilter('general')}
-        >
-          <CardContent className="p-2 sm:p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-medium text-white">General</p>
-                <p className="text-lg sm:text-2xl font-bold text-white">
-                  {insights.filter(i => i.category === 'general' && i.status !== 'resolved').length}
-                </p>
-                <p className="text-xs text-white/80 hidden sm:block">Other items</p>
-              </div>
-              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Render dynamic category cards */}
+        {Object.entries(categoryConfig).map(([category, config]) => {
+          const IconComponent = config?.icon || CheckCircle;
+          const count = categoryStats[category] || 0;
+          return (
+            <Card 
+              key={category}
+              className={`bg-gradient-to-br from-purple-600 to-purple-800 border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+                categoryFilter === category ? 'ring-2 ring-purple-500' : ''
+              }`}
+              onClick={() => setCategoryFilter(category as 'all' | 'financial' | 'important_dates' | 'general')}
+            >
+              <CardContent className="p-2 sm:p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs sm:text-sm font-medium text-white">{config.label}</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white">
+                      {count}
+                    </p>
+                    <p className="text-xs text-white/80 hidden sm:block">Total active</p>
+                  </div>
+                  <IconComponent className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* AI Insights Section - Mobile Optimized */}
@@ -618,7 +595,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                         const getActionableContent = (insight: DocumentInsight) => {
                           const content = insight.content.toLowerCase();
                           const title = insight.title.toLowerCase();
-                          
+
                           // For payment/bill related insights
                           if (content.includes('payment') || content.includes('bill') || content.includes('due')) {
                             if (content.includes('£') || content.includes('$')) {
@@ -631,14 +608,14 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             }
                             return 'Payment required';
                           }
-                          
+
                           // For document expiry/renewal
                           if (content.includes('expire') || content.includes('renewal') || content.includes('renew')) {
                             const dateMatch = content.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
                             if (dateMatch) return `Expires: ${dateMatch[0]}`;
                             return 'Renewal needed';
                           }
-                          
+
                           // For contact information
                           if (insight.type === 'contacts') {
                             if (content.includes('phone') || content.includes('mobile')) {
@@ -651,7 +628,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             }
                             return 'Contact info';
                           }
-                          
+
                           // For financial information
                           if (insight.type === 'financial_info') {
                             if (content.includes('£') || content.includes('$')) {
@@ -663,7 +640,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             }
                             return 'Financial data';
                           }
-                          
+
                           // For action items
                           if (insight.type === 'action_items') {
                             if (content.includes('review')) return 'Review required';
@@ -672,21 +649,21 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             if (content.includes('update')) return 'Update required';
                             return 'Action needed';
                           }
-                          
+
                           // For key dates
                           if (insight.type === 'key_dates') {
                             const dateMatch = content.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
                             if (dateMatch) return dateMatch[0];
                             return 'Important date';
                           }
-                          
+
                           // Fallback to first meaningful sentence
                           const sentences = insight.content.split('.').filter(s => s.trim().length > 10);
                           if (sentences.length > 0) {
                             const firstSentence = sentences[0].trim();
                             return firstSentence.length > 40 ? firstSentence.substring(0, 37) + '...' : firstSentence;
                           }
-                          
+
                           return insight.title;
                         };
 

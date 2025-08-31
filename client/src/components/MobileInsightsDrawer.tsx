@@ -20,6 +20,33 @@ export function MobileInsightsDrawer({
   const [isOpen, setIsOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const openTimeRef = useRef<number | null>(null);
+  const [insights, setInsights] = useState([]); // Assuming insights is an array
+
+  // Fetch insights to display the count
+  useEffect(() => {
+    // This is a placeholder for fetching actual insights.
+    // Replace with your actual data fetching logic.
+    const fetchInsights = async () => {
+      try {
+        // Example: const response = await fetch(`/api/documents/${documentId}/insights`);
+        // Example: const data = await response.json();
+        // setInsights(data);
+
+        // Mock data for demonstration
+        if (documentId === 1) { // Example: document with insights
+          setInsights([{ id: 1, text: "Insight 1" }, { id: 2, text: "Insight 2" }]);
+        } else {
+          setInsights([]);
+        }
+      } catch (error) {
+        console.error("Error fetching insights:", error);
+        setInsights([]);
+      }
+    };
+
+    fetchInsights();
+  }, [documentId]);
+
 
   // Analytics event tracking
   const trackInsightsEvent = (eventType: 'open' | 'close', metadata?: Record<string, any>) => {
@@ -93,11 +120,17 @@ export function MobileInsightsDrawer({
       {/* Fixed bottom center trigger button - mobile only */}
       <SheetTrigger asChild>
         <Button
-          variant="default"
+          onClick={() => setIsOpen(true)}
           className={`
             fixed bottom-6 left-1/2 -translate-x-1/2 z-50
             md:hidden lg:hidden
-            bg-primary hover:bg-primary/90 text-primary-foreground
+            shadow-lg hover:shadow-xl border rounded-full px-4 py-2 transition-all duration-300 hover:scale-105
+            ${insights.length > 0
+              ? "bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 hover:from-accent-purple-600 hover:to-accent-purple-700 text-white border-accent-purple-400"
+              : "bg-white hover:bg-gray-50 border-gray-200 text-gray-700"
+            }
+            
+            flex items-center gap-2
             shadow-lg border border-border/20
             px-4 py-3 rounded-full
             flex items-center gap-2
@@ -112,8 +145,10 @@ export function MobileInsightsDrawer({
           }}
           aria-label="Open AI Insights"
         >
-          <Brain className="h-4 w-4 shrink-0" />
-          <span className="font-medium text-sm">Insights</span>
+          <Brain className={`h-4 w-4 shrink-0 ${insights.length > 0 ? "text-white" : "text-accent-purple-600"}`} />
+          <span className="font-medium text-sm">
+            {insights.length > 0 ? `AI Insights (${insights.length})` : "AI Insights"}
+          </span>
         </Button>
       </SheetTrigger>
 
@@ -193,7 +228,7 @@ export function MobileInsightsDrawer({
             px-3 sm:px-6
             pb-6 sm:pb-8
             mobile-insights-scroll mobile-insights-drawer
-            mobile-insights-small max-w-full
+            mobile-insights-large-mobile
           "
           style={{
             paddingBottom: 'max(24px, calc(24px + env(safe-area-inset-bottom)))',

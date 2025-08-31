@@ -159,7 +159,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Simple state for insights
   const [statusFilter] = useState<string>('all');
 
-  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('high');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'financial' | 'important_dates' | 'general'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showMoreInsights, setShowMoreInsights] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
@@ -184,11 +184,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     error,
     refetch
   } = useQuery<InsightsResponse>({
-    queryKey: ['/api/insights', statusFilter, priorityFilter, typeFilter],
+    queryKey: ['/api/insights', statusFilter, categoryFilter, typeFilter],
     queryFn: async () => {
       const params = new URLSearchParams({
         status: statusFilter,
-        priority: priorityFilter !== 'all' ? priorityFilter : '',
+        category: categoryFilter !== 'all' ? categoryFilter : '',
         type: typeFilter !== 'all' ? typeFilter : '',
         limit: '50' // Get more insights for local filtering
       });
@@ -248,10 +248,10 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Filter insights based on selected filters and exclude resolved/deleted insights
   const filteredInsights = insights.filter(insight => {
-    const matchesPriority = priorityFilter === 'all' || insight.priority === priorityFilter;
+    const matchesCategory = categoryFilter === 'all' || insight.category === categoryFilter;
     const matchesType = typeFilter === 'all' || insight.type === typeFilter;
     const isActive = insight.status !== 'resolved'; // Only show active insights
-    return matchesPriority && matchesType && isActive;
+    return matchesCategory && matchesType && isActive;
   });
 
   // Get unique types for filter dropdown
@@ -394,63 +394,63 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
           </CardContent>
         </Card>
 
-        {/* High Priority Items */}
+        {/* Financial Items */}
         <Card 
-          className={`bg-gradient-to-br from-purple-500 to-purple-700 border-l-4 border-l-purple-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            priorityFilter === 'high' ? 'ring-2 ring-purple-600' : ''
+          className={`bg-gradient-to-br from-blue-500 to-blue-700 border-l-4 border-l-blue-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            categoryFilter === 'financial' ? 'ring-2 ring-blue-600' : ''
           }`}
-          onClick={() => setPriorityFilter('high')}
+          onClick={() => setCategoryFilter('financial')}
         >
           <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-white">High Priority</p>
+                <p className="text-xs sm:text-sm font-medium text-white">Financial</p>
                 <p className="text-lg sm:text-2xl font-bold text-white">
-                  {insights.filter(i => i.priority === 'high' && i.status !== 'resolved').length}
+                  {insights.filter(i => i.category === 'financial' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-white/80 hidden sm:block">Urgent items</p>
+                <p className="text-xs text-white/80 hidden sm:block">Money matters</p>
               </div>
-              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+              <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Medium Priority Items */}
+        {/* Important Dates Items */}
         <Card 
-          className={`bg-gradient-to-br from-purple-400 to-purple-600 border-l-4 border-l-purple-400 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            priorityFilter === 'medium' ? 'ring-2 ring-purple-400' : ''
+          className={`bg-gradient-to-br from-yellow-500 to-yellow-700 border-l-4 border-l-yellow-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            categoryFilter === 'important_dates' ? 'ring-2 ring-yellow-600' : ''
           }`}
-          onClick={() => setPriorityFilter('medium')}
+          onClick={() => setCategoryFilter('important_dates')}
         >
           <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-white">Medium</p>
+                <p className="text-xs sm:text-sm font-medium text-white">Important Dates</p>
                 <p className="text-lg sm:text-2xl font-bold text-white">
-                  {insights.filter(i => i.priority === 'medium' && i.status !== 'resolved').length}
+                  {insights.filter(i => i.category === 'important_dates' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-white/80 hidden sm:block">Important items</p>
+                <p className="text-xs text-white/80 hidden sm:block">Key deadlines</p>
               </div>
-              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+              <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Low Priority Items */}
+        {/* General Items */}
         <Card 
-          className={`bg-gradient-to-br from-purple-300 to-purple-500 border-l-4 border-l-purple-300 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            priorityFilter === 'low' ? 'ring-2 ring-purple-300' : ''
+          className={`bg-gradient-to-br from-green-500 to-green-700 border-l-4 border-l-green-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            categoryFilter === 'general' ? 'ring-2 ring-green-600' : ''
           }`}
-          onClick={() => setPriorityFilter('low')}
+          onClick={() => setCategoryFilter('general')}
         >
           <CardContent className="p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-white">Low</p>
+                <p className="text-xs sm:text-sm font-medium text-white">General</p>
                 <p className="text-lg sm:text-2xl font-bold text-white">
-                  {insights.filter(i => i.priority === 'low' && i.status !== 'resolved').length}
+                  {insights.filter(i => i.category === 'general' && i.status !== 'resolved').length}
                 </p>
-                <p className="text-xs text-white/80 hidden sm:block">General items</p>
+                <p className="text-xs text-white/80 hidden sm:block">Other items</p>
               </div>
               <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
@@ -485,16 +485,16 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                   <div className="flex items-center gap-3">
                     <Filter className="h-4 w-4 text-gray-500" />
 
-                    {/* Priority Filter */}
-                    <Select value={priorityFilter} onValueChange={(value: any) => setPriorityFilter(value)}>
-                      <SelectTrigger className="w-28 h-8">
-                        <SelectValue placeholder="Priority" />
+                    {/* Category Filter */}
+                    <Select value={categoryFilter} onValueChange={(value: any) => setCategoryFilter(value)}>
+                      <SelectTrigger className="w-32 h-8">
+                        <SelectValue placeholder="Category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Priority</SelectItem>
-                        <SelectItem value="high">High Only</SelectItem>
-                        <SelectItem value="medium">Medium Only</SelectItem>
-                        <SelectItem value="low">Low Only</SelectItem>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        <SelectItem value="financial">Financial</SelectItem>
+                        <SelectItem value="important_dates">Important Dates</SelectItem>
+                        <SelectItem value="general">General</SelectItem>
                       </SelectContent>
                     </Select>
 
@@ -515,11 +515,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                     </Select>
 
                     {/* Clear filters button */}
-                    {(priorityFilter !== 'high' || typeFilter !== 'all') && (
+                    {(categoryFilter !== 'all' || typeFilter !== 'all') && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => { setPriorityFilter('high'); setTypeFilter('all'); }}
+                        onClick={() => { setCategoryFilter('all'); setTypeFilter('all'); }}
                         className="h-8 px-2 text-xs text-gray-500 hover:text-gray-700"
                       >
                         <X className="h-3 w-3 mr-1" />
@@ -552,13 +552,13 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           }
                         };
 
-                        // Priority gradient mapping - creating subtle hierarchy with purple gradients
-                        const getPriorityGradient = (priority: string) => {
-                          switch (priority) {
-                            case 'high': return 'border-purple-400 bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 text-white hover:from-purple-700 hover:to-purple-900 shadow-lg hover:shadow-purple-500/25';
-                            case 'medium': return 'border-purple-300 bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 text-white hover:from-purple-500 hover:to-purple-700 shadow-md hover:shadow-purple-400/20';
-                            case 'low': return 'border-purple-200 bg-gradient-to-br from-purple-300 via-purple-400 to-purple-500 text-white hover:from-purple-400 hover:to-purple-600 shadow-sm hover:shadow-purple-300/15';
-                            default: return 'border-purple-250 bg-gradient-to-br from-purple-300 via-purple-400 to-purple-500 text-white hover:from-purple-400 hover:to-purple-600 shadow-md hover:shadow-purple-400/20';
+                        // Category gradient mapping - creating distinct visual categories
+                        const getCategoryGradient = (category: string) => {
+                          switch (category) {
+                            case 'financial': return 'border-blue-400 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white hover:from-blue-700 hover:to-blue-900 shadow-lg hover:shadow-blue-500/25';
+                            case 'important_dates': return 'border-yellow-400 bg-gradient-to-br from-yellow-500 via-yellow-600 to-yellow-700 text-white hover:from-yellow-600 hover:to-yellow-800 shadow-lg hover:shadow-yellow-500/25';
+                            case 'general': return 'border-green-400 bg-gradient-to-br from-green-500 via-green-600 to-green-700 text-white hover:from-green-600 hover:to-green-800 shadow-lg hover:shadow-green-500/25';
+                            default: return 'border-gray-400 bg-gradient-to-br from-gray-500 via-gray-600 to-gray-700 text-white hover:from-gray-600 hover:to-gray-800 shadow-lg hover:shadow-gray-500/25';
                           }
                         };
 
@@ -694,7 +694,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                         return (
                           <div 
                             key={insight.id}
-                            className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-105 ${getPriorityGradient(insight.priority || 'medium')}`}
+                            className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-105 ${getCategoryGradient(insight.category || 'general')}`}
                             onClick={() => {
                               if (insight.documentId) {
                                 setLocation(`/document/${insight.documentId}`);
@@ -717,10 +717,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                               {getActionableContent(insight)}
                             </span>
 
-                            {/* Priority indicator dot */}
-                            {insight.priority === 'high' && (
-                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" title="High Priority" />
-                            )}
+                            {/* Category indicator - removed since color coding is now in the gradient */}
                           </div>
                         );
                       })}

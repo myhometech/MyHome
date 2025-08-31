@@ -91,27 +91,27 @@ const insightTypeConfig = {
   }
 };
 
-const priorityConfig = {
-  high: { 
-    badge: 'bg-purple-100 text-purple-800 border-purple-200',
-    icon: AlertCircle,
-    label: 'High Priority',
-    dotColor: 'bg-purple-500',
-    ringColor: 'ring-purple-200'
+const categoryConfig = {
+  financial: { 
+    badge: 'bg-blue-100 text-blue-800 border-blue-200',
+    icon: DollarSign,
+    label: 'Financial',
+    dotColor: 'bg-blue-500',
+    ringColor: 'ring-blue-200'
   },
-  medium: { 
-    badge: 'bg-purple-50 text-purple-700 border-purple-150',
-    icon: TrendingUp,
-    label: 'Medium Priority',
-    dotColor: 'bg-purple-400',
-    ringColor: 'ring-purple-150'
+  important_dates: { 
+    badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    icon: Calendar,
+    label: 'Important Dates',
+    dotColor: 'bg-yellow-500',
+    ringColor: 'ring-yellow-200'
   },
-  low: { 
-    badge: 'bg-purple-25 text-purple-600 border-purple-100',
+  general: { 
+    badge: 'bg-green-100 text-green-800 border-green-200',
     icon: CheckCircle,
-    label: 'Low Priority',
-    dotColor: 'bg-purple-300',
-    ringColor: 'ring-purple-100'
+    label: 'General',
+    dotColor: 'bg-green-500',
+    ringColor: 'ring-green-200'
   }
 };
 
@@ -164,7 +164,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
   };
 
   const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
-  const priorityData = priorityConfig[(insight.priority || 'medium') as keyof typeof priorityConfig];
+  const categoryData = categoryConfig[(insight.category || 'general') as keyof typeof categoryConfig];
   const IconComponent = config.icon;
 
   const formatDueDate = (dueDate: string | null) => {
@@ -222,7 +222,8 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       className={`group relative overflow-hidden rounded-xl transition-all duration-300 cursor-pointer transform hover:scale-[1.02] hover:shadow-xl ${config.borderColor} border-2 ${
         insight.status === 'dismissed' ? 'opacity-60' : ''
       } ${
-        insight.priority === 'high' ? 'ring-2 ring-red-100' : ''
+        insight.category === 'financial' ? 'ring-2 ring-blue-100' : 
+        insight.category === 'important_dates' ? 'ring-2 ring-yellow-100' : ''
       }`}
       style={{ minHeight: '200px' }}
       onClick={handleCardClick}
@@ -258,9 +259,9 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
 
           {/* Priority Indicator & Menu */}
           <div className="flex items-center space-x-2">
-            {/* Priority dot with enhanced visibility */}
-            <div className={`w-3 h-3 rounded-full ${priorityData.dotColor} ${insight.priority === 'high' ? 'animate-pulse' : ''}`} 
-                 title={`${priorityData.label}`} />
+            {/* Category dot with enhanced visibility */}
+            <div className={`w-3 h-3 rounded-full ${categoryData.dotColor} ${insight.category === 'important_dates' ? 'animate-pulse' : ''}`} 
+                 title={`${categoryData.label}`} />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

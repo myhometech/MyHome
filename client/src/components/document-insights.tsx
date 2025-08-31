@@ -33,7 +33,7 @@ interface DocumentInsight {
   title: string;
   content: string;
   confidence: number;
-  priority: 'low' | 'medium' | 'high';
+  category: 'financial' | 'important_dates' | 'general';
   metadata?: Record<string, any>;
   createdAt: string;
   tier?: 'primary' | 'secondary';
@@ -106,27 +106,27 @@ const insightTypeConfig = {
   }
 };
 
-const priorityConfig = {
-  high: { 
-    badge: 'bg-gradient-to-r from-accent-purple-100 to-accent-purple-200 text-accent-purple-600 border-accent-purple-200',
-    icon: AlertCircle,
-    label: 'High Priority',
-    glow: 'shadow-accent-purple-200/50',
-    cardGradient: 'bg-gradient-to-br from-accent-purple-600 via-accent-purple-600 to-accent-purple-700'
+const categoryConfig = {
+  financial: { 
+    badge: 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-600 border-blue-200',
+    icon: DollarSign,
+    label: 'Financial',
+    glow: 'shadow-blue-200/50',
+    cardGradient: 'bg-gradient-to-br from-blue-600 via-blue-600 to-blue-700'
   },
-  medium: { 
-    badge: 'bg-gradient-to-r from-accent-purple-50 to-accent-purple-100 text-accent-purple-500 border-accent-purple-200',
-    icon: TrendingUp,
-    label: 'Medium Priority',
-    glow: 'shadow-accent-purple-200/50',
-    cardGradient: 'bg-gradient-to-br from-accent-purple-400 via-accent-purple-500 to-accent-purple-600'
+  important_dates: { 
+    badge: 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-600 border-yellow-200',
+    icon: Calendar,
+    label: 'Important Dates',
+    glow: 'shadow-yellow-200/50',
+    cardGradient: 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600'
   },
-  low: { 
-    badge: 'bg-gradient-to-r from-accent-purple-50 to-accent-purple-100 text-accent-purple-400 border-accent-purple-200',
+  general: { 
+    badge: 'bg-gradient-to-r from-green-100 to-green-200 text-green-600 border-green-200',
     icon: CheckCircle,
-    label: 'Low Priority',
-    glow: 'shadow-accent-purple-100/50',
-    cardGradient: 'bg-gradient-to-br from-accent-purple-200 via-accent-purple-300 to-accent-purple-400'
+    label: 'General',
+    glow: 'shadow-green-200/50',
+    cardGradient: 'bg-gradient-to-br from-green-400 via-green-500 to-green-600'
   }
 };
 
@@ -518,9 +518,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
           {insights.map((insight: DocumentInsight, index: number) => {
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
-            const priorityData = priorityConfig[insight.priority];
+            const categoryData = categoryConfig[insight.category];
             const IconComponent = config.icon;
-            const PriorityIcon = priorityData.icon;
+            const CategoryIcon = categoryData.icon;
 
             // Extract more specific title from content or metadata
             const getSpecificTitle = (insight: DocumentInsight) => {
@@ -589,7 +589,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             return (
               <div 
                 key={insight.id} 
-                className={`group relative ${priorityData.cardGradient} rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border ${config.accent} ${priorityData.glow} hover:${priorityData.glow} text-white`}
+                className={`group relative ${categoryData.cardGradient} rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border ${config.accent} ${categoryData.glow} hover:${categoryData.glow} text-white`}
                 onClick={handleCardClick}
                 style={{ minHeight: isMobile ? '140px' : '160px' }}
               >
@@ -630,9 +630,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       <IconComponent className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <Badge className={`${priorityData.badge} border text-xs font-medium`}>
-                        <PriorityIcon className="h-2 w-2 mr-1" />
-                        {insight.priority.toUpperCase()}
+                      <Badge className={`${categoryData.badge} border text-xs font-medium`}>
+                        <CategoryIcon className="h-2 w-2 mr-1" />
+                        {categoryData.label.toUpperCase()}
                       </Badge>
                     </div>
                   </div>

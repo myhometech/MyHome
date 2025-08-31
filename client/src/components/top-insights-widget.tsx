@@ -9,7 +9,7 @@ import { format } from "date-fns";
 interface Insight {
   id: number;
   message: string;
-  priority: 'high' | 'medium' | 'low';
+  category: 'financial' | 'important_dates' | 'general';
   dueDate?: string;
   actionUrl?: string;
   type: string;
@@ -21,25 +21,25 @@ interface InsightResponse {
   total: number;
 }
 
-function getPriorityIcon(priority: string) {
-  switch (priority) {
-    case 'high':
-      return <AlertTriangle className="w-4 h-4 text-red-500" />;
-    case 'medium':
-      return <Clock className="w-4 h-4 text-yellow-500" />;
+function getCategoryIcon(category: string) {
+  switch (category) {
+    case 'financial':
+      return <DollarSign className="w-4 h-4 text-blue-500" />;
+    case 'important_dates':
+      return <Calendar className="w-4 h-4 text-yellow-500" />;
     default:
-      return <Info className="w-4 h-4 text-blue-500" />;
+      return <CheckCircle className="w-4 h-4 text-green-500" />;
   }
 }
 
-function getPriorityColor(priority: string) {
-  switch (priority) {
-    case 'high':
-      return 'bg-red-50 border-red-200 text-red-800';
-    case 'medium':
+function getCategoryColor(category: string) {
+  switch (category) {
+    case 'financial':
+      return 'bg-blue-50 border-blue-200 text-blue-800';
+    case 'important_dates':
       return 'bg-yellow-50 border-yellow-200 text-yellow-800';
     default:
-      return 'bg-blue-50 border-blue-200 text-blue-800';
+      return 'bg-green-50 border-green-200 text-green-800';
   }
 }
 
@@ -174,17 +174,17 @@ export default function TopInsightsWidget() {
             return (
               <div
                 key={insight.id}
-                className={`p-3 rounded-lg border transition-all hover:shadow-sm ${getPriorityColor(insight.priority)}`}
+                className={`p-3 rounded-lg border transition-all hover:shadow-sm ${getCategoryColor(insight.category)}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      {getPriorityIcon(insight.priority)}
+                      {getCategoryIcon(insight.category)}
                       <Badge
                         variant="outline"
-                        className={`text-xs ${getPriorityColor(insight.priority)} border-current`}
+                        className={`text-xs ${getCategoryColor(insight.category)} border-current`}
                       >
-                        {insight.priority.toUpperCase()}
+                        {insight.category.replace('_', ' ').toUpperCase()}
                       </Badge>
                       {dueText && (
                         <div className="flex items-center gap-1 text-xs text-gray-600">

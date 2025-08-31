@@ -20,7 +20,7 @@ interface DocumentInsight {
   id: string;
   documentId: number;
   type: 'summary' | 'action_items' | 'key_dates' | 'financial_info' | 'contacts' | 'compliance';
-  priority: 'high' | 'medium' | 'low';
+  category: 'financial' | 'important_dates' | 'general';
   status: 'open' | 'resolved' | 'dismissed';
   title: string;
   content: string;
@@ -47,15 +47,15 @@ interface InsightMetrics {
     contacts: number;
     compliance: number;
   };
-  byPriority: {
-    high: number;
-    medium: number;
-    low: number;
+  byCategory: {
+    financial: number;
+    important_dates: number;
+    general: number;
   };
 }
 
 interface InsightsSummaryDashboardProps {
-  onFilterChange: (filter: { status?: string; priority?: string; type?: string }) => void;
+  onFilterChange: (filter: { status?: string; category?: string; type?: string }) => void;
   hideHeader?: boolean;
 }
 
@@ -154,16 +154,16 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
           </CardContent>
         </Card>
 
-        {/* High Priority */}
+        {/* Financial */}
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', priority: 'high', type: 'all' })}>
+          <CardContent className="p-2 md:p-3" onClick={() => onFilterChange({ status: 'open', category: 'financial', type: 'all' })}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600">High Priority</p>
-                <p className="text-xl md:text-2xl font-bold text-red-600">{metrics.highPriority}</p>
+                <p className="text-xs md:text-sm font-medium text-gray-600">Financial</p>
+                <p className="text-xl md:text-2xl font-bold text-blue-600">{metrics.byCategory?.financial || 0}</p>
               </div>
-              <div className="h-8 w-8 md:h-12 md:w-12 bg-red-50 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4 md:h-6 md:w-6 text-red-600" />
+              <div className="h-8 w-8 md:h-12 md:w-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                <DollarSign className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
               </div>
             </div>
             <Button
@@ -172,10 +172,10 @@ export default function InsightsSummaryDashboard({ onFilterChange, hideHeader }:
               className="w-full mt-1 md:mt-2 text-xs h-6 md:h-8"
               onClick={(e) => {
                 e.stopPropagation();
-                onFilterChange({ status: 'open', priority: 'high', type: 'all' });
+                onFilterChange({ status: 'open', category: 'financial', type: 'all' });
               }}
             >
-              <span className="hidden sm:inline">View High Priority</span>
+              <span className="hidden sm:inline">View Financial</span>
               <span className="sm:hidden">View</span>
             </Button>
           </CardContent>

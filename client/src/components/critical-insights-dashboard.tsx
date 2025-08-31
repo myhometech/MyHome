@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { AlertTriangle, Clock, Info, CheckCircle, ArrowRight, Calendar, FileText, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,7 @@ function formatDueDate(dateString?: string) {
 }
 
 export default function CriticalInsightsDashboard() {
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -105,7 +106,7 @@ export default function CriticalInsightsDashboard() {
       const response = await fetch(`/api/insights/${insightId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: 'dismissed' }),
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
@@ -274,9 +275,9 @@ export default function CriticalInsightsDashboard() {
                       View
                     </Button>
                   </Link>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     className="text-xs px-2 py-1 text-gray-500 hover:text-gray-700"
                     onClick={() => {
                       console.log('[DEBUG] Dismissing insight:', insight.id, insight);

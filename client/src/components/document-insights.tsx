@@ -499,7 +499,6 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
               <Brain className="h-12 w-12 text-accent-purple-600 mx-auto" />
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">Generate Your First Insights</h3>
           <p className="text-gray-600 mb-8 text-lg max-w-2xl mx-auto leading-relaxed">
             Let our AI analyze your document to extract key insights, important dates, contacts, and actionable items automatically.
           </p>

@@ -117,46 +117,46 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
           onPanEnd={handlePanEnd}
         >
           {/* Insights - Pinned at Top */}
-          <div className="p-3 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
             <Link href="/" onClick={handleClose}>
               <motion.div 
-                className="flex items-center space-x-2 p-2 rounded-lg hover:bg-white/60 transition-colors cursor-pointer"
+                className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/80 hover:shadow-sm active:bg-blue-100 transition-all duration-200 cursor-pointer"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <div className="relative">
-                  <Lightbulb className="h-5 w-5 text-blue-600" />
+                  <Lightbulb className="h-6 w-6 text-blue-600" />
                   <Badge 
                     variant="destructive" 
-                    className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 flex items-center justify-center text-xs"
+                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs font-bold"
                   >
                     3
                   </Badge>
                 </div>
                 <div>
-                  <h3 className="font-medium text-foreground text-sm">Insights</h3>
-                  <p className="text-xs text-muted-foreground">New insights available</p>
+                  <h3 className="font-semibold text-foreground text-base">Insights</h3>
+                  <p className="text-sm text-muted-foreground">New insights available</p>
                 </div>
               </motion.div>
             </Link>
           </div>
 
           {/* Main Menu Items */}
-          <nav className="flex-1 p-3 space-y-1">
+          <nav className="flex-1 p-4 space-y-2">
             {menuItems.map((item) => {
               return (
                 <Link key={item.href} href={item.href} onClick={handleClose}>
                   <motion.div
-                    className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
-                    whileHover={{ x: 4 }}
-                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center space-x-3 p-3 rounded-xl hover:bg-blue-50 hover:shadow-sm active:bg-blue-100 transition-all duration-200 cursor-pointer group border border-transparent hover:border-blue-200"
+                    whileHover={{ x: 6, scale: 1.01 }}
+                    whileTap={{ scale: 0.97 }}
                   >
-                    <item.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    <span className="text-sm font-medium text-foreground group-hover:text-foreground">
+                    <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-blue-600 transition-colors duration-200" />
+                    <span className="text-base font-semibold text-foreground group-hover:text-blue-900 transition-colors duration-200">
                       {item.label}
                     </span>
                     {item.badge && (
-                      <Badge variant="secondary" className="ml-auto text-xs">
+                      <Badge variant="secondary" className="ml-auto text-sm font-medium">
                         {item.badge}
                       </Badge>
                     )}
@@ -167,27 +167,27 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
           </nav>
 
           {/* Profile Section - Sticky Footer */}
-          <div className="sticky bottom-0 p-3 border-t bg-white">
+          <div className="sticky bottom-0 p-4 border-t bg-white">
             <Link href="/settings" onClick={handleClose}>
               <motion.div 
-                className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                className="flex items-center space-x-3 p-3 rounded-xl hover:bg-blue-50 hover:shadow-sm active:bg-blue-100 transition-all duration-200 cursor-pointer border border-transparent hover:border-blue-200"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-10 w-10">
                   <AvatarImage src={(user as any)?.avatarUrl || ""} alt={(user as any)?.firstName || "User"} />
-                  <AvatarFallback className="bg-blue-600 text-white text-xs">
+                  <AvatarFallback className="bg-blue-600 text-white text-sm font-semibold">
                     {getInitials((user as any)?.firstName, (user as any)?.lastName)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p className="text-base font-semibold text-foreground truncate">
                     {(user as any)?.firstName && (user as any)?.lastName 
                       ? `${(user as any).firstName} ${(user as any).lastName}`
                       : (user as any)?.email || "User"
                     }
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-sm text-muted-foreground truncate">
                     {(user as any)?.email}
                   </p>
                 </div>
@@ -196,7 +196,7 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
                     tier={getSubscriptionTier() as any} 
                     size="sm" 
                   />
-                  <User className="h-3 w-3 text-muted-foreground" />
+                  <User className="h-4 w-4 text-muted-foreground" />
                 </div>
               </motion.div>
             </Link>

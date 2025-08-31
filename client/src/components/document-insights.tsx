@@ -460,7 +460,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       {/* Modern Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-accent-purple-400 to-accent-purple-600 rounded-lg">
+          <div className="p-2.5 bg-gradient-to-br from-accent-purple-500 to-accent-purple-600 rounded-xl shadow-sm">
             <Brain className="h-4 w-4 text-white" />
           </div>
           <div>
@@ -469,7 +469,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           </div>
           {insights.length > 0 && (
             <div className="ml-3">
-              <Badge variant="secondary" className="bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200 text-xs">
+              <Badge variant="secondary" className="bg-accent-purple-50 text-accent-purple-700 border-accent-purple-200 px-2 py-1 rounded-full font-medium text-xs">
                 {insights.length} insight{insights.length !== 1 ? 's' : ''}
               </Badge>
             </div>
@@ -479,18 +479,18 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
-          className="bg-gradient-to-r from-accent-purple-600 to-accent-purple-700 hover:from-accent-purple-700 hover:to-accent-purple-700 text-white shadow-sm hover:shadow-md transition-all duration-200 text-sm"
+          className="bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 hover:from-accent-purple-600 hover:to-accent-purple-700 text-white shadow-sm hover:shadow-lg border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           size="sm"
         >
           {isGenerating || generateInsightsMutation.isPending ? (
             <>
-              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-              Analyzing...
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span className="text-sm">Analyzing...</span>
             </>
           ) : (
             <>
-              <Brain className="mr-2 h-3 w-3" />
-              {insights.length > 0 ? 'Refresh' : 'Generate'}
+              <Brain className="mr-2 h-4 w-4" />
+              <span className="text-sm">{insights.length > 0 ? 'Refresh' : 'Generate'}</span>
             </>
           )}
         </Button>
@@ -639,10 +639,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleFlagInsight(insight.id, !insight.flagged, insight.flagged ? undefined : "Incorrect information");
                       }}
                       disabled={flagInsightMutation.isPending}
-                      className="bg-white/80 hover:bg-white text-gray-600 rounded-full h-6 w-6 p-0 shadow-sm"
+                      className="bg-white/90 backdrop-blur-sm hover:bg-white text-gray-600 hover:text-gray-800 rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
                       title={insight.flagged ? "Remove flag" : "Flag as incorrect"}
                     >
-                      {insight.flagged ? <FlagOff className="h-3 w-3" /> : <Flag className="h-3 w-3" />}
+                      {insight.flagged ? <FlagOff className="h-3.5 w-3.5" /> : <Flag className="h-3.5 w-3.5" />}
                     </Button>
                     <Button
                       variant="ghost"
@@ -652,9 +652,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleDeleteInsight(insight.id);
                       }}
                       disabled={deleteInsightMutation.isPending}
-                      className="bg-white/80 hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-full h-6 w-6 p-0 shadow-sm"
+                      className="bg-white/90 backdrop-blur-sm hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
 
@@ -715,9 +715,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.stopPropagation();
                         if (onDocumentClick) onDocumentClick(documentId);
                       }}
-                      className="text-white hover:text-white hover:bg-white/20 transition-colors text-xs"
+                      className="text-white/90 hover:text-white hover:bg-white/20 backdrop-blur-sm rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium"
                     >
-                      <Eye className="h-3 w-3 mr-1" />
+                      <Eye className="h-3 w-3 mr-1.5" />
                       View
                     </Button>
 
@@ -728,10 +728,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.stopPropagation();
                         setLocation(`/document/${documentId}`);
                       }}
-                      className="text-white hover:text-white hover:bg-white/20 transition-colors text-xs"
+                      className="text-white/90 hover:text-white hover:bg-white/20 backdrop-blur-sm rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium"
                     >
                       Details
-                      <ArrowRight className="h-3 w-3 ml-1" />
+                      <ArrowRight className="h-3 w-3 ml-1.5" />
                     </Button>
                   </div>
                 </div>

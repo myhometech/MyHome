@@ -397,8 +397,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
         {/* Financial Items */}
         <Card 
-          className={`bg-gradient-to-br from-blue-500 to-blue-700 border-l-4 border-l-blue-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            categoryFilter === 'financial' ? 'ring-2 ring-blue-600' : ''
+          className={`bg-gradient-to-br from-accent-purple-600 to-accent-purple-800 border-l-4 border-l-accent-purple-700 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            categoryFilter === 'financial' ? 'ring-2 ring-accent-purple-600' : ''
           }`}
           onClick={() => setCategoryFilter('financial')}
         >
@@ -418,8 +418,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
         {/* Important Dates Items */}
         <Card 
-          className={`bg-gradient-to-br from-yellow-500 to-yellow-700 border-l-4 border-l-yellow-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            categoryFilter === 'important_dates' ? 'ring-2 ring-yellow-600' : ''
+          className={`bg-gradient-to-br from-accent-purple-500 to-accent-purple-700 border-l-4 border-l-accent-purple-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            categoryFilter === 'important_dates' ? 'ring-2 ring-accent-purple-600' : ''
           }`}
           onClick={() => setCategoryFilter('important_dates')}
         >
@@ -439,8 +439,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
         {/* General Items */}
         <Card 
-          className={`bg-gradient-to-br from-green-500 to-green-700 border-l-4 border-l-green-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-            categoryFilter === 'general' ? 'ring-2 ring-green-600' : ''
+          className={`bg-gradient-to-br from-accent-purple-400 to-accent-purple-600 border-l-4 border-l-accent-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            categoryFilter === 'general' ? 'ring-2 ring-accent-purple-500' : ''
           }`}
           onClick={() => setCategoryFilter('general')}
         >
@@ -553,13 +553,13 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           }
                         };
 
-                        // Category gradient mapping - creating distinct visual categories
+                        // Category gradient mapping - creating distinct visual categories with purple palette
                         const getCategoryGradient = (category: string) => {
                           switch (category) {
-                            case 'financial': return 'border-blue-400 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white hover:from-blue-700 hover:to-blue-900 shadow-lg hover:shadow-blue-500/25';
-                            case 'important_dates': return 'border-yellow-400 bg-gradient-to-br from-yellow-500 via-yellow-600 to-yellow-700 text-white hover:from-yellow-600 hover:to-yellow-800 shadow-lg hover:shadow-yellow-500/25';
-                            case 'general': return 'border-green-400 bg-gradient-to-br from-green-500 via-green-600 to-green-700 text-white hover:from-green-600 hover:to-green-800 shadow-lg hover:shadow-green-500/25';
-                            default: return 'border-gray-400 bg-gradient-to-br from-gray-500 via-gray-600 to-gray-700 text-white hover:from-gray-600 hover:to-gray-800 shadow-lg hover:shadow-gray-500/25';
+                            case 'financial': return 'border-accent-purple-400 bg-gradient-to-br from-accent-purple-600 via-accent-purple-700 to-accent-purple-800 text-white hover:from-accent-purple-700 hover:to-accent-purple-900 shadow-lg hover:shadow-accent-purple-500/25';
+                            case 'important_dates': return 'border-accent-purple-300 bg-gradient-to-br from-accent-purple-500 via-accent-purple-600 to-accent-purple-700 text-white hover:from-accent-purple-600 hover:to-accent-purple-800 shadow-lg hover:shadow-accent-purple-400/25';
+                            case 'general': return 'border-accent-purple-200 bg-gradient-to-br from-accent-purple-400 via-accent-purple-500 to-accent-purple-600 text-white hover:from-accent-purple-500 hover:to-accent-purple-700 shadow-lg hover:shadow-accent-purple-300/25';
+                            default: return 'border-accent-purple-300 bg-gradient-to-br from-accent-purple-500 via-accent-purple-600 to-accent-purple-700 text-white hover:from-accent-purple-600 hover:to-accent-purple-800 shadow-lg hover:shadow-accent-purple-400/25';
                           }
                         };
 

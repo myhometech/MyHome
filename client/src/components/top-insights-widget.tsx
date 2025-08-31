@@ -24,22 +24,22 @@ interface InsightResponse {
 function getCategoryIcon(category: string) {
   switch (category) {
     case 'financial':
-      return <DollarSign className="w-4 h-4 text-blue-500" />;
+      return <DollarSign className="w-4 h-4 text-accent-purple-600" />;
     case 'important_dates':
-      return <Calendar className="w-4 h-4 text-yellow-500" />;
+      return <Calendar className="w-4 h-4 text-accent-purple-500" />;
     default:
-      return <CheckCircle className="w-4 h-4 text-green-500" />;
+      return <CheckCircle className="w-4 h-4 text-accent-purple-400" />;
   }
 }
 
 function getCategoryColor(category: string) {
   switch (category) {
     case 'financial':
-      return 'bg-blue-50 border-blue-200 text-blue-800';
+      return 'bg-accent-purple-50 border-accent-purple-200 text-accent-purple-800';
     case 'important_dates':
-      return 'bg-yellow-50 border-yellow-200 text-yellow-800';
+      return 'bg-accent-purple-100 border-accent-purple-300 text-accent-purple-700';
     default:
-      return 'bg-green-50 border-green-200 text-green-800';
+      return 'bg-accent-purple-50 border-accent-purple-200 text-accent-purple-600';
   }
 }
 

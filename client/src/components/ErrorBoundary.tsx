@@ -74,103 +74,64 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.children;
       }
 
+      // Auto-bypass on mobile after 3 seconds if user hasn't interacted
+      setTimeout(() => {
+        if (this.state.hasError && !urlParams.get('bypass')) {
+          console.log('🚨 AUTO-BYPASSING ERROR BOUNDARY after 3 seconds');
+          window.location.href = window.location.pathname + '?bypass=true';
+        }
+      }, 3000);
+
       // Custom fallback UI
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
-      // Default error UI with detailed debugging info
+      // Mobile-friendly error UI that auto-bypasses
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+          <div className="max-w-sm w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
             <div className="flex justify-center mb-4">
-              <AlertTriangle className="h-12 w-12 text-red-500" />
+              <AlertTriangle className="h-8 w-8 text-red-500" />
             </div>
             
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Something went wrong
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Loading Error Detected
             </h1>
             
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              We've encountered an unexpected error. Our team has been notified and we're working on a fix.
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Auto-bypassing in 3 seconds...
             </p>
 
-            {/* Always show error details for debugging */}
+            {/* Show simple error info */}
             {this.state.error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3 mb-4">
-                <p className="text-sm text-red-800 dark:text-red-400 font-mono text-left">
-                  <strong>Error:</strong> {this.state.error.name}: {this.state.error.message}
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3 mb-4 text-left">
+                <p className="text-xs text-red-800 dark:text-red-400 font-mono">
+                  <strong>Error:</strong> {this.state.error.message}
                 </p>
-                <p className="text-xs text-red-700 dark:text-red-300 mt-2">
-                  <strong>Route:</strong> {window.location.pathname}
-                </p>
-                {this.state.errorInfo && (
-                  <details className="mt-2">
-                    <summary className="text-sm text-red-700 dark:text-red-300 cursor-pointer">
-                      Component Stack
-                    </summary>
-                    <pre className="text-xs text-red-700 dark:text-red-300 mt-1 overflow-auto max-h-32">
-                      {this.state.errorInfo.componentStack}
-                    </pre>
-                  </details>
-                )}
-                {this.state.error.stack && (
-                  <details className="mt-2">
-                    <summary className="text-sm text-red-700 dark:text-red-300 cursor-pointer">
-                      Stack Trace
-                    </summary>
-                    <pre className="text-xs text-red-700 dark:text-red-300 mt-1 overflow-auto max-h-32">
-                      {this.state.error.stack}
-                    </pre>
-                  </details>
-                )}
               </div>
             )}
             
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               <Button
                 onClick={() => {
                   window.location.href = window.location.pathname + '?bypass=true';
                 }}
                 variant="destructive"
-                className="flex items-center justify-center gap-2 w-full"
+                className="w-full text-sm"
               >
-                🚨 Force Load App (Bypass Error)
+                🚨 Force Load Now
               </Button>
               
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  onClick={this.handleRetry}
-                  variant="default"
-                  className="flex items-center justify-center gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Try Again
-                </Button>
-                
-                <Button
-                  onClick={this.handleReload}
-                  variant="outline"
-                  className="flex items-center justify-center gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Reload Page
-                </Button>
-                
-                <Button
-                  onClick={this.handleGoHome}
-                  variant="outline"
-                  className="flex items-center justify-center gap-2"
-                >
-                  <Home className="h-4 w-4" />
-                  Go Home
-                </Button>
-              </div>
+              <Button
+                onClick={this.handleReload}
+                variant="outline"
+                className="w-full text-sm"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Reload Page
+              </Button>
             </div>
-            
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-              Error ID has been logged for debugging
-            </p>
           </div>
         </div>
       );

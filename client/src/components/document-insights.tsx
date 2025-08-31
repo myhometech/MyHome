@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +16,15 @@ import {
   Loader2,
   Trash2,
   Flag,
-  FlagOff
+  FlagOff,
+  Calendar,
+  DollarSign,
+  AlertCircle,
+  CheckCircle,
+  TrendingUp,
+  Star,
+  ArrowRight,
+  Eye
 } from 'lucide-react';
 
 interface DocumentInsight {
@@ -27,9 +36,7 @@ interface DocumentInsight {
   priority: 'low' | 'medium' | 'high';
   metadata?: Record<string, any>;
   createdAt: string;
-  // INSIGHT-101: Add tier classification
   tier?: 'primary' | 'secondary';
-  // Flagging system for incorrect insights
   flagged?: boolean;
   flaggedReason?: string;
   flaggedAt?: string;
@@ -42,7 +49,6 @@ interface InsightResponse {
   recommendedActions: string[];
   processingTime: number;
   confidence: number;
-  // INSIGHT-102: Add tier breakdown
   tierBreakdown?: {
     primary: number;
     secondary: number;
@@ -50,47 +56,74 @@ interface InsightResponse {
 }
 
 const insightTypeConfig = {
-  summary: { icon: FileText, label: 'Summary', color: 'bg-accent-purple-100 text-accent-purple-800' },
-  contacts: { icon: Users, label: 'Contacts', color: 'bg-accent-purple-200 text-accent-purple-900' },
-  action_items: { icon: Brain, label: 'Actions', color: 'bg-accent-purple-300 text-accent-purple-900' },
-  key_dates: { icon: Clock, label: 'Dates', color: 'bg-accent-purple-400 text-accent-purple-900' },
-  financial_info: { icon: FileText, label: 'Financial', color: 'bg-accent-purple-500 text-white' },
-  compliance: { icon: FileText, label: 'Compliance', color: 'bg-accent-purple-600 text-white' }
+  summary: { 
+    icon: FileText, 
+    label: 'Summary', 
+    color: 'from-blue-500 to-blue-600',
+    bgPattern: 'bg-gradient-to-br from-blue-50 to-blue-100',
+    textColor: 'text-blue-700',
+    accent: 'border-blue-200'
+  },
+  contacts: { 
+    icon: Users, 
+    label: 'Contacts', 
+    color: 'from-emerald-500 to-emerald-600',
+    bgPattern: 'bg-gradient-to-br from-emerald-50 to-emerald-100',
+    textColor: 'text-emerald-700',
+    accent: 'border-emerald-200'
+  },
+  action_items: { 
+    icon: CheckCircle, 
+    label: 'Actions', 
+    color: 'from-orange-500 to-orange-600',
+    bgPattern: 'bg-gradient-to-br from-orange-50 to-orange-100',
+    textColor: 'text-orange-700',
+    accent: 'border-orange-200'
+  },
+  key_dates: { 
+    icon: Calendar, 
+    label: 'Important Dates', 
+    color: 'from-purple-500 to-purple-600',
+    bgPattern: 'bg-gradient-to-br from-purple-50 to-purple-100',
+    textColor: 'text-purple-700',
+    accent: 'border-purple-200'
+  },
+  financial_info: { 
+    icon: DollarSign, 
+    label: 'Financial', 
+    color: 'from-green-500 to-green-600',
+    bgPattern: 'bg-gradient-to-br from-green-50 to-green-100',
+    textColor: 'text-green-700',
+    accent: 'border-green-200'
+  },
+  compliance: { 
+    icon: AlertCircle, 
+    label: 'Compliance', 
+    color: 'from-red-500 to-red-600',
+    bgPattern: 'bg-gradient-to-br from-red-50 to-red-100',
+    textColor: 'text-red-700',
+    accent: 'border-red-200'
+  }
 };
 
 const priorityConfig = {
   high: { 
-    color: 'bg-accent-purple-100 text-accent-purple-800 border-accent-purple-200', 
+    badge: 'bg-red-100 text-red-800 border-red-200',
+    icon: AlertCircle,
     label: 'High Priority',
-    cardBorder: 'border-l-accent-purple-700',
-    cardBg: '',
-    cardStyle: { 
-      background: 'linear-gradient(135deg, var(--accent-purple-600) 0%, var(--accent-purple-700) 50%, var(--accent-purple-800) 100%)',
-      backgroundColor: 'var(--accent-purple-600)',
-      color: 'white'
-    }
+    glow: 'shadow-red-200/50'
   },
   medium: { 
-    color: 'bg-accent-purple-50 text-accent-purple-700 border-accent-purple-200', 
+    badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    icon: TrendingUp,
     label: 'Medium Priority',
-    cardBorder: 'border-l-accent-purple-500',
-    cardBg: '',
-    cardStyle: { 
-      background: 'linear-gradient(135deg, var(--accent-purple-400) 0%, var(--accent-purple-500) 50%, var(--accent-purple-600) 100%)',
-      backgroundColor: 'var(--accent-purple-400)',
-      color: 'white'
-    }
+    glow: 'shadow-yellow-200/50'
   },
   low: { 
-    color: 'bg-accent-purple-50 text-accent-purple-600 border-accent-purple-100', 
+    badge: 'bg-green-100 text-green-800 border-green-200',
+    icon: CheckCircle,
     label: 'Low Priority',
-    cardBorder: 'border-l-accent-purple-300',
-    cardBg: '',
-    cardStyle: { 
-      background: 'linear-gradient(135deg, var(--accent-purple-200) 0%, var(--accent-purple-300) 50%, var(--accent-purple-400) 100%)',
-      backgroundColor: 'var(--accent-purple-200)',
-      color: 'var(--accent-purple-900)'
-    }
+    glow: 'shadow-green-200/50'
   }
 };
 
@@ -105,7 +138,6 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Optimized mobile detection with debouncing and AbortController
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth <= 768;
@@ -113,26 +145,23 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     return false;
   });
 
-  // AbortController for cleanup
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Create new AbortController for this effect
     abortControllerRef.current = new AbortController();
     
     let resizeTimer: NodeJS.Timeout | null = null;
     const handleResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        // Check if component is still mounted
         if (abortControllerRef.current?.signal.aborted) return;
         
         const newIsMobile = window.innerWidth <= 768;
         setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
         resizeTimer = null;
-      }, 150); // Debounce resize events
+      }, 150);
     };
 
     window.addEventListener('resize', handleResize, { 
@@ -151,15 +180,13 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     };
   }, []);
 
-  // INSIGHT-102: Fetch insights with reasonable limits
   const limit = React.useMemo(() => isMobile ? 5 : 10, [isMobile]);
 
   const { data: insightData, isLoading, error } = useQuery({
     queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
     queryFn: async ({ signal }) => {
-      // Use React Query's built-in signal that handles component unmounting
       const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
-        signal, // Use React Query's abort signal instead of custom timeout
+        signal,
       });
       if (!response.ok) {
         const errorData = await response.text();
@@ -170,16 +197,13 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       console.log('Fetched insights data:', data);
       return data;
     },
-    // Optimized caching for memory efficiency
-    staleTime: 5 * 60 * 1000, // 5 minutes (reduced from 10)
-    gcTime: 2 * 60 * 1000, // 2 minutes garbage collection (reduced from 5)
+    staleTime: 5 * 60 * 1000,
+    gcTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: 1,
-    // Memory-optimized data selection with size limit
     select: React.useCallback((data) => {
       if (!data?.insights) return { insights: [] };
-      // Further limit insights to prevent memory bloat
       const limitedInsights = data.insights.slice(0, Math.min(limit, 20));
       return {
         ...data,
@@ -190,12 +214,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const insights = insightData?.insights || [];
 
-  // Generate new insights mutation with memory optimization
   const generateInsightsMutation = useMutation({
     mutationFn: async ({ signal }: { signal?: AbortSignal }): Promise<InsightResponse> => {
       console.log(`🔍 [INSIGHT-DEBUG] Starting insight generation for document ${documentId}`);
       
-      // Use component's AbortController or passed signal
       const requestSignal = signal || abortControllerRef.current?.signal;
       
       const response = await fetch(`/api/documents/${documentId}/insights`, {
@@ -225,23 +247,20 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       return result;
     },
     onSuccess: React.useCallback((data: InsightResponse) => {
-      // Check if component is still mounted
       if (abortControllerRef.current?.signal.aborted) return;
       
       toast({
         title: "Insights Generated",
         description: `Generated ${data.insights.length} insights`
       });
-      // Targeted cache invalidation with memory cleanup
       queryClient.invalidateQueries({
         queryKey: ['/api/documents', documentId, 'insights']
       });
       setIsGenerating(false);
     }, [documentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {
-      // Check if component is still mounted and error is not due to abort
       if (abortControllerRef.current?.signal.aborted || error.name === 'AbortError') {
-        return; // Don't show error for intentional cancellations
+        return;
       }
       
       console.error('❌ [INSIGHT-DEBUG] Insight generation error:', {
@@ -252,7 +271,6 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         timestamp: new Date().toISOString()
       });
       
-      // Provide specific error messages based on common issues
       let errorMessage = error.message || "Failed to generate document insights";
       
       if (error.message?.includes('API key')) {
@@ -277,7 +295,6 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     }, [])
   });
 
-  // Delete insight mutation with memory optimization
   const deleteInsightMutation = useMutation({
     mutationFn: async (insightId: string) => {
       const response = await fetch(`/api/documents/${documentId}/insights/${insightId}`, {
@@ -285,7 +302,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         headers: {
           'Content-Type': 'application/json'
         },
-        signal: AbortSignal.timeout(10000) // 10s timeout
+        signal: AbortSignal.timeout(10000)
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -298,7 +315,6 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         title: "Insight Deleted",
         description: "The insight has been removed"
       });
-      // Targeted cache invalidation
       queryClient.invalidateQueries({
         queryKey: ['/api/documents', documentId, 'insights']
       });
@@ -321,7 +337,6 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     deleteInsightMutation.mutate(insightId);
   }, [deleteInsightMutation]);
 
-  // Flag/unflag insight mutation
   const flagInsightMutation = useMutation({
     mutationFn: async ({ insightId, flagged, reason }: { insightId: string; flagged: boolean; reason?: string }) => {
       const response = await fetch(`/api/documents/${documentId}/insights/${insightId}/flag`, {
@@ -347,7 +362,6 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           ? "Thanks for the feedback! This insight has been flagged for review." 
           : "Insight flag has been removed."
       });
-      // Targeted cache invalidation
       queryClient.invalidateQueries({
         queryKey: ['/api/documents', documentId, 'insights']
       });
@@ -365,56 +379,54 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     flagInsightMutation.mutate({ insightId, flagged, reason });
   }, [flagInsightMutation]);
 
-  // Cleanup on unmount
   React.useEffect(() => {
     return () => {
-      // Cancel any pending requests
       if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
         abortControllerRef.current.abort();
       }
-      
-      // Clear any pending timeouts
       setIsGenerating(false);
     };
   }, []);
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         {/* Header Skeleton */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-4 w-4 rounded" />
-            <Skeleton className="h-4 w-24" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-6 w-6 rounded" />
+            <Skeleton className="h-6 w-32" />
           </div>
-          <Skeleton className="h-8 w-20" />
+          <Skeleton className="h-10 w-24" />
         </div>
 
-        {/* Insight Cards Skeleton */}
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white rounded-lg p-4 space-y-3 border border-gray-100 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-5 w-16" />
-                <Skeleton className="h-5 w-20" />
-                <Skeleton className="h-5 w-24" />
+        {/* Modern Dashboard Skeleton */}
+        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+                <div>
+                  <Skeleton className="h-5 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-full mb-1" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-8 w-8 rounded" />
+                </div>
               </div>
-              <Skeleton className="h-6 w-6" />
             </div>
-            <div>
-              <Skeleton className="h-4 w-3/4 mb-2" />
-              <Skeleton className="h-3 w-full mb-1" />
-              <Skeleton className="h-3 w-2/3" />
-            </div>
-            <Skeleton className="h-3 w-32" />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     );
   }
 
   if (error) {
-    // ANDROID-303: Handle insight generation errors and provide appropriate feedback
     const errorMessage = error?.message || 'Unknown error';
     const isInsightError = errorMessage.toLowerCase().includes('insight') || 
                           errorMessage.includes('INSIGHT_') ||
@@ -425,7 +437,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5" />
-            Key Insights
+            Document Insights
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -440,37 +452,41 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   }
 
   return (
-    <div className="space-y-4">
-      {/* Always show header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Brain className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} text-accent-purple-600`} />
-          <span className={`${isMobile ? 'text-base' : 'text-sm'} font-medium`}>AI Insights</span>
+    <div className="space-y-6">
+      {/* Modern Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
+            <Brain className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Smart Insights</h2>
+            <p className="text-sm text-gray-500">AI-powered document analysis</p>
+          </div>
           {insights.length > 0 && (
-            <span className={`${isMobile ? 'text-sm' : 'text-xs'} text-gray-500 bg-gray-100 px-2 py-1 rounded-full`}>
-              {insights.length} insight{insights.length !== 1 ? 's' : ''}
-            </span>
+            <div className="ml-4">
+              <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+                {insights.length} insight{insights.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
           )}
         </div>
         
-        {/* Show generate/regenerate button */}
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
-          size={isMobile ? "default" : "sm"}
-          variant="outline"
-          className={`${isMobile ? 'text-sm' : 'text-xs'} touch-target hover:bg-gradient-to-r hover:from-accent-purple-50 hover:to-accent-purple-100 hover:border-accent-purple-300 transition-all duration-300 shadow-sm hover:shadow-md border-accent-purple-200 text-accent-purple-700`}
-          style={{ minHeight: '44px', minWidth: isMobile ? 'auto' : '44px' }}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+          size={isMobile ? "default" : "lg"}
         >
           {isGenerating || generateInsightsMutation.isPending ? (
             <>
-              <Loader2 className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'} animate-spin`} />
-              {isMobile ? 'Analyzing...' : 'Analyzing...'}
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Analyzing...
             </>
           ) : (
             <>
-              <Brain className={`mr-2 ${isMobile ? 'h-4 w-4' : 'h-3 w-3'}`} />
-              {insights.length > 0 ? (isMobile ? 'Refresh' : 'Refresh') : (isMobile ? 'Generate' : 'Generate')}
+              <Brain className="mr-2 h-4 w-4" />
+              {insights.length > 0 ? 'Refresh Insights' : 'Generate Insights'}
             </>
           )}
         </Button>
@@ -478,66 +494,65 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
       {/* Content Area */}
       {insights.length === 0 && !isGenerating && !generateInsightsMutation.isPending ? (
-        <div className="text-center py-12 px-4">
-          <div className="relative mb-6">
-            <div className="relative z-10 bg-white rounded-full p-3 shadow-lg mx-auto w-fit">
-              <Brain className="h-8 w-8 text-accent-purple-600 mx-auto" />
+        <div className="text-center py-16 px-6">
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full blur-3xl opacity-30"></div>
+            <div className="relative bg-white rounded-2xl p-6 shadow-lg mx-auto w-fit">
+              <Brain className="h-12 w-12 text-blue-600 mx-auto" />
             </div>
           </div>
-          <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-900 mb-3`}>Generate AI Insights</h3>
-          <p className="text-gray-600 mb-6 text-sm max-w-md mx-auto leading-relaxed">
-            Click "Generate" to analyze this document and extract key insights like dates, contacts, summaries, and action items.
+          <h3 className="text-2xl font-bold text-gray-900 mb-4">Unlock Document Intelligence</h3>
+          <p className="text-gray-600 mb-8 text-lg max-w-2xl mx-auto leading-relaxed">
+            Let our AI analyze your document to extract key insights, important dates, contacts, and actionable items automatically.
           </p>
-          <div className="bg-accent-purple-50 rounded-lg p-4 border border-accent-purple-200/50 max-w-sm mx-auto">
-            <div className="text-left">
-              <p className="text-sm font-medium text-accent-purple-900 mb-2">Analysis will find:</p>
-              <div className="grid grid-cols-1 gap-1 text-xs text-accent-purple-700">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-accent-purple-400 rounded-full"></div>
-                  <span>Important dates & deadlines</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-accent-purple-500 rounded-full"></div>
-                  <span>Key contacts & companies</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-accent-purple-600 rounded-full"></div>
-                  <span>Document summaries</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-accent-purple-700 rounded-full"></div>
-                  <span>Financial information</span>
-                </div>
-              </div>
+          
+          {/* Feature Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+              <Calendar className="h-6 w-6 text-blue-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-blue-800">Key Dates</p>
+            </div>
+            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+              <Users className="h-6 w-6 text-emerald-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-emerald-800">Contacts</p>
+            </div>
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
+              <CheckCircle className="h-6 w-6 text-orange-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-orange-800">Action Items</p>
+            </div>
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+              <DollarSign className="h-6 w-6 text-green-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-green-800">Financial Data</p>
             </div>
           </div>
         </div>
       ) : isGenerating || generateInsightsMutation.isPending ? (
-        <div className="text-center py-12 px-4">
-          <div className="relative mb-6">
-            <div className="relative z-10 bg-white rounded-full p-3 shadow-lg mx-auto w-fit">
-              <Loader2 className="h-8 w-8 text-accent-purple-600 mx-auto animate-spin" />
+        <div className="text-center py-16 px-6">
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+            <div className="relative bg-white rounded-2xl p-6 shadow-lg mx-auto w-fit">
+              <Loader2 className="h-12 w-12 text-blue-600 mx-auto animate-spin" />
             </div>
           </div>
-          <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-900 mb-3`}>Analyzing Document</h3>
-          <p className="text-gray-600 mb-4 text-sm max-w-md mx-auto">
-            Our AI is reading through your document to find key insights and important information...
+          <h3 className="text-2xl font-bold text-gray-900 mb-4">AI Analysis in Progress</h3>
+          <p className="text-gray-600 mb-6 text-lg max-w-md mx-auto">
+            Our AI is carefully reading through your document to extract valuable insights...
           </p>
-          <div className="bg-accent-purple-50 rounded-lg p-3 border border-accent-purple-200/50 max-w-xs mx-auto">
-            <div className="text-xs text-accent-purple-700 text-center">
-              This usually takes 5-15 seconds
+          <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 max-w-xs mx-auto">
+            <div className="text-sm text-blue-700 text-center font-medium">
+              Usually takes 5-15 seconds
             </div>
           </div>
         </div>
       ) : (
-        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'} max-w-full`}>
+        <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
           {insights.map((insight: DocumentInsight, index: number) => {
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
-            const priorityStyle = priorityConfig[insight.priority];
+            const priorityData = priorityConfig[insight.priority];
             const IconComponent = config.icon;
+            const PriorityIcon = priorityData.icon;
 
             const handleCardClick = (e: React.MouseEvent) => {
-              // Don't navigate if clicking on buttons or interactive elements
               const target = e.target as HTMLElement;
               if (target.closest('button') || 
                   target.closest('[role="button"]') || 
@@ -546,7 +561,6 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 return;
               }
               
-              // Open document viewer using callback
               if (onDocumentClick) {
                 onDocumentClick(documentId);
               }
@@ -555,17 +569,14 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
             return (
               <div 
                 key={insight.id} 
-                className={`group relative rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer ${isMobile ? 'mb-4' : 'mb-6'} border border-white/20`}
-                style={{
-                  ...priorityStyle.cardStyle,
-                  background: `linear-gradient(135deg, ${priorityStyle.cardStyle?.backgroundColor || 'var(--accent-purple-600)'} 0%, ${priorityStyle.cardStyle?.backgroundColor || 'var(--accent-purple-700)'} 100%)`,
-                  minHeight: isMobile ? '280px' : '320px'
-                }}
+                className={`group relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-500 transform hover:scale-[1.02] overflow-hidden cursor-pointer border border-gray-100 ${priorityData.glow} hover:${priorityData.glow}`}
                 onClick={handleCardClick}
+                style={{ minHeight: isMobile ? '320px' : '360px' }}
               >
-                {/* Pinterest-style header */}
-                <div className="absolute top-4 right-4 z-10">
-                  <div className="flex items-center gap-2">
+                {/* Header Section */}
+                <div className={`${config.bgPattern} p-6 relative`}>
+                  {/* Top Actions */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -574,8 +585,8 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleFlagInsight(insight.id, !insight.flagged, insight.flagged ? undefined : "Incorrect information");
                       }}
                       disabled={flagInsightMutation.isPending}
-                      className="bg-black/20 hover:bg-black/40 text-white rounded-full h-8 w-8 p-0 backdrop-blur-sm border border-white/20"
-                      title={insight.flagged ? "Remove flag (this insight is correct)" : "Flag as incorrect"}
+                      className="bg-white/80 hover:bg-white text-gray-600 rounded-full h-8 w-8 p-0 shadow-sm"
+                      title={insight.flagged ? "Remove flag" : "Flag as incorrect"}
                     >
                       {insight.flagged ? <FlagOff className="h-3 w-3" /> : <Flag className="h-3 w-3" />}
                     </Button>
@@ -587,88 +598,96 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleDeleteInsight(insight.id);
                       }}
                       disabled={deleteInsightMutation.isPending}
-                      className="bg-black/20 hover:bg-red-500/80 text-white rounded-full h-8 w-8 p-0 backdrop-blur-sm border border-white/20"
+                      className="bg-white/80 hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-full h-8 w-8 p-0 shadow-sm"
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
-                </div>
 
-                {/* Type badge overlay */}
-                <div className="absolute top-4 left-4 z-10">
-                  <div className="bg-white/30 backdrop-blur-sm rounded-full px-3 py-1 border border-white/40">
-                    <span className="text-white text-xs font-semibold">{config.label}</span>
-                  </div>
-                </div>
-
-                {/* Content section - Pinterest-style */}
-                <div className="space-y-3">
-                  {/* Hero Content Area */}
-                  <div className="bg-white/30 backdrop-blur-sm rounded-xl p-4 border border-white/40">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-white/40 rounded-full flex items-center justify-center border-2 border-white/60">
-                          <IconComponent className="h-6 w-6 text-white" />
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-lg text-white leading-tight mb-1">
-                          {insight.title}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-white/80">
-                          <FileText className="h-4 w-4" />
-                          <span className="truncate">{documentName}</span>
-                        </div>
-                      </div>
+                  {/* Icon and Type */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`p-3 bg-gradient-to-r ${config.color} rounded-xl shadow-lg`}>
+                      <IconComponent className="h-6 w-6 text-white" />
                     </div>
-                    
-                    {/* Content Preview */}
-                    <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
-                      <p className="text-white text-sm leading-relaxed line-clamp-3">
-                        {insight.content}
-                      </p>
+                    <div>
+                      <Badge className={`${priorityData.badge} border font-medium`}>
+                        <PriorityIcon className="h-3 w-3 mr-1" />
+                        {priorityData.label}
+                      </Badge>
                     </div>
                   </div>
 
-                  {/* Action Row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        className="bg-white/30 hover:bg-white/40 backdrop-blur-sm rounded-lg px-4 py-2 text-white text-sm font-medium transition-all duration-200 border border-white/40"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onDocumentClick) onDocumentClick(documentId);
-                        }}
-                      >
-                        View Document
-                      </button>
-                      {insight.priority === 'high' && (
-                        <div className="bg-red-500/80 backdrop-blur-sm rounded-lg px-3 py-1 text-white text-xs font-bold border border-red-400/50">
-                          🔥 URGENT
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <div className="bg-white/30 backdrop-blur-sm rounded-lg px-3 py-1 text-white text-xs font-medium border border-white/40">
-                        {Math.round(insight.confidence * 100)}% sure
-                      </div>
+                  {/* Title */}
+                  <h3 className={`font-bold text-lg ${config.textColor} leading-tight mb-2`}>
+                    {insight.title}
+                  </h3>
+
+                  {/* Type Label */}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${config.textColor}`}>
+                      {config.label}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                      <span className="text-xs text-gray-600 font-medium">
+                        {Math.round(insight.confidence * 100)}%
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Elegant bottom timestamp */}
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="flex items-center justify-between text-white/70">
-                    <div className="flex items-center gap-2 text-xs">
+                {/* Content Section */}
+                <div className="p-6 flex-1">
+                  <p className="text-gray-700 text-sm leading-relaxed line-clamp-4 mb-4">
+                    {insight.content}
+                  </p>
+
+                  {/* Metadata */}
+                  <div className="flex items-center gap-4 text-xs text-gray-500 mb-4">
+                    <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       <span>{new Date(insight.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <div className="text-xs">
-                      AI Generated
+                    <div className="flex items-center gap-1">
+                      <FileText className="h-3 w-3" />
+                      <span className="truncate max-w-20">{documentName}</span>
                     </div>
                   </div>
                 </div>
+
+                {/* Footer Actions */}
+                <div className="border-t border-gray-100 p-4 bg-gray-50/50">
+                  <div className="flex items-center justify-between">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onDocumentClick) onDocumentClick(documentId);
+                      }}
+                      className="text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Document
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onDocumentClick) onDocumentClick(documentId);
+                      }}
+                    >
+                      Details
+                      <ArrowRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Priority Accent Border */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${config.color}`}></div>
               </div>
             );
           })}

@@ -466,7 +466,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Smart Insights</h2>
-            <p className="text-xs text-gray-500">AI-powered document analysis</p>
+            <p className="text-xs text-gray-500">Let our AI analyze your document to extract key insights, important dates, contacts, and actionable items automatically</p>
           </div>
         </div>
 
@@ -492,19 +492,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
       {/* Content Area */}
       {insights.length === 0 && !isGenerating && !generateInsightsMutation.isPending ? (
-        <div className="text-center py-16 px-6">
-          <div className="relative mb-8">
-            <div className="absolute inset-0 bg-gradient-to-r from-accent-purple-100 to-accent-purple-200 rounded-full blur-3xl opacity-30"></div>
-            <div className="relative bg-white rounded-2xl p-6 shadow-lg mx-auto w-fit">
-              <Brain className="h-12 w-12 text-accent-purple-600 mx-auto" />
-            </div>
-          </div>
-          <p className="text-gray-600 mb-8 text-lg max-w-2xl mx-auto leading-relaxed">
-            Let our AI analyze your document to extract key insights, important dates, contacts, and actionable items automatically.
-          </p>
-
+        <div className="text-center py-8 px-6">
           {/* Feature Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
             <div className="bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 rounded-xl p-4 border border-accent-purple-200">
               <Calendar className="h-6 w-6 text-accent-purple-600 mx-auto mb-2" />
               <p className="text-sm font-medium text-accent-purple-600">Key Dates</p>

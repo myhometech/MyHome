@@ -187,3 +187,4 @@ task = "shell.exec"
 args = "NODE_ENV=production NODE_OPTIONS=\"--expose-gc --max-old-space-size=768\" node --expose-gc --trace-gc dist/index.js"
 
 [agent]
+integrations = ["javascript_openai==1.0.0"]

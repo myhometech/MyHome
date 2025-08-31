@@ -21,19 +21,19 @@ export const ColorPaletteDemo = () => {
           </div>
         </Card>
 
-        {/* Purple-Blue Accent */}
+        {/* Primary Dashboard Dark */}
         <Card className="p-6 text-center">
-          <div className="w-full h-20 bg-accent-purple rounded-lg mb-4"></div>
-          <h3 className="font-semibold text-accent-purple">Purple Accent</h3>
-          <p className="text-sm text-gray-600">HSL(239, 100%, 56%)</p>
-          <p className="text-xs text-gray-500">#1E20FF</p>
+          <div className="w-full h-20 bg-accent-purple-600 rounded-lg mb-4"></div>
+          <h3 className="font-semibold text-accent-purple-600">Primary Dashboard</h3>
+          <p className="text-sm text-gray-600">Primary Dark Purple</p>
+          <p className="text-xs text-gray-500">#240046</p>
           <div className="mt-3 space-y-2">
-            <button className="bg-accent-purple text-white px-4 py-2 rounded-md text-sm w-full">
-              Purple Button
+            <button className="bg-accent-purple-600 text-white px-4 py-2 rounded-md text-sm w-full">
+              Dashboard Button
             </button>
-            <p className="text-accent-purple text-sm">Purple Text</p>
-            <div className="border-accent-purple border-2 rounded-md p-2 text-sm">
-              Purple Border
+            <p className="text-accent-purple-600 text-sm">Dashboard Text</p>
+            <div className="border-accent-purple-600 border-2 rounded-md p-2 text-sm">
+              Dashboard Border
             </div>
           </div>
         </Card>
@@ -57,21 +57,45 @@ export const ColorPaletteDemo = () => {
       </div>
 
       <div className="mt-8">
-        <h3 className="text-lg font-semibold mb-4">Available CSS Classes</h3>
+        <h3 className="text-lg font-semibold mb-4">Complete Purple Palette Gradient</h3>
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-2 mb-6">
+          <div className="bg-accent-purple-50 h-16 rounded-lg flex items-end p-2">
+            <span className="text-xs font-mono text-accent-purple-600">#E0AAFF</span>
+          </div>
+          <div className="bg-accent-purple-100 h-16 rounded-lg flex items-end p-2">
+            <span className="text-xs font-mono text-accent-purple-600">#C77DFF</span>
+          </div>
+          <div className="bg-accent-purple-200 h-16 rounded-lg flex items-end p-2">
+            <span className="text-xs font-mono text-white">#9D4EDD</span>
+          </div>
+          <div className="bg-accent-purple-300 h-16 rounded-lg flex items-end p-2">
+            <span className="text-xs font-mono text-white">#7B2CBF</span>
+          </div>
+          <div className="bg-accent-purple-400 h-16 rounded-lg flex items-end p-2">
+            <span className="text-xs font-mono text-white">#5A189A</span>
+          </div>
+          <div className="bg-accent-purple-500 h-16 rounded-lg flex items-end p-2">
+            <span className="text-xs font-mono text-white">#3C096C</span>
+          </div>
+          <div className="bg-accent-purple-600 h-16 rounded-lg flex items-end p-2 ring-2 ring-yellow-400">
+            <span className="text-xs font-mono text-white font-bold">#240046</span>
+          </div>
+          <div className="bg-accent-purple-700 h-16 rounded-lg flex items-end p-2">
+            <span className="text-xs font-mono text-white">#10002B</span>
+          </div>
+        </div>
+        
         <div className="bg-gray-50 p-4 rounded-lg font-mono text-sm">
-          <h4 className="font-semibold mb-2">Purple Accent (#1E20FF):</h4>
+          <h4 className="font-semibold mb-2">Purple Palette Classes (50-700):</h4>
           <ul className="space-y-1 mb-4">
-            <li><code>.text-accent-purple</code> - Purple text color</li>
-            <li><code>.bg-accent-purple</code> - Purple background</li>
-            <li><code>.border-accent-purple</code> - Purple border</li>
+            <li><code>.text-accent-purple-600</code> - Primary dashboard text (#240046)</li>
+            <li><code>.bg-accent-purple-600</code> - Primary dashboard background (#240046)</li>
+            <li><code>.border-accent-purple-600</code> - Primary dashboard border (#240046)</li>
+            <li><code>.from-accent-purple-600</code> - Gradient start with primary color</li>
           </ul>
           
-          <h4 className="font-semibold mb-2">Cyan Accent (#1EFFFD):</h4>
-          <ul className="space-y-1">
-            <li><code>.text-accent-cyan</code> - Cyan text color</li>
-            <li><code>.bg-accent-cyan</code> - Cyan background</li>
-            <li><code>.border-accent-cyan</code> - Cyan border</li>
-          </ul>
+          <h4 className="font-semibold mb-2">Available Shades:</h4>
+          <p className="text-xs text-gray-600">50 (lightest) → 100 → 200 → 300 → 400 → 500 → <strong>600 (primary)</strong> → 700 (darkest)</p>
         </div>
       </div>
     </div>

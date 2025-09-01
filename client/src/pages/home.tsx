@@ -782,23 +782,23 @@ export default function Home() {
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">
-        {/* Category Cards - Smaller Purple Cards */}
-        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-3 gap-4 mb-8">
+        {/* Financial, Important Dates, and General Cards - At the very top */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           {/* Financial Card */}
           <Card 
             className="bg-gradient-to-br from-accent-purple-600 to-accent-purple-800 border-l-4 border-l-accent-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 text-white"
             onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id || null)}
           >
-            <CardContent className="p-3 sm:p-4">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-white">Financial</p>
-                  <p className="text-lg sm:text-2xl font-bold text-white">
+                  <p className="text-2xl font-bold text-white">
                     {documents.filter((doc: any) => doc.categoryId === categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id).length}
                   </p>
-                  <p className="text-xs text-white/80 hidden sm:block">Total active</p>
+                  <p className="text-xs text-white/80">Total active</p>
                 </div>
-                <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <DollarSign className="h-6 w-6 text-white" />
               </div>
             </CardContent>
           </Card>
@@ -808,16 +808,16 @@ export default function Home() {
             className="bg-gradient-to-br from-accent-purple-500 to-accent-purple-700 border-l-4 border-l-accent-purple-400 cursor-pointer hover:shadow-lg transition-all duration-300 text-white"
             onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id || null)}
           >
-            <CardContent className="p-3 sm:p-4">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-white">Important Dates</p>
-                  <p className="text-lg sm:text-2xl font-bold text-white">
+                  <p className="text-2xl font-bold text-white">
                     {documents.filter((doc: any) => doc.categoryId === categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id).length}
                   </p>
-                  <p className="text-xs text-white/80 hidden sm:block">Total active</p>
+                  <p className="text-xs text-white/80">Total active</p>
                 </div>
-                <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <Calendar className="h-6 w-6 text-white" />
               </div>
             </CardContent>
           </Card>
@@ -827,16 +827,16 @@ export default function Home() {
             className="bg-gradient-to-br from-accent-purple-400 to-accent-purple-600 border-l-4 border-l-accent-purple-300 cursor-pointer hover:shadow-lg transition-all duration-300 text-white"
             onClick={() => setSelectedCategory(null)}
           >
-            <CardContent className="p-3 sm:p-4">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-white">General</p>
-                  <p className="text-lg sm:text-2xl font-bold text-white">
+                  <p className="text-2xl font-bold text-white">
                     {documents.filter((doc: any) => !doc.categoryId).length}
                   </p>
-                  <p className="text-xs text-white/80 hidden sm:block">Total active</p>
+                  <p className="text-xs text-white/80">Total active</p>
                 </div>
-                <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <CheckCircle className="h-6 w-6 text-white" />
               </div>
             </CardContent>
           </Card>

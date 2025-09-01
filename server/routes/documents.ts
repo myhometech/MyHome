@@ -215,7 +215,7 @@ router.post('/', upload.fields([
                 extractedText,
                 uploadedFile.originalname,
                 userId,
-                req.user.householdId
+                req.user.household?.id
               );
               
               if (factResults.factsExtracted > 0) {
@@ -425,7 +425,7 @@ router.post('/:id/retry-ocr', async (req: AuthenticatedRequest, res) => {
     console.log(`🔄 Retrying OCR for document ${documentId} with enhanced strategies`);
 
     // Get the original file buffer
-    const fileBuffer = await storage.getFileBuffer(document.gcsPath);
+    const fileBuffer = await storage.download(document.gcsPath || document.filePath);
     
     if (!fileBuffer) {
       return res.status(400).json({ message: 'Document file not found' });
@@ -489,7 +489,7 @@ router.post('/:id/analyze-for-ocr', async (req: AuthenticatedRequest, res) => {
     }
 
     // Get the original file buffer
-    const fileBuffer = await storage.getFileBuffer(document.gcsPath);
+    const fileBuffer = await storage.download(document.gcsPath || document.filePath);
     
     if (!fileBuffer) {
       return res.status(400).json({ message: 'Document file not found' });
@@ -503,7 +503,7 @@ router.post('/:id/analyze-for-ocr', async (req: AuthenticatedRequest, res) => {
       tips,
       documentId: documentId,
       currentOcrText: document.extractedText || '',
-      currentConfidence: document.ocrConfidence || 0
+      currentConfidence: 0
     });
 
   } catch (error) {

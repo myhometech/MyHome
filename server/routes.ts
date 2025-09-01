@@ -1684,12 +1684,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             try {
               message = generateInsightMessage(insight, document.name);
-              actionUrl = `/documents/${documentId}`;
+              actionUrl = `/insights?documentId=${documentId}`;
               dueDate = extractDueDate(insight);
             } catch (helperError: any) {
               console.error(`❌ [INSIGHT-DEBUG] Helper function error for insight ${insight.id}:`, helperError);
               message = `${document.name}: ${insight.title || 'Untitled insight'}`;
-              actionUrl = `/documents/${documentId}`;
+              actionUrl = `/insights?documentId=${documentId}`;
               dueDate = null;
             }
 

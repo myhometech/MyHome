@@ -202,8 +202,8 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       if (onDocumentClick) {
         onDocumentClick(insight.documentId);
       } else {
-        // Navigate to the insights-first page with document ID
-        setLocation(`/insights-first?documentId=${insight.documentId}`);
+        // Navigate to the insights page with document ID to open the document viewer
+        setLocation(`/insights?documentId=${insight.documentId}`);
       }
     }
   };
@@ -286,8 +286,14 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
                   <AlertCircle className="h-4 w-4 mr-2" />
                   Reopen
                 </DropdownMenuItem>
-                {insight.actionUrl && (
-                  <DropdownMenuItem onClick={() => setLocation(insight.actionUrl!)}>
+                {insight.documentId && (
+                  <DropdownMenuItem onClick={() => {
+                    if (onDocumentClick) {
+                      onDocumentClick(insight.documentId);
+                    } else {
+                      setLocation(`/insights?documentId=${insight.documentId}`);
+                    }
+                  }}>
                     <ExternalLink className="h-4 w-4 mr-2" />
                     View Document
                   </DropdownMenuItem>

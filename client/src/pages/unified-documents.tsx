@@ -66,36 +66,36 @@ export default function UnifiedDocuments() {
   const { hasFeature, features } = useFeatures();
   const limits = { documents: features.BULK_OPERATIONS ? 999999 : 50 };
   const [, setLocation] = useLocation();
-  
+
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  
+
   // Search-as-you-type handlers
   const handleSearchChange = (query: string, results: any[]) => {
     setSearchQuery(query);
     setSearchResults(results);
     setIsSearchActive(query.length > 0);
   };
-  
+
   const handleDocumentSelect = (documentId: number) => {
     console.log('Document selected:', documentId);
     // Could navigate to document detail or open modal
   };
   const [sortBy, setSortBy] = useState<string>("priority"); // priority, date, name, category
-  
+
   // TICKET 7: Email metadata filters
   const [emailFilters, setEmailFilters] = useState<any>({});
   const [emailSort, setEmailSort] = useState<string>("uploadedAt:desc");
-  
+
   // Insight filters
   const [hasInsightsFilter, setHasInsightsFilter] = useState<string>("all"); // all, critical, any, none
   const [insightTypeFilter, setInsightTypeFilter] = useState<string>("all");
   const [insightStatusFilter, setInsightStatusFilter] = useState<string>("open");
-  
+
   // Bulk operations
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
@@ -143,7 +143,7 @@ export default function UnifiedDocuments() {
     queryFn: async () => {
       // TICKET 7: Build query parameters with email filters
       const params = new URLSearchParams();
-      
+
       if (emailFilters.source) {
         params.append('filter[source]', emailFilters.source);
       }
@@ -165,7 +165,7 @@ export default function UnifiedDocuments() {
       if (emailSort && emailSort !== 'uploadedAt:desc') {
         params.append('sort', emailSort);
       }
-      
+
       const url = "/api/documents" + (params.toString() ? `?${params.toString()}` : "");
       const response = await fetch(url, {
         credentials: "include",
@@ -304,7 +304,7 @@ export default function UnifiedDocuments() {
         const matchesFileName = doc.fileName.toLowerCase().includes(searchLower);
         const matchesTags = doc.tags?.some(tag => tag.toLowerCase().includes(searchLower)) || false;
         const matchesText = doc.extractedText?.toLowerCase().includes(searchLower) || false;
-        
+
         if (!matchesName && !matchesFileName && !matchesTags && !matchesText) {
           return false;
         }
@@ -351,15 +351,15 @@ export default function UnifiedDocuments() {
         case 'priority':
           // Sort by: Critical insights → Medium priority → Low priority → Upload date
           if (aCritical !== bCritical) return bCritical - aCritical;
-          
+
           const aMedium = aOpenInsights.filter(i => i.priority === 'medium').length;
           const bMedium = bOpenInsights.filter(i => i.priority === 'medium').length;
           if (aMedium !== bMedium) return bMedium - aMedium;
-          
+
           const aLow = aOpenInsights.filter(i => i.priority === 'low').length;
           const bLow = bOpenInsights.filter(i => i.priority === 'low').length;
           if (aLow !== bLow) return bLow - aLow;
-          
+
           // Fallback to expiry date, then upload date
           if (a.expiryDate && b.expiryDate) {
             const aExpiry = typeof a.expiryDate === 'string' ? new Date(a.expiryDate) : a.expiryDate;
@@ -368,7 +368,7 @@ export default function UnifiedDocuments() {
           }
           if (a.expiryDate) return -1;
           if (b.expiryDate) return 1;
-          
+
           const fallbackAUpload = a.uploadedAt ? (typeof a.uploadedAt === 'string' ? new Date(a.uploadedAt) : a.uploadedAt) : new Date();
           const fallbackBUpload = b.uploadedAt ? (typeof b.uploadedAt === 'string' ? new Date(b.uploadedAt) : b.uploadedAt) : new Date();
           return fallbackBUpload.getTime() - fallbackAUpload.getTime();
@@ -474,7 +474,7 @@ export default function UnifiedDocuments() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-      
+
       {/* Search-as-you-type integration */}
       <div className="container mx-auto px-4 py-4">
         <SearchAsYouType 
@@ -485,7 +485,7 @@ export default function UnifiedDocuments() {
           className="mb-6"
         />
       </div>
-      
+
       <main className="container mx-auto px-4 py-8 space-y-6">
         {/* Header Section */}
         <div className="flex items-center justify-between">
@@ -526,7 +526,7 @@ export default function UnifiedDocuments() {
                     className="pl-9"
                   />
                 </div>
-                
+
                 <Select value={selectedCategory?.toString() || "all"} onValueChange={(value) => setSelectedCategory(value === "all" ? null : parseInt(value))}>
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="All Categories" />
@@ -663,7 +663,7 @@ export default function UnifiedDocuments() {
                       Bulk Mode
                     </Button>
                   )}
-                  
+
                   <span className="text-sm text-gray-600">
                     {filteredAndSortedDocuments.length} document{filteredAndSortedDocuments.length !== 1 ? 's' : ''}
                   </span>
@@ -684,7 +684,7 @@ export default function UnifiedDocuments() {
                       Clear
                     </Button>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Select onValueChange={(categoryId) => {
                       bulkMoveCategoryMutation.mutate({

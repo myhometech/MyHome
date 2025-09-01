@@ -189,23 +189,45 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const { data: insightData, isLoading, error } = useQuery({
     queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
     queryFn: async ({ signal }) => {
-      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
-        signal,
-      });
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Failed to fetch insights:', errorData);
-        throw new Error('Failed to fetch insights');
+      try {
+        const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
+          signal,
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            // Document not found or no insights yet - return empty array
+            return { insights: [], success: true };
+          }
+          const errorData = await response.text().catch(() => '');
+          console.error('Failed to fetch insights:', errorData);
+          throw new Error(`Failed to fetch insights: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Fetched insights data:', data);
+        return data;
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          throw error;
+        }
+        console.error('Insight fetch error:', error);
+        // Return empty state instead of throwing to prevent component crash
+        return { insights: [], success: false, error: error.message };
       }
-      const data = await response.json();
-      console.log('Fetched insights data:', data);
-      return data;
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    retry: 1,
+    retry: (failureCount, error) => {
+      // Don't retry on 404 or client errors
+      if (error?.message?.includes('404') || error?.message?.includes('400')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
     select: React.useCallback((data: any) => {
       if (!data?.insights) return { insights: [] };
       const limitedInsights = data.insights.slice(0, Math.min(limit, 20));
@@ -229,13 +251,19 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         signal: requestSignal
       });
 
       console.log(`📡 [INSIGHT-DEBUG] Response status: ${response.status}`);
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+        }
         console.error(`❌ [INSIGHT-DEBUG] Server error:`, errorData);
         throw new Error(errorData.message || 'Failed to generate insights');
       }
@@ -431,28 +459,58 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     );
   }
 
-  if (error) {
+  if (error && !insightData) {
     const errorMessage = error?.message || 'Unknown error';
-    const isInsightError = errorMessage.toLowerCase().includes('insight') || 
-                          errorMessage.includes('INSIGHT_') ||
-                          (error as any)?.code === 'INSIGHT_ERROR';
+    console.log('Insight error details:', { error, errorMessage, documentId, documentName });
 
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            Document Insights
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <OCRErrorHandler
-            error={isInsightError ? 'INSIGHT_GENERATION_FAILED' : 'OCR_PROCESSING_FAILED'}
-            documentName={documentName}
-            onRetryUpload={handleGenerateInsights}
-          />
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 rounded-xl shadow-sm">
+              <Brain className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Smart Insights</h2>
+              <p className="text-xs text-gray-500">AI-powered document analysis</p>
+            </div>
+          </div>
+
+          <Button 
+            onClick={handleGenerateInsights} 
+            disabled={isGenerating || generateInsightsMutation.isPending}
+            className="bg-gradient-to-r from-accent-purple-400 to-accent-purple-500 hover:from-accent-purple-500 hover:to-accent-purple-600 text-white shadow-sm hover:shadow-lg border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            size="sm"
+          >
+            <Brain className="mr-2 h-4 w-4" />
+            <span className="text-sm">Generate Insights</span>
+          </Button>
+        </div>
+
+        {/* Error state without redirect */}
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              <h3 className="font-medium text-orange-900">Unable to load insights</h3>
+            </div>
+            <p className="text-sm text-orange-700 mb-4">
+              {errorMessage.includes('404') 
+                ? 'No insights found for this document yet.'
+                : 'There was an issue loading insights for this document.'
+              }
+            </p>
+            <Button 
+              onClick={handleGenerateInsights}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              size="sm"
+            >
+              Try Generating Insights
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -574,14 +632,21 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
             const handleCardClick = (e: React.MouseEvent) => {
               const target = e.target as HTMLElement;
+              
+              // Prevent navigation if clicking on interactive elements
               if (target.closest('button') || 
                   target.closest('[role="button"]') || 
                   target.closest('[data-radix-dropdown-menu-trigger]') ||
                   target.closest('[data-radix-dropdown-menu-content]')) {
+                e.preventDefault();
+                e.stopPropagation();
                 return;
               }
 
-              if (onDocumentClick) {
+              // Only navigate if callback is provided and we're not in an error state
+              if (onDocumentClick && !error) {
+                e.preventDefault();
+                console.log('Opening document from insight card:', documentId);
                 onDocumentClick(documentId);
               }
             };
@@ -674,8 +739,12 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
-                        if (onDocumentClick) onDocumentClick(documentId);
+                        console.log('View button clicked for document:', documentId);
+                        if (onDocumentClick) {
+                          onDocumentClick(documentId);
+                        }
                       }}
                       className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}
                     >
@@ -687,7 +756,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
+                        console.log('Details button clicked, navigating to:', `/document/${documentId}`);
                         setLocation(`/document/${documentId}`);
                       }}
                       className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}

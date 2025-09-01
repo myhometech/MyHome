@@ -363,12 +363,12 @@ app.use((req, res, next) => {
         });
 
         if (response) {
-          console.log('✅ Server is already running successfully. No restart needed.');
-          // Don't exit - just stop this startup attempt
-          return;
+          console.log('✅ Server is already running successfully. Exiting gracefully.');
+          // Exit with success status so workflow doesn't fail
+          process.exit(0);
         } else {
           console.log('⚠️ Port conflict with non-responsive process. Waiting for cleanup...');
-          setTimeout(() => process.exit(0), 2000);
+          setTimeout(() => process.exit(1), 2000);
         }
       } catch (error) {
         console.warn('⚠️ Could not check server status:', error);

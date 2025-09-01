@@ -81,6 +81,11 @@ export class EmailRenderWorker {
         maxRetriesPerRequest: 1
       });
 
+      // Add error event handler to prevent unhandled errors
+      this.redis.on('error', (error: Error) => {
+        console.warn('Redis connection error (handled):', error.message);
+      });
+
       // Test Redis connection with timeout
       const pingTimeout = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Redis connection timeout')), 3000);

@@ -189,7 +189,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
   const dueInfo = formatDueDate(insight.dueDate);
 
   // Handle card click to open document or call document click handler
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = async (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('button') || 
         target.closest('[role="button"]') || 
@@ -201,16 +201,51 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
     console.log(`[INSIGHT-CARD] Clicked insight ${insight.id} with documentId:`, insight.documentId);
 
     if (insight.documentId && !isNaN(insight.documentId) && insight.documentId > 0) {
-      // If we have a document click handler (from parent component), use it
-      if (onDocumentClick) {
-        console.log(`[INSIGHT-CARD] Using parent document click handler for document ${insight.documentId}`);
-        onDocumentClick(insight.documentId);
-      } else {
-        // Navigate to document page to view the document
-        console.log(`[INSIGHT-CARD] Navigating to document page for document ${insight.documentId}`);
-        console.log(`[INSIGHT-CARD] Setting location to: /document/${insight.documentId}`);
-        setLocation(`/document/${insight.documentId}`);
-        console.log(`[INSIGHT-CARD] Navigation completed`);
+      // First verify the document exists before attempting navigation
+      try {
+        const response = await fetch(`/api/documents/${insight.documentId}`, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast({
+              title: "Document Not Found",
+              description: "The document linked to this insight no longer exists.",
+              variant: "destructive",
+            });
+          } else if (response.status === 403) {
+            toast({
+              title: "Access Denied",
+              description: "You don't have permission to view this document.",
+              variant: "destructive",
+            });
+          } else {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return;
+        }
+
+        const documentData = await response.json();
+        console.log(`[INSIGHT-CARD] Document ${insight.documentId} verified:`, documentData.name);
+
+        // Document exists, proceed with navigation
+        if (onDocumentClick) {
+          console.log(`[INSIGHT-CARD] Using parent document click handler for document ${insight.documentId}`);
+          onDocumentClick(insight.documentId);
+        } else {
+          console.log(`[INSIGHT-CARD] Navigating to document page for document ${insight.documentId}`);
+          setLocation(`/document/${insight.documentId}`);
+        }
+
+      } catch (error) {
+        console.error(`[INSIGHT-CARD] Error verifying document ${insight.documentId}:`, error);
+        toast({
+          title: "Error Opening Document",
+          description: "Failed to access the document. Please try again later.",
+          variant: "destructive",
+        });
       }
     } else {
       console.warn(`[INSIGHT-CARD] Invalid or missing documentId for insight ${insight.id}:`, insight.documentId);
@@ -310,12 +345,43 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
                   Reopen
                 </DropdownMenuItem>
                 {insight.documentId && !isNaN(insight.documentId) && (
-                  <DropdownMenuItem onClick={() => {
+                  <DropdownMenuItem onClick={async () => {
                     console.log(`[INSIGHT-CARD] Dropdown: Opening document ${insight.documentId}`);
-                    if (onDocumentClick) {
-                      onDocumentClick(insight.documentId);
-                    } else {
-                      setLocation(`/document/${insight.documentId}`);
+                    
+                    // Verify document exists before navigation
+                    try {
+                      const response = await fetch(`/api/documents/${insight.documentId}`, {
+                        credentials: 'include',
+                        headers: { 'Accept': 'application/json' }
+                      });
+
+                      if (!response.ok) {
+                        if (response.status === 404) {
+                          toast({
+                            title: "Document Not Found",
+                            description: "The document linked to this insight no longer exists.",
+                            variant: "destructive",
+                          });
+                        } else {
+                          throw new Error(`HTTP ${response.status}`);
+                        }
+                        return;
+                      }
+
+                      // Document exists, proceed with navigation
+                      if (onDocumentClick) {
+                        onDocumentClick(insight.documentId);
+                      } else {
+                        setLocation(`/document/${insight.documentId}`);
+                      }
+
+                    } catch (error) {
+                      console.error(`[INSIGHT-CARD] Error opening document ${insight.documentId}:`, error);
+                      toast({
+                        title: "Error Opening Document",
+                        description: "Failed to access the document. Please try again later.",
+                        variant: "destructive",
+                      });
                     }
                   }}>
                     <ExternalLink className="h-4 w-4 mr-2" />

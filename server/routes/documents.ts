@@ -386,19 +386,56 @@ router.get('/:id/thumbnail', async (req: any, res: any) => {
     const documentId = parseInt(req.params.id);
     const userId = req.user.id;
 
+    if (isNaN(documentId)) {
+      return res.status(400).json({ message: 'Invalid document ID' });
+    }
+
     const document = await storage.getDocument(documentId, userId);
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    const thumbnailPath = imageProcessor.getThumbnailPath(document.filePath);
+    // Check if document is stored in GCS
+    if (document.gcsPath) {
+      try {
+        const storageService = StorageService.initialize();
+        const fileBuffer = await storageService.download(document.gcsPath);
+        
+        if (fileBuffer) {
+          // Set appropriate content type
+          const contentType = document.mimeType || 'application/octet-stream';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('Content-Length', fileBuffer.length);
+          res.send(fileBuffer);
+          return;
+        }
+      } catch (gcsError) {
+        console.warn(`Failed to fetch from GCS for document ${documentId}:`, gcsError);
+        // Fall through to local file check
+      }
+    }
 
+    // Check for local thumbnail
+    const thumbnailPath = imageProcessor.getThumbnailPath(document.filePath);
+    
     if (fs.existsSync(thumbnailPath)) {
       res.sendFile(path.resolve(thumbnailPath));
-    } else {
-      // Return placeholder or original file
-      res.sendFile(path.resolve(document.filePath));
+      return;
     }
+
+    // Check if original file exists locally
+    if (document.filePath && fs.existsSync(document.filePath)) {
+      res.sendFile(path.resolve(document.filePath));
+      return;
+    }
+
+    // If no file found, return 404
+    res.status(404).json({ 
+      message: 'Document file not found',
+      documentId,
+      filePath: document.filePath,
+      gcsPath: document.gcsPath
+    });
 
   } catch (error: any) {
     console.error('Failed to serve thumbnail:', error);
@@ -584,6 +621,68 @@ router.get('/:id/facts', async (req: any, res: any) => {
     res.status(500).json({
       message: 'Failed to retrieve document facts',
       error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Download document file
+router.get('/:id/download', async (req: any, res: any) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const documentId = parseInt(req.params.id);
+    const userId = req.user.id;
+
+    if (isNaN(documentId)) {
+      return res.status(400).json({ message: 'Invalid document ID' });
+    }
+
+    const document = await storage.getDocument(documentId, userId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Check if document is stored in GCS
+    if (document.gcsPath) {
+      try {
+        const storageService = StorageService.initialize();
+        const fileBuffer = await storageService.download(document.gcsPath);
+        
+        if (fileBuffer) {
+          // Set appropriate headers for download
+          res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+          res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
+          res.setHeader('Content-Length', fileBuffer.length);
+          res.send(fileBuffer);
+          return;
+        }
+      } catch (gcsError) {
+        console.warn(`Failed to download from GCS for document ${documentId}:`, gcsError);
+        // Fall through to local file check
+      }
+    }
+
+    // Check if original file exists locally
+    if (document.filePath && fs.existsSync(document.filePath)) {
+      res.download(path.resolve(document.filePath), document.fileName);
+      return;
+    }
+
+    // If no file found, return 404
+    res.status(404).json({ 
+      message: 'Document file not found',
+      documentId,
+      filePath: document.filePath,
+      gcsPath: document.gcsPath
+    });
+
+  } catch (error: any) {
+    console.error('Failed to download document:', error);
+    res.status(500).json({
+      message: 'Failed to download document',
+      error: error.message,
     });
   }
 });

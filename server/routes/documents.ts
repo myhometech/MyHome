@@ -600,7 +600,7 @@ router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
 
 
 // Clean up orphaned insights (insights pointing to non-existent documents)
-router.post('/cleanup-orphaned-insights', async (req: any, res: any) => {
+router.post('/cleanup-orphaned-insights', async (req: AuthenticatedRequest, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }

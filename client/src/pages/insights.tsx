@@ -15,6 +15,7 @@ import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useLocation } from 'wouter';
 import type { DocumentInsight } from '@shared/schema';
+import { InsightCleanupButton } from "@/components/insight-cleanup-button";
 
 // Manual Event interface
 interface ManualEvent {
@@ -77,16 +78,16 @@ export function InsightsPage() {
         page: currentPage.toString(),
         limit: pageSize.toString()
       });
-      
+
       console.log('[INSIGHTS-QUERY] Fetching insights with params:', Object.fromEntries(params));
-      
+
       const response = await fetch(`/api/insights?${params}`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
         console.error('[INSIGHTS-QUERY] Failed to fetch insights:', {
@@ -96,13 +97,13 @@ export function InsightsPage() {
         });
         throw new Error(errorData.message || `Failed to fetch insights: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('[INSIGHTS-QUERY] Successfully fetched insights:', {
         count: data.insights?.length || 0,
         totalCount: data.totalCount || 0
       });
-      
+
       return data;
     },
     retry: (failureCount, error) => {
@@ -139,14 +140,14 @@ export function InsightsPage() {
     queryFn: async () => {
       if (!selectedDocumentId) return null;
       console.log(`[INSIGHTS-PAGE] Fetching document details for ID: ${selectedDocumentId}`);
-      
+
       const response = await fetch(`/api/documents/${selectedDocumentId}`, { 
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
         console.error(`[INSIGHTS-PAGE] Failed to fetch document ${selectedDocumentId}:`, {
@@ -156,7 +157,7 @@ export function InsightsPage() {
         });
         throw new Error(`Document fetch failed: ${response.status} - ${errorData.message || response.statusText}`);
       }
-      
+
       const data = await response.json();
       console.log(`[INSIGHTS-PAGE] Document ${selectedDocumentId} fetched successfully:`, data.name);
       return data;
@@ -441,7 +442,7 @@ export function InsightsPage() {
                       const linkedAsset = event.linkedAssetId 
                         ? userAssets.find(asset => asset.id === event.linkedAssetId)
                         : undefined;
-                      
+
                       return (
                         <ManualEventCard
                           key={event.id}
@@ -519,7 +520,7 @@ export function InsightsPage() {
                   const linkedAsset = event.linkedAssetId 
                     ? userAssets.find(asset => asset.id === event.linkedAssetId)
                     : undefined;
-                  
+
                   return (
                     <ManualEventCard
                       key={event.id}

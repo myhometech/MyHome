@@ -201,17 +201,28 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
 
     console.log(`[INSIGHT-CARD] Clicked insight ${insight.id} with documentId:`, insight.documentId);
 
-    // Validate documentId more thoroughly
-    const documentId = Number(insight.documentId);
-    if (!insight.documentId || isNaN(documentId) || documentId <= 0) {
+    // Enhanced documentId validation with type checking
+    const documentId = insight.documentId;
+    
+    // Check for null, undefined, empty string, or non-positive numbers
+    if (!documentId || 
+        documentId === null || 
+        documentId === undefined || 
+        documentId === '' || 
+        documentId === '0' ||
+        (typeof documentId === 'string' && documentId.trim() === '') ||
+        (typeof documentId === 'number' && (isNaN(documentId) || documentId <= 0)) ||
+        (typeof documentId === 'string' && (isNaN(Number(documentId)) || Number(documentId) <= 0))) {
+      
       console.warn(`[INSIGHT-CARD] Invalid documentId for insight ${insight.id}:`, {
         raw: insight.documentId,
-        converted: documentId,
-        isNaN: isNaN(documentId)
+        type: typeof insight.documentId,
+        converted: Number(insight.documentId),
+        isNaN: isNaN(Number(insight.documentId))
       });
 
       // Check if this is a manual event type insight
-      if (insight.id && insight.id.startsWith('manual-')) {
+      if (insight.id && (insight.id.startsWith('manual-') || insight.type === 'manual_event')) {
         toast({
           title: "Manual Event",
           description: "This is a manually created event, not linked to a document.",
@@ -219,17 +230,19 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
       } else {
         toast({
           title: "Unable to open document",
-          description: "This insight is not linked to a document.",
+          description: "This insight is not properly linked to a document. Please contact support if this persists.",
           variant: "destructive",
         });
       }
       return;
     }
 
+    const numericDocumentId = Number(documentId);
+    
     // First verify the document exists before navigating
     try {
-      console.log(`[INSIGHT-CARD] Verifying document ${documentId} exists`);
-      const response = await fetch(`/api/documents/${documentId}`, {
+      console.log(`[INSIGHT-CARD] Verifying document ${numericDocumentId} exists`);
+      const response = await fetch(`/api/documents/${numericDocumentId}`, {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
@@ -237,15 +250,37 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
       });
 
       if (!response.ok) {
-        console.warn(`[INSIGHT-CARD] Document ${documentId} verification failed:`, response.status);
+        console.warn(`[INSIGHT-CARD] Document ${numericDocumentId} verification failed:`, {
+          status: response.status,
+          statusText: response.statusText,
+          insightId: insight.id,
+          documentId: numericDocumentId
+        });
         
         if (response.status === 404) {
+          // Log for potential cleanup
+          console.error(`[ORPHANED-INSIGHT] Found insight ${insight.id} referencing non-existent document ${numericDocumentId}`);
+          
           toast({
             title: "Document not found",
-            description: "This document no longer exists. The insight may be outdated.",
+            description: "This document no longer exists. The insight will be cleaned up automatically.",
             variant: "destructive",
           });
-        } else if (response.status === 401) {
+          
+          // Optionally trigger cleanup for this specific insight
+          try {
+            await fetch(`/api/insights/${insight.id}`, {
+              method: 'DELETE',
+              credentials: 'include'
+            });
+            console.log(`[INSIGHT-CARD] Auto-deleted orphaned insight ${insight.id}`);
+            // Refresh the insights list
+            queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+          } catch (deleteError) {
+            console.warn(`[INSIGHT-CARD] Failed to auto-delete orphaned insight:`, deleteError);
+          }
+          
+        } else if (response.status === 401 || response.status === 403) {
           toast({
             title: "Access denied",
             description: "You don't have permission to view this document.",
@@ -254,7 +289,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
         } else {
           toast({
             title: "Unable to access document",
-            description: "There was an error accessing the document. Please try again.",
+            description: `Server error (${response.status}). Please try again later.`,
             variant: "destructive",
           });
         }
@@ -262,19 +297,19 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
       }
 
       const documentData = await response.json();
-      console.log(`[INSIGHT-CARD] Document ${documentId} verified:`, documentData.name);
+      console.log(`[INSIGHT-CARD] Document ${numericDocumentId} verified:`, documentData.name);
 
       // Navigate to document if verification successful
       if (onDocumentClick) {
         console.log(`[INSIGHT-CARD] Using parent document click handler`);
-        onDocumentClick(documentId);
+        onDocumentClick(numericDocumentId);
       } else {
         console.log(`[INSIGHT-CARD] Navigating to document page`);
-        setLocation(`/document/${documentId}`);
+        setLocation(`/document/${numericDocumentId}`);
       }
 
     } catch (error) {
-      console.error(`[INSIGHT-CARD] Error verifying document ${documentId}:`, error);
+      console.error(`[INSIGHT-CARD] Error verifying document ${numericDocumentId}:`, error);
       toast({
         title: "Connection error",
         description: "Unable to verify document access. Please check your connection.",

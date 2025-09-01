@@ -612,65 +612,100 @@ router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
 });
 
 // Clean up orphaned insights that reference deleted documents
-  router.post('/cleanup-orphaned-insights', requireAuth, async (req: AuthenticatedRequest, res: any) => {
-    try {
-      const userId = req.user.id;
+router.post('/cleanup-orphaned-insights', async (req: any, res: any) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
 
-      // Get all insights for the user
-      const allInsights = await storage.getInsights(userId);
-      console.log(`[CLEANUP] Found ${allInsights.length} total insights for user ${userId}`);
+  try {
+    const userId = req.user.id;
 
-      let cleanedCount = 0;
-      let orphanedInsights = [];
+    // Get all insights for the user
+    const allInsights = await storage.getInsights(userId);
+    console.log(`[CLEANUP] Found ${allInsights.length} total insights for user ${userId}`);
 
-      // Check each insight to see if its document still exists
-      for (const insight of allInsights) {
-        // Skip insights without documentId (vehicle insights, manual events)
-        if (!insight.documentId || insight.documentId <= 0) {
+    let cleanedCount = 0;
+    let orphanedInsights = [];
+    let invalidDataInsights = [];
+
+    // Check each insight for data integrity issues
+    for (const insight of allInsights) {
+      // Check for invalid documentId data types and values
+      const documentId = insight.documentId;
+      
+      // Flag insights with invalid documentId values
+      if (documentId !== null && documentId !== undefined && 
+          (typeof documentId === 'string' && documentId.trim() !== '' && documentId !== '0') ||
+          (typeof documentId === 'number' && documentId > 0)) {
+        
+        const numericDocumentId = Number(documentId);
+        
+        if (isNaN(numericDocumentId) || numericDocumentId <= 0) {
+          invalidDataInsights.push(insight);
+          console.log(`[CLEANUP] Found insight with invalid documentId data: ${insight.id} -> ${documentId} (${typeof documentId})`);
           continue;
         }
 
+        // Check if the document actually exists
         try {
-          const document = await storage.getDocument(insight.documentId, userId);
+          const document = await storage.getDocument(numericDocumentId, userId);
           if (!document) {
             orphanedInsights.push(insight);
-            console.log(`[CLEANUP] Found orphaned insight: ${insight.id} -> document ${insight.documentId}`);
+            console.log(`[CLEANUP] Found orphaned insight: ${insight.id} -> document ${numericDocumentId}`);
           }
         } catch (error) {
           // Document doesn't exist or error accessing it
           orphanedInsights.push(insight);
-          console.log(`[CLEANUP] Found orphaned insight (error): ${insight.id} -> document ${insight.documentId}`);
+          console.log(`[CLEANUP] Found orphaned insight (error): ${insight.id} -> document ${numericDocumentId}`, error);
         }
       }
-
-      // Delete orphaned insights
-      for (const orphanedInsight of orphanedInsights) {
-        try {
-          await storage.deleteInsight(orphanedInsight.id);
-          cleanedCount++;
-          console.log(`[CLEANUP] Deleted orphaned insight: ${orphanedInsight.id}`);
-        } catch (error) {
-          console.error(`[CLEANUP] Failed to delete orphaned insight ${orphanedInsight.id}:`, error);
-        }
-      }
-
-      console.log(`[CLEANUP] Cleanup completed: ${cleanedCount} orphaned insights removed`);
-
-      res.json({
-        message: `Cleanup completed: ${cleanedCount} orphaned insights removed`,
-        cleanedCount,
-        orphanedFound: orphanedInsights.length,
-        totalInsights: allInsights.length
-      });
-
-    } catch (error: any) {
-      console.error('Failed to clean up orphaned insights:', error);
-      res.status(500).json({
-        message: 'Failed to clean up orphaned insights',
-        error: error.message,
-      });
+      // Skip insights without documentId (vehicle insights, manual events) - these are valid
     }
-  });
+
+    // Delete insights with invalid data
+    for (const invalidInsight of invalidDataInsights) {
+      try {
+        await storage.deleteInsight(invalidInsight.id);
+        cleanedCount++;
+        console.log(`[CLEANUP] Deleted insight with invalid data: ${invalidInsight.id}`);
+      } catch (error) {
+        console.error(`[CLEANUP] Failed to delete invalid insight ${invalidInsight.id}:`, error);
+      }
+    }
+
+    // Delete orphaned insights
+    for (const orphanedInsight of orphanedInsights) {
+      try {
+        await storage.deleteInsight(orphanedInsight.id);
+        cleanedCount++;
+        console.log(`[CLEANUP] Deleted orphaned insight: ${orphanedInsight.id}`);
+      } catch (error) {
+        console.error(`[CLEANUP] Failed to delete orphaned insight ${orphanedInsight.id}:`, error);
+      }
+    }
+
+    console.log(`[CLEANUP] Deep cleanup completed: ${cleanedCount} invalid insights removed`);
+
+    res.json({
+      message: `Deep cleanup completed: ${cleanedCount} invalid insights removed`,
+      cleanedCount,
+      orphanedFound: orphanedInsights.length,
+      invalidDataFound: invalidDataInsights.length,
+      totalInsights: allInsights.length,
+      details: {
+        orphanedInsights: orphanedInsights.map(i => ({ id: i.id, documentId: i.documentId })),
+        invalidDataInsights: invalidDataInsights.map(i => ({ id: i.id, documentId: i.documentId, type: typeof i.documentId }))
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Failed to clean up insights:', error);
+    res.status(500).json({
+      message: 'Failed to clean up insights',
+      error: error.message,
+    });
+  }
+});
 
 
 // Search-as-you-type endpoint with ranking and relevance

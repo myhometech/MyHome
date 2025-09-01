@@ -104,15 +104,26 @@ export function InsightsPage() {
   });
 
   // Fetch document details when selectedDocumentId changes
-  const { data: documentDetails, isLoading: documentLoading } = useQuery({
+  const { data: documentDetails, isLoading: documentLoading, error: documentError } = useQuery({
     queryKey: ['/api/documents', selectedDocumentId],
     queryFn: async () => {
       if (!selectedDocumentId) return null;
+      console.log(`Fetching document details for ID: ${selectedDocumentId}`);
       const response = await fetch(`/api/documents/${selectedDocumentId}`, { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch document details');
-      return response.json();
+      if (!response.ok) {
+        console.error(`Failed to fetch document ${selectedDocumentId}: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch document details: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(`Document ${selectedDocumentId} fetched successfully:`, data.name);
+      return data;
     },
     enabled: !!selectedDocumentId,
+    retry: (failureCount, error) => {
+      // Don't retry on 404 errors
+      if (error.message.includes('404')) return false;
+      return failureCount < 2;
+    }
   });
 
   const insights = insightsData?.insights || [];
@@ -502,6 +513,24 @@ export function InsightsPage() {
                 <p className="text-gray-600 mb-4">Loading document...</p>
                 <Button variant="outline" onClick={handleCloseDocument}>
                   Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error modal for when document fails to load */}
+        {selectedDocumentId && documentError && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleCloseDocument}>
+            <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+              <div className="text-center">
+                <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Document Not Found</h3>
+                <p className="text-gray-600 mb-4">
+                  The document you're trying to view is not available or may have been deleted.
+                </p>
+                <Button onClick={handleCloseDocument}>
+                  Close
                 </Button>
               </div>
             </div>

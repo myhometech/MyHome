@@ -286,7 +286,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle document click from insight card
   const handleDocumentClick = (documentId: number) => {
-    setLocation(`/unified-documents?documentId=${documentId}`);
+    setSelectedDocumentId(documentId);
   };
 
   // Handle document download

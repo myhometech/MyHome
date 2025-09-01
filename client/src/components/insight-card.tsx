@@ -202,8 +202,8 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       if (onDocumentClick) {
         onDocumentClick(insight.documentId);
       } else {
-        // Navigate directly to unified documents page with document ID to open the document viewer
-        setLocation(`/unified-documents?documentId=${insight.documentId}`);
+        // Navigate to insights page first, which can handle document opening properly
+        setLocation(`/insights?documentId=${insight.documentId}`);
       }
     }
   };

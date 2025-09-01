@@ -1265,7 +1265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Handle unencrypted documents (legacy support)
+      // Handle unencrypted documents
       // For images, serve the file directly
       if (document.mimeType.startsWith('image/')) {
         res.setHeader('Content-Type', document.mimeType);
@@ -1770,7 +1770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // INSIGHT-102: Get insights with optional filters and tier support
-  app.get('/api/insights', requireAuth, async (req: any, res) => {
+  app.get('/api/insights', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = getUserId(req);
       const {
@@ -1794,7 +1794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const priorityFilter = priority === 'all' ? undefined : priority;
       const typeFilter = type === 'all' ? undefined : type;
 
-      const { insights, totalCount } = await storage.getPaginatedInsights(
+      const { insights: allInsights, totalCount } = await storage.getPaginatedInsights(
         userId,
         statusFilter,
         priorityFilter,
@@ -1803,6 +1803,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         offset
       );
 
+      // Filter out dismissed insights unless specifically requested
+      const showDismissed = req.query.include_dismissed === 'true';
+      const insights = showDismissed ? allInsights : allInsights.filter(insight => insight.status !== 'dismissed');
+
       // Log insights with their document IDs for debugging
       console.log(`[INSIGHTS-DEBUG] Found ${insights.length} insights with document IDs:`, 
         insights.map(i => ({ id: i.id, documentId: i.documentId, title: i.title })));
@@ -1810,7 +1814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         insights,
-        totalCount,
+        totalCount: showDismissed ? totalCount : insights.length, // Adjust totalCount if filtering
         page: pageNum,
         limit: limitNum,
         totalPages: Math.ceil(totalCount / limitNum)
@@ -1850,27 +1854,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Combine all insights
       const combinedInsights = [...filteredAIInsights, ...manualInsights];
 
-      // Calculate metrics
-      const openInsights = combinedInsights.filter(i => i.status === 'open' || !i.status);
-      const highPriority = combinedInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
-      const resolvedInsights = combinedInsights.filter(i => i.status === 'resolved');
+      // Calculate statistics (exclude dismissed insights)
+      const activeInsights = combinedInsights.filter(i => i.status !== 'dismissed');
+      const openInsights = activeInsights.filter(i => i.status === 'open' || !i.status);
+      const resolvedInsights = activeInsights.filter(i => i.status === 'resolved');
+      const highPriority = activeInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
 
       // Type-specific metrics (open only) - exclude unwanted types
-      const manualEventCount = combinedInsights.filter(i => i.type === 'manual_event' && (i.status === 'open' || !i.status));
-      const summaryInsights = combinedInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status));
-      const contactInsights = combinedInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status));
+      const manualEventCount = activeInsights.filter(i => i.type === 'manual_event' && (i.status === 'open' || !i.status));
+      const summaryInsights = activeInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status));
+      const contactInsights = activeInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status));
 
       // Upcoming deadlines (within 30 days)
       const today = new Date();
       const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
-      const upcomingDeadlines = combinedInsights.filter(i => {
+      const upcomingDeadlines = activeInsights.filter(i => {
         if (!i.dueDate || i.status !== 'open') return false;
         const dueDate = new Date(i.dueDate);
         return dueDate >= today && dueDate <= thirtyDaysFromNow;
       });
 
       res.json({
-        total: combinedInsights.length,
+        total: activeInsights.length,
         open: openInsights.length,
         highPriority: highPriority.length,
         resolved: resolvedInsights.length,
@@ -1883,8 +1888,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         byPriority: {
           high: highPriority.length,
-          medium: combinedInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length,
-          low: combinedInsights.filter(i => i.priority === 'low' && (i.status === 'open' || !i.status)).length
+          medium: activeInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length,
+          low: activeInsights.filter(i => i.priority === 'low' && (i.status === 'open' || !i.status)).length
         }
       });
 

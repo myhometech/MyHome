@@ -49,9 +49,10 @@ export default function DocumentPage() {
   useEffect(() => {
     if (documentError) {
       console.error('Document not found or error loading:', documentError);
-      setLocation('/');
+      console.log('Document ID that failed:', documentId);
+      // Don't immediately redirect - let the UI handle the error gracefully
     }
-  }, [documentError, setLocation]);
+  }, [documentError, setLocation, documentId]);
 
   if (documentLoading) {
     return (

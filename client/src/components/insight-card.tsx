@@ -200,7 +200,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
 
     console.log(`[INSIGHT-CARD] Clicked insight ${insight.id} with documentId:`, insight.documentId);
 
-    if (insight.documentId && !isNaN(insight.documentId)) {
+    if (insight.documentId && !isNaN(insight.documentId) && insight.documentId > 0) {
       // If we have a document click handler (from parent component), use it
       if (onDocumentClick) {
         console.log(`[INSIGHT-CARD] Using parent document click handler for document ${insight.documentId}`);

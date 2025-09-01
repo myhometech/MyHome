@@ -1513,6 +1513,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // INSIGHT-102: Get existing insights for a document with tier filtering
+  app.get('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
+      const tier = req.query.tier as string; // INSIGHT-102: Optional tier filter ('primary', 'secondary')
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
+
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      const allInsights = await storage.getDocumentInsights(documentId, userId, tier);
+
+      // Filter out unwanted insight types at API level
+      const insights = allInsights.filter(insight => 
+        !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
+      );
+
+      res.json({
+        success: true,
+        insights,
+        documentId,
+        totalCount: insights.length,
+        tier: tier || 'all',
+        // INSIGHT-102: Include tier breakdown
+        tierBreakdown: {
+          primary: insights.filter(i => i.tier === 'primary').length,
+          secondary: insights.filter(i => i.tier === 'secondary').length
+        }
+      });
+
+    } catch (error) {
+      console.error("Error fetching document insights:", error);
+      res.status(500).json({ message: "Failed to fetch document insights" });
+    }
+  });
+
   // DOC-501: Generate AI insights for a document
   app.post('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
     const startTime = Date.now();

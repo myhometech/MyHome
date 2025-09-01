@@ -370,17 +370,25 @@ router.get('/:id', async (req: any, res: any) => {
     if (!document) {
       console.log(`[DOCUMENT-ROUTE] Document ${documentId} not found for user ${userId}`);
       
-      // Check if document exists for any user (debugging purposes)
+      // Enhanced debugging - check for document in insights
       try {
+        const userInsights = await storage.getInsights(userId);
+        const insightWithDocument = userInsights.find(insight => 
+          insight.documentId && Number(insight.documentId) === documentId
+        );
+        
+        if (insightWithDocument) {
+          console.log(`[DOCUMENT-ROUTE] Found insight ${insightWithDocument.id} referencing missing document ${documentId}`);
+        }
+        
         const allDocuments = await storage.getDocuments(userId);
-        const documentExists = allDocuments.some(doc => doc.id === documentId);
-        const userDocumentIds = allDocuments.map(doc => doc.id).slice(0, 10); // First 10 IDs
+        const userDocumentIds = allDocuments.map(doc => doc.id).slice(0, 10);
         
         console.log(`[DOCUMENT-ROUTE] Debug info:`, {
           requestedDocumentId: documentId,
           userDocumentCount: allDocuments.length,
-          documentExistsInUserDocs: documentExists,
           sampleUserDocumentIds: userDocumentIds,
+          hasInsightForDocument: !!insightWithDocument,
           userId: userId
         });
       } catch (debugError) {
@@ -589,6 +597,61 @@ router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
     res.json({
       success: true,
       tips,
+
+
+// Clean up orphaned insights (insights pointing to non-existent documents)
+router.post('/cleanup-orphaned-insights', async (req: any, res: any) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const userId = req.user.id;
+    
+    // Get all user insights
+    const insights = await storage.getInsights(userId);
+    
+    // Get all user documents
+    const documents = await storage.getDocuments(userId);
+    const documentIds = new Set(documents.map(doc => doc.id));
+    
+    // Find orphaned insights
+    const orphanedInsights = insights.filter(insight => 
+      insight.documentId && 
+      Number(insight.documentId) > 0 && 
+      !documentIds.has(Number(insight.documentId))
+    );
+    
+    console.log(`[CLEANUP] Found ${orphanedInsights.length} orphaned insights for user ${userId}`);
+    
+    // Mark orphaned insights as dismissed
+    let cleanedCount = 0;
+    for (const insight of orphanedInsights) {
+      try {
+        await storage.updateInsightStatus(insight.id, 'dismissed');
+        cleanedCount++;
+        console.log(`[CLEANUP] Dismissed orphaned insight ${insight.id} pointing to document ${insight.documentId}`);
+      } catch (updateError) {
+        console.error(`[CLEANUP] Failed to dismiss insight ${insight.id}:`, updateError);
+      }
+    }
+    
+    res.json({
+      success: true,
+      orphanedFound: orphanedInsights.length,
+      cleaned: cleanedCount,
+      message: `Cleaned up ${cleanedCount} orphaned insights`
+    });
+
+  } catch (error: any) {
+    console.error('Failed to clean up orphaned insights:', error);
+    res.status(500).json({
+      message: 'Failed to clean up orphaned insights',
+      error: error.message,
+    });
+  }
+});
+
       documentId: documentId,
       currentOcrText: document.extractedText || '',
       currentConfidence: 0

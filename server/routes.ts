@@ -1089,6 +1089,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
 
       console.log(`[DOCUMENT-API] Fetching document ${documentId} for user ${userId}`);
+      console.log(`[DOCUMENT-API] Request user object:`, req.user);
+      console.log(`[DOCUMENT-API] Request params:`, req.params);
 
       if (isNaN(documentId) || documentId <= 0) {
         console.warn(`[DOCUMENT-API] Invalid document ID: ${req.params.id}`);
@@ -1107,7 +1109,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log(`[DOCUMENT-API] Calling storage.getDocument(${documentId}, "${userId}")`);
       const document = await storage.getDocument(documentId, userId);
+      console.log(`[DOCUMENT-API] Document result:`, document ? `Found: ${document.name}` : 'Not found');
 
       if (!document) {
         console.warn(`[DOCUMENT-API] Document ${documentId} not found for user ${userId}`);

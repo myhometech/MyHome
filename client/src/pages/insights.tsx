@@ -108,22 +108,41 @@ export function InsightsPage() {
     queryKey: ['/api/documents', selectedDocumentId],
     queryFn: async () => {
       if (!selectedDocumentId) return null;
-      console.log(`Fetching document details for ID: ${selectedDocumentId}`);
-      const response = await fetch(`/api/documents/${selectedDocumentId}`, { credentials: 'include' });
+      console.log(`[INSIGHTS-PAGE] Fetching document details for ID: ${selectedDocumentId}`);
+      
+      const response = await fetch(`/api/documents/${selectedDocumentId}`, { 
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
       if (!response.ok) {
-        console.error(`Failed to fetch document ${selectedDocumentId}: ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to fetch document details: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error(`[INSIGHTS-PAGE] Failed to fetch document ${selectedDocumentId}:`, {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(`Document fetch failed: ${response.status} - ${errorData.message || response.statusText}`);
       }
+      
       const data = await response.json();
-      console.log(`Document ${selectedDocumentId} fetched successfully:`, data.name);
+      console.log(`[INSIGHTS-PAGE] Document ${selectedDocumentId} fetched successfully:`, data.name);
       return data;
     },
-    enabled: !!selectedDocumentId,
+    enabled: !!selectedDocumentId && selectedDocumentId > 0,
     retry: (failureCount, error) => {
-      // Don't retry on 404 errors
-      if (error.message.includes('404')) return false;
+      console.log(`[INSIGHTS-PAGE] Retry decision for document ${selectedDocumentId}:`, {
+        failureCount,
+        errorMessage: error.message,
+        willRetry: !error.message.includes('404') && failureCount < 2
+      });
+      // Don't retry on 404 errors or permission errors
+      if (error.message.includes('404') || error.message.includes('403')) return false;
       return failureCount < 2;
-    }
+    },
+    refetchOnWindowFocus: false
   });
 
   const insights = insightsData?.insights || [];

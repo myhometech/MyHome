@@ -197,14 +197,25 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       return;
     }
 
-    if (insight.documentId) {
+    console.log(`[INSIGHT-CARD] Clicked insight ${insight.id} with documentId:`, insight.documentId);
+
+    if (insight.documentId && !isNaN(insight.documentId)) {
       // If we have a document click handler (from parent component), use it
       if (onDocumentClick) {
+        console.log(`[INSIGHT-CARD] Using parent document click handler for document ${insight.documentId}`);
         onDocumentClick(insight.documentId);
       } else {
         // Navigate to insights page first, which can handle document opening properly
+        console.log(`[INSIGHT-CARD] Navigating to insights page with document ${insight.documentId}`);
         setLocation(`/insights?documentId=${insight.documentId}`);
       }
+    } else {
+      console.warn(`[INSIGHT-CARD] Invalid or missing documentId for insight ${insight.id}:`, insight.documentId);
+      toast({
+        title: "Unable to open document",
+        description: "This insight is not linked to a document.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -286,8 +297,9 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
                   <AlertCircle className="h-4 w-4 mr-2" />
                   Reopen
                 </DropdownMenuItem>
-                {insight.documentId && (
+                {insight.documentId && !isNaN(insight.documentId) && (
                   <DropdownMenuItem onClick={() => {
+                    console.log(`[INSIGHT-CARD] Dropdown: Opening document ${insight.documentId}`);
                     if (onDocumentClick) {
                       onDocumentClick(insight.documentId);
                     } else {

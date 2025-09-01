@@ -247,7 +247,7 @@ function generateInsightMessage(insight: any, documentName: string): string {
   if (!insight || typeof insight !== 'object') {
     return `${documentName}: Insight not available`;
   }
-  
+
   const docName = documentName.length > 30 ? documentName.substring(0, 30) + '...' : documentName;
   const insightType = insight.type || 'unknown';
   const insightTitle = insight.title || 'Untitled insight';
@@ -276,7 +276,7 @@ function extractDueDate(insight: any): string | null {
   if (!insight || typeof insight !== 'object') {
     return null;
   }
-  
+
   const content = (insight.content || '').toLowerCase();
   const dateRegex = /(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}-\d{1,2}-\d{4})/;
 
@@ -340,7 +340,7 @@ const requireChatEnabled = async (req: any, res: any, next: any) => {
     };
 
     const isChatEnabled = await chatConfigService.isChatEnabled(context);
-    
+
     if (!isChatEnabled) {
       console.log(`❌ [CHAT CHECK] Chat access denied for user: ${user.email} (tier: ${user.subscriptionTier})`);
       return res.status(403).json({ 
@@ -405,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Session save error:", err);
           return res.status(500).json({ error: "Session save failed" });
         }
-        
+
         res.json({ 
           message: "Login successful", 
           user: { 
@@ -477,7 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (req.path.includes('/auth/') || req.path.includes('/email-ingest')) {
       return next();
     }
-    
+
     return requireAuth(req, res, () => loadHouseholdRole(req as AuthenticatedRequest, res, next));
   });
 
@@ -716,14 +716,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/search', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const searchQuery = req.query.q as string;
+      const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
+      const searchQuery = req.query.search as string;
+      const expiryFilter = req.query.expiryFilter as 'expired' | 'expiring-soon' | 'this-month' | undefined;
 
       if (!searchQuery || searchQuery.trim().length === 0) {
+        console.log('🔍 Search query empty, returning empty results.');
         return res.json([]);
       }
 
+      console.log(`🔍 Searching documents for user ${userId} with query: "${searchQuery}", categoryId: ${categoryId}, expiryFilter: ${expiryFilter}`);
+
       // Use regular document search with filtering as reliable fallback
-      const allDocuments = await storage.getDocuments(userId);
+      const allDocuments = await storage.getDocuments(userId, categoryId, undefined, expiryFilter); // Pass undefined for search to get all
       const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 1);
 
       const filteredResults = allDocuments.filter(doc => {
@@ -738,6 +743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return searchTerms.some(term => searchContent.includes(term));
       });
 
+      console.log(`🔍 Found ${filteredResults.length} documents matching query "${searchQuery}"`);
       res.json(filteredResults);
     } catch (error) {
       console.error("Error searching documents:", error);
@@ -779,7 +785,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const sort = req.query.sort as string;
 
+      console.log(`[DOCUMENTS-FETCH] Fetching documents for user ${userId} with category: ${categoryId}, search: "${search}", expiryFilter: ${expiryFilter}, filters: ${JSON.stringify(filters)}, sort: ${sort}`);
+
       const documents = await storage.getDocuments(userId, categoryId, search, expiryFilter, Object.keys(filters).length ? filters : undefined, sort);
+      console.log(`[DOCUMENTS-FETCH] Found ${documents.length} documents.`);
       res.json(documents);
     } catch (error) {
       console.error("Error fetching documents:", error);
@@ -1113,74 +1122,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
+  // Get document by ID with enhanced security
   app.get('/api/documents/:id', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
 
-      console.log(`🔍 [DOCUMENT FETCH] Attempting to fetch document ${documentId} for user ${userId}`);
-      console.log(`🔍 [DOCUMENT FETCH] Request headers:`, {
-        'user-agent': req.get('User-Agent'),
-        'referer': req.get('Referer'),
-        'origin': req.get('Origin')
-      });
+      console.log(`[DOCUMENT-DEBUG] Fetching document ${documentId} for user ${userId}`);
 
       if (isNaN(documentId)) {
-        console.log(`❌ [DOCUMENT FETCH] Invalid document ID: ${req.params.id}`);
+        console.log(`[DOCUMENT-DEBUG] Invalid document ID: ${req.params.id}`);
         return res.status(400).json({ message: "Invalid document ID" });
       }
 
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
-        console.log(`❌ [DOCUMENT FETCH] Document ${documentId} not found for user ${userId}`);
-        // Check if document exists for another user (debugging)
-        try {
-          const allDocuments = await storage.getDocuments(userId);
-          console.log(`🔍 [DOCUMENT FETCH] User has ${allDocuments.length} total documents`);
-          console.log(`🔍 [DOCUMENT FETCH] Document IDs: ${allDocuments.map(d => d.id).join(', ')}`);
-        } catch (debugError) {
-          console.error('❌ [DOCUMENT FETCH] Debug query failed:', debugError);
-        }
-        return res.status(404).json({ message: "Document not found" });
+        console.log(`[DOCUMENT-DEBUG] Document ${documentId} not found for user ${userId}`);
+        return res.status(404).json({ 
+          message: "Document not found or you don't have permission to access it",
+          documentId 
+        });
       }
 
-      console.log(`✅ [DOCUMENT FETCH] Document ${documentId} found:`, {
-        id: document.id,
-        name: document.name,
-        fileName: document.fileName,
-        mimeType: document.mimeType,
-        source: document.source,
-        uploadSource: document.uploadSource,
-        hasEmailContext: !!document.emailContext,
-        emailContextType: typeof document.emailContext,
-        messageId: document.messageId
-      });
-
-      // Ensure emailContext is properly serialized
-      const serializedDocument = {
-        ...document,
-        emailContext: document.emailContext ? 
-          (typeof document.emailContext === 'string' ? 
-            JSON.parse(document.emailContext) : 
-            document.emailContext) : 
-          null
-      };
-
-      console.log(`✅ [DOCUMENT FETCH] Returning serialized document with emailContext:`, {
-        hasEmailContext: !!serializedDocument.emailContext,
-        emailContextKeys: serializedDocument.emailContext ? Object.keys(serializedDocument.emailContext) : []
-      });
-
-      res.json(serializedDocument);
+      console.log(`[DOCUMENT-DEBUG] Document ${documentId} found: ${document.name}`);
+      res.json(document);
     } catch (error) {
-      const err = error as Error;
-      console.error(`💥 [DOCUMENT FETCH] Error fetching document ${req.params.id}:`, err);
-      console.error(`💥 [DOCUMENT FETCH] Error stack:`, err.stack);
-      res.status(500).json({ 
-        message: "Failed to fetch document",
-        error: err.message,
-        documentId: req.params.id
-      });
+      console.error('Get document error:', error);
+      res.status(500).json({ message: 'Failed to fetch document' });
     }
   });
 
@@ -1442,7 +1410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TICKET 4: Get original document for audit logging
       const originalDocument = await storage.getDocument(documentId, userId);
       const userHousehold = await storage.getUserHousehold(userId);
-      
+
       const updatedDocument = await storage.updateDocument(documentId, userId, {
         name: name ? name.trim() : undefined,
         expiryDate: expiryDate === '' ? null : expiryDate
@@ -1557,7 +1525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
     const startTime = Date.now();
     let documentId: number;
-    
+
     try {
       const userId = getUserId(req);
       documentId = parseInt(req.params.id);
@@ -1647,7 +1615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`🤖 [INSIGHT-DEBUG] Calling AI service for document ${documentId}`);
-      
+
       let insights;
       try {
         insights = await aiInsightService.generateDocumentInsights(
@@ -1694,7 +1662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             // TICKET 4: Generate dashboard-ready message and action URL with error handling
             let message, actionUrl, dueDate;
-            
+
             try {
               message = generateInsightMessage(insight, document.name);
               actionUrl = `/insights?documentId=${documentId}`;
@@ -1730,7 +1698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               insightVersion: 'v2.0',
               generatedAt: new Date()
             });
-            
+
             console.log(`✅ [INSIGHT-DEBUG] Successfully stored insight ${insight.id}`);
           } catch (insightError: any) {
             console.error(`❌ [INSIGHT-DEBUG] Failed to store insight ${insight.id}:`, insightError);
@@ -1788,43 +1756,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // INSIGHT-102: Get existing insights for a document with tier filtering
-  app.get('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
+  // INSIGHT-102: Get insights with optional filters and tier support
+  app.get('/api/insights', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
-      const documentId = parseInt(req.params.id);
-      const tier = req.query.tier as string; // INSIGHT-102: Optional tier filter ('primary', 'secondary')
+      const {
+        status = 'all',
+        priority = 'all',
+        type = 'all',
+        page = '1',
+        limit = '20'
+      } = req.query;
 
-      if (isNaN(documentId)) {
-        return res.status(400).json({ message: "Invalid document ID" });
-      }
+      console.log(`[INSIGHTS-DEBUG] Fetching insights for user ${userId} with filters:`, {
+        status, priority, type, page, limit
+      });
 
-      const document = await storage.getDocument(documentId, userId);
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
+      const pageNum = parseInt(page as string, 10);
+      const limitNum = parseInt(limit as string, 10);
+      const offset = (pageNum - 1) * limitNum;
 
-      const allInsights = await storage.getDocumentInsights(documentId, userId, tier);
+      // Convert 'all' to undefined for storage layer
+      const statusFilter = status === 'all' ? undefined : status;
+      const priorityFilter = priority === 'all' ? undefined : priority;
+      const typeFilter = type === 'all' ? undefined : type;
 
-      // Return all insights - let frontend handle filtering if needed
-      const insights = allInsights;
+      const { insights, totalCount } = await storage.getPaginatedInsights(
+        userId,
+        statusFilter,
+        priorityFilter,
+        typeFilter,
+        limitNum,
+        offset
+      );
+
+      // Log insights with their document IDs for debugging
+      console.log(`[INSIGHTS-DEBUG] Found ${insights.length} insights with document IDs:`, 
+        insights.map(i => ({ id: i.id, documentId: i.documentId, title: i.title })));
 
       res.json({
         success: true,
         insights,
-        documentId,
-        totalCount: insights.length,
-        tier: tier || 'all',
-        // INSIGHT-102: Include tier breakdown
-        tierBreakdown: {
-          primary: insights.filter(i => i.tier === 'primary').length,
-          secondary: insights.filter(i => i.tier === 'secondary').length
-        }
+        totalCount,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(totalCount / limitNum)
       });
 
     } catch (error) {
-      console.error("Error fetching document insights:", error);
-      res.status(500).json({ message: "Failed to fetch document insights" });
+      console.error('Failed to fetch insights:', error);
+      res.status(500).json({ message: 'Failed to fetch insights' });
     }
   });
 
@@ -1843,12 +1824,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
 
-      let insights = await storage.getInsights(userId, status === 'all' ? undefined : status, type, priority);
+      let insights = await storage.getInsights(userId);
+
+      // Filter insights based on status, type, and priority
+      const filteredInsightsByStatus = status === 'all' ? insights : insights.filter(i => i.status === status);
+      const filteredInsightsByType = type === 'all' ? filteredInsightsByStatus : filteredInsightsByStatus.filter(i => i.type === type);
+      const filteredInsightsByPriority = priority === 'all' ? filteredInsightsByType : filteredInsightsByType.filter(i => i.priority === priority);
 
       // Get manual events and convert them to insights format
       const manualEvents = await storage.getManualTrackedEvents(userId);
       const manualInsights = manualEvents
-        .filter(event => status === 'all' || event.status === 'active')
+        .filter(event => status === 'all' || event.status === 'active') // Apply status filter to manual events
         .map(event => ({
           id: `manual-${event.id}`,
           insightId: `manual-${event.id}`,
@@ -1861,7 +1847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           content: event.notes || `${event.category} reminder`,
           actionText: 'View Details',
           dueDate: event.dueDate,
-          status: event.status === 'active' ? 'open' : 'dismissed',
+          status: event.status === 'active' ? 'open' : 'dismissed', // Map manual event status to insight status
           createdAt: event.createdAt,
           updatedAt: event.updatedAt,
           source: 'manual',
@@ -1871,19 +1857,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           linkedDocumentIds: event.linkedDocumentIds
         }));
 
-      // Keep all AI insights for dashboard display
-      const filteredAIInsights = insights;
-
       // Combine AI insights and manual events
-      const allInsights = [...filteredAIInsights, ...manualInsights];
+      const allInsights = [...filteredInsightsByPriority, ...manualInsights];
 
       // TICKET 9: Filter insights with due dates if requested
-      const filteredInsights = hasDueDate 
+      const filteredInsightsWithDueDate = hasDueDate 
         ? allInsights.filter(insight => insight.dueDate && insight.dueDate !== null)
         : allInsights;
 
       // Enhanced insight format for calendar support - keep camelCase for consistency
-      const enhancedInsights = filteredInsights.map(insight => ({
+      const enhancedInsights = filteredInsightsWithDueDate.map(insight => ({
         ...insight,
         actionUrl: insight.type === 'manual_event' ? `/insights` : `/document/${insight.documentId}`,
         // Ensure dueDate is in YYYY-MM-DD format for calendar
@@ -2242,16 +2225,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TICKET 4: Log document deletion before actual deletion
       const documentToDelete = await storage.getDocument(documentId, userId);
       const userHousehold = await storage.getUserHousehold(userId);
-      
+
       await storage.deleteDocument(documentId, userId);
-      
+
       if (documentToDelete) {
         await AuditLogger.logDelete(documentId, userId, userHousehold?.id, {
           documentName: documentToDelete.name,
           deletedBy: userId,
         });
       }
-      
+
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting document:", error);
@@ -2280,7 +2263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const storageService = storageProvider();
           const fileBuffer = await storageService.download(document.gcsPath);
-          
+
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Cache-Control', 'public, max-age=3600');
           res.send(fileBuffer);
@@ -3848,20 +3831,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Import LLM adapter factory
       const { LLMProviderFactory } = await import('./services/llmProviderFactory.js');
       const { LLMGenerateRequestSchema } = await import('./services/llmAdapter.js');
-      
+
       // Validate request body
       const validatedRequest = LLMGenerateRequestSchema.parse(req.body);
-      
+
       // Get LLM adapter instance
       const llmAdapter = LLMProviderFactory.getInstance();
-      
+
       // Generate response
       const startTime = Date.now();
       const response = await llmAdapter.generate(validatedRequest);
       const totalLatencyMs = Date.now() - startTime;
-      
+
       console.log(`[INTERNAL-LLM] Generation completed: provider=${llmAdapter.getProviderName()}, latency=${totalLatencyMs}ms`);
-      
+
       // Return response in the exact format specified
       res.json({
         text: response.text,
@@ -3871,11 +3854,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         latencyMs: totalLatencyMs
       });
-      
+
     } catch (error) {
       const err = error as Error;
       console.error('[INTERNAL-LLM] Generation failed:', err.message);
-      
+
       // Return structured error response
       if (err.message.includes('Validation')) {
         return res.status(400).json({ 
@@ -3883,14 +3866,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: err.message 
         });
       }
-      
+
       if (err.message.includes('Circuit breaker')) {
         return res.status(503).json({ 
           error: 'Service temporarily unavailable', 
           message: 'LLM service is temporarily unavailable due to repeated failures' 
         });
       }
-      
+
       res.status(500).json({ 
         error: 'Internal server error', 
         message: 'Failed to generate LLM response' 
@@ -3935,7 +3918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { featureName } = req.params;
       const context = {
         userId,
-        userTier: user.subscriptionTier as 'free' | 'premium',
+        userTier: user.subscriptionTier as 'free' | 'beginner' | 'pro' | 'duo',
         sessionId: req.sessionID,
         userAgent: req.get('User-Agent'),
         ipAddress: req.ip,
@@ -3985,7 +3968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat API Endpoints
-  
+
   // Create a new conversation
   app.post('/api/conversations', requireAuth, requireChatEnabled, async (req: any, res) => {
     try {
@@ -4205,7 +4188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const eventAction = validatedData.role === 'user' ? 'chat_query' : 'chat_answer';
         const docIdsTouched = validatedData.citations ? validatedData.citations.map(c => c.docId) : [];
-        
+
         await storage.logDocumentEvent({
           documentId: null, // Chat events don't have a specific document
           userId: messageUserId || userId, // Use message user or requesting user
@@ -4227,7 +4210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`✅ [CHAT] Added ${validatedData.role} message to conversation ${req.params.id} for user ${user.email}`);
-      
+
       res.status(201).json(message);
     } catch (error: any) {
       console.error("Error creating message:", error);
@@ -4243,7 +4226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(401).json({ error: "User not found" });
       }
@@ -4261,7 +4244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log search query for audit tracking
       try {
         const docIds = searchResults.results.map(r => parseInt(r.docId)).filter(id => !isNaN(id));
-        
+
         await storage.logDocumentEvent({
           documentId: null, // Search queries don't target a specific document
           userId,
@@ -4280,7 +4263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`🔍 [SEARCH] Query "${validatedData.query}" for user ${user.email} returned ${searchResults.results.length} results`);
-      
+
       res.json(searchResults);
     } catch (error: any) {
       console.error("Error in search endpoint:", error);
@@ -4303,9 +4286,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { documentTextBackfillService } = await import('./documentTextBackfill');
       const batchSize = req.body.batchSize || 10;
-      
+
       const result = await documentTextBackfillService.backfillDocumentText(batchSize);
-      
+
       res.json({
         message: 'Document text backfill completed',
         ...result
@@ -4327,7 +4310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { documentTextBackfillService } = await import('./documentTextBackfill');
       const status = await documentTextBackfillService.getBackfillStatus();
-      
+
       res.json(status);
     } catch (error: any) {
       console.error("Error getting backfill status:", error);
@@ -4368,7 +4351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug endpoints have been removed after successful testing
+  // Debug routes have been removed after successful testing
 
   // Search analytics endpoint for admin monitoring
   app.get('/api/admin/search-analytics', requireAuth, async (req: any, res) => {
@@ -4857,9 +4840,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`🔍 DVLA Lookup request for VRN: ${vrn}`);
-      
+
       const result = await dvlaLookupService.lookupVehicleByVRN(vrn);
-      
+
       if (result.success) {
         console.log(`✅ DVLA Lookup successful for VRN: ${vrn}`);
         res.json(result);
@@ -5329,7 +5312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Main webhook error:', error);
 
         // Log error analytics
@@ -5487,7 +5470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -5515,14 +5498,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/household/members', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = getUserId(req);
-      
+
       const userHousehold = await storage.getUserHousehold(userId);
       if (!userHousehold) {
         return res.status(400).json({ message: "You must be in a household to view members" });
       }
 
       const members = await storage.getHouseholdMembers(userHousehold.id);
-      
+
       // Add role display names and permissions
       const enrichedMembers = members.map(member => ({
         ...member,
@@ -5541,7 +5524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const requesterId = getUserId(req);
       const targetUserId = req.params.userId;
-      
+
       if (requesterId === targetUserId) {
         return res.status(400).json({ message: "Cannot remove yourself from household" });
       }
@@ -5559,7 +5542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Remove membership
       await storage.removeHouseholdMembership(targetUserId);
-      
+
       res.status(204).send();
     } catch (error) {
       console.error("Error removing household member:", error);
@@ -5616,7 +5599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique token
       const crypto = await import('crypto');
       const token = crypto.randomBytes(32).toString('hex');
-      
+
       // Set expiry date (7 days from now)
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
@@ -5723,7 +5706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/household/invites', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = getUserId(req);
-      
+
       // Get user's household
       const userHousehold = await storage.getUserHousehold(userId);
       if (!userHousehold) {
@@ -5732,7 +5715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get pending invites for household
       const invites = await storage.getPendingInvitesByHousehold(userHousehold.id);
-      
+
       res.json(invites);
 
     } catch (error) {
@@ -5759,14 +5742,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all invites for the household to verify ownership
       const invites = await storage.getPendingInvitesByHousehold(userHousehold.id);
       const invite = invites.find(i => i.id === inviteId);
-      
+
       if (!invite) {
         return res.status(404).json({ message: "Invite not found" });
       }
 
       // Delete invite
       await storage.deletePendingInvite(inviteId);
-      
+
       res.status(204).send();
 
     } catch (error) {
@@ -5791,7 +5774,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/audit', requireAuth, requireDocumentAccess('read'), async (req: AuthenticatedRequest, res) => {
     try {
       const documentId = parseInt(req.params.id);
-      
+
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -5809,7 +5792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-      
+
       const auditTrail = await AuditLogger.getUserAuditTrail(userId, limit);
       res.json(auditTrail);
     } catch (error) {
@@ -5821,16 +5804,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ====================
   // CONVERSATION MANAGEMENT
   // ====================
-  
+
   // GET /api/conversations - List user's conversations
   app.get("/api/conversations", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const { tenantId } = req;
-      
+
       const conversations = await storage.getUserConversations(tenantId || userId);
       res.json(conversations);
-      
+
     } catch (error: any) {
       console.error(`❌ [CONVERSATIONS] List error:`, error);
       res.status(500).json({ message: "Failed to fetch conversations" });
@@ -5843,19 +5826,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { tenantId } = req;
       const { title } = req.body;
-      
+
       if (!title) {
         return res.status(400).json({ message: "Title is required" });
       }
-      
+
       const conversation = await storage.createConversation({
         tenantId: tenantId || userId,
         userId,
         title: String(title).slice(0, 100), // Limit title length
       });
-      
+
       res.json(conversation);
-      
+
     } catch (error: any) {
       console.error(`❌ [CONVERSATIONS] Create error:`, error);
       res.status(500).json({ message: "Failed to create conversation" });
@@ -5868,16 +5851,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { tenantId } = req;
       const conversationId = req.params.id;
-      
+
       // Verify user has access to this conversation
       const conversation = await storage.getConversation(conversationId, tenantId || userId);
       if (!conversation) {
         return res.status(404).json({ message: "Conversation not found" });
       }
-      
+
       const messages = await storage.getConversationMessages(conversationId, tenantId || userId);
       res.json(messages);
-      
+
     } catch (error: any) {
       console.error(`❌ [CONVERSATIONS] Messages error:`, error);
       res.status(500).json({ message: "Failed to fetch messages" });
@@ -5887,34 +5870,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ====================
   // CHAT ORCHESTRATION
   // ====================
-  
+
   // POST /api/chat - Chat orchestration endpoint with search + LLM + persistence
   app.post("/api/chat", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const { tenantId } = req;
-      
+
       // Chat features are available for authenticated users
       // (removed chatConfigService.getChatStatus as it doesn't exist)
-      
+
       // Validate request body
       const validatedRequest: ChatRequest = chatRequestSchema.parse(req.body);
-      
+
       console.log(`🤖 [CHAT] Received query: "${validatedRequest.message}" from user ${userId}`);
-      
+
       // Process chat through orchestration service
       const response = await chatOrchestrationService.processChat(
         validatedRequest, 
         userId, 
         tenantId || userId
       );
-      
+
       console.log(`✅ [CHAT] Returning response with ${response.citations.length} citations`);
       res.json(response);
-      
+
     } catch (error: any) {
       console.error(`❌ [CHAT] Endpoint error:`, error);
-      
+
       // Return structured error response matching schema
       const fallbackResponse = {
         conversationId: req.body.conversationId || "unknown",
@@ -5922,7 +5905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         citations: [],
         confidence: 0.0
       };
-      
+
       res.status(500).json(fallbackResponse);
     }
   });

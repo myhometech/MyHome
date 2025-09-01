@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -24,13 +25,6 @@ interface Document {
   expiryDate: string | null;
 }
 
-interface Category {
-  id: number;
-  name: string;
-  icon: string;
-  color: string;
-}
-
 export default function DocumentPage() {
   const params = useParams();
   const [, setLocation] = useLocation();
@@ -38,36 +32,31 @@ export default function DocumentPage() {
   const { toast } = useToast();
   const documentId = params.id;
 
+  console.log(`[DOCUMENT-PAGE] Loading document ${documentId}`);
+
   const { data: document, isLoading, error } = useQuery<Document>({
     queryKey: [`/api/documents/${documentId}`],
     enabled: !!documentId,
-    retry: false, // Don't retry on error
+    retry: false,
   });
 
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ['/api/categories'],
-  });
-
-  // REBUILT: Simple error handling with immediate feedback
+  // Simple error handling - show toast and redirect
   useEffect(() => {
     if (error) {
-      console.error('Document error:', error);
-
-      // Show immediate toast notification
+      console.error(`[DOCUMENT-PAGE] Error loading document ${documentId}:`, error);
       toast({
         title: "Document not found",
         description: "This document may have been deleted or moved.",
         variant: "destructive",
       });
 
-      // Redirect after a brief delay
       const timer = setTimeout(() => {
         setLocation('/');
       }, 2000);
 
       return () => clearTimeout(timer);
     }
-  }, [error, toast, setLocation]);
+  }, [error, setLocation, toast, documentId]);
 
   if (isLoading) {
     return (
@@ -84,22 +73,30 @@ export default function DocumentPage() {
   }
 
   if (error || !document) {
+    console.log(`[DOCUMENT-PAGE] Document ${documentId} not found or error occurred`);
     return (
       <div className="min-h-screen bg-gray-50">
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <p className="text-gray-600 mb-4">Document not found</p>
-            <Button onClick={() => setLocation('/')} variant="outline">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Documents
-            </Button>
+          <div className="text-center max-w-md mx-auto px-4">
+            <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-6" />
+            <h2 className="text-xl font-semibold mb-3">Document Not Found</h2>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              The document you're looking for is no longer available. It may have been deleted or moved.
+            </p>
+            <div className="space-x-3">
+              <Button onClick={() => setLocation('/')} variant="default">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Insights
+              </Button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
+
+  console.log(`[DOCUMENT-PAGE] Successfully loaded document ${documentId}: ${document.name}`);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -115,11 +112,9 @@ export default function DocumentPage() {
         <EnhancedDocumentViewer
           document={document}
           onClose={() => setLocation('/')}
-          onUpdate={() => {
-            window.location.reload();
-          }}
+          onUpdate={() => window.location.reload()}
           onDownload={() => {
-            const link = window.document.createElement('a');
+            const link = document.createElement('a');
             link.href = `/api/documents/${document.id}/download`;
             link.download = document.fileName;
             link.click();

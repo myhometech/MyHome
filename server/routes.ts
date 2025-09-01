@@ -1091,67 +1091,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Get document by ID with enhanced security
-  app.get('/api/documents/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
-    try {
-      const documentId = parseInt(req.params.id, 10);
-      const userId = req.user!.id;
-
-      console.log(`[DOCUMENT-API] Fetching document ${documentId} for user ${userId}`);
-
-      if (isNaN(documentId) || documentId <= 0) {
-        console.warn(`[DOCUMENT-API] Invalid document ID: ${req.params.id}`);
-        return res.status(400).json({ 
-          message: 'Invalid document ID',
-          error: 'Document ID must be a positive integer'
-        });
-      }
-
-      // Validate storage service
-      if (!storage) {
-        console.error('[DOCUMENT-API] Storage service not initialized');
-        return res.status(500).json({
-          message: 'Database service unavailable',
-          error: 'Storage service not initialized'
-        });
-      }
-
-      const document = await storage.getDocument(documentId, userId);
-
-      if (!document) {
-        console.warn(`[DOCUMENT-API] Document ${documentId} not found for user ${userId}`);
-        return res.status(404).json({ 
-          message: 'Document not found',
-          error: 'The requested document does not exist or you do not have access to it'
-        });
-      }
-
-      console.log(`[DOCUMENT-API] Document ${documentId} found: ${document.name}`);
-
-      res.json(document);
-    } catch (error: any) {
-      console.error(`[DOCUMENT-API] Error fetching document ${req.params.id}:`, {
-        error: error.message,
-        stack: error.stack,
-        userId: req.user?.id,
-        timestamp: new Date().toISOString()
-      });
-
-      // Return more specific error messages
-      let errorMessage = 'Failed to fetch document';
-      if (error.message?.includes('database') || error.message?.includes('connection')) {
-        errorMessage = 'Database connection error. Please try again.';
-      } else if (error.message?.includes('timeout')) {
-        errorMessage = 'Request timed out. Please try again.';
-      }
-
-      res.status(500).json({
-        message: errorMessage,
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
-        timestamp: new Date().toISOString()
-      });
-    }
-  });
+  // Removed duplicate route - handled by documents router
 
 
 
@@ -2212,53 +2152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Download document
-  // Document thumbnail endpoint
-  app.get('/api/documents/:id/thumbnail', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const documentId = parseInt(req.params.id);
-
-      if (isNaN(documentId)) {
-        return res.status(400).json({ message: "Invalid document ID" });
-      }
-
-      const document = await storage.getDocument(documentId, userId);
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-
-      // For GCS documents, try to serve thumbnail or fallback to original
-      if (document.gcsPath && document.isEncrypted) {
-        try {
-          const storageService = storageProvider();
-          const fileBuffer = await storageService.download(document.gcsPath);
-
-          res.setHeader('Content-Type', document.mimeType);
-          res.setHeader('Cache-Control', 'public, max-age=3600');
-          res.send(fileBuffer);
-          return;
-        } catch (error) {
-          console.error(`Failed to serve GCS thumbnail for document ${documentId}:`, error);
-          return res.status(404).json({ message: "Thumbnail not available" });
-        }
-      }
-
-      // For local files, check if thumbnail exists  
-      if (fs.existsSync(document.filePath)) {
-        res.sendFile(path.resolve(document.filePath));
-      } else {
-        return res.status(404).json({ message: "File not found" });
-      }
-
-    } catch (error: any) {
-      console.error('Failed to serve thumbnail:', error);
-      res.status(500).json({
-        message: 'Failed to serve thumbnail',
-        error: error.message,
-      });
-    }
-  });
+  // Removed duplicate route - handled by documents router
 
   app.get('/api/documents/:id/download', requireAuth, async (req: any, res) => {
     try {

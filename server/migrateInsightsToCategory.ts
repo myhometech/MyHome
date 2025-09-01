@@ -182,7 +182,7 @@ export async function migrateInsightsToCategory() {
 }
 
 // If run directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   migrateInsightsToCategory()
     .then(() => {
       console.log('✅ Migration script completed');

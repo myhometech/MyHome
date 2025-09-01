@@ -3,21 +3,11 @@
 /* Smooth card animations */
 .insight-content {
   animation: slideUp 0.4s ease-out forwards;
-  opacity: 1;
-  transform: translateY(0);
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
-  color: #374151;
+  opacity: 0;
+  transform: translateY(20px);
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
   to {
     opacity: 1;
     transform: translateY(0);
@@ -148,7 +138,6 @@
     0 1px 2px rgba(0, 0, 0, 0.06);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(229, 231, 235, 0.8);
-  color: #374151;
 }
 
 .dashboard-card:hover {
@@ -156,31 +145,6 @@
   box-shadow: 
     0 10px 25px rgba(0, 0, 0, 0.15),
     0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Ensure text is visible in insight cards */
-.dashboard-card h3,
-.dashboard-card h4,
-.dashboard-card p,
-.dashboard-card span,
-.dashboard-card div {
-  color: #374151 !important;
-}
-
-.dashboard-card .text-gray-600 {
-  color: #6b7280 !important;
-}
-
-.dashboard-card .text-gray-500 {
-  color: #9ca3af !important;
-}
-
-.dashboard-card .text-gray-700 {
-  color: #374151 !important;
-}
-
-.dashboard-card .text-gray-800 {
-  color: #1f2937 !important;
 }
 
 /* Card Header Gradients */
@@ -234,42 +198,6 @@
   box-shadow: 0 0 30px rgba(34, 197, 94, 0.3);
 }
 
-/* Force text visibility in insight components */
-.insight-content *,
-.dashboard-card *,
-[class*="insight"] *,
-[data-testid*="insight"] * {
-  color: inherit !important;
-}
-
-/* Specific fixes for insight content */
-.insight-content .text-xs {
-  color: #6b7280 !important;
-  font-size: 0.75rem !important;
-  line-height: 1.5 !important;
-}
-
-.insight-content .text-sm {
-  color: #374151 !important;
-  font-size: 0.875rem !important;
-  line-height: 1.5 !important;
-}
-
-.insight-content .text-base {
-  color: #374151 !important;
-  font-size: 1rem !important;
-}
-
-.insight-content .font-semibold {
-  color: #1f2937 !important;
-  font-weight: 600 !important;
-}
-
-.insight-content .font-medium {
-  color: #374151 !important;
-  font-weight: 500 !important;
-}
-
 /* Icon container animations */
 .icon-container {
   transition: all 0.3s ease;
@@ -302,52 +230,6 @@
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-/* Priority-specific styling */
-.priority-high {
-  border-left: 4px solid #ef4444;
-  background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
-}
-
-.priority-medium {
-  border-left: 4px solid #f59e0b;
-  background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
-}
-
-.priority-low {
-  border-left: 4px solid #22c55e;
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-}
-
-/* Badge styling for insights */
-.insight-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
-
-.insight-badge.high {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-.insight-badge.medium {
-  background: #fff7ed;
-  color: #92400e;
-  border: 1px solid #fed7aa;
-}
-
-.insight-badge.low {
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #dcfce7;
 }
 
 /* Button hover animations */

@@ -63,119 +63,84 @@ function Router() {
     }
   }
 
-  try {
-    return (
+  return (
       <Switch>
-        {!isAuthenticated ? (
-          <>
-            <Route path="/" component={Landing} />
-            <Route path="/login" component={Login} />
-            <Route path="/register" component={Register} />
-            <Route path="/forgot-password" component={ForgotPassword} />
-            <Route path="/reset-password" component={ResetPassword} />
-            <Route path="/pricing" component={Pricing} />
-            <Route path="/blog" component={Blog} />
-            <Route path="/blog/:slug" component={BlogPost} />
-            {/* Redirect protected routes to login */}
+      {!isAuthenticated ? (
+        <>
+          <Route path="/" component={Landing} />
+          <Route path="/login" component={Login} />
+          <Route path="/register" component={Register} />
+          <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/reset-password" component={ResetPassword} />
+          <Route path="/pricing" component={Pricing} />
+          <Route path="/blog" component={Blog} />
+          <Route path="/blog/:slug" component={BlogPost} />
+          {/* Redirect protected routes to login */}
 
-            <Route path="/settings">
-              {() => { setLocation("/login"); return null; }}
-            </Route>
-            <Route path="/support">
-              {() => { setLocation("/login"); return null; }}
-            </Route>
-            <Route path="/notifications">
-              {() => { setLocation("/login"); return null; }}
-            </Route>
-            <Route path="/tasks">
-              {() => { setLocation("/login"); return null; }}
-            </Route>
-            <Route path="/analytics">
-              {() => { setLocation("/login"); return null; }}
-            </Route>
-            <Route path="/admin">
-              {() => { setLocation("/login"); return null; }}
-            </Route>
-            <Route path="/document/:id">
-              {() => { setLocation("/login"); return null; }}
-            </Route>
-            <Route path="/documents">
-              {() => { setLocation("/login"); return null; }}
-            </Route>
-          </>
-        ) : (
-          <>
-            <Route path="/" component={InsightsFirstPage} />
-            <Route path="/documents" component={UnifiedDocuments} />
-            <Route path="/notifications" component={Notifications} />
-            <Route path="/tasks" component={Tasks} />
-            <Route path="/analytics" component={Analytics} />
-            <Route path="/document/:id" component={DocumentPage} />
-            <Route path="/settings" component={Settings} />
-            <Route path="/support" component={Support} />
-            <Route path="/chat" component={ChatPage} />
-            <Route path="/admin" component={AdminDashboard} />
-            <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
-            <Route path="/pricing" component={Pricing} />
 
-            <Route path="/blog" component={Blog} />
-            <Route path="/blog/:slug" component={BlogPost} />
-            {/* Redirect auth routes to home for logged in users */}
-            <Route path="/login">
-              {() => { setLocation("/"); return null; }}
-            </Route>
-            <Route path="/register">
-              {() => { setLocation("/"); return null; }}
-            </Route>
-            <Route path="/forgot-password">
-              {() => { setLocation("/"); return null; }}
-            </Route>
-          </>
-        )}
-        {/* TICKET 5: Invite accept route accessible regardless of auth status */}
-        <Route path="/invite/accept" component={InviteAccept} />
-        <Route component={NotFound} />
-      </Switch>
-    );
-  } catch (error) {
-    console.error('🚨 Router rendering error:', error);
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-red-50">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
-          <h1 className="text-xl font-semibold text-red-600 mb-2">Router Error</h1>
-          <p className="text-gray-600 mb-4">
-            Router failed to render: {error instanceof Error ? error.message : 'Unknown error'}
-          </p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Reload Page
-          </button>
-        </div>
-      </div>
-    );
-  }
+          <Route path="/settings">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/support">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/notifications">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/tasks">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/analytics">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/admin">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/document/:id">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+          <Route path="/documents">
+            {() => { setLocation("/login"); return null; }}
+          </Route>
+
+        </>
+      ) : (
+        <>
+          <Route path="/" component={InsightsFirstPage} />
+          <Route path="/documents" component={UnifiedDocuments} />
+          <Route path="/notifications" component={Notifications} />
+          <Route path="/tasks" component={Tasks} />
+          <Route path="/analytics" component={Analytics} />
+          <Route path="/document/:id" component={DocumentPage} />
+          <Route path="/settings" component={Settings} />
+          <Route path="/support" component={Support} />
+          <Route path="/chat" component={ChatPage} />
+          <Route path="/admin" component={AdminDashboard} />
+          <Route path="/admin/feature-flags" component={FeatureFlagsAdmin} />
+          <Route path="/pricing" component={Pricing} />
+
+          <Route path="/blog" component={Blog} />
+          <Route path="/blog/:slug" component={BlogPost} />
+          {/* Redirect auth routes to home for logged in users */}
+          <Route path="/login">
+            {() => { setLocation("/"); return null; }}
+          </Route>
+          <Route path="/register">
+            {() => { setLocation("/"); return null; }}
+          </Route>
+          <Route path="/forgot-password">
+            {() => { setLocation("/"); return null; }}
+          </Route>
+        </>
+      )}
+      {/* TICKET 5: Invite accept route accessible regardless of auth status */}
+      <Route path="/invite/accept" component={InviteAccept} />
+      <Route component={NotFound} />
+    </Switch>
+  );
 }
 
 function App() {
-  // Emergency bypass: if user adds ?no-error-boundary=true, completely disable ErrorBoundary
-  const urlParams = new URLSearchParams(window.location.search);
-  const disableErrorBoundary = urlParams.get('no-error-boundary') === 'true';
-  
-  if (disableErrorBoundary) {
-    console.log('🚨 ERROR BOUNDARY COMPLETELY DISABLED');
-    return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <NetworkStatusBanner />
-          <Router />
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
-    );
-  }
-
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

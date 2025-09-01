@@ -26,28 +26,28 @@ interface InsightsResponse {
   filters: {
     status?: string;
     type?: string;
-    category?: string;
+    priority?: string;
     sort?: string;
     has_due_date?: boolean;
   };
 }
 
-// Category color mapping for calendar events
-const getCategoryColor = (category: string) => {
-  switch (category) {
-    case 'financial': return '#3b82f6'; // Blue
-    case 'important_dates': return '#f59e0b'; // Amber  
-    case 'general': return '#10b981'; // Green
+// Priority color mapping for calendar events
+const getPriorityColor = (priority: string) => {
+  switch (priority) {
+    case 'high': return '#ef4444'; // Red
+    case 'medium': return '#f59e0b'; // Amber  
+    case 'low': return '#3b82f6'; // Blue
     default: return '#6b7280'; // Gray
   }
 };
 
-// Category icon mapping
-const getCategoryIcon = (category: string) => {
-  switch (category) {
-    case 'financial': return <DollarSign className="w-4 h-4 text-blue-600" />;
-    case 'important_dates': return <Calendar className="w-4 h-4 text-amber-600" />;
-    case 'general': return <CheckCircle className="w-4 h-4 text-green-600" />;
+// Priority icon mapping
+const getPriorityIcon = (priority: string) => {
+  switch (priority) {
+    case 'high': return <AlertTriangle className="w-4 h-4 text-red-600" />;
+    case 'medium': return <Clock className="w-4 h-4 text-amber-600" />;
+    case 'low': return <Info className="w-4 h-4 text-blue-600" />;
     default: return <Info className="w-4 h-4 text-gray-600" />;
   }
 };

@@ -158,7 +158,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Simple state for insights
   const [statusFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'financial' | 'important_dates' | 'general'>('all');
+
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('high');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showMoreInsights, setShowMoreInsights] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
@@ -169,37 +170,12 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Display limits
   const INITIAL_DISPLAY_LIMIT = 8;
 
-  const categoryConfig = {
-    financial: { 
-      badge: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200',
-      icon: DollarSign,
-      label: 'Financial',
-      glow: 'shadow-accent-purple-200/50',
-      cardGradient: 'bg-white'
-    },
-    important_dates: { 
-      badge: 'bg-accent-purple-200 text-accent-purple-800 border-accent-purple-300',
-      icon: Calendar,
-      label: 'Important Dates',
-      glow: 'shadow-accent-purple-300/50',
-      cardGradient: 'bg-white'
-    },
-    general: { 
-      badge: 'bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200',
-      icon: CheckCircle,
-      label: 'General',
-      glow: 'shadow-accent-purple-100/50',
-      cardGradient: 'bg-white'
-    }
-  };
 
-  // Helper function to safely get category config
-  const getCategoryConfig = (category: string | undefined | null) => {
-    const validCategory = category && categoryConfig[category as keyof typeof categoryConfig] 
-      ? category as keyof typeof categoryConfig 
-      : 'general';
-    return categoryConfig[validCategory];
-  };
+
+
+
+
+
 
   // Fetch insights with pagination support
   const {
@@ -208,11 +184,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     error,
     refetch
   } = useQuery<InsightsResponse>({
-    queryKey: ['/api/insights', statusFilter, categoryFilter, typeFilter],
+    queryKey: ['/api/insights', statusFilter, priorityFilter, typeFilter],
     queryFn: async () => {
       const params = new URLSearchParams({
         status: statusFilter,
-        category: categoryFilter !== 'all' ? categoryFilter : '',
+        priority: priorityFilter !== 'all' ? priorityFilter : '',
         type: typeFilter !== 'all' ? typeFilter : '',
         limit: '50' // Get more insights for local filtering
       });
@@ -221,6 +197,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
       return response.json();
     },
   });
+
+
 
   // Fetch manual events
   const { data: manualEvents = [], isLoading: manualEventsLoading } = useQuery<ManualEvent[]>({
@@ -270,10 +248,10 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Filter insights based on selected filters and exclude resolved/deleted insights
   const filteredInsights = insights.filter(insight => {
-    const matchesCategory = categoryFilter === 'all' || insight.category === categoryFilter;
+    const matchesPriority = priorityFilter === 'all' || insight.priority === priorityFilter;
     const matchesType = typeFilter === 'all' || insight.type === typeFilter;
     const isActive = insight.status !== 'resolved'; // Only show active insights
-    return matchesCategory && matchesType && isActive;
+    return matchesPriority && matchesType && isActive;
   });
 
   // Get unique types for filter dropdown
@@ -293,8 +271,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Handle clicking on an insight card
   const handleInsightClick = (insight: DocumentInsight) => {
     if (insight.documentId) {
-      // Navigate directly to the document page
-      setLocation(`/document/${insight.documentId}`);
+      // Navigate to insights-first page with document
+      setLocation(`/insights-first?documentId=${insight.documentId}`);
     } else {
       // Show insight details modal for standalone insights
       setSelectedInsight(insight);
@@ -308,7 +286,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle document click from insight card
   const handleDocumentClick = (documentId: number) => {
-    setLocation(`/document/${documentId}`);
+    setLocation(`/insights-first?documentId=${documentId}`);
   };
 
   // Handle document download
@@ -373,17 +351,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     }
   };
 
-  // Calculate counts for each category for the summary cards
-  const categoryStats = React.useMemo(() => {
-    const stats: Record<string, number> = {
-      all: insights.filter(i => i.status !== 'resolved').length,
-    };
-    Object.keys(categoryConfig).forEach(categoryKey => {
-      const category = categoryKey as keyof typeof categoryConfig;
-      stats[category] = insights.filter(i => i.category === category && i.status !== 'resolved').length;
-    });
-    return stats;
-  }, [insights]);
+
 
   if (error) {
     return (
@@ -405,33 +373,89 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
     <div className="space-y-6">
       {/* High-Level Summary Cards - Mobile Optimized */}
       <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1">
-        {/* Render dynamic category cards */}
-        {Object.entries(categoryConfig).map(([category, config]) => {
-          const IconComponent = config?.icon || CheckCircle;
-          const count = categoryStats[category] || 0;
-          return (
-            <Card 
-              key={category}
-              className={`bg-gradient-to-br from-purple-600 to-purple-800 border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
-                categoryFilter === category ? 'ring-2 ring-purple-500' : ''
-              }`}
-              onClick={() => setCategoryFilter(category as 'all' | 'financial' | 'important_dates' | 'general')}
-            >
-              <CardContent className="p-2 sm:p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs sm:text-sm font-medium text-white">{config.label}</p>
-                    <p className="text-lg sm:text-2xl font-bold text-white">
-                      {count}
-                    </p>
-                    <p className="text-xs text-white/80 hidden sm:block">Total active</p>
-                  </div>
-                  <IconComponent className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {/* All Items */}
+        <Card 
+          className={`bg-gradient-to-br from-purple-600 to-purple-800 border-l-4 border-l-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            priorityFilter === 'all' ? 'ring-2 ring-purple-500' : ''
+          }`}
+          onClick={() => setPriorityFilter('all')}
+        >
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-white">All Items</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">
+                  {insights.filter(i => i.status !== 'resolved').length}
+                </p>
+                <p className="text-xs text-white/80 hidden sm:block">Total active</p>
+              </div>
+              <Brain className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* High Priority Items */}
+        <Card 
+          className={`bg-gradient-to-br from-purple-500 to-purple-700 border-l-4 border-l-purple-600 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            priorityFilter === 'high' ? 'ring-2 ring-purple-600' : ''
+          }`}
+          onClick={() => setPriorityFilter('high')}
+        >
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-white">High Priority</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">
+                  {insights.filter(i => i.priority === 'high' && i.status !== 'resolved').length}
+                </p>
+                <p className="text-xs text-white/80 hidden sm:block">Urgent items</p>
+              </div>
+              <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Medium Priority Items */}
+        <Card 
+          className={`bg-gradient-to-br from-purple-400 to-purple-600 border-l-4 border-l-purple-400 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            priorityFilter === 'medium' ? 'ring-2 ring-purple-400' : ''
+          }`}
+          onClick={() => setPriorityFilter('medium')}
+        >
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-white">Medium</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">
+                  {insights.filter(i => i.priority === 'medium' && i.status !== 'resolved').length}
+                </p>
+                <p className="text-xs text-white/80 hidden sm:block">Important items</p>
+              </div>
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Low Priority Items */}
+        <Card 
+          className={`bg-gradient-to-br from-purple-300 to-purple-500 border-l-4 border-l-purple-300 cursor-pointer hover:shadow-lg transition-all duration-300 text-white ${
+            priorityFilter === 'low' ? 'ring-2 ring-purple-300' : ''
+          }`}
+          onClick={() => setPriorityFilter('low')}
+        >
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-white">Low</p>
+                <p className="text-lg sm:text-2xl font-bold text-white">
+                  {insights.filter(i => i.priority === 'low' && i.status !== 'resolved').length}
+                </p>
+                <p className="text-xs text-white/80 hidden sm:block">General items</p>
+              </div>
+              <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* AI Insights Section - Mobile Optimized */}
@@ -461,16 +485,16 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                   <div className="flex items-center gap-3">
                     <Filter className="h-4 w-4 text-gray-500" />
 
-                    {/* Category Filter */}
-                    <Select value={categoryFilter} onValueChange={(value: any) => setCategoryFilter(value)}>
-                      <SelectTrigger className="w-32 h-8">
-                        <SelectValue placeholder="Category" />
+                    {/* Priority Filter */}
+                    <Select value={priorityFilter} onValueChange={(value: any) => setPriorityFilter(value)}>
+                      <SelectTrigger className="w-28 h-8">
+                        <SelectValue placeholder="Priority" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        <SelectItem value="financial">Financial</SelectItem>
-                        <SelectItem value="important_dates">Important Dates</SelectItem>
-                        <SelectItem value="general">General</SelectItem>
+                        <SelectItem value="all">All Priority</SelectItem>
+                        <SelectItem value="high">High Only</SelectItem>
+                        <SelectItem value="medium">Medium Only</SelectItem>
+                        <SelectItem value="low">Low Only</SelectItem>
                       </SelectContent>
                     </Select>
 
@@ -491,11 +515,11 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                     </Select>
 
                     {/* Clear filters button */}
-                    {(categoryFilter !== 'all' || typeFilter !== 'all') && (
+                    {(priorityFilter !== 'high' || typeFilter !== 'all') && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => { setCategoryFilter('all'); setTypeFilter('all'); }}
+                        onClick={() => { setPriorityFilter('high'); setTypeFilter('all'); }}
                         className="h-8 px-2 text-xs text-gray-500 hover:text-gray-700"
                       >
                         <X className="h-3 w-3 mr-1" />
@@ -528,13 +552,13 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                           }
                         };
 
-                        // Category gradient mapping - creating distinct visual categories with purple palette
-                        const getCategoryGradient = (category: string) => {
-                          switch (category) {
-                            case 'financial': return 'border-accent-purple-400 bg-gradient-to-br from-accent-purple-600 via-accent-purple-700 to-accent-purple-800 text-white hover:from-accent-purple-700 hover:to-accent-purple-900 shadow-lg hover:shadow-accent-purple-500/25';
-                            case 'important_dates': return 'border-accent-purple-300 bg-gradient-to-br from-accent-purple-500 via-accent-purple-600 to-accent-purple-700 text-white hover:from-accent-purple-600 hover:to-accent-purple-800 shadow-lg hover:shadow-accent-purple-400/25';
-                            case 'general': return 'border-accent-purple-200 bg-gradient-to-br from-accent-purple-400 via-accent-purple-500 to-accent-purple-600 text-white hover:from-accent-purple-500 hover:to-accent-purple-700 shadow-lg hover:shadow-accent-purple-300/25';
-                            default: return 'border-accent-purple-300 bg-gradient-to-br from-accent-purple-500 via-accent-purple-600 to-accent-purple-700 text-white hover:from-accent-purple-600 hover:to-accent-purple-800 shadow-lg hover:shadow-accent-purple-400/25';
+                        // Priority gradient mapping - creating subtle hierarchy with purple gradients
+                        const getPriorityGradient = (priority: string) => {
+                          switch (priority) {
+                            case 'high': return 'border-purple-400 bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 text-white hover:from-purple-700 hover:to-purple-900 shadow-lg hover:shadow-purple-500/25';
+                            case 'medium': return 'border-purple-300 bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600 text-white hover:from-purple-500 hover:to-purple-700 shadow-md hover:shadow-purple-400/20';
+                            case 'low': return 'border-purple-200 bg-gradient-to-br from-purple-300 via-purple-400 to-purple-500 text-white hover:from-purple-400 hover:to-purple-600 shadow-sm hover:shadow-purple-300/15';
+                            default: return 'border-purple-250 bg-gradient-to-br from-purple-300 via-purple-400 to-purple-500 text-white hover:from-purple-400 hover:to-purple-600 shadow-md hover:shadow-purple-400/20';
                           }
                         };
 
@@ -595,7 +619,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                         const getActionableContent = (insight: DocumentInsight) => {
                           const content = insight.content.toLowerCase();
                           const title = insight.title.toLowerCase();
-
+                          
                           // For payment/bill related insights
                           if (content.includes('payment') || content.includes('bill') || content.includes('due')) {
                             if (content.includes('£') || content.includes('$')) {
@@ -608,14 +632,14 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             }
                             return 'Payment required';
                           }
-
+                          
                           // For document expiry/renewal
                           if (content.includes('expire') || content.includes('renewal') || content.includes('renew')) {
                             const dateMatch = content.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
                             if (dateMatch) return `Expires: ${dateMatch[0]}`;
                             return 'Renewal needed';
                           }
-
+                          
                           // For contact information
                           if (insight.type === 'contacts') {
                             if (content.includes('phone') || content.includes('mobile')) {
@@ -628,7 +652,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             }
                             return 'Contact info';
                           }
-
+                          
                           // For financial information
                           if (insight.type === 'financial_info') {
                             if (content.includes('£') || content.includes('$')) {
@@ -640,7 +664,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             }
                             return 'Financial data';
                           }
-
+                          
                           // For action items
                           if (insight.type === 'action_items') {
                             if (content.includes('review')) return 'Review required';
@@ -649,31 +673,31 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                             if (content.includes('update')) return 'Update required';
                             return 'Action needed';
                           }
-
+                          
                           // For key dates
                           if (insight.type === 'key_dates') {
                             const dateMatch = content.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
                             if (dateMatch) return dateMatch[0];
                             return 'Important date';
                           }
-
+                          
                           // Fallback to first meaningful sentence
                           const sentences = insight.content.split('.').filter(s => s.trim().length > 10);
                           if (sentences.length > 0) {
                             const firstSentence = sentences[0].trim();
                             return firstSentence.length > 40 ? firstSentence.substring(0, 37) + '...' : firstSentence;
                           }
-
+                          
                           return insight.title;
                         };
 
                         return (
                           <div 
                             key={insight.id}
-                            className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-105 ${getCategoryGradient(insight.category || 'general')}`}
+                            className={`relative flex flex-col items-center gap-1 px-2 py-2 text-xs font-medium border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-105 ${getPriorityGradient(insight.priority || 'medium')}`}
                             onClick={() => {
                               if (insight.documentId) {
-                                setLocation(`/document/${insight.documentId}`);
+                                setLocation(`/insights?documentId=${insight.documentId}`);
                               }
                             }}
                             style={{ minHeight: '70px' }}
@@ -693,7 +717,10 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                               {getActionableContent(insight)}
                             </span>
 
-                            {/* Category indicator - removed since color coding is now in the gradient */}
+                            {/* Priority indicator dot */}
+                            {insight.priority === 'high' && (
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" title="High Priority" />
+                            )}
                           </div>
                         );
                       })}
@@ -772,7 +799,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
                       }
                     </p>
                     {insights.length > 0 && (
-                      <Button variant="outline" onClick={() => { setCategoryFilter('all'); setTypeFilter('all'); }}>
+                      <Button variant="outline" onClick={() => { setPriorityFilter('all'); setTypeFilter('all'); }}>
                         Clear Filters
                       </Button>
                     )}

@@ -793,8 +793,8 @@ export default function DocumentCard({
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <div className={`w-2 h-2 rounded-full ${
-                                insight.category === 'financial' ? 'bg-accent-purple-600' : 
-                                insight.category === 'important_dates' ? 'bg-accent-purple-500' : 'bg-accent-purple-400'
+                                insight.priority === 'high' ? 'bg-red-500' : 
+                                insight.priority === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'
                               }`}></div>
                               <div className="text-sm font-semibold text-gray-800">
                                 {insight.type.replace('_', ' ').toUpperCase()}

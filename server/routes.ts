@@ -244,7 +244,7 @@ function generateInsightMessage(insight: any, documentName: string): string {
   if (!insight || typeof insight !== 'object') {
     return `${documentName}: Insight not available`;
   }
-
+  
   const docName = documentName.length > 30 ? documentName.substring(0, 30) + '...' : documentName;
   const insightType = insight.type || 'unknown';
   const insightTitle = insight.title || 'Untitled insight';
@@ -273,7 +273,7 @@ function extractDueDate(insight: any): string | null {
   if (!insight || typeof insight !== 'object') {
     return null;
   }
-
+  
   const content = (insight.content || '').toLowerCase();
   const dateRegex = /(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}-\d{1,2}-\d{4})/;
 
@@ -337,7 +337,7 @@ const requireChatEnabled = async (req: any, res: any, next: any) => {
     };
 
     const isChatEnabled = await chatConfigService.isChatEnabled(context);
-
+    
     if (!isChatEnabled) {
       console.log(`❌ [CHAT CHECK] Chat access denied for user: ${user.email} (tier: ${user.subscriptionTier})`);
       return res.status(403).json({ 
@@ -402,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("Session save error:", err);
           return res.status(500).json({ error: "Session save failed" });
         }
-
+        
         res.json({ 
           message: "Login successful", 
           user: { 
@@ -474,7 +474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (req.path.includes('/auth/') || req.path.includes('/email-ingest')) {
       return next();
     }
-
+    
     return requireAuth(req, res, () => loadHouseholdRole(req as AuthenticatedRequest, res, next));
   });
 
@@ -1426,7 +1426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TICKET 4: Get original document for audit logging
       const originalDocument = await storage.getDocument(documentId, userId);
       const userHousehold = await storage.getUserHousehold(userId);
-
+      
       const updatedDocument = await storage.updateDocument(documentId, userId, {
         name: name ? name.trim() : undefined,
         expiryDate: expiryDate === '' ? null : expiryDate
@@ -1541,7 +1541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
     const startTime = Date.now();
     let documentId: number;
-
+    
     try {
       const userId = getUserId(req);
       documentId = parseInt(req.params.id);
@@ -1631,7 +1631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`🤖 [INSIGHT-DEBUG] Calling AI service for document ${documentId}`);
-
+      
       let insights;
       try {
         insights = await aiInsightService.generateDocumentInsights(
@@ -1678,7 +1678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             // TICKET 4: Generate dashboard-ready message and action URL with error handling
             let message, actionUrl, dueDate;
-
+            
             try {
               message = generateInsightMessage(insight, document.name);
               actionUrl = `/documents/${documentId}`;
@@ -1714,7 +1714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               insightVersion: 'v2.0',
               generatedAt: new Date()
             });
-
+            
             console.log(`✅ [INSIGHT-DEBUG] Successfully stored insight ${insight.id}`);
           } catch (insightError: any) {
             console.error(`❌ [INSIGHT-DEBUG] Failed to store insight ${insight.id}:`, insightError);
@@ -1746,9 +1746,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         confidence: insights.confidence || 0
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating document insights:", error);
-      captureError(error as Error, req);
+      captureError(error, req);
 
       if (error.message.includes('quota exceeded')) {
         return res.status(429).json({ 
@@ -1827,8 +1827,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
 
-      console.log(`[DEBUG] Insights API called with filters:`, { status, category: req.query.category as string, type, limit, offset: (page - 1) * limit, userId: req.user!.id });
-
       let insights = await storage.getInsights(userId, status === 'all' ? undefined : status, type, priority);
 
       // Get manual events and convert them to insights format
@@ -1876,9 +1874,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dueDate: insight.dueDate ? (typeof insight.dueDate === 'string' ? insight.dueDate.split('T')[0] : (insight.dueDate as Date).toISOString().split('T')[0]) : null
       }));
 
-      console.log(`[DEBUG] Found ${enhancedInsights.length} total insights after filtering.`);
-      console.log(`[DEBUG] Returning ${Math.min(enhancedInsights.length, limit)} insights for page ${page}.`);
-
       res.json({
         insights: enhancedInsights.slice((page - 1) * limit, page * limit),
         totalCount: enhancedInsights.length,
@@ -1900,54 +1895,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
 
-      console.log(`[DEBUG] Insights metrics API called for user ${userId}`);
+      // Get all insights for calculations
+      const allInsights = await storage.getInsights(userId);
 
-      // Get insights grouped by various criteria
-      const allInsights = await db.select()
-        .from(documentInsights)
-        .leftJoin(documents, eq(documentInsights.documentId, documents.id))
-        .where(eq(documents.userId, userId));
+      // Filter out unwanted insight types at API level
+      const filteredAIInsights = allInsights.filter(insight => 
+        !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(insight.type)
+      );
 
-      console.log(`[DEBUG] Found ${allInsights.length} total insights for metrics`);
-      console.log(`[DEBUG] Sample insights for metrics:`, allInsights.slice(0, 3).map(i => ({ 
-        id: i.document_insights.id, 
-        title: i.document_insights.title, 
-        category: i.document_insights.category, 
-        status: i.document_insights.status 
-      })));
+      // Include manual events as high priority insights
+      const manualEvents = await storage.getManualTrackedEvents(userId);
+      const manualInsights = manualEvents
+        .filter(event => event.status === 'active')
+        .map(event => ({
+          ...event,
+          priority: 'high' as const,
+          status: 'open' as const,
+          type: 'manual_event' as const
+        }));
 
-      const metrics = {
-        total: allInsights.length,
-        open: allInsights.filter(i => i.document_insights.status === 'open').length,
-        resolved: allInsights.filter(i => i.document_insights.status === 'resolved').length,
-        highPriority: 0, // Legacy priority system
-        actionItems: allInsights.filter(i => i.document_insights.type === 'action_items').length,
-        keyDates: allInsights.filter(i => i.document_insights.type === 'key_dates').length,
-        compliance: allInsights.filter(i => i.document_insights.type === 'compliance').length,
-        upcomingDeadlines: 0, // Would need due date logic
-        manualEvents: 0, // Would need manual events count
+      // Combine all insights
+      const combinedInsights = [...filteredAIInsights, ...manualInsights];
+
+      // Calculate metrics
+      const openInsights = combinedInsights.filter(i => i.status === 'open' || !i.status);
+      const highPriority = combinedInsights.filter(i => i.priority === 'high' && (i.status === 'open' || !i.status));
+      const resolvedInsights = combinedInsights.filter(i => i.status === 'resolved');
+
+      // Type-specific metrics (open only) - exclude unwanted types
+      const manualEventCount = combinedInsights.filter(i => i.type === 'manual_event' && (i.status === 'open' || !i.status));
+      const summaryInsights = combinedInsights.filter(i => i.type === 'summary' && (i.status === 'open' || !i.status));
+      const contactInsights = combinedInsights.filter(i => i.type === 'contacts' && (i.status === 'open' || !i.status));
+
+      // Upcoming deadlines (within 30 days)
+      const today = new Date();
+      const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+      const upcomingDeadlines = combinedInsights.filter(i => {
+        if (!i.dueDate || i.status !== 'open') return false;
+        const dueDate = new Date(i.dueDate);
+        return dueDate >= today && dueDate <= thirtyDaysFromNow;
+      });
+
+      res.json({
+        total: combinedInsights.length,
+        open: openInsights.length,
+        highPriority: highPriority.length,
+        resolved: resolvedInsights.length,
+        manualEvents: manualEventCount.length,
+        upcomingDeadlines: upcomingDeadlines.length,
         byType: {
-          summary: allInsights.filter(i => i.document_insights.type === 'summary').length,
-          action_items: allInsights.filter(i => i.document_insights.type === 'action_items').length,
-          key_dates: allInsights.filter(i => i.document_insights.type === 'key_dates').length,
-          financial_info: allInsights.filter(i => i.document_insights.type === 'financial_info').length,
-          contacts: allInsights.filter(i => i.document_insights.type === 'contacts').length,
-          compliance: allInsights.filter(i => i.document_insights.type === 'compliance').length,
+          summary: summaryInsights.length,
+          contacts: contactInsights.length,
+          manual_event: manualEventCount.length
         },
-        byCategory: {
-          financial: allInsights.filter(i => i.document_insights.category === 'financial').length,
-          important_dates: allInsights.filter(i => i.document_insights.category === 'important_dates').length,
-          general: allInsights.filter(i => i.document_insights.category === 'general').length,
+        byPriority: {
+          high: highPriority.length,
+          medium: combinedInsights.filter(i => i.priority === 'medium' && (i.status === 'open' || !i.status)).length,
+          low: combinedInsights.filter(i => i.priority === 'low' && (i.status === 'open' || !i.status)).length
         }
-      };
+      });
 
-      console.log(`[DEBUG] Calculated metrics:`, metrics);
-
-      res.json(metrics);
     } catch (error) {
-      console.error('Error fetching insights metrics:', error);
+      console.error("Error fetching insight metrics:", error);
       captureError(error as Error, req);
-      res.status(500).json({ error: 'Failed to fetch insights metrics' });
+      res.status(500).json({ message: "Failed to fetch insight metrics" });
     }
   });
 
@@ -2215,16 +2226,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TICKET 4: Log document deletion before actual deletion
       const documentToDelete = await storage.getDocument(documentId, userId);
       const userHousehold = await storage.getUserHousehold(userId);
-
+      
       await storage.deleteDocument(documentId, userId);
-
+      
       if (documentToDelete) {
         await AuditLogger.logDelete(documentId, userId, userHousehold?.id, {
           documentName: documentToDelete.name,
           deletedBy: userId,
         });
       }
-
+      
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting document:", error);
@@ -2253,7 +2264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const storageService = storageProvider();
           const fileBuffer = await storageService.download(document.gcsPath);
-
+          
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Cache-Control', 'public, max-age=3600');
           res.send(fileBuffer);
@@ -3821,20 +3832,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Import LLM adapter factory
       const { LLMProviderFactory } = await import('./services/llmProviderFactory.js');
       const { LLMGenerateRequestSchema } = await import('./services/llmAdapter.js');
-
+      
       // Validate request body
       const validatedRequest = LLMGenerateRequestSchema.parse(req.body);
-
+      
       // Get LLM adapter instance
       const llmAdapter = LLMProviderFactory.getInstance();
-
+      
       // Generate response
       const startTime = Date.now();
       const response = await llmAdapter.generate(validatedRequest);
       const totalLatencyMs = Date.now() - startTime;
-
+      
       console.log(`[INTERNAL-LLM] Generation completed: provider=${llmAdapter.getProviderName()}, latency=${totalLatencyMs}ms`);
-
+      
       // Return response in the exact format specified
       res.json({
         text: response.text,
@@ -3844,11 +3855,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         latencyMs: totalLatencyMs
       });
-
+      
     } catch (error) {
       const err = error as Error;
       console.error('[INTERNAL-LLM] Generation failed:', err.message);
-
+      
       // Return structured error response
       if (err.message.includes('Validation')) {
         return res.status(400).json({ 
@@ -3856,14 +3867,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: err.message 
         });
       }
-
+      
       if (err.message.includes('Circuit breaker')) {
         return res.status(503).json({ 
           error: 'Service temporarily unavailable', 
           message: 'LLM service is temporarily unavailable due to repeated failures' 
         });
       }
-
+      
       res.status(500).json({ 
         error: 'Internal server error', 
         message: 'Failed to generate LLM response' 
@@ -3958,7 +3969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat API Endpoints
-
+  
   // Create a new conversation
   app.post('/api/conversations', requireAuth, requireChatEnabled, async (req: any, res) => {
     try {
@@ -4178,7 +4189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const eventAction = validatedData.role === 'user' ? 'chat_query' : 'chat_answer';
         const docIdsTouched = validatedData.citations ? validatedData.citations.map(c => c.docId) : [];
-
+        
         await storage.logDocumentEvent({
           documentId: null, // Chat events don't have a specific document
           userId: messageUserId || userId, // Use message user or requesting user
@@ -4200,7 +4211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`✅ [CHAT] Added ${validatedData.role} message to conversation ${req.params.id} for user ${user.email}`);
-
+      
       res.status(201).json(message);
     } catch (error: any) {
       console.error("Error creating message:", error);
@@ -4216,7 +4227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
-
+      
       if (!user) {
         return res.status(401).json({ error: "User not found" });
       }
@@ -4234,7 +4245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log search query for audit tracking
       try {
         const docIds = searchResults.results.map(r => parseInt(r.docId)).filter(id => !isNaN(id));
-
+        
         await storage.logDocumentEvent({
           documentId: null, // Search queries don't target a specific document
           userId,
@@ -4253,7 +4264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`🔍 [SEARCH] Query "${validatedData.query}" for user ${user.email} returned ${searchResults.results.length} results`);
-
+      
       res.json(searchResults);
     } catch (error: any) {
       console.error("Error in search endpoint:", error);
@@ -4276,9 +4287,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { documentTextBackfillService } = await import('./documentTextBackfill');
       const batchSize = req.body.batchSize || 10;
-
+      
       const result = await documentTextBackfillService.backfillDocumentText(batchSize);
-
+      
       res.json({
         message: 'Document text backfill completed',
         ...result
@@ -4300,7 +4311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { documentTextBackfillService } = await import('./documentTextBackfill');
       const status = await documentTextBackfillService.getBackfillStatus();
-
+      
       res.json(status);
     } catch (error: any) {
       console.error("Error getting backfill status:", error);
@@ -4341,8 +4352,571 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug route to confirm deployment
-  app.get("/debug", (_req, res) => {
+  // Debug endpoints have been removed after successful testing
+
+  // Search analytics endpoint for admin monitoring
+  app.get('/api/admin/search-analytics', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { searchOptimizationService } = await import('./searchOptimizationService');
+      const { performanceMonitoringService } = await import('./performanceMonitoringService');
+
+      const searchAnalytics = searchOptimizationService.getSearchAnalytics();
+      const performanceAnalytics = performanceMonitoringService.getPerformanceAnalytics(24);
+      const recommendations = performanceMonitoringService.getOptimizationRecommendations();
+
+      res.json({
+        search: searchAnalytics,
+        performance: performanceAnalytics,
+        recommendations,
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      console.error("Error fetching search analytics:", error);
+      res.status(500).json({ message: "Failed to fetch search analytics" });
+    }
+  });
+
+  // User-specific search analytics
+  app.get('/api/search-analytics', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const { searchOptimizationService } = await import('./searchOptimizationService');
+      const analytics = searchOptimizationService.getSearchAnalytics(userId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching user search analytics:", error);
+      res.status(500).json({ message: "Failed to fetch search analytics" });
+    }
+  });
+
+  // Email Body PDF render endpoint
+  app.post('/api/email/render-body-to-pdf', requireAuth, async (req, res) => {
+    try {
+      // Feature flag check - server-side authoritative
+      const { emailFeatureFlagService } = await import('./emailFeatureFlags.js');
+      const isEnabled = await emailFeatureFlagService.isManualEmailPdfEnabled(
+        req.user!.id, 
+        req.user!.subscriptionTier || 'free'
+      );
+
+      if (!isEnabled) {
+        return res.status(403).json({
+          error: 'Feature not available',
+          message: 'Manual email PDF creation is not enabled for your account'
+        });
+      }
+
+      const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+
+      // Validate request body
+      const input = req.body;
+      if (!input.messageId || !input.from || !input.to || !input.receivedAt) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'Missing required fields: messageId, from, to, receivedAt'
+        });
+      }
+
+      if (!input.html && !input.text) {
+        return res.status(400).json({
+          error: 'Invalid input',
+          message: 'Either html or text content is required'
+        });
+      }
+
+      // Set tenantId from authenticated user
+      input.tenantId = req.user!.id;
+
+      const result = await renderAndCreateEmailBodyPdf(input);
+
+      res.json({
+        success: true,
+        ...result,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error('Email body PDF render failed:', error);
+
+      if (error.code) {
+        return res.status(400).json({
+          error: 'Email processing failed',
+          code: error.code,
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to process email body PDF'
+      });
+    }
+  });
+
+  // Manual "Store email as PDF" action endpoint
+  app.post('/api/email/render-to-pdf', requireAuth, async (req, res) => {
+    try {
+      const { documentId, targetCategoryId } = req.body;
+      const userId = req.user!.id;
+      const userTier = req.user!.subscriptionTier || 'free';
+
+      // Validate required fields
+      if (!documentId) {
+        return res.status(400).json({
+          errorCode: 'INVALID_REQUEST',
+          message: 'documentId is required'
+        });
+      }
+
+      // Feature flag check - server-side authoritative
+      const { emailFeatureFlagService } = await import('./emailFeatureFlags.js');
+      const isEnabled = await emailFeatureFlagService.isManualEmailPdfEnabled(userId, userTier);
+
+      if (!isEnabled) {
+        return res.status(403).json({
+          errorCode: 'FEATURE_DISABLED',
+          message: 'Manual email PDF creation is not enabled for your account'
+        });
+      }
+
+      // Load the source document
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({
+          errorCode: 'DOCUMENT_NOT_FOUND',
+          message: 'Document not found or access denied'
+        });
+      }
+
+      // Verify this is an email-sourced document
+      if (document.source !== 'email' || !document.emailContext || !(document.emailContext as any)?.messageId) {
+        return res.status(400).json({
+          errorCode: 'EMAIL_CONTEXT_MISSING',
+          message: 'Document is not an email attachment or missing email context'
+        });
+      }
+
+      // Extract email context for PDF creation
+      const emailContext = document.emailContext as any;
+      const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+
+      // Log user action
+      console.log(`[ANALYTICS] email_pdf_create_clicked: { docId: ${documentId}, messageId: ${emailContext.messageId}, userId: ${userId} }`);
+
+      // Prepare input for email body PDF service
+      const renderInput = {
+        tenantId: userId,
+        messageId: emailContext.messageId,
+        subject: emailContext.subject || null,
+        from: emailContext.from || 'Unknown Sender',
+        to: emailContext.to || ['unknown@recipient.com'],
+        receivedAt: emailContext.receivedAt || new Date().toISOString(),
+        html: emailContext.bodyHtml || null,
+        text: emailContext.bodyPlain || null,
+        ingestGroupId: emailContext.ingestGroupId || null,
+        categoryId: targetCategoryId || null,
+        tags: ['email', 'manual']
+      };
+
+      const renderStartTime = Date.now();
+      const result = await renderAndCreateEmailBodyPdf(renderInput);
+      const renderTime = Date.now() - renderStartTime;
+
+      // Link email body PDF with sibling attachments
+      let linkedCount = 0;
+      try {
+        // Find all documents from the same email (same messageId or ingestGroupId)
+        const allUserDocs = await storage.getDocuments(userId);
+        const siblingDocs = allUserDocs.filter(doc => 
+          doc.source === 'email' && 
+          doc.emailContext &&
+          typeof doc.emailContext === 'object' &&
+          'messageId' in doc.emailContext &&
+          doc.emailContext.messageId === emailContext.messageId &&
+          doc.id !== parseInt(result.documentId) // Don't link to itself
+        );
+
+        // Create bidirectional references between email body PDF and attachments
+        for (const siblingDoc of siblingDocs) {
+          // Add reference from email body PDF to attachment (source relation)
+          await storage.addDocumentReference(parseInt(result.documentId), siblingDoc.id);
+
+          // Add reference from attachment to email body PDF (related relation)
+          await storage.addDocumentReference(siblingDoc.id, parseInt(result.documentId));
+
+          linkedCount++;
+        }
+
+        console.log(`[ANALYTICS] references_linked: { emailBodyDocId: ${result.documentId}, attachmentCount: ${linkedCount} }`);
+      } catch (linkError) {
+        console.warn('Failed to create document references:', linkError);
+        // Don't fail the whole operation if linking fails
+      }
+
+      // Log success analytics
+      console.log(`[ANALYTICS] email_pdf_created: { newDocId: ${result.documentId}, messageId: ${emailContext.messageId}, created: ${result.created}, renderMs: ${renderTime}, sizeBytes: estimated }`);
+
+      res.json({
+        documentId: result.documentId,
+        created: result.created,
+        linkedCount,
+        name: result.name
+      });
+
+    } catch (error: any) {
+      console.error('Manual email PDF creation failed:', error);
+
+      // Log failure analytics
+      const documentId = req.body.documentId;
+      const messageId = req.body.messageId || 'unknown';
+      console.log(`[ANALYTICS] email_pdf_create_failed: { docId: ${documentId}, messageId: ${messageId}, errorCode: ${error.code || 'UNKNOWN_ERROR'} }`);
+
+      // Map service errors to API error codes
+      if (error.code === 'EMAIL_BODY_MISSING') {
+        return res.status(400).json({
+          errorCode: 'EMAIL_CONTEXT_MISSING',
+          message: 'Email content not available for PDF creation'
+        });
+      }
+
+      if (error.code === 'EMAIL_TOO_LARGE_AFTER_COMPRESSION') {
+        return res.status(413).json({
+          errorCode: 'EMAIL_TOO_LARGE_AFTER_COMPRESSION',
+          message: 'Email content too large to convert to PDF'
+        });
+      }
+
+      if (error.code === 'EMAIL_RENDER_FAILED') {
+        return res.status(500).json({
+          errorCode: 'EMAIL_RENDER_FAILED',
+          message: 'Failed to render email content to PDF'
+        });
+      }
+
+      res.status(500).json({
+        errorCode: 'INTERNAL_ERROR',
+        message: 'Failed to create email PDF'
+      });
+    }
+  });
+
+  // Document references endpoint
+  app.get('/api/documents/:id/references', requireAuth, async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      if (isNaN(documentId)) {
+        return res.status(400).json({ error: 'Invalid document ID' });
+      }
+
+      // Get the document to ensure user has access
+      const document = await storage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      // Parse references from document
+      let references = [];
+      if ((document as any).references) {
+        try {
+          const parsedRefs = typeof (document as any).references === 'string' 
+            ? JSON.parse((document as any).references) 
+            : (document as any).references;
+          references = Array.isArray(parsedRefs) ? parsedRefs : [];
+        } catch (error) {
+          console.warn('Failed to parse document references:', error);
+        }
+      }
+
+      res.json({ references });
+    } catch (error) {
+      console.error('Failed to fetch document references:', error);
+      res.status(500).json({ error: 'Failed to fetch document references' });
+    }
+  });
+
+  // Batch document summary endpoint for references UI
+  app.post('/api/documents/batch-summary', requireAuth, async (req, res) => {
+    try {
+      const { documentIds } = req.body;
+      const userId = req.user!.id;
+
+      if (!Array.isArray(documentIds) || documentIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Limit batch size to prevent abuse
+      if (documentIds.length > 50) {
+        return res.status(400).json({ error: 'Batch size too large (max 50)' });
+      }
+
+      // Get all user documents and filter by requested IDs
+      const allUserDocs = await storage.getDocuments(userId);
+      const requestedDocs = allUserDocs.filter(doc => 
+        documentIds.includes(doc.id)
+      );
+
+      // Return summary information only
+      const summaries = requestedDocs.map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        fileName: doc.fileName || doc.name,
+        mimeType: doc.mimeType,
+        fileSize: doc.fileSize,
+        source: doc.source || 'upload',
+        uploadedAt: doc.uploadedAt,
+        // Check if this looks like an email body PDF
+        isEmailBodyPdf: doc.source === 'email' && (
+          doc.name?.includes('Email -') || 
+          (doc.emailContext && typeof doc.emailContext === 'object' && 'bodyHash' in doc.emailContext)
+        ),
+        bodyHash: doc.emailContext && typeof doc.emailContext === 'object' && 'bodyHash' in doc.emailContext
+          ? (doc.emailContext as any).bodyHash 
+          : undefined
+      }));
+
+      res.json(summaries);
+    } catch (error) {
+      console.error('Failed to fetch batch document summaries:', error);
+      res.status(500).json({ error: 'Failed to fetch document summaries' });
+    }
+  });
+
+  // CORE-002: Enhanced Health Check Endpoint
+  app.get('/api/health', enhancedHealthCheck);
+
+  // GCS Test and Reset endpoint
+  app.get('/api/admin/gcs-test', requireAuth, async (req: any, res) => {
+    try {
+      console.log('🔄 Resetting StorageService to use new GCS credentials...');
+      StorageService.reset();
+
+      const storage = storageProvider();
+      const testKey = `test/${Date.now()}/test-file.txt`;
+      const testContent = Buffer.from('GCS Test File - ' + new Date().toISOString());
+
+      console.log('🧪 Testing GCS upload...');
+      await storage.upload(testContent, testKey, 'text/plain');
+
+      console.log('🧪 Testing GCS download...');
+      const downloadedContent = await storage.download(testKey);
+
+      console.log('🧪 Testing GCS signed URL...');
+      const signedUrl = await storage.getSignedUrl(testKey, 300);
+
+      console.log('🧪 Testing GCS delete...');
+      await storage.delete(testKey);
+
+      res.json({
+        success: true,
+        message: 'GCS functionality fully operational with new credentials',
+        tests: {
+          upload: 'SUCCESS',
+          download: 'SUCCESS', 
+          signedUrl: 'SUCCESS',
+          delete: 'SUCCESS'
+        },
+        downloadedContent: downloadedContent.toString(),
+        signedUrlGenerated: !!signedUrl,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error('GCS test failed:', error);
+      res.status(500).json({
+        success: false,
+        message: 'GCS test failed',
+        error: error?.message || 'Unknown error',
+        details: error?.stack
+      });
+    }
+  });
+
+  // Backup management routes (admin only)
+  app.use('/api/backup', backupRoutes);
+
+  // Advanced scanning routes
+  app.use('/api/scanning', advancedScanningRoutes);
+
+  // Setup multi-page scan upload routes
+  setupMultiPageScanUpload(app);
+
+  // LLM usage analytics routes (admin only)
+  app.use('/api/admin/llm-usage', llmUsageRoutes);
+
+  // Memory management routes
+  const memoryRoutes = (await import('./api/memory.js')).default;
+  app.use('/api/memory', memoryRoutes);
+
+  // User Assets routes
+  app.get('/api/user-assets', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const assets = await storage.getUserAssets(userId);
+      res.json(assets);
+    } catch (error) {
+      console.error("Error fetching user assets:", error);
+      res.status(500).json({ message: "Failed to fetch user assets" });
+    }
+  });
+
+  app.post('/api/user-assets', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+
+      console.log("[DEBUG USER-ASSETS] Raw request body:", JSON.stringify(req.body, null, 2));
+
+      // Validate request body using the discriminated union schema from the frontend
+      // This will check that house assets have address/postcode and car assets have make/model/year
+      const houseSchema = z.object({
+        type: z.literal("house"),
+        name: z.string().min(1),
+        address: z.string().min(1),
+        postcode: z.string().min(1),
+      });
+
+      const carSchema = z.object({
+        type: z.literal("car"),
+        name: z.string().min(1),
+        registration: z.string().min(1),
+        make: z.string().min(1),
+        model: z.string().min(1),
+        year: z.number().int().gte(1900).lte(new Date().getFullYear()),
+        vin: z.string().optional(),
+      });
+
+      const assetSchema = z.discriminatedUnion("type", [houseSchema, carSchema]);
+      const validatedData = assetSchema.parse(req.body);
+      console.log("[DEBUG USER-ASSETS] Validated data:", JSON.stringify(validatedData, null, 2));
+
+      const assetData = { ...validatedData, userId };
+      const asset = await storage.createUserAsset(assetData);
+      res.json(asset);
+    } catch (error) {
+      console.error("Error creating user asset:", error);
+      if (error instanceof z.ZodError) {
+        console.error("[DEBUG USER-ASSETS] Zod validation error details:", JSON.stringify(error.errors, null, 2));
+        res.status(400).json({ message: "Invalid asset data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to create user asset" });
+      }
+    }
+  });
+
+  app.delete('/api/user-assets/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const assetId = parseInt(req.params.id);
+
+      if (isNaN(assetId)) {
+        return res.status(400).json({ message: "Invalid asset ID" });
+      }
+
+      await storage.deleteUserAsset(assetId, userId);
+      res.json({ message: "Asset deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user asset:", error);
+      res.status(500).json({ message: "Failed to delete user asset" });
+    }
+  });
+
+  // DVLA Vehicle Lookup routes
+  app.post('/api/vehicles/lookup', requireAuth, async (req: any, res) => {
+    try {
+      const { vrn } = req.body;
+
+      if (!vrn || typeof vrn !== 'string') {
+        return res.status(400).json({ 
+          success: false, 
+          error: { message: 'VRN is required and must be a string' } 
+        });
+      }
+
+      console.log(`🔍 DVLA Lookup request for VRN: ${vrn}`);
+      
+      const result = await dvlaLookupService.lookupVehicleByVRN(vrn);
+      
+      if (result.success) {
+        console.log(`✅ DVLA Lookup successful for VRN: ${vrn}`);
+        res.json(result);
+      } else {
+        console.log(`❌ DVLA Lookup failed for VRN: ${vrn}`, result.error);
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error in DVLA lookup:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: { message: "Internal server error during DVLA lookup" } 
+      });
+    }
+  });
+
+  // Vehicle management routes
+  app.post('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleData = req.body;
+
+      console.log(`🚗 Creating vehicle for user ${userId}:`, vehicleData);
+
+      // Check if vehicle with this VRN already exists for this user
+      if (vehicleData.vrn) {
+        const existingVehicle = await storage.getVehicleByVRN(vehicleData.vrn, userId);
+        if (existingVehicle) {
+          console.log(`⚠️ Vehicle with VRN ${vehicleData.vrn} already exists for user ${userId}`);
+          return res.status(409).json({ 
+            message: `Vehicle ${vehicleData.vrn} is already being tracked`,
+            code: "VEHICLE_ALREADY_EXISTS"
+          });
+        }
+      }
+
+      const vehicle = await storage.createVehicle({ ...vehicleData, userId });
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error creating vehicle:", error);
+      res.status(500).json({ message: "Failed to create vehicle" });
+    }
+  });
+
+  app.get('/api/vehicles', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicles = await storage.getVehicles(userId);
+      res.json(vehicles);
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+      res.status(500).json({ message: "Failed to fetch vehicles" });
+    }
+  });
+
+  app.delete('/api/vehicles/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const vehicleId = req.params.id;
+
+      await storage.deleteVehicle(vehicleId, userId);
+      res.json({ message: "Vehicle deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+      res.status(500).json({ message: "Failed to delete vehicle" });
+    }
+  });
+
+  // ROOT ROUTE: Only define fallback for production mode
+  // In development, Vite middleware handles all frontend routing
+
+  // DEBUG ROUTE: Test deployment connectivity with enhanced diagnostics
+  app.get('/debug', (req, res) => {
     console.log('📞 /debug endpoint called from routes.ts');
     console.log('🔧 Environment:', process.env.NODE_ENV);
     console.log('🔧 Deployment timestamp:', process.env.DEPLOYMENT_TIMESTAMP || 'not-set');
@@ -4897,7 +5471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
-
+      
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -4925,14 +5499,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/household/members', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = getUserId(req);
-
+      
       const userHousehold = await storage.getUserHousehold(userId);
       if (!userHousehold) {
         return res.status(400).json({ message: "You must be in a household to view members" });
       }
 
       const members = await storage.getHouseholdMembers(userHousehold.id);
-
+      
       // Add role display names and permissions
       const enrichedMembers = members.map(member => ({
         ...member,
@@ -4951,7 +5525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const requesterId = getUserId(req);
       const targetUserId = req.params.userId;
-
+      
       if (requesterId === targetUserId) {
         return res.status(400).json({ message: "Cannot remove yourself from household" });
       }
@@ -4969,7 +5543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Remove membership
       await storage.removeHouseholdMembership(targetUserId);
-
+      
       res.status(204).send();
     } catch (error) {
       console.error("Error removing household member:", error);
@@ -5026,7 +5600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique token
       const crypto = await import('crypto');
       const token = crypto.randomBytes(32).toString('hex');
-
+      
       // Set expiry date (7 days from now)
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
@@ -5133,7 +5707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/household/invites', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = getUserId(req);
-
+      
       // Get user's household
       const userHousehold = await storage.getUserHousehold(userId);
       if (!userHousehold) {
@@ -5142,7 +5716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get pending invites for household
       const invites = await storage.getPendingInvitesByHousehold(userHousehold.id);
-
+      
       res.json(invites);
 
     } catch (error) {
@@ -5169,14 +5743,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all invites for the household to verify ownership
       const invites = await storage.getPendingInvitesByHousehold(userHousehold.id);
       const invite = invites.find(i => i.id === inviteId);
-
+      
       if (!invite) {
         return res.status(404).json({ message: "Invite not found" });
       }
 
       // Delete invite
       await storage.deletePendingInvite(inviteId);
-
+      
       res.status(204).send();
 
     } catch (error) {
@@ -5201,7 +5775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:id/audit', requireAuth, requireDocumentAccess('read'), async (req: AuthenticatedRequest, res) => {
     try {
       const documentId = parseInt(req.params.id);
-
+      
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
@@ -5219,7 +5793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserId(req);
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-
+      
       const auditTrail = await AuditLogger.getUserAuditTrail(userId, limit);
       res.json(auditTrail);
     } catch (error) {
@@ -5231,16 +5805,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ====================
   // CONVERSATION MANAGEMENT
   // ====================
-
+  
   // GET /api/conversations - List user's conversations
   app.get("/api/conversations", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const { tenantId } = req;
-
+      
       const conversations = await storage.getConversations(tenantId);
       res.json(conversations);
-
+      
     } catch (error: any) {
       console.error(`❌ [CONVERSATIONS] List error:`, error);
       res.status(500).json({ message: "Failed to fetch conversations" });
@@ -5253,19 +5827,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { tenantId } = req;
       const { title } = req.body;
-
+      
       if (!title) {
         return res.status(400).json({ message: "Title is required" });
       }
-
+      
       const conversation = await storage.createConversation({
         tenantId,
         userId,
         title: String(title).slice(0, 100), // Limit title length
       });
-
+      
       res.json(conversation);
-
+      
     } catch (error: any) {
       console.error(`❌ [CONVERSATIONS] Create error:`, error);
       res.status(500).json({ message: "Failed to create conversation" });
@@ -5278,16 +5852,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { tenantId } = req;
       const conversationId = req.params.id;
-
+      
       // Verify user has access to this conversation
       const conversation = await storage.getConversation(conversationId, tenantId);
       if (!conversation) {
         return res.status(404).json({ message: "Conversation not found" });
       }
-
+      
       const messages = await storage.getMessages(conversationId, tenantId);
       res.json(messages);
-
+      
     } catch (error: any) {
       console.error(`❌ [CONVERSATIONS] Messages error:`, error);
       res.status(500).json({ message: "Failed to fetch messages" });
@@ -5297,41 +5871,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ====================
   // CHAT ORCHESTRATION
   // ====================
-
+  
   // POST /api/chat - Chat orchestration endpoint with search + LLM + persistence
   app.post("/api/chat", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const { tenantId } = req;
-
+      
       // Check if chat features are enabled
       const { chatConfigService } = await import('./chatConfig.js');
       const chatStatus = await chatConfigService.getChatStatus(req.user!);
-
+      
       if (!chatStatus.enabled) {
         return res.status(403).json({ 
           message: chatStatus.reason || "Chat features not available" 
         });
       }
-
+      
       // Validate request body
       const validatedRequest: ChatRequest = chatRequestSchema.parse(req.body);
-
+      
       console.log(`🤖 [CHAT] Received query: "${validatedRequest.message}" from user ${userId}`);
-
+      
       // Process chat through orchestration service
       const response = await chatOrchestrationService.processChat(
         validatedRequest, 
         userId, 
         tenantId
       );
-
+      
       console.log(`✅ [CHAT] Returning response with ${response.citations.length} citations`);
       res.json(response);
-
+      
     } catch (error: any) {
       console.error(`❌ [CHAT] Endpoint error:`, error);
-
+      
       // Return structured error response matching schema
       const fallbackResponse = {
         conversationId: req.body.conversationId || "unknown",
@@ -5339,7 +5913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         citations: [],
         confidence: 0.0
       };
-
+      
       res.status(500).json(fallbackResponse);
     }
   });

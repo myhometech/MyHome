@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Brain, Calendar, AlertTriangle, Info, CheckCircle, Clock, DollarSign } from "lucide-react";
+import { Brain, Calendar, AlertTriangle, Info, CheckCircle, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { format } from "date-fns";
 interface Insight {
   id: number;
   message: string;
-  category: 'financial' | 'important_dates' | 'general';
+  priority: 'high' | 'medium' | 'low';
   dueDate?: string;
   actionUrl?: string;
   type: string;
@@ -21,41 +21,41 @@ interface InsightResponse {
   total: number;
 }
 
-function getCategoryIcon(category: string) {
-  switch (category) {
-    case 'financial':
-      return <DollarSign className="w-4 h-4 text-accent-purple-600" />;
-    case 'important_dates':
-      return <Calendar className="w-4 h-4 text-accent-purple-500" />;
+function getPriorityIcon(priority: string) {
+  switch (priority) {
+    case 'high':
+      return <AlertTriangle className="w-4 h-4 text-red-500" />;
+    case 'medium':
+      return <Clock className="w-4 h-4 text-yellow-500" />;
     default:
-      return <CheckCircle className="w-4 h-4 text-accent-purple-400" />;
+      return <Info className="w-4 h-4 text-blue-500" />;
   }
 }
 
-function getCategoryColor(category: string) {
-  switch (category) {
-    case 'financial':
-      return 'bg-accent-purple-50 border-accent-purple-200 text-accent-purple-800';
-    case 'important_dates':
-      return 'bg-accent-purple-100 border-accent-purple-300 text-accent-purple-700';
+function getPriorityColor(priority: string) {
+  switch (priority) {
+    case 'high':
+      return 'bg-red-50 border-red-200 text-red-800';
+    case 'medium':
+      return 'bg-yellow-50 border-yellow-200 text-yellow-800';
     default:
-      return 'bg-accent-purple-50 border-accent-purple-200 text-accent-purple-600';
+      return 'bg-blue-50 border-blue-200 text-blue-800';
   }
 }
 
 function formatDueDate(dateString?: string) {
   if (!dateString) return null;
-
+  
   try {
     const date = new Date(dateString);
     const now = new Date();
     const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
+    
     if (diffDays === 0) return "Due today";
     if (diffDays === 1) return "Due tomorrow";
     if (diffDays > 0 && diffDays <= 7) return `Due in ${diffDays} days`;
     if (diffDays < 0) return "Overdue";
-
+    
     return format(date, "MMM dd, yyyy");
   } catch {
     return null;
@@ -174,17 +174,17 @@ export default function TopInsightsWidget() {
             return (
               <div
                 key={insight.id}
-                className={`p-3 rounded-lg border transition-all hover:shadow-sm ${getCategoryColor(insight.category)}`}
+                className={`p-3 rounded-lg border transition-all hover:shadow-sm ${getPriorityColor(insight.priority)}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      {getCategoryIcon(insight.category)}
+                      {getPriorityIcon(insight.priority)}
                       <Badge
                         variant="outline"
-                        className={`text-xs ${getCategoryColor(insight.category)} border-current`}
+                        className={`text-xs ${getPriorityColor(insight.priority)} border-current`}
                       >
-                        {insight.category.replace('_', ' ').toUpperCase()}
+                        {insight.priority.toUpperCase()}
                       </Badge>
                       {dueText && (
                         <div className="flex items-center gap-1 text-xs text-gray-600">
@@ -210,7 +210,7 @@ export default function TopInsightsWidget() {
             );
           })}
         </div>
-
+        
         {insights.length >= 5 && (
           <div className="mt-4 pt-3 border-t">
             <Link href="/insights-first">

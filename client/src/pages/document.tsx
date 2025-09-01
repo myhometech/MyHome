@@ -48,7 +48,7 @@ export default function DocumentPage() {
   useEffect(() => {
     if (documentError) {
       console.error('Document not found or error loading:', documentError);
-      // Don't automatically redirect - let user see the error
+      setLocation('/');
     }
   }, [documentError, setLocation]);
 
@@ -66,27 +66,17 @@ export default function DocumentPage() {
     );
   }
 
-  if (documentError || !document) {
+  if (!document) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
-            <p className="text-gray-600 mb-4">
-              {documentError ? 'Error loading document. Please try again.' : 'Document not found'}
-            </p>
-            <p className="text-sm text-gray-500 mb-4">
-              Document ID: {documentId}
-            </p>
-            <div className="flex gap-2 justify-center">
-              <Button onClick={() => setLocation('/')} variant="outline">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Documents
-              </Button>
-              <Button onClick={() => window.location.reload()} variant="default">
-                Retry
-              </Button>
-            </div>
+            <p className="text-gray-600 mb-4">Document not found</p>
+            <Button onClick={() => setLocation('/')} variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Documents
+            </Button>
           </div>
         </div>
       </div>

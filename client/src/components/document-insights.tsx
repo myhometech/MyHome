@@ -33,7 +33,7 @@ interface DocumentInsight {
   title: string;
   content: string;
   confidence: number;
-  category: 'financial' | 'important_dates' | 'general';
+  priority: 'low' | 'medium' | 'high';
   metadata?: Record<string, any>;
   createdAt: string;
   tier?: 'primary' | 'secondary';
@@ -106,27 +106,27 @@ const insightTypeConfig = {
   }
 };
 
-const categoryConfig = {
-  financial: { 
-    badge: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200',
-    icon: DollarSign,
-    label: 'Financial',
+const priorityConfig = {
+  high: { 
+    badge: 'bg-gradient-to-r from-accent-purple-100 to-accent-purple-200 text-accent-purple-600 border-accent-purple-200',
+    icon: AlertCircle,
+    label: 'High Priority',
     glow: 'shadow-accent-purple-200/50',
-    cardGradient: 'bg-white'
+    cardGradient: 'bg-gradient-to-br from-accent-purple-600 via-accent-purple-600 to-accent-purple-700'
   },
-  important_dates: { 
-    badge: 'bg-accent-purple-200 text-accent-purple-800 border-accent-purple-300',
-    icon: Calendar,
-    label: 'Important Dates',
-    glow: 'shadow-accent-purple-300/50',
-    cardGradient: 'bg-white'
+  medium: { 
+    badge: 'bg-gradient-to-r from-accent-purple-50 to-accent-purple-100 text-accent-purple-500 border-accent-purple-200',
+    icon: TrendingUp,
+    label: 'Medium Priority',
+    glow: 'shadow-accent-purple-200/50',
+    cardGradient: 'bg-gradient-to-br from-accent-purple-400 via-accent-purple-500 to-accent-purple-600'
   },
-  general: { 
-    badge: 'bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200',
+  low: { 
+    badge: 'bg-gradient-to-r from-accent-purple-50 to-accent-purple-100 text-accent-purple-400 border-accent-purple-200',
     icon: CheckCircle,
-    label: 'General',
+    label: 'Low Priority',
     glow: 'shadow-accent-purple-100/50',
-    cardGradient: 'bg-white'
+    cardGradient: 'bg-gradient-to-br from-accent-purple-200 via-accent-purple-300 to-accent-purple-400'
   }
 };
 
@@ -152,36 +152,36 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      abortControllerRef.current = new AbortController();
+    if (typeof window === 'undefined') return;
 
-      let resizeTimer: NodeJS.Timeout | null = null;
-      const handleResize = () => {
-        if (resizeTimer) clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-          if (abortControllerRef.current?.signal.aborted) return;
+    abortControllerRef.current = new AbortController();
 
-          const newIsMobile = window.innerWidth <= 768;
-          setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
-          resizeTimer = null;
-        }, 150);
-      };
+    let resizeTimer: NodeJS.Timeout | null = null;
+    const handleResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (abortControllerRef.current?.signal.aborted) return;
 
-      window.addEventListener('resize', handleResize, { 
-        passive: true,
-        signal: abortControllerRef.current.signal 
-      });
+        const newIsMobile = window.innerWidth <= 768;
+        setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
+        resizeTimer = null;
+      }, 150);
+    };
 
-      return () => {
-        if (abortControllerRef.current) {
-          abortControllerRef.current.abort();
-        }
-        if (resizeTimer) {
-          clearTimeout(resizeTimer);
-          resizeTimer = null;
-        }
-      };
-    }
+    window.addEventListener('resize', handleResize, { 
+      passive: true,
+      signal: abortControllerRef.current.signal 
+    });
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+        resizeTimer = null;
+      }
+    };
   }, []);
 
   const limit = React.useMemo(() => isMobile ? 5 : 10, [isMobile]);
@@ -189,45 +189,23 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const { data: insightData, isLoading, error } = useQuery({
     queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
     queryFn: async ({ signal }) => {
-      try {
-        const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
-          signal,
-          credentials: 'include',
-        });
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            // Document not found or no insights yet - return empty array
-            return { insights: [], success: true };
-          }
-          const errorData = await response.text().catch(() => '');
-          console.error('Failed to fetch insights:', errorData);
-          throw new Error(`Failed to fetch insights: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Fetched insights data:', data);
-        return data;
-      } catch (error: any) {
-        if (error.name === 'AbortError') {
-          throw error;
-        }
-        console.error('Insight fetch error:', error);
-        // Return empty state instead of throwing to prevent component crash
-        return { insights: [], success: false, error: error.message };
+      const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
+        signal,
+      });
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Failed to fetch insights:', errorData);
+        throw new Error('Failed to fetch insights');
       }
+      const data = await response.json();
+      console.log('Fetched insights data:', data);
+      return data;
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    retry: (failureCount, error) => {
-      // Don't retry on 404 or client errors
-      if (error?.message?.includes('404') || error?.message?.includes('400')) {
-        return false;
-      }
-      return failureCount < 2;
-    },
+    retry: 1,
     select: React.useCallback((data: any) => {
       if (!data?.insights) return { insights: [] };
       const limitedInsights = data.insights.slice(0, Math.min(limit, 20));
@@ -251,19 +229,13 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include',
         signal: requestSignal
       });
 
       console.log(`📡 [INSIGHT-DEBUG] Response status: ${response.status}`);
 
       if (!response.ok) {
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch {
-          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
-        }
+        const errorData = await response.json();
         console.error(`❌ [INSIGHT-DEBUG] Server error:`, errorData);
         throw new Error(errorData.message || 'Failed to generate insights');
       }
@@ -281,10 +253,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     onSuccess: React.useCallback((data: InsightResponse) => {
       if (abortControllerRef.current?.signal.aborted) return;
 
-      const actualInsightCount = data.insights?.length || 0;
       toast({
         title: "Insights Generated",
-        description: `Generated ${actualInsightCount} insight${actualInsightCount === 1 ? '' : 's'}`
+        description: `Generated ${data.insights.length} insights`
       });
       queryClient.invalidateQueries({
         queryKey: ['/api/documents', documentId, 'insights']
@@ -459,91 +430,67 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     );
   }
 
-  if (error && !insightData) {
+  if (error) {
     const errorMessage = error?.message || 'Unknown error';
-    console.log('Insight error details:', { error, errorMessage, documentId, documentName });
+    const isInsightError = errorMessage.toLowerCase().includes('insight') || 
+                          errorMessage.includes('INSIGHT_') ||
+                          (error as any)?.code === 'INSIGHT_ERROR';
 
     return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 rounded-xl shadow-sm">
-              <Brain className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Smart Insights</h2>
-              <p className="text-xs text-gray-500">AI-powered document analysis</p>
-            </div>
-          </div>
-
-          <Button 
-            onClick={handleGenerateInsights} 
-            disabled={isGenerating || generateInsightsMutation.isPending}
-            className="bg-gradient-to-r from-accent-purple-400 to-accent-purple-500 hover:from-accent-purple-500 hover:to-accent-purple-600 text-white shadow-sm hover:shadow-lg border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            size="sm"
-          >
-            <Brain className="mr-2 h-4 w-4" />
-            <span className="text-sm">Generate Insights</span>
-          </Button>
-        </div>
-
-        {/* Error state without redirect */}
-        <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <AlertCircle className="h-5 w-5 text-orange-600" />
-              <h3 className="font-medium text-orange-900">Unable to load insights</h3>
-            </div>
-            <p className="text-sm text-orange-700 mb-4">
-              {errorMessage.includes('404') 
-                ? 'No insights found for this document yet.'
-                : 'There was an issue loading insights for this document.'
-              }
-            </p>
-            <Button 
-              onClick={handleGenerateInsights}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-              size="sm"
-            >
-              Try Generating Insights
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Brain className="h-5 w-5" />
+            Document Insights
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <OCRErrorHandler
+            error={isInsightError ? 'INSIGHT_GENERATION_FAILED' : 'OCR_PROCESSING_FAILED'}
+            documentName={documentName}
+            onRetryUpload={handleGenerateInsights}
+          />
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Modern Header */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 rounded-xl shadow-sm">
-            <Brain className="h-4 w-4 text-white" />
+          <div className="p-2 bg-gradient-to-br from-accent-purple-400 to-accent-purple-600 rounded-xl">
+            <Brain className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Smart Insights</h2>
-            <p className="text-xs text-gray-500">AI-powered document analysis</p>
+            <h2 className="text-xl font-bold text-gray-900">Smart Insights</h2>
+            <p className="text-sm text-gray-500">AI-powered document analysis</p>
           </div>
+          {insights.length > 0 && (
+            <div className="ml-4">
+              <Badge variant="secondary" className="bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200">
+                {insights.length} insight{insights.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+          )}
         </div>
 
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
-          className="bg-gradient-to-r from-accent-purple-400 to-accent-purple-500 hover:from-accent-purple-500 hover:to-accent-purple-600 text-white shadow-sm hover:shadow-lg border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          size="sm"
+          className="bg-gradient-to-r from-accent-purple-600 to-accent-purple-700 hover:from-accent-purple-700 hover:to-accent-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+          size={isMobile ? "default" : "lg"}
         >
           {isGenerating || generateInsightsMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span className="text-sm">Analyzing...</span>
+              Analyzing...
             </>
           ) : (
             <>
               <Brain className="mr-2 h-4 w-4" />
-              <span className="text-sm">{insights.length > 0 ? 'Refresh' : 'Generate'}</span>
+              {insights.length > 0 ? 'Refresh Insights' : 'Generate Insights'}
             </>
           )}
         </Button>
@@ -551,8 +498,37 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
       {/* Content Area */}
       {insights.length === 0 && !isGenerating && !generateInsightsMutation.isPending ? (
-        <div className="text-center py-4">
-          <p className="text-gray-500 text-sm">No insights generated yet. Click "Generate" to analyze this document.</p>
+        <div className="text-center py-16 px-6">
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-gradient-to-r from-accent-purple-100 to-accent-purple-200 rounded-full blur-3xl opacity-30"></div>
+            <div className="relative bg-white rounded-2xl p-6 shadow-lg mx-auto w-fit">
+              <Brain className="h-12 w-12 text-accent-purple-600 mx-auto" />
+            </div>
+          </div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-4">Unlock Document Intelligence</h3>
+          <p className="text-gray-600 mb-8 text-lg max-w-2xl mx-auto leading-relaxed">
+            Let our AI analyze your document to extract key insights, important dates, contacts, and actionable items automatically.
+          </p>
+
+          {/* Feature Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
+            <div className="bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 rounded-xl p-4 border border-accent-purple-200">
+              <Calendar className="h-6 w-6 text-accent-purple-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-accent-purple-600">Key Dates</p>
+            </div>
+            <div className="bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 rounded-xl p-4 border border-accent-purple-200">
+              <Users className="h-6 w-6 text-accent-purple-500 mx-auto mb-2" />
+              <p className="text-sm font-medium text-accent-purple-600">Contacts</p>
+            </div>
+            <div className="bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 rounded-xl p-4 border border-accent-purple-200">
+              <CheckCircle className="h-6 w-6 text-accent-purple-500 mx-auto mb-2" />
+              <p className="text-sm font-medium text-accent-purple-600">Action Items</p>
+            </div>
+            <div className="bg-gradient-to-br from-accent-purple-50 to-accent-purple-100 rounded-xl p-4 border border-accent-purple-200">
+              <DollarSign className="h-6 w-6 text-accent-purple-600 mx-auto mb-2" />
+              <p className="text-sm font-medium text-accent-purple-600">Financial Data</p>
+            </div>
+          </div>
         </div>
       ) : isGenerating || generateInsightsMutation.isPending ? (
         <div className="text-center py-16 px-6">
@@ -576,9 +552,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
           {insights.map((insight: DocumentInsight, index: number) => {
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
-            const categoryData = categoryConfig[insight.category];
+            const priorityData = priorityConfig[insight.priority];
             const IconComponent = config.icon;
-            const CategoryIcon = categoryData.icon;
+            const PriorityIcon = priorityData.icon;
 
             // Extract more specific title from content or metadata
             const getSpecificTitle = (insight: DocumentInsight) => {
@@ -632,34 +608,27 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
             const handleCardClick = (e: React.MouseEvent) => {
               const target = e.target as HTMLElement;
-              
-              // Prevent navigation if clicking on interactive elements
               if (target.closest('button') || 
                   target.closest('[role="button"]') || 
                   target.closest('[data-radix-dropdown-menu-trigger]') ||
                   target.closest('[data-radix-dropdown-menu-content]')) {
-                e.preventDefault();
-                e.stopPropagation();
                 return;
               }
 
-              // Only navigate if callback is provided and we're not in an error state
-              if (onDocumentClick && !error) {
-                e.preventDefault();
-                console.log('Opening document from insight card:', documentId);
+              if (onDocumentClick) {
                 onDocumentClick(documentId);
               }
             };
 
             return (
-              <Card 
+              <div 
                 key={insight.id} 
-                className={`group relative overflow-hidden cursor-pointer border-2 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${config.bgPattern} ${config.accent} hover:border-accent-purple-300`}
+                className={`group relative ${priorityData.cardGradient} rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] overflow-hidden cursor-pointer border ${config.accent} ${priorityData.glow} hover:${priorityData.glow} text-white`}
                 onClick={handleCardClick}
                 style={{ minHeight: isMobile ? '140px' : '160px' }}
               >
-                {/* Header Section with Purple Background */}
-                <CardHeader className={`bg-gradient-to-r ${config.color} text-white p-4 relative`}>
+                {/* Header Section */}
+                <div className={`${config.bgPattern} p-3 relative`}>
                   {/* Top Actions */}
                   <div className="absolute top-2 right-2 flex items-center gap-1">
                     <Button
@@ -670,10 +639,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleFlagInsight(insight.id, !insight.flagged, insight.flagged ? undefined : "Incorrect information");
                       }}
                       disabled={flagInsightMutation.isPending}
-                      className="bg-white/20 hover:bg-white/30 text-white hover:text-white rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
+                      className="bg-white/80 hover:bg-white text-gray-600 rounded-full h-6 w-6 p-0 shadow-sm"
                       title={insight.flagged ? "Remove flag" : "Flag as incorrect"}
                     >
-                      {insight.flagged ? <FlagOff className="h-3.5 w-3.5" /> : <Flag className="h-3.5 w-3.5" />}
+                      {insight.flagged ? <FlagOff className="h-3 w-3" /> : <Flag className="h-3 w-3" />}
                     </Button>
                     <Button
                       variant="ghost"
@@ -683,72 +652,72 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         handleDeleteInsight(insight.id);
                       }}
                       disabled={deleteInsightMutation.isPending}
-                      className="bg-white/20 hover:bg-red-500 hover:text-white text-white rounded-full h-7 w-7 p-0 shadow-sm hover:shadow-md transition-all duration-200"
+                      className="bg-white/80 hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-full h-6 w-6 p-0 shadow-sm"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
 
-                  {/* Icon and Category Badge */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 bg-white/20 rounded-lg shadow-sm">
-                      <IconComponent className="h-5 w-5 text-white" />
+                  {/* Icon and Type */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={`p-2 bg-gradient-to-r ${config.color} rounded-lg shadow-md`}>
+                      <IconComponent className="h-4 w-4 text-white" />
                     </div>
-                    <Badge className="bg-white/20 text-white border-white/30 text-xs font-medium">
-                      <CategoryIcon className="h-3 w-3 mr-1" />
-                      {categoryData.label.toUpperCase()}
-                    </Badge>
+                    <div>
+                      <Badge className={`${priorityData.badge} border text-xs font-medium`}>
+                        <PriorityIcon className="h-2 w-2 mr-1" />
+                        {insight.priority.toUpperCase()}
+                      </Badge>
+                    </div>
                   </div>
 
                   {/* Title */}
-                  <CardTitle className="text-sm text-white leading-tight mb-2">
+                  <h3 className={`font-semibold text-sm text-white leading-tight mb-1`}>
                     {getSpecificTitle(insight)}
-                  </CardTitle>
+                  </h3>
 
-                  {/* Type and Confidence */}
-                  <div className="flex items-center justify-between">
+                  {/* Type Label */}
+                  <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-white/90">
                       {config.label}
                     </span>
                     <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 text-yellow-300 fill-current" />
-                      <span className="text-xs text-white/90 font-medium">
+                      <Star className="h-2 w-2 text-yellow-300 fill-current" />
+                      <span className="text-xs text-white/80 font-medium">
                         {Math.round(insight.confidence * 100)}%
                       </span>
                     </div>
                   </div>
-                </CardHeader>
+                </div>
 
                 {/* Content Section */}
-                <CardContent className="p-4 flex-1 bg-white">
-                  <p className={`text-sm leading-relaxed line-clamp-3 mb-3 ${config.textColor}`}>
+                <div className="p-3 pt-2 flex-1">
+                  <p className="text-white/90 text-xs leading-relaxed line-clamp-3 mb-3">
                     {insight.content}
                   </p>
 
                   {/* Metadata */}
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                  <div className="flex items-center gap-3 text-xs text-white/70 mb-2">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       <span>{new Date(insight.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
+                </div>
 
-                  {/* Footer Actions */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                {/* Footer Actions */}
+                <div className="border-t border-white/20 p-2 bg-black/10">
+                  <div className="flex items-center justify-between">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
-                        e.preventDefault();
                         e.stopPropagation();
-                        console.log('View button clicked for document:', documentId);
-                        if (onDocumentClick) {
-                          onDocumentClick(documentId);
-                        }
+                        if (onDocumentClick) onDocumentClick(documentId);
                       }}
-                      className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}
+                      className="text-white hover:text-white hover:bg-white/20 transition-colors text-xs"
                     >
-                      <Eye className="h-3 w-3 mr-1.5" />
+                      <Eye className="h-3 w-3 mr-1" />
                       View
                     </Button>
 
@@ -756,19 +725,20 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
-                        e.preventDefault();
                         e.stopPropagation();
-                        console.log('Details button clicked, navigating to:', `/document/${documentId}`);
-                        setLocation(`/document/${documentId}`);
+                        setLocation(`/insights?documentId=${documentId}`);
                       }}
-                      className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}
+                      className="text-white hover:text-white hover:bg-white/20 transition-colors text-xs"
                     >
                       Details
-                      <ArrowRight className="h-3 w-3 ml-1.5" />
+                      <ArrowRight className="h-3 w-3 ml-1" />
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+
+                {/* Priority Accent Border */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${config.color}`}></div>
+              </div>
             );
           })}
         </div>

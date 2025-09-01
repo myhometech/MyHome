@@ -466,7 +466,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
   }, [document.id, error]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0 top-16 z-40" style={{ width: '100vw', height: 'calc(100vh - 4rem)', maxWidth: '100vw', maxHeight: 'calc(100vh - 4rem)' }}>
+    <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
       {/* Enhanced Document Header - Mobile and Desktop */}
       <div className="flex items-center justify-between px-4 py-3 bg-[#FAF4EF] border-b border-gray-200 shrink-0">
         {/* Left side - Document info - Clickable to close */}

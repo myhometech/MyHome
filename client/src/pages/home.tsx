@@ -53,151 +53,7 @@ import { BatchTagManager } from "@/components/batch-tag-manager";
 import { InsightJobStatus } from "@/components/InsightJobStatus";
 import { Badge } from "@/components/ui/badge";
 
-// Added import for UnifiedInsightsDashboard and InsightsSummaryDashboard
-import { UnifiedInsightsDashboard } from "@/components/unified-insights-dashboard";
-import InsightsSummaryDashboard from "@/components/insights-summary-dashboard";
-
-
-type Category = {
-  id: number;
-  name: string;
-  icon?: string;
-  color?: string;
-};
-
-type Document = {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  categoryId: number | null;
-  tags: string[];
-  path: string;
-  // Add other relevant properties
-};
-
-type DocumentInsight = {
-  id: number;
-  documentId: number;
-  insight: string;
-  type: string;
-  createdAt: string;
-  // Add other relevant properties
-};
-
-// Component to show insights from all documents
-function InsightsFromAllDocuments() {
-  const [, setLocation] = useLocation();
-
-  // Fetch all documents to get their insights
-  const { data: documents = [] } = useQuery({
-    queryKey: ["/api/documents"],
-    queryFn: async () => {
-      const response = await fetch("/api/documents", { credentials: "include" });
-      if (!response.ok) throw new Error("Failed to fetch documents");
-      return response.json();
-    },
-  });
-
-  // Get insights for first few documents
-  const documentInsights = documents.slice(0, 5).map((doc: Document) => {
-    const { data: insights } = useQuery({
-      queryKey: ['/api/documents', doc.id, 'insights'],
-      queryFn: async () => {
-        const response = await fetch(`/api/documents/${doc.id}/insights?tier=primary&limit=5`);
-        if (!response.ok) return { insights: [] };
-        return response.json();
-      },
-      enabled: !!doc.id,
-    });
-    return { document: doc, insights: insights?.insights || [] };
-  });
-
-  const allInsights = documentInsights.flatMap(item => 
-    item.insights.map((insight: any) => ({
-      ...insight,
-      documentName: item.document.name,
-      documentId: item.document.id
-    }))
-  ).slice(0, 12); // Show max 12 insights
-
-  if (allInsights.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <Brain className="h-12 w-12 text-accent-purple-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No AI Insights Yet</h3>
-        <p className="text-gray-600 mb-4">
-          Upload documents and generate insights to see them here.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {allInsights.map((insight: any, index: number) => {
-        const getCategoryGradient = (category: string) => {
-          switch (category) {
-            case 'financial': 
-              return 'bg-gradient-to-br from-accent-purple-600 to-accent-purple-700 text-white border-accent-purple-500';
-            case 'important_dates': 
-              return 'bg-gradient-to-br from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400';
-            case 'general': 
-              return 'bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 text-white border-accent-purple-300';
-            default: 
-              return 'bg-gradient-to-br from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400';
-          }
-        };
-
-        const getInsightIcon = (type: string) => {
-          switch (type) {
-            case 'contacts': return <Users className="h-4 w-4" />;
-            case 'financial_info': return <DollarSign className="h-4 w-4" />;
-            case 'key_dates': return <Calendar className="h-4 w-4" />;
-            case 'action_items': return <CheckCircle className="h-4 w-4" />;
-            case 'compliance': return <Shield className="h-4 w-4" />;
-            default: return <Brain className="h-4 w-4" />;
-          }
-        };
-
-        return (
-          <Card 
-            key={`${insight.documentId}-${insight.id || index}`}
-            className={`cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105 border-2 ${getCategoryGradient(insight.category || 'general')}`}
-            onClick={() => setLocation(`/document/${insight.documentId}`)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {getInsightIcon(insight.type)}
-                  <span className="text-sm font-medium text-white/90">
-                    {insight.type?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Insight'}
-                  </span>
-                </div>
-                <Badge className="bg-white/20 text-white border-white/30 text-xs">
-                  {insight.category?.replace('_', ' ').toUpperCase() || 'GENERAL'}
-                </Badge>
-              </div>
-
-              <h3 className="font-semibold text-white mb-2 line-clamp-2">
-                {insight.title || 'Document Insight'}
-              </h3>
-
-              <p className="text-sm text-white/90 line-clamp-2 mb-3">
-                {insight.content || 'AI-generated insight from your document'}
-              </p>
-
-              <div className="flex items-center justify-between text-xs text-white/80">
-                <span>{insight.documentName}</span>
-                <span>{insight.confidence ? `${Math.round(insight.confidence * 100)}%` : '95%'}</span>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
+import type { Category, Document, DocumentInsight } from "@shared/schema";
 
 // Dashboard Overview Cards Component
 function DashboardOverview({ onFilterChange }: { onFilterChange: (filter: any) => void }) {
@@ -704,8 +560,10 @@ export default function Home() {
   });
 
   // Mock components for demonstration purposes, replace with actual imports
-  // These were previously placeholders but now we have actual components imported.
-  // Removed the mock components definition.
+  const CriticalInsightsDashboard = () => <div className="bg-gray-100 p-4 rounded-lg">Critical Insights Dashboard</div>;
+  const TopInsightsWidget = () => <div className="bg-gray-100 p-4 rounded-lg">Top Insights Widget</div>;
+  const UnifiedInsightsDashboard = ({ filter }: { filter: any }) => <div className="bg-gray-100 p-4 rounded-lg">Unified Insights Dashboard (Filter: {JSON.stringify(filter)})</div>;
+  const YourAssetsSection = () => <div className="bg-gray-100 p-4 rounded-lg">Your Assets Section</div>;
 
   const handleFilterChange = (filter: any) => {
     // This is the filter for the UnifiedInsightsDashboard, not the main dashboard overview cards
@@ -769,8 +627,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Dashboard Overview Cards - Working with real data */}
-        <DashboardOverview onFilterChange={handleDashboardFilter} />
 
         {/* Quick Action Cards */}
         <QuickActionCards />
@@ -779,124 +635,6 @@ export default function Home() {
         <FeatureGate feature="AI_INSIGHTS">
           <InsightJobStatus />
         </FeatureGate>
-
-        {/* Category Filter Cards - These are the financial/important dates/general cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {/* Financial Card */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-600 to-accent-purple-700 text-white border-0 shadow-md"
-            onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id || null)}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-lg font-semibold text-white">Financial</p>
-                  <p className="text-sm text-white/90">Bills, payments & money matters</p>
-                </div>
-                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id || null);
-                }}
-              >
-                View Financial Documents
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Important Dates Card */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-500 to-accent-purple-600 text-white border-0 shadow-md"
-            onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id || null)}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-lg font-semibold text-white">Important Dates</p>
-                  <p className="text-sm text-white/90">Deadlines & key events</p>
-                </div>
-                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id || null);
-                }}
-              >
-                View Important Dates
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* General Card */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 text-white border-0 shadow-md"
-            onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('general'))?.id || null)}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-lg font-semibold text-white">General</p>
-                  <p className="text-sm text-white/90">All other documents</p>
-                </div>
-                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <CheckCircle className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCategory(null);
-                }}
-              >
-                View All Documents
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Insights Section */}
-        <div className="mb-8">
-          <Card className="bg-white border border-gray-200">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 rounded-xl shadow-sm">
-                    <Brain className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl font-semibold text-gray-900">AI Insights</CardTitle>
-                    <p className="text-sm text-gray-600">Recent insights from your documents</p>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Display insights from all documents */}
-              <InsightsFromAllDocuments />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Unified Insights Dashboard - This should now display the insights */}
-        <div className="mt-8">
-          <UnifiedInsightsDashboard searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-        </div>
 
         {/* Search and Filter Controls */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -920,9 +658,11 @@ export default function Home() {
           onCategoryChange={setSelectedCategory}
         />
 
+        {/* Dashboard Overview Cards - Moved above Document Library */}
+        <DashboardOverview onFilterChange={handleDashboardFilter} />
 
         {/* Documents Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mt-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
           <div className="p-3 md:p-6 border-b border-gray-200 dark:border-gray-700">
             {bulkMode && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -1165,7 +905,7 @@ export default function Home() {
           </div>
         </div>
       </main>
-
+      
       {/* Floating Chat Widget */}
       <FloatingChatWidget />
     </div>

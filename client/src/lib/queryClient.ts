@@ -69,7 +69,6 @@ export const queryClient = new QueryClient({
       retry: 1,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
-      queryFn: getQueryFn({ on401: "throw" }), // Set default authenticated query function
     },
     mutations: {
       retry: 1,

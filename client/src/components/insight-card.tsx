@@ -22,7 +22,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { DocumentInsight } from '@shared/schema';
-import { useLocation } from "wouter";
+import { useLocation, setLocation } from "wouter";
 import { formatDistance } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -91,27 +91,27 @@ const insightTypeConfig = {
   }
 };
 
-const categoryConfig = {
-  financial: { 
-    badge: 'bg-blue-100 text-blue-800 border-blue-200',
-    icon: DollarSign,
-    label: 'Financial',
-    dotColor: 'bg-blue-500',
-    ringColor: 'ring-blue-200'
+const priorityConfig = {
+  high: { 
+    badge: 'bg-purple-100 text-purple-800 border-purple-200',
+    icon: AlertCircle,
+    label: 'High Priority',
+    dotColor: 'bg-purple-500',
+    ringColor: 'ring-purple-200'
   },
-  important_dates: { 
-    badge: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    icon: Calendar,
-    label: 'Important Dates',
-    dotColor: 'bg-yellow-500',
-    ringColor: 'ring-yellow-200'
+  medium: { 
+    badge: 'bg-purple-50 text-purple-700 border-purple-150',
+    icon: TrendingUp,
+    label: 'Medium Priority',
+    dotColor: 'bg-purple-400',
+    ringColor: 'ring-purple-150'
   },
-  general: { 
-    badge: 'bg-green-100 text-green-800 border-green-200',
+  low: { 
+    badge: 'bg-purple-25 text-purple-600 border-purple-100',
     icon: CheckCircle,
-    label: 'General',
-    dotColor: 'bg-green-500',
-    ringColor: 'ring-green-200'
+    label: 'Low Priority',
+    dotColor: 'bg-purple-300',
+    ringColor: 'ring-purple-100'
   }
 };
 
@@ -164,7 +164,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
   };
 
   const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
-  const categoryData = categoryConfig[(insight.category || 'general') as keyof typeof categoryConfig];
+  const priorityData = priorityConfig[insight.priority || 'medium'];
   const IconComponent = config.icon;
 
   const formatDueDate = (dueDate: string | null) => {
@@ -202,8 +202,8 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       if (onDocumentClick) {
         onDocumentClick(insight.documentId);
       } else {
-        // Navigate directly to the document page
-        setLocation(`/document/${insight.documentId}`);
+        // Navigate to the insights-first page with document ID
+        setLocation(`/insights-first?documentId=${insight.documentId}`);
       }
     }
   };
@@ -222,8 +222,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       className={`group relative overflow-hidden rounded-xl transition-all duration-300 cursor-pointer transform hover:scale-[1.02] hover:shadow-xl ${config.borderColor} border-2 ${
         insight.status === 'dismissed' ? 'opacity-60' : ''
       } ${
-        insight.category === 'financial' ? 'ring-2 ring-blue-100' : 
-        insight.category === 'important_dates' ? 'ring-2 ring-yellow-100' : ''
+        insight.priority === 'high' ? 'ring-2 ring-red-100' : ''
       }`}
       style={{ minHeight: '200px' }}
       onClick={handleCardClick}
@@ -251,17 +250,17 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
 
             {/* Category Badge */}
             <div>
-              <Badge className={`text-xs ${categoryData.badge}`}>
-                {categoryData.label.toUpperCase()}
+              <Badge className={`${config.textColor} bg-white/80 border ${config.borderColor} font-medium text-xs px-2 py-1`}>
+                {config.label}
               </Badge>
             </div>
           </div>
 
           {/* Priority Indicator & Menu */}
           <div className="flex items-center space-x-2">
-            {/* Category dot with enhanced visibility */}
-            <div className={`w-3 h-3 rounded-full ${categoryData.dotColor} ${insight.category === 'important_dates' ? 'animate-pulse' : ''}`} 
-                 title={`${categoryData.label}`} />
+            {/* Priority dot with enhanced visibility */}
+            <div className={`w-3 h-3 rounded-full ${priorityData.dotColor} ${insight.priority === 'high' ? 'animate-pulse' : ''}`} 
+                 title={`${priorityData.label}`} />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -380,7 +379,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
             <div className="flex items-center gap-1">
               <Star className="h-3 w-3 text-yellow-500 fill-current" />
               <span className="text-gray-600 font-medium">
-                {Math.round(Number(insight.confidence || 0.9) * 100)}%
+                {Math.round((insight.confidence || 0.9) * 100)}%
               </span>
             </div>
 

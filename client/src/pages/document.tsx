@@ -36,6 +36,32 @@ export default function DocumentPage() {
 
   const { data: document, isLoading, error } = useQuery<Document>({
     queryKey: [`/api/documents/${documentId}`],
+    queryFn: async () => {
+      console.log(`[DOCUMENT-PAGE] Fetching document ${documentId}`);
+      const response = await fetch(`/api/documents/${documentId}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log(`[DOCUMENT-PAGE] Response status: ${response.status}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error(`[DOCUMENT-PAGE] API Error:`, {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(`Failed to fetch document: ${response.status} - ${errorData.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log(`[DOCUMENT-PAGE] Document data received:`, { id: data.id, name: data.name, encrypted: data.isEncrypted });
+      return data;
+    },
     enabled: !!documentId,
     retry: false,
   });

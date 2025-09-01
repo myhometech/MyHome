@@ -368,61 +368,85 @@ router.get('/:id', async (req: any, res: any) => {
       });
     }
 
-    // Enhanced document retrieval with better error logging
-    const document = await storage.getDocument(documentId, userId);
-
-    if (!document) {
-      console.log(`[DOCUMENT-ROUTE] Document ${documentId} not found for user ${userId}`);
-
-      // Enhanced debugging - check for document in insights and auto-cleanup
-      try {
-        const userInsights = await storage.getInsights(userId);
-        const orphanedInsights = userInsights.filter(insight =>
-          insight.documentId && Number(insight.documentId) === documentId
-        );
-
-        if (orphanedInsights.length > 0) {
-          console.log(`[DOCUMENT-ROUTE] Found ${orphanedInsights.length} orphaned insights referencing missing document ${documentId}`);
-          
-          // Auto-cleanup orphaned insights
-          for (const orphanedInsight of orphanedInsights) {
-            try {
-              await storage.deleteInsight(orphanedInsight.id);
-              console.log(`[DOCUMENT-ROUTE] Auto-deleted orphaned insight ${orphanedInsight.id}`);
-            } catch (deleteError) {
-              console.warn(`[DOCUMENT-ROUTE] Failed to delete orphaned insight ${orphanedInsight.id}:`, deleteError);
-            }
-          }
-        }
-
-        const allDocuments = await storage.getDocuments(userId);
-        const userDocumentIds = allDocuments.map(doc => doc.id).slice(0, 10);
-
-        console.log(`[DOCUMENT-ROUTE] Debug info:`, {
-          requestedDocumentId: documentId,
-          userDocumentCount: allDocuments.length,
-          sampleUserDocumentIds: userDocumentIds,
-          orphanedInsightsFound: orphanedInsights.length,
-          userId: userId
-        });
-      } catch (debugError) {
-        console.warn(`[DOCUMENT-ROUTE] Debug check failed:`, debugError);
-      }
-
-      return res.status(404).json({
-        message: `Document not found`,
-        error: 'DOCUMENT_NOT_FOUND',
+    // Get document with proper error handling
+    let document;
+    try {
+      document = await storage.getDocument(documentId, userId);
+    } catch (storageError: any) {
+      console.error(`[DOCUMENT-ROUTE] Storage error for document ${documentId}:`, storageError);
+      return res.status(500).json({
+        message: 'Database error while fetching document',
+        error: storageError.message,
         documentId,
-        suggestion: 'This document may have been deleted or moved. Any related insights have been cleaned up.',
         timestamp: new Date().toISOString()
       });
     }
 
-    console.log(`[DOCUMENT-ROUTE] Document ${documentId} found: ${document.name}`);
-    res.json(document);
+    if (!document) {
+      console.log(`[DOCUMENT-ROUTE] Document ${documentId} not found for user ${userId}`);
+
+      // Check if this document exists in insights (indicates it was recently deleted)
+      try {
+        const userInsights = await storage.getInsights(userId);
+        const relatedInsights = userInsights.filter(insight =>
+          insight.documentId && Number(insight.documentId) === documentId
+        );
+
+        if (relatedInsights.length > 0) {
+          console.log(`[DOCUMENT-ROUTE] Found ${relatedInsights.length} insights referencing missing document ${documentId}`);
+          
+          // Clean up orphaned insights
+          for (const insight of relatedInsights) {
+            try {
+              await storage.deleteInsight(insight.id);
+              console.log(`[DOCUMENT-ROUTE] Cleaned up orphaned insight ${insight.id}`);
+            } catch (deleteError) {
+              console.warn(`[DOCUMENT-ROUTE] Failed to clean up insight ${insight.id}:`, deleteError);
+            }
+          }
+        }
+
+        // Debug info
+        const allDocuments = await storage.getDocuments(userId);
+        console.log(`[DOCUMENT-ROUTE] User has ${allDocuments.length} total documents, but document ${documentId} not found`);
+        
+      } catch (debugError) {
+        console.warn(`[DOCUMENT-ROUTE] Debug operations failed:`, debugError);
+      }
+
+      return res.status(404).json({
+        message: 'Document not found',
+        error: 'DOCUMENT_NOT_FOUND',
+        documentId,
+        suggestion: 'This document may have been deleted or moved.',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log(`[DOCUMENT-ROUTE] Document ${documentId} found: ${document.name} (encrypted: ${document.isEncrypted})`);
+    
+    // Return document with proper structure
+    res.json({
+      id: document.id,
+      userId: document.userId,
+      categoryId: document.categoryId,
+      name: document.name,
+      fileName: document.fileName,
+      filePath: document.filePath,
+      fileSize: document.fileSize,
+      mimeType: document.mimeType,
+      tags: document.tags,
+      extractedText: document.extractedText,
+      summary: document.summary,
+      ocrProcessed: document.ocrProcessed,
+      uploadedAt: document.uploadedAt,
+      expiryDate: document.expiryDate,
+      isEncrypted: document.isEncrypted,
+      gcsPath: document.gcsPath || null
+    });
 
   } catch (error: any) {
-    console.error(`[DOCUMENT-ROUTE] Failed to fetch document ${req.params.id}:`, {
+    console.error(`[DOCUMENT-ROUTE] Unexpected error fetching document ${req.params.id}:`, {
       error: error.message,
       stack: error.stack,
       userId: req.user?.id,

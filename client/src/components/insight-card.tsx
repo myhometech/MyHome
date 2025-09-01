@@ -226,17 +226,60 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
       return;
     }
 
-    // Navigate directly and let the document page handle verification
-    console.log(`[INSIGHT-CARD] Navigating to document ${documentId}`);
+    // First verify the document exists before navigating
+    try {
+      console.log(`[INSIGHT-CARD] Verifying document ${documentId} exists`);
+      const response = await fetch(`/api/documents/${documentId}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
 
-    if (onDocumentClick) {
-      console.log(`[INSIGHT-CARD] Using parent document click handler`);
-      // The previous implementation of handleDocumentClick was replaced by the logic within handleCardClick.
-      // To maintain functionality, we call onDocumentClick directly here with the validated documentId.
-      onDocumentClick(documentId);
-    } else {
-      console.log(`[INSIGHT-CARD] Navigating to document page`);
-      setLocation(`/document/${documentId}`);
+      if (!response.ok) {
+        console.warn(`[INSIGHT-CARD] Document ${documentId} verification failed:`, response.status);
+        
+        if (response.status === 404) {
+          toast({
+            title: "Document not found",
+            description: "This document no longer exists. The insight may be outdated.",
+            variant: "destructive",
+          });
+        } else if (response.status === 401) {
+          toast({
+            title: "Access denied",
+            description: "You don't have permission to view this document.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Unable to access document",
+            description: "There was an error accessing the document. Please try again.",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+
+      const documentData = await response.json();
+      console.log(`[INSIGHT-CARD] Document ${documentId} verified:`, documentData.name);
+
+      // Navigate to document if verification successful
+      if (onDocumentClick) {
+        console.log(`[INSIGHT-CARD] Using parent document click handler`);
+        onDocumentClick(documentId);
+      } else {
+        console.log(`[INSIGHT-CARD] Navigating to document page`);
+        setLocation(`/document/${documentId}`);
+      }
+
+    } catch (error) {
+      console.error(`[INSIGHT-CARD] Error verifying document ${documentId}:`, error);
+      toast({
+        title: "Connection error",
+        description: "Unable to verify document access. Please check your connection.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -322,16 +365,49 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
                   const documentId = Number(insight.documentId);
                   return !isNaN(documentId) && documentId > 0;
                 })() && (
-                  <DropdownMenuItem onClick={(e) => {
+                  <DropdownMenuItem onClick={async (e) => {
                     e.stopPropagation();
                     const documentId = Number(insight.documentId);
                     console.log(`[INSIGHT-CARD] Dropdown: Opening document ${documentId}`);
 
-                    // Navigate directly - let the document page handle errors
-                    if (onDocumentClick) {
-                      onDocumentClick(documentId);
-                    } else {
-                      setLocation(`/document/${documentId}`);
+                    // Verify document exists before navigating
+                    try {
+                      const response = await fetch(`/api/documents/${documentId}`, {
+                        credentials: 'include',
+                        headers: {
+                          'Accept': 'application/json',
+                        }
+                      });
+
+                      if (!response.ok) {
+                        if (response.status === 404) {
+                          toast({
+                            title: "Document not found",
+                            description: "This document no longer exists.",
+                            variant: "destructive",
+                          });
+                        } else {
+                          toast({
+                            title: "Unable to access document",
+                            description: "There was an error accessing the document.",
+                            variant: "destructive",
+                          });
+                        }
+                        return;
+                      }
+
+                      // Navigate if document exists
+                      if (onDocumentClick) {
+                        onDocumentClick(documentId);
+                      } else {
+                        setLocation(`/document/${documentId}`);
+                      }
+                    } catch (error) {
+                      toast({
+                        title: "Connection error",
+                        description: "Unable to verify document access.",
+                        variant: "destructive",
+                      });
                     }
                   }}>
                     <ExternalLink className="h-4 w-4 mr-2" />

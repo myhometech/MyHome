@@ -778,6 +778,69 @@ router.get('/debug/list', async (req: any, res: any) => {
   }
 });
 
+// Debug endpoint to validate insights and their document references
+router.get('/debug/validate-insights', async (req: any, res: any) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const userId = req.user.id;
+    const insights = await storage.getInsights(userId);
+    const documents = await storage.getDocuments(userId);
+    
+    const documentIds = new Set(documents.map(doc => doc.id));
+    const validInsights = [];
+    const invalidInsights = [];
+
+    for (const insight of insights) {
+      if (!insight.documentId || insight.documentId <= 0) {
+        // Skip non-document insights (manual events, etc)
+        continue;
+      }
+
+      if (documentIds.has(insight.documentId)) {
+        validInsights.push({
+          id: insight.id,
+          documentId: insight.documentId,
+          title: insight.title,
+          type: insight.type
+        });
+      } else {
+        invalidInsights.push({
+          id: insight.id,
+          documentId: insight.documentId,
+          title: insight.title,
+          type: insight.type
+        });
+      }
+    }
+
+    console.log(`[DEBUG-VALIDATE] User ${userId} insights validation:`, {
+      totalInsights: insights.length,
+      validInsights: validInsights.length,
+      invalidInsights: invalidInsights.length,
+      documentCount: documents.length
+    });
+
+    res.json({
+      userId,
+      totalInsights: insights.length,
+      validInsights,
+      invalidInsights,
+      documentCount: documents.length,
+      validDocumentIds: Array.from(documentIds).slice(0, 10) // Sample of valid IDs
+    });
+
+  } catch (error: any) {
+    console.error('Failed to validate insights:', error);
+    res.status(500).json({
+      message: 'Failed to validate insights',
+      error: error.message,
+    });
+  }
+});
+
 // Download document file
 router.get('/:id/download', async (req: any, res: any) => {
   if (!req.user) {

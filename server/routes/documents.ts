@@ -344,6 +344,36 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
   }
 });
 
+// Get individual document details by ID
+router.get('/:id', async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const documentId = parseInt(req.params.id);
+    const userId = req.user.id;
+
+    if (isNaN(documentId)) {
+      return res.status(400).json({ message: 'Invalid document ID' });
+    }
+
+    const document = await storage.getDocument(documentId, userId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    res.json(document);
+
+  } catch (error: any) {
+    console.error('Failed to fetch document:', error);
+    res.status(500).json({
+      message: 'Failed to fetch document',
+      error: error.message,
+    });
+  }
+});
+
 // Get document thumbnail
 router.get('/:id/thumbnail', async (req: AuthenticatedRequest, res) => {
   if (!req.user) {

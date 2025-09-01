@@ -33,6 +33,7 @@ import { StorageService, storageProvider } from './storage/StorageService';
 import { backupRoutes } from './routes/backup.js';
 import advancedScanningRoutes from './routes/advancedScanning.js';
 import { llmUsageRoutes } from './routes/llmUsageRoutes.js';
+import documentsRouter from './routes/documents.js';
 import { securityHeaders, rateLimiter, corsOptions, securityLogger } from './middleware/security.js';
 import { enhancedHealthCheck } from './middleware/healthCheck.js';
 import { setupOCRErrorRoutes } from './routes/ocrErrorRoutes.js';
@@ -4658,6 +4659,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // LLM usage analytics routes (admin only)
   app.use('/api/admin/llm-usage', llmUsageRoutes);
+
+  // Documents routes 
+  app.use('/api/documents', requireAuth, documentsRouter);
 
   // Memory management routes
   const memoryRoutes = (await import('./api/memory.js')).default;

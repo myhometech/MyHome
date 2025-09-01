@@ -315,7 +315,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
                     if (onDocumentClick) {
                       onDocumentClick(insight.documentId);
                     } else {
-                      setLocation(`/insights?documentId=${insight.documentId}`);
+                      setLocation(`/document/${insight.documentId}`);
                     }
                   }}>
                     <ExternalLink className="h-4 w-4 mr-2" />

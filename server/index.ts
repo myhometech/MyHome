@@ -327,29 +327,21 @@ app.use((req, res, next) => {
     console.log('🚀 REPLIT_DEPLOYMENT:', process.env.REPLIT_DEPLOYMENT);
   }
 
-  // Simple server start 
+  // Start server 
   server.listen({
     port,
     host,
   }, () => {
     log(`serving on port ${port}`);
     console.log(`🌐 Server ready at http://${host}:${port}`);
+    console.log('✅ MyHome application is now accessible in preview');
 
     if (isDeployment) {
       console.log('✅ DEPLOYMENT: Server successfully started and listening');
       console.log('✅ DEPLOYMENT: Routes should now be accessible');
     }
   }).on('error', (err: any) => {
-    if (err.code === 'EADDRINUSE') {
-      console.warn(`⚠️ Port ${port} is already in use. Server is likely already running.`);
-      console.log('✅ Keeping process alive - app should be accessible');
-      // Keep the process alive without creating an infinite loop
-      setInterval(() => {
-        // Minimal keepalive
-      }, 60000);
-    } else {
-      console.error('❌ Server failed to start:', err);
-      process.exit(1);
-    }
+    console.error('❌ Server failed to start:', err);
+    process.exit(1);
   });
 })();

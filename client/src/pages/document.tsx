@@ -114,7 +114,7 @@ export default function DocumentPage() {
           onClose={() => setLocation('/')}
           onUpdate={() => window.location.reload()}
           onDownload={() => {
-            const link = document.createElement('a');
+            const link = window.document.createElement('a');
             link.href = `/api/documents/${document.id}/download`;
             link.download = document.fileName;
             link.click();

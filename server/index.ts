@@ -339,12 +339,41 @@ app.use((req, res, next) => {
       console.log('✅ DEPLOYMENT: Server successfully started and listening');
       console.log('✅ DEPLOYMENT: Routes should now be accessible');
     }
-  }).on('error', (err: any) => {
+  }).on('error', async (err: any) => {
     if (err.code === 'EADDRINUSE') {
-      console.warn(`⚠️ Port ${port} is already in use. This is likely a normal development restart.`);
-      console.log('🧹 Performing synchronous resource cleanup...');
-      // Exit gracefully to allow the workflow to handle the restart
-      process.exit(0);
+      console.warn(`⚠️ Port ${port} is already in use. Checking if server is already running...`);
+      
+      // Check if there's already a working server on this port
+      try {
+        const http = await import('node:http');
+        const response = await new Promise<boolean>((resolve) => {
+          const req = http.default.get(`http://localhost:${port}/api/health`, (res) => {
+            // If we get any response (200, 401, etc), server is working
+            console.log(`✅ Found working server on port ${port} (status: ${res.statusCode})`);
+            resolve(true);
+          });
+          req.on('error', () => {
+            console.log('❌ Port in use but no working server found');
+            resolve(false);
+          });
+          req.setTimeout(3000, () => {
+            req.destroy();
+            resolve(false);
+          });
+        });
+
+        if (response) {
+          console.log('✅ Server is already running successfully. No restart needed.');
+          // Don't exit - just stop this startup attempt
+          return;
+        } else {
+          console.log('⚠️ Port conflict with non-responsive process. Waiting for cleanup...');
+          setTimeout(() => process.exit(0), 2000);
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not check server status:', error);
+        setTimeout(() => process.exit(0), 2000);
+      }
     } else {
       console.error('❌ Server failed to start:', err);
       process.exit(1);

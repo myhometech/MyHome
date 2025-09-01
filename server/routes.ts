@@ -1679,37 +1679,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const insight of insights.insights) {
           try {
             const insightId = crypto.randomUUID();
+            
+            // Validate and sanitize insight data before storing
+            const sanitizedInsight = {
+              id: insightId,
+              documentId,
+              userId,
+              type: insight.type || 'summary',
+              title: insight.title || 'Untitled Insight',
+              content: insight.content || 'No content available',
+              confidence: Math.min(100, Math.max(0, (insight.confidence || 0.8) * 100)),
+              category: insight.category || 'general',
+              metadata: JSON.stringify(insight.metadata || {}),
+              createdAt: new Date().toISOString(),
+              tier: insight.tier || 'primary',
+              insightVersion: 'v2.0',
+              generatedAt: new Date()
+            };
+
             await storage.safeQuery(`
               INSERT INTO insights (
                 id, document_id, user_id, type, title, content, confidence, 
                 category, metadata, created_at, tier, insight_version, generated_at
               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `, [
-              insightId,
-              documentId,
-              userId,
-              insight.type,
-              insight.title,
-              insight.content,
-              Math.min(100, Math.max(0, insight.confidence * 100)), // Ensure proper range
-              insight.category || 'general',
-              JSON.stringify(insight.metadata || {}),
-              new Date().toISOString(),
-              insight.tier || 'primary',
-              'v2.0',
-              new Date()
+              sanitizedInsight.id,
+              sanitizedInsight.documentId,
+              sanitizedInsight.userId,
+              sanitizedInsight.type,
+              sanitizedInsight.title,
+              sanitizedInsight.content,
+              sanitizedInsight.confidence,
+              sanitizedInsight.category,
+              sanitizedInsight.metadata,
+              sanitizedInsight.createdAt,
+              sanitizedInsight.tier,
+              sanitizedInsight.insightVersion,
+              sanitizedInsight.generatedAt
             ]);
 
-            // Add the stored insight to our response
+            // Add the stored insight to our response with proper structure
             storedInsights.push({
-              ...insight,
-              id: insightId,
-              createdAt: new Date().toISOString()
+              id: sanitizedInsight.id,
+              type: sanitizedInsight.type,
+              title: sanitizedInsight.title,
+              content: sanitizedInsight.content,
+              confidence: sanitizedInsight.confidence / 100, // Convert back to 0-1 scale for frontend
+              category: sanitizedInsight.category,
+              metadata: insight.metadata || {},
+              createdAt: sanitizedInsight.createdAt,
+              tier: sanitizedInsight.tier
             });
 
-            console.log(`✅ [INSIGHT-DEBUG] Successfully stored insight ${insightId}`);
+            console.log(`✅ [INSIGHT-DEBUG] Successfully stored insight ${insightId} with category: ${sanitizedInsight.category}`);
           } catch (insightError: any) {
-            console.error(`❌ [INSIGHT-DEBUG] Failed to store insight ${insight.id}:`, insightError);
+            console.error(`❌ [INSIGHT-DEBUG] Failed to store insight:`, insightError);
             // Continue with next insight instead of failing entire request
           }
         }
@@ -1801,7 +1825,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...insight,
         metadata: insight.metadata ? JSON.parse(insight.metadata) : {},
         confidence: Math.min(100, Math.max(0, insight.confidence)), // Keep as 0-100 scale
-        flagged: !!insight.flagged
+        flagged: !!insight.flagged,
+        // Ensure category field always exists with proper fallback
+        category: insight.category || 'general'
       }));
 
       console.log(`✅ Returning ${formattedInsights.length} insights for document ${documentId}`);

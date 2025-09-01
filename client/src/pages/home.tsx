@@ -531,6 +531,29 @@ export default function Home() {
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
 
+  // Add near the top with other query hooks
+  const { data: insightsData, isLoading: insightsLoading, error: insightsError } = useQuery({
+    queryKey: ['/api/insights/critical'],
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 2 * 60 * 1000, // 2 minutes
+    retry: (failureCount, error) => {
+      // Don't retry on category-related errors
+      if (error?.message?.includes('category') || error?.message?.includes('undefined')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    select: (data: any) => {
+      // Ensure insights have proper category field
+      if (!data || !Array.isArray(data)) return [];
+      return data.map((insight: any) => ({
+        ...insight,
+        category: insight.category || 'general',
+        confidence: typeof insight.confidence === 'number' ? insight.confidence : 0.8
+      }));
+    }
+  });
+
   // Handle dashboard card filter changes
   const handleDashboardFilter = (filter: any) => {
     if (filter.reset) {

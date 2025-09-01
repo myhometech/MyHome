@@ -298,16 +298,23 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const insights = React.useMemo(() => {
     const rawInsights = insightData?.insights || [];
-    // Filter out any insights that don't have required fields
+    // Filter out any insights that don't have required fields and provide fallback category
     return rawInsights.filter((insight: any) => 
       insight && 
       typeof insight === 'object' && 
       insight.id && 
       insight.type && 
       insight.title && 
-      insight.content &&
-      insight.category // Ensure category field exists
-    );
+      insight.content
+    ).map((insight: any) => ({
+      ...insight,
+      // Ensure category field exists with fallback
+      category: insight.category || 'general',
+      // Ensure confidence is properly formatted
+      confidence: typeof insight.confidence === 'number' ? insight.confidence : 0.8,
+      // Ensure createdAt exists
+      createdAt: insight.createdAt || new Date().toISOString()
+    }));
   }, [insightData?.insights]);
 
   const generateInsightsMutation = useMutation({
@@ -554,8 +561,11 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   if (error && !insightData) {
     const errorMessage = error?.message || 'Unknown error';
-    console.log('Insight error details:', { error, errorMessage, documentId, documentName });
+    console.error('Insight error details:', { error, errorMessage, documentId: validDocumentId, documentName });
 
+    // Don't crash on category-related errors, show recovery UI
+    const isCategoryError = errorMessage.includes('category') || errorMessage.includes('undefined');
+    
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -581,25 +591,29 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           </Button>
         </div>
 
-        {/* Error state without redirect */}
-        <Card className="border-orange-200 bg-orange-50">
+        {/* Enhanced error state with category error handling */}
+        <Card className={`border-orange-200 bg-orange-50 ${isCategoryError ? 'border-blue-200 bg-blue-50' : ''}`}>
           <CardContent className="p-6">
             <div className="flex items-center gap-3 mb-3">
-              <AlertCircle className="h-5 w-5 text-orange-600" />
-              <h3 className="font-medium text-orange-900">Unable to load insights</h3>
+              <AlertCircle className={`h-5 w-5 ${isCategoryError ? 'text-blue-600' : 'text-orange-600'}`} />
+              <h3 className={`font-medium ${isCategoryError ? 'text-blue-900' : 'text-orange-900'}`}>
+                {isCategoryError ? 'Insights need updating' : 'Unable to load insights'}
+              </h3>
             </div>
-            <p className="text-sm text-orange-700 mb-4">
-              {errorMessage.includes('404') 
-                ? 'No insights found for this document yet.'
-                : 'There was an issue loading insights for this document.'
+            <p className={`text-sm mb-4 ${isCategoryError ? 'text-blue-700' : 'text-orange-700'}`}>
+              {isCategoryError 
+                ? 'Your insights need to be updated to the new category system. Click "Regenerate" to fix this.'
+                : (errorMessage.includes('404') 
+                  ? 'No insights found for this document yet.'
+                  : 'There was an issue loading insights for this document.')
               }
             </p>
             <Button 
               onClick={handleGenerateInsights}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
+              className={`text-white ${isCategoryError ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
               size="sm"
             >
-              Try Generating Insights
+              {isCategoryError ? 'Regenerate Insights' : 'Try Generating Insights'}
             </Button>
           </CardContent>
         </Card>
@@ -668,10 +682,23 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       ) : (
         <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
           {insights.map((insight: DocumentInsight, index: number) => {
+            // Safer config resolution with fallbacks
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
-            const categoryData = categoryConfig[insight.category] || categoryConfig.general;
-            const IconComponent = config.icon;
-            const CategoryIcon = categoryData?.icon || categoryConfig.general.icon;
+            
+            // Enhanced category validation with fallback
+            const safeCategory = insight.category && typeof insight.category === 'string' 
+              ? insight.category 
+              : 'general';
+            const categoryData = categoryConfig[safeCategory as keyof typeof categoryConfig] || categoryConfig.general;
+            
+            const IconComponent = config?.icon || FileText;
+            const CategoryIcon = categoryData?.icon || CheckCircle;
+
+            // Skip invalid insights entirely to prevent crashes
+            if (!insight.id || !insight.type || !insight.title || !insight.content) {
+              console.warn('Skipping invalid insight:', insight);
+              return null;
+            }
 
             // Extract more specific title from content or metadata
             const getSpecificTitle = (insight: DocumentInsight) => {

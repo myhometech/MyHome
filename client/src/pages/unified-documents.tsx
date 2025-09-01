@@ -62,7 +62,7 @@ interface DocumentInsight {
 }
 
 export default function UnifiedDocuments() {
-  const { toast } = useToast();
+  const { toast } = useUseToast();
   const { hasFeature, features } = useFeatures();
   const limits = { documents: features.BULK_OPERATIONS ? 999999 : 50 };
   const [location, setLocation] = useLocation();

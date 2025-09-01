@@ -585,9 +585,9 @@ export default function UnifiedDocumentCard({
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-start gap-3">
                       {/* Document thumbnail */}
-                      <div className="relative w-14 h-14 flex-shrink-0 rounded-xl border-2 border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm icon-container">
+                      <div className="relative w-16 h-16 flex-shrink-0 rounded-xl border-2 border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm icon-container">
                         {thumbnailError ? (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
                             {getFileIcon()}
@@ -601,30 +601,45 @@ export default function UnifiedDocumentCard({
                           />
                         )}
                       </div>
-                      {isRenaming ? (
-                        <div className="flex-1 space-y-2">
-                          <Input
-                            value={renameName}
-                            onChange={(e) => setRenameName(e.target.value)}
-                            onKeyDown={handleRenameKeyPress}
-                            className="text-sm h-7"
-                            autoFocus
-                            placeholder="Enter new document name"
-                          />
-                          <div className="flex gap-1">
-                            <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                              <Check className="h-3 w-3" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                              <X className="h-3 w-3" />
-                            </Button>
+                      
+                      {/* Document info */}
+                      <div className="flex-1 min-w-0">
+                        {isRenaming ? (
+                          <div className="space-y-2">
+                            <Input
+                              value={renameName}
+                              onChange={(e) => setRenameName(e.target.value)}
+                              onKeyDown={handleRenameKeyPress}
+                              className="text-sm h-7"
+                              autoFocus
+                              placeholder="Enter new document name"
+                            />
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <h3 className="font-semibold text-sm leading-tight text-gray-900 line-clamp-2 flex-1 min-w-0 mb-1">
-                          {document.name}
-                        </h3>
-                      )}
+                        ) : (
+                          <div className="space-y-1">
+                            <h3 className="font-semibold text-base leading-tight text-gray-900 line-clamp-2 mb-1">
+                              {document.name}
+                            </h3>
+                            {/* Insights count with icon */}
+                            {showInsights && openInsights.length > 0 && (
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 px-2 py-1 bg-accent-purple-100 text-accent-purple-700 rounded-md text-xs font-medium">
+                                  <Brain className="h-3 w-3" />
+                                  <span>{openInsights.length} insight{openInsights.length !== 1 ? 's' : ''}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {document.expiryDate && (
                       <div className="flex items-center gap-1 text-xs text-accent-purple-600 ml-16">

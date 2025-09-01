@@ -61,26 +61,30 @@ import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "dri
 // Import proper types
 import type { Request, Response, NextFunction } from "express";
 import type { User } from "@shared/schema";
+import type { AuthenticatedRequest } from "./middleware/auth";
 import 'express-session';
+
+// Session type augmentation
+declare module 'express-session' {
+  interface SessionData {
+    user?: {
+      id: string;
+      email: string;
+      role?: string;
+      household?: {
+        id: string;
+        role: string;
+        name?: string;
+      };
+    };
+  }
+}
 
 // CloudConvert initialization - no browser setup needed
 import cloudConvertHealthRoutes from './routes/cloudConvertHealth.js';
 
 // Import storage service - this is the corrected import
 import { storage } from "./storage";
-
-type AuthenticatedRequest = Request & { 
-  user?: {
-    id: string;
-    email: string;
-    role?: string;
-    household?: {
-      id: string;
-      role: string;
-      name?: string;
-    };
-  };
-};
 
 // Helper function to extract short sender name (display name if present, else domain)
 function extractFromShort(sender: string): string {

@@ -9,7 +9,12 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
-    role: string;
+    role?: string;
+    household?: {
+      id: string;
+      role: string;
+      name?: string;
+    };
   };
 }
 

@@ -872,12 +872,7 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* TICKET 17: Show AI insight generation status */}
-        <FeatureGate feature="AI_INSIGHTS">
-          <InsightJobStatus />
-        </FeatureGate>
-
-        {/* Insights Section */}
+        {/* AI Insights Section */}
         <div className="mb-8">
           <Card className="bg-white border border-gray-200">
             <CardHeader className="pb-4">
@@ -894,11 +889,15 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Display insights from all documents */}
               <InsightsFromAllDocuments />
             </CardContent>
           </Card>
         </div>
+
+        {/* TICKET 17: Show AI insight generation status */}
+        <FeatureGate feature="AI_INSIGHTS">
+          <InsightJobStatus />
+        </FeatureGate>
 
         {/* Category Filter */}
         <CategoryFilter

@@ -60,9 +60,13 @@ import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "dri
 
 // Import proper types
 import type { Request, Response, NextFunction } from "express";
-import type { User } from "@shared/schema";
 import type { AuthenticatedRequest } from "./middleware/auth";
 import 'express-session';
+
+// Helper function to ensure user has correct shape
+function asAuthenticatedRequest(req: Request): AuthenticatedRequest {
+  return req as AuthenticatedRequest;
+}
 
 // Session type augmentation
 declare module 'express-session' {
@@ -2487,10 +2491,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Feature flags endpoints
   // Admin - Feature flags
-  app.get("/api/admin/feature-flags", requireAuth, requireAdmin, async (req, res) => {
+  app.get("/api/admin/feature-flags", requireAuth, requireAdmin, async (req: Request, res: Response) => {
     try {
-      console.log('🔧 [FEATURE FLAGS] Request received from user:', req.user?.email);
-      console.log('🔧 [FEATURE FLAGS] User role:', req.user?.role);
+      const authReq = asAuthenticatedRequest(req);
+      console.log('🔧 [FEATURE FLAGS] Request received from user:', authReq.user?.email);
+      console.log('🔧 [FEATURE FLAGS] User role:', authReq.user?.role);
       console.log('🔧 [FEATURE FLAGS] Fetching all feature flags...');
 
       const flags = await db.select().from(featureFlags);
@@ -2526,10 +2531,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Feature flag analytics
   // Admin - Feature flag analytics  
-  app.get("/api/admin/feature-flag-analytics", requireAuth, requireAdmin, async (req, res) => {
+  app.get("/api/admin/feature-flag-analytics", requireAuth, requireAdmin, async (req: Request, res: Response) => {
     try {
-      console.log('🔧 [FEATURE FLAG ANALYTICS] Request received from user:', req.user?.email);
-      console.log('🔧 [FEATURE FLAG ANALYTICS] User role:', req.user?.role);
+      const authReq = asAuthenticatedRequest(req);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] Request received from user:', authReq.user?.email);
+      console.log('🔧 [FEATURE FLAG ANALYTICS] User role:', authReq.user?.role);
       console.log('🔧 [FEATURE FLAG ANALYTICS] Fetching feature flag analytics...');
 
       // Get basic stats

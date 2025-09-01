@@ -3,7 +3,6 @@ import crypto from "crypto";
 import { users, type User, type InsertUser, type AuthProvider, type OAuthRegisterData } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
-import { update } from "drizzle-orm";
 
 export class AuthService {
   // Hash password for storage

@@ -67,7 +67,34 @@ passport.serializeUser((user: any, done) => {
 passport.deserializeUser(async (id: string, done) => {
   try {
     const user = await AuthService.findUserById(id);
-    done(null, user);
+    if (!user) {
+      return done(null, null);
+    }
+
+    // Transform database User to AuthenticatedRequest.user format
+    const transformedUser = {
+      id: user.id,
+      email: user.email || '', // Ensure email is never null
+      role: user.role || 'user'
+    };
+
+    // Load household information if available
+    try {
+      const { storage } = await import('./storage');
+      const household = await storage.getUserHousehold(user.id);
+      if (household) {
+        (transformedUser as any).household = {
+          id: household.id,
+          role: household.role,
+          name: household.name
+        };
+      }
+    } catch (householdError) {
+      // Continue without household info if there's an error
+      console.warn('Failed to load household for user:', user.id, householdError);
+    }
+
+    done(null, transformedUser);
   } catch (error) {
     done(error, null);
   }

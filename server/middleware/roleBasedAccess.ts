@@ -1,18 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { storage } from '../storage';
-
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role?: string;
-    household?: {
-      id: string;
-      role: string;
-      name?: string;
-    };
-  };
-}
+import type { AuthenticatedRequest } from './auth';
 
 // TICKET 3: Role hierarchy for permission checks
 const ROLE_HIERARCHY = {

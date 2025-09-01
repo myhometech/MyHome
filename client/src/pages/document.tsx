@@ -3,8 +3,9 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/header";
 import { EnhancedDocumentViewer } from "@/components/enhanced-document-viewer";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface Document {
   id: number;
@@ -23,51 +24,41 @@ interface Document {
   expiryDate: string | null;
 }
 
-interface Category {
-  id: number;
-  name: string;
-  icon: string;
-  color: string;
-}
-
 export default function DocumentPage() {
   const params = useParams();
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
   const documentId = params.id;
 
-  const { data: document, isLoading: documentLoading, error: documentError } = useQuery<Document>({
+  const { data: document, isLoading, error } = useQuery<Document>({
     queryKey: [`/api/documents/${documentId}`],
     enabled: !!documentId,
+    retry: false, // Don't retry on error
   });
 
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ['/api/categories'],
-  });
-
+  // REBUILT: Simple error handling with immediate feedback
   useEffect(() => {
-    if (documentError) {
-      console.error('Document not found or error loading:', documentError);
-      
-      // Check if it's a 404 error or document not found
-      const isNotFound = documentError instanceof Error && 
-        (documentError.message.includes('404') || 
-         documentError.message.includes('Document not found') ||
-         documentError.message.includes('DOCUMENT_NOT_FOUND'));
-      
-      if (isNotFound) {
-        console.log('Document not found, redirecting to insights page');
-        // Show a toast before redirecting
-        const timeoutId = setTimeout(() => {
-          setLocation('/');
-        }, 2000);
-        
-        return () => clearTimeout(timeoutId);
-      }
-    }
-  }, [documentError, setLocation, documentId]);
+    if (error) {
+      console.error('Document error:', error);
 
-  if (documentLoading) {
+      // Show immediate toast notification
+      toast({
+        title: "Document not found",
+        description: "This document may have been deleted or moved.",
+        variant: "destructive",
+      });
+
+      // Redirect after brief delay
+      const timer = setTimeout(() => {
+        setLocation('/');
+      }, 1500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [error, setLocation, toast]);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
@@ -81,25 +72,18 @@ export default function DocumentPage() {
     );
   }
 
-  if (documentError || !document) {
-    const isNotFound = documentError instanceof Error && 
-      (documentError.message.includes('404') || 
-       documentError.message.includes('Document not found') ||
-       documentError.message.includes('DOCUMENT_NOT_FOUND'));
-       
+  if (error || !document) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <p className="text-gray-600 mb-2">Document not found</p>
-            <p className="text-gray-500 text-sm mb-4">
-              {isNotFound 
-                ? 'This document may have been deleted or moved. Redirecting to insights...'
-                : 'The document you requested is not available.'
-              }
+          <div className="text-center max-w-md mx-auto">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">Document Not Available</h3>
+            <p className="text-gray-600 mb-6">
+              The document you're looking for cannot be found. It may have been deleted or moved.
             </p>
-            <Button onClick={() => setLocation('/')} variant="outline">
+            <Button onClick={() => setLocation('/')} className="mr-2">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Insights
             </Button>
@@ -116,19 +100,17 @@ export default function DocumentPage() {
         <div className="px-4 py-2">
           <Button onClick={() => setLocation('/')} variant="outline" size="sm">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Documents
+            Back to Insights
           </Button>
         </div>
-        
+
         <EnhancedDocumentViewer
           document={document}
           onClose={() => setLocation('/')}
           onUpdate={() => {
-            // Refresh document data when updated
             window.location.reload();
           }}
           onDownload={() => {
-            // Create download link for the current document
             const link = window.document.createElement('a');
             link.href = `/api/documents/${document.id}/download`;
             link.download = document.fileName;

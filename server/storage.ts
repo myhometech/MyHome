@@ -52,6 +52,7 @@ export interface IStorage {
   createDocumentInsight(insight: InsertDocumentInsight): Promise<DocumentInsight>;
   getUserInsights(userId: string): Promise<DocumentInsight[]>;
   getInsights(userId: string, status?: string, type?: string, priority?: string): Promise<DocumentInsight[]>;
+  getPaginatedInsights(userId: string, status?: string, priority?: string, type?: string, limit?: number, offset?: number): Promise<{ insights: DocumentInsight[], totalCount: number }>;
   getDocumentInsights(documentId: number, userId?: string, tier?: string): Promise<DocumentInsight[]>;
   getCriticalInsights(userId: string): Promise<DocumentInsight[]>;
   updateInsight(id: string, updates: Partial<InsertDocumentInsight>): Promise<DocumentInsight | undefined>;
@@ -468,6 +469,37 @@ export class PostgresStorage implements IStorage {
       .from(documentInsights)
       .where(and(...conditions))
       .orderBy(desc(documentInsights.dueDate), desc(documentInsights.createdAt));
+  }
+
+  async getPaginatedInsights(userId: string, status?: string, priority?: string, type?: string, limit: number = 20, offset: number = 0): Promise<{ insights: DocumentInsight[], totalCount: number }> {
+    const conditions = [eq(documentInsights.userId, userId)];
+
+    if (status) {
+      conditions.push(eq(documentInsights.status, status));
+    }
+    if (priority) {
+      conditions.push(eq(documentInsights.priority, priority));
+    }
+    if (type) {
+      conditions.push(eq(documentInsights.type, type));
+    }
+
+    // Get total count
+    const [{ count: totalCount }] = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(documentInsights)
+      .where(and(...conditions));
+
+    // Get paginated results
+    const insights = await this.db
+      .select()
+      .from(documentInsights)
+      .where(and(...conditions))
+      .orderBy(desc(documentInsights.dueDate), desc(documentInsights.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return { insights, totalCount };
   }
 
   async getDocumentInsights(documentId: number, userId?: string, tier?: string): Promise<DocumentInsight[]> {

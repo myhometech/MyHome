@@ -144,14 +144,14 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   // Validate documentId prop
   const validDocumentId = React.useMemo(() => {
-    if (!documentId) {
+    if (!documentId && documentId !== 0) {
       console.error('DocumentInsights: Missing documentId prop:', documentId);
       return null;
     }
     
     const numericId = typeof documentId === 'string' ? parseInt(documentId, 10) : documentId;
     
-    if (isNaN(numericId) || numericId <= 0) {
+    if (isNaN(numericId) || numericId < 0) {
       console.error('DocumentInsights: Invalid documentId prop:', documentId, 'converted to:', numericId);
       return null;
     }
@@ -159,7 +159,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     return numericId;
   }, [documentId]);
 
-  if (!validDocumentId) {
+  if (validDocumentId === null) {
     return (
       <div className="text-center py-8">
         <p className="text-red-500">Invalid document ID: {documentId}</p>
@@ -272,8 +272,11 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       return failureCount < 2;
     },
     select: React.useCallback((data: any) => {
-      if (!data?.insights || !Array.isArray(data.insights)) {
-        return { insights: [] };
+      if (!data || typeof data !== 'object') {
+        return { insights: [], success: false };
+      }
+      if (!data.insights || !Array.isArray(data.insights)) {
+        return { insights: [], success: data.success || false };
       }
       const limitedInsights = data.insights.slice(0, Math.min(limit, 20));
       return {
@@ -283,7 +286,19 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     }, [limit])
   });
 
-  const insights = insightData?.insights || [];
+  const insights = React.useMemo(() => {
+    const rawInsights = insightData?.insights || [];
+    // Filter out any insights that don't have required fields
+    return rawInsights.filter((insight: any) => 
+      insight && 
+      typeof insight === 'object' && 
+      insight.id && 
+      insight.type && 
+      insight.title && 
+      insight.content &&
+      insight.category // Ensure category field exists
+    );
+  }, [insightData?.insights]);
 
   const generateInsightsMutation = useMutation({
     mutationFn: async ({ signal }: { signal?: AbortSignal }): Promise<InsightResponse> => {
@@ -291,37 +306,51 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
       const requestSignal = signal || abortControllerRef.current?.signal;
 
-      const response = await fetch(`/api/documents/${validDocumentId}/insights`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        signal: requestSignal
-      });
+      try {
+        const response = await fetch(`/api/documents/${validDocumentId}/insights`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          signal: requestSignal
+        });
 
-      console.log(`📡 [INSIGHT-DEBUG] Response status: ${response.status}`);
+        console.log(`📡 [INSIGHT-DEBUG] Response status: ${response.status}`);
 
-      if (!response.ok) {
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch {
-          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+        if (!response.ok) {
+          let errorData;
+          try {
+            errorData = await response.json();
+          } catch {
+            errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+          }
+          console.error(`❌ [INSIGHT-DEBUG] Server error:`, errorData);
+          throw new Error(errorData.message || 'Failed to generate insights');
         }
-        console.error(`❌ [INSIGHT-DEBUG] Server error:`, errorData);
-        throw new Error(errorData.message || 'Failed to generate insights');
+
+        const result = await response.json();
+        
+        // Validate the response structure
+        if (!result || typeof result !== 'object') {
+          throw new Error('Invalid response format from server');
+        }
+
+        console.log(`✅ [INSIGHT-DEBUG] Insights received:`, {
+          success: result.success,
+          insightsCount: result.insights?.length || 0,
+          documentType: result.documentType,
+          confidence: result.confidence
+        });
+
+        return result;
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          throw error;
+        }
+        console.error(`❌ [INSIGHT-DEBUG] Request failed:`, error);
+        throw new Error(error.message || 'Network error during insight generation');
       }
-
-      const result = await response.json();
-      console.log(`✅ [INSIGHT-DEBUG] Insights received:`, {
-        success: result.success,
-        insightsCount: result.insights?.length || 0,
-        documentType: result.documentType,
-        confidence: result.confidence
-      });
-
-      return result;
     },
     onSuccess: React.useCallback((data: InsightResponse) => {
       if (abortControllerRef.current?.signal.aborted) return;
@@ -621,9 +650,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
           {insights.map((insight: DocumentInsight, index: number) => {
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
-            const categoryData = categoryConfig[insight.category];
+            const categoryData = categoryConfig[insight.category] || categoryConfig.general;
             const IconComponent = config.icon;
-            const CategoryIcon = categoryData.icon;
+            const CategoryIcon = categoryData?.icon || categoryConfig.general.icon;
 
             // Extract more specific title from content or metadata
             const getSpecificTitle = (insight: DocumentInsight) => {

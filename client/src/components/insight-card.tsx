@@ -227,9 +227,11 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
 
     // Navigate directly and let the document page handle verification
     console.log(`[INSIGHT-CARD] Navigating to document ${documentId}`);
-    
+
     if (onDocumentClick) {
       console.log(`[INSIGHT-CARD] Using parent document click handler`);
+      // The previous implementation of handleDocumentClick was replaced by the logic within handleCardClick.
+      // To maintain functionality, we call onDocumentClick directly here with the validated documentId.
       onDocumentClick(documentId);
     } else {
       console.log(`[INSIGHT-CARD] Navigating to document page`);
@@ -323,7 +325,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
                     e.stopPropagation();
                     const documentId = Number(insight.documentId);
                     console.log(`[INSIGHT-CARD] Dropdown: Opening document ${documentId}`);
-                    
+
                     // Navigate directly - let the document page handle errors
                     if (onDocumentClick) {
                       onDocumentClick(documentId);

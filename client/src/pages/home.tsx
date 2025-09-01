@@ -796,18 +796,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Dashboard Overview Cards - Working with real data */}
-        <DashboardOverview onFilterChange={handleDashboardFilter} />
-
-        {/* Quick Action Cards */}
-        <QuickActionCards />
-
-        {/* TICKET 17: Show AI insight generation status */}
-        <FeatureGate feature="AI_INSIGHTS">
-          <InsightJobStatus />
-        </FeatureGate>
-
-        {/* Category Filter Cards - These are the financial/important dates/general cards */}
+        {/* Category Filter Cards - Financial, Important Dates, General at the top */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           {/* Financial Card */}
           <Card 
@@ -896,6 +885,11 @@ export default function Home() {
             </CardContent>
           </Card>
         </div>
+
+        {/* TICKET 17: Show AI insight generation status */}
+        <FeatureGate feature="AI_INSIGHTS">
+          <InsightJobStatus />
+        </FeatureGate>
 
         {/* Insights Section */}
         <div className="mb-8">

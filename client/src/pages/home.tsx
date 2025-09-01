@@ -782,94 +782,96 @@ export default function Home() {
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">
-        {/* Financial, Important Dates, and General Cards - At the very top */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {/* Financial Card */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-600 to-accent-purple-700 text-white border-0 shadow-md"
-            onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id || null)}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-lg font-semibold text-white">Financial</p>
-                  <p className="text-sm text-white/90">Bills, payments & money matters</p>
+        {/* Financial, Important Dates, and General Cards - Top Priority Section */}
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Financial Card */}
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-green-600 to-green-700 text-white border-0 shadow-md"
+              onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id || null)}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xl font-bold text-white">Financial</p>
+                    <p className="text-sm text-white/90">Bills, payments & money matters</p>
+                  </div>
+                  <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <DollarSign className="h-6 w-6 text-white" />
+                  </div>
                 </div>
-                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id || null);
-                }}
-              >
-                View Financial Documents
-              </Button>
-            </CardContent>
-          </Card>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id || null);
+                  }}
+                >
+                  View Financial Documents
+                </Button>
+              </CardContent>
+            </Card>
 
-          {/* Important Dates Card */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-500 to-accent-purple-600 text-white border-0 shadow-md"
-            onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id || null)}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-lg font-semibold text-white">Important Dates</p>
-                  <p className="text-sm text-white/90">Deadlines & key events</p>
+            {/* Important Dates Card */}
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-red-600 to-red-700 text-white border-0 shadow-md"
+              onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id || null)}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xl font-bold text-white">Important Dates</p>
+                    <p className="text-sm text-white/90">Deadlines & key events</p>
+                  </div>
+                  <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Calendar className="h-6 w-6 text-white" />
+                  </div>
                 </div>
-                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id || null);
-                }}
-              >
-                View Important Dates
-              </Button>
-            </CardContent>
-          </Card>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id || null);
+                  }}
+                >
+                  View Important Dates
+                </Button>
+              </CardContent>
+            </Card>
 
-          {/* General Card */}
-          <Card 
-            className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 text-white border-0 shadow-md"
-            onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('general'))?.id || null)}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-lg font-semibold text-white">General</p>
-                  <p className="text-sm text-white/90">All other documents</p>
+            {/* General Card */}
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-blue-600 to-blue-700 text-white border-0 shadow-md"
+              onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('general'))?.id || null)}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xl font-bold text-white">General</p>
+                    <p className="text-sm text-white/90">All other documents</p>
+                  </div>
+                  <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <CheckCircle className="h-6 w-6 text-white" />
+                  </div>
                 </div>
-                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <CheckCircle className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedCategory(null);
-                }}
-              >
-                View All Documents
-              </Button>
-            </CardContent>
-          </Card>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCategory(null);
+                  }}
+                >
+                  View All Documents
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* AI Insights Section */}

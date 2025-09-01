@@ -516,7 +516,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`mobile-document-card group hover:shadow-md hover:scale-[1.01] transition-all duration-200 ${cardBorderClass} ${isSelected ? "ring-2 ring-blue-500" : ""} cursor-pointer bg-white border-gray-200 overflow-hidden`}
+        className={`mobile-document-card group dashboard-card hover:shadow-lg hover:scale-[1.02] transition-all duration-300 ${cardBorderClass} ${isSelected ? "ring-2 ring-accent-purple-500" : ""} cursor-pointer bg-gradient-to-br from-white via-accent-purple-50/10 to-accent-purple-100/20 border-accent-purple-200/50 overflow-hidden`}
         onClick={() => {
           if (isRenaming || isEditing) {
             // Prevent modal from opening when in edit/rename mode
@@ -532,7 +532,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-2 sm:p-3 pb-3 relative mobile-document-card-content h-full flex flex-col overflow-hidden">
+        <CardContent className="p-3 sm:p-4 pb-4 relative mobile-document-card-content h-full flex flex-col overflow-hidden card-content">
             {/* Bulk selection checkbox */}
             {bulkMode && (
               <div className="absolute top-0.5 left-0.5 z-10">
@@ -587,9 +587,9 @@ export default function UnifiedDocumentCard({
                   <div className="space-y-1">
                     <div className="flex items-start gap-2">
                       {/* Document thumbnail */}
-                      <div className="relative w-12 h-12 flex-shrink-0 rounded border border-gray-200 bg-gray-50 overflow-hidden">
+                      <div className="relative w-14 h-14 flex-shrink-0 rounded-xl border-2 border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm icon-container">
                         {thumbnailError ? (
-                          <div className={`w-full h-full flex items-center justify-center ${getFileTypeIconColor()}`}>
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
                             {getFileIcon()}
                           </div>
                         ) : (
@@ -621,15 +621,15 @@ export default function UnifiedDocumentCard({
                           </div>
                         </div>
                       ) : (
-                        <h3 className="font-medium text-sm leading-tight text-gray-900 line-clamp-3 flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm leading-tight text-gray-900 line-clamp-2 flex-1 min-w-0 mb-1">
                           {document.name}
                         </h3>
                       )}
                     </div>
                     {document.expiryDate && (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 ml-8 hidden-on-mobile">
+                      <div className="flex items-center gap-1 text-xs text-accent-purple-600 ml-16">
                         <Calendar className="h-3 w-3" />
-                        <span className="text-xs truncate">{formatDate(document.expiryDate)}</span>
+                        <span className="text-xs truncate font-medium">{formatDate(document.expiryDate)}</span>
                       </div>
                     )}
                   </div>
@@ -643,12 +643,12 @@ export default function UnifiedDocumentCard({
             <div className="mt-auto mb-1">
               {/* Bottom row with file size and category */}
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500 text-xs">{formatFileSize(document.fileSize)}</span>
+                <span className="text-accent-purple-600 text-xs font-medium">{formatFileSize(document.fileSize)}</span>
 
                 {category && (
-                  <Badge variant="outline" className="text-xs bg-gray-50 border-gray-300 px-1 py-0 badge">
-                    <FolderIcon className="h-2.5 w-2.5 mr-0.5" />
-                    <span className="truncate max-w-[40px]">{category.name}</span>
+                  <Badge variant="outline" className="text-xs bg-accent-purple-50 border-accent-purple-300 text-accent-purple-700 px-2 py-1 badge font-medium">
+                    <FolderIcon className="h-3 w-3 mr-1" />
+                    <span className="truncate max-w-[50px]">{category.name}</span>
                   </Badge>
                 )}
               </div>
@@ -664,22 +664,22 @@ export default function UnifiedDocumentCard({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div 
-                            className="flex items-center gap-0 cursor-pointer rounded overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                            className="flex items-center gap-0 cursor-pointer rounded-xl overflow-hidden border-2 border-accent-purple-300/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 modern-button"
                             onClick={(e) => {
                               e.stopPropagation();
                               generateInsightsMutation.mutate();
                             }}
                           >
-                            <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-accent-purple-50 to-accent-purple-100 border-l-2 border-l-accent-purple-500">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-l-4 border-l-accent-purple-400">
                               {generateInsightsMutation.isPending ? (
                                 <>
-                                  <Clock className="h-3 w-3 animate-spin text-accent-purple-600" />
-                                  <span className="text-xs font-medium text-accent-purple-700 ml-1">Analyzing...</span>
+                                  <Clock className="h-4 w-4 animate-spin" />
+                                  <span className="text-sm font-semibold">Analyzing...</span>
                                 </>
                               ) : (
                                 <>
-                                  <Brain className="h-3 w-3 text-accent-purple-600" />
-                                  <span className="text-xs font-medium text-accent-purple-700 ml-1">Generate Insights</span>
+                                  <Brain className="h-4 w-4" />
+                                  <span className="text-sm font-semibold">Generate Insights</span>
                                 </>
                               )}
                             </div>
@@ -716,25 +716,25 @@ export default function UnifiedDocumentCard({
 
                             return (
                               <div 
-                                className="flex items-center gap-0 cursor-pointer rounded overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105"
+                                className="flex items-center gap-0 cursor-pointer rounded-xl overflow-hidden border-2 border-accent-purple-300/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 modern-button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setModalInitialTab('insights');
                                   setShowModal(true);
                                 }}
                               >
-                                <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-accent-purple-50 to-accent-purple-100 border-l-2 border-l-accent-purple-500">
-                                  <Brain className="h-3 w-3 text-accent-purple-600" />
-                                  <span className="text-xs font-medium text-accent-purple-700">AI Insights</span>
+                                <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-l-4 border-l-accent-purple-400">
+                                  <Brain className="h-4 w-4" />
+                                  <span className="text-sm font-semibold">AI Insights</span>
                                 </div>
-                                <div className="flex items-center gap-1 px-1">
+                                <div className="flex items-center gap-1 px-2 py-2 bg-gradient-to-r from-accent-purple-50 to-accent-purple-100">
                                   {priorityOrder.map(priority => {
                                     const count = priorityCounts[priority];
                                     if (!count) return null;
                                     return (
                                       <div 
                                         key={priority}
-                                        className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${priorityColors[priority]} border border-white shadow-sm`}
+                                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${priorityColors[priority]} border-2 border-white shadow-md`}
                                       >
                                         {count}
                                       </div>
@@ -764,9 +764,9 @@ export default function UnifiedDocumentCard({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger>
-                            <Badge variant="secondary" className="text-xs bg-orange-50 border-orange-200 text-orange-700 px-2 py-1">
+                            <Badge variant="secondary" className="text-xs bg-gradient-to-r from-orange-100 to-orange-200 border-orange-300 text-orange-800 px-3 py-1.5 font-semibold shadow-sm">
                               <Calendar className="h-4 w-4 mr-1.5" />
-                              <span className="text-xs font-medium">{format(expiryDate, 'MMM dd')}</span>
+                              <span className="text-xs font-semibold">{format(expiryDate, 'MMM dd')}</span>
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -782,9 +782,9 @@ export default function UnifiedDocumentCard({
               // Priority 4: Upload Source  
               if (document.uploadSource) {
                 const sourceIcons: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-                  'camera': { icon: <Type className="h-4 w-4" />, label: 'Scanned', color: 'bg-green-50 border-green-200 text-green-700' },
-                  'email': { icon: <FileText className="h-4 w-4" />, label: 'Email', color: 'bg-purple-50 border-purple-200 text-purple-700' },
-                  'upload': { icon: <FileText className="h-4 w-4" />, label: 'Uploaded', color: 'bg-gray-50 border-gray-200 text-gray-700' }
+                  'camera': { icon: <Type className="h-4 w-4" />, label: 'Scanned', color: 'bg-gradient-to-r from-green-100 to-green-200 border-green-300 text-green-800' },
+                  'email': { icon: <FileText className="h-4 w-4" />, label: 'Email', color: 'bg-gradient-to-r from-accent-purple-100 to-accent-purple-200 border-accent-purple-300 text-accent-purple-800' },
+                  'upload': { icon: <FileText className="h-4 w-4" />, label: 'Uploaded', color: 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300 text-gray-800' }
                 };
 
                 const sourceInfo = sourceIcons[document.uploadSource] || sourceIcons['upload'];
@@ -793,7 +793,7 @@ export default function UnifiedDocumentCard({
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
-                          <Badge variant="secondary" className={`text-xs px-2 py-1 ${sourceInfo.color}`}>
+                          <Badge variant="secondary" className={`text-xs px-3 py-1.5 font-semibold shadow-sm ${sourceInfo.color}`}>
                             {sourceInfo.icon}
                           </Badge>
                         </TooltipTrigger>
@@ -817,11 +817,11 @@ export default function UnifiedDocumentCard({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <div 
-                      className="flex items-center gap-0 cursor-pointer rounded overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                      className="flex items-center gap-0 cursor-pointer rounded-xl overflow-hidden border-2 border-accent-purple-300/40 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 modern-button"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex items-center gap-1 px-1 py-1 bg-gray-50">
-                        <MoreHorizontal className="h-3 w-3 text-gray-600" />
+                      <div className="flex items-center gap-1 px-2 py-2 bg-gradient-to-r from-white to-accent-purple-50 hover:from-accent-purple-50 hover:to-accent-purple-100">
+                        <MoreHorizontal className="h-4 w-4 text-accent-purple-600" />
                       </div>
                     </div>
                   </DropdownMenuTrigger>

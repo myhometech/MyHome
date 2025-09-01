@@ -49,12 +49,20 @@ export default function DocumentPage() {
     if (documentError) {
       console.error('Document not found or error loading:', documentError);
       
-      // If it's a 404 error, automatically redirect after a short delay
-      if (documentError instanceof Error && documentError.message.includes('404')) {
-        console.log('Document not found (404), redirecting to insights page');
-        setTimeout(() => {
+      // Check if it's a 404 error or document not found
+      const isNotFound = documentError instanceof Error && 
+        (documentError.message.includes('404') || 
+         documentError.message.includes('Document not found') ||
+         documentError.message.includes('DOCUMENT_NOT_FOUND'));
+      
+      if (isNotFound) {
+        console.log('Document not found, redirecting to insights page');
+        // Show a toast before redirecting
+        const timeoutId = setTimeout(() => {
           setLocation('/');
         }, 2000);
+        
+        return () => clearTimeout(timeoutId);
       }
     }
   }, [documentError, setLocation, documentId]);
@@ -74,6 +82,11 @@ export default function DocumentPage() {
   }
 
   if (documentError || !document) {
+    const isNotFound = documentError instanceof Error && 
+      (documentError.message.includes('404') || 
+       documentError.message.includes('Document not found') ||
+       documentError.message.includes('DOCUMENT_NOT_FOUND'));
+       
     return (
       <div className="min-h-screen bg-gray-50">
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
@@ -81,14 +94,14 @@ export default function DocumentPage() {
           <div className="text-center">
             <p className="text-gray-600 mb-2">Document not found</p>
             <p className="text-gray-500 text-sm mb-4">
-              {documentError instanceof Error && documentError.message.includes('404') 
-                ? 'This document may have been deleted or moved. Redirecting...'
+              {isNotFound 
+                ? 'This document may have been deleted or moved. Redirecting to insights...'
                 : 'The document you requested is not available.'
               }
             </p>
             <Button onClick={() => setLocation('/')} variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Documents
+              Back to Insights
             </Button>
           </div>
         </div>

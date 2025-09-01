@@ -239,56 +239,16 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
 
     const numericDocumentId = Number(documentId);
 
-    // Quick validation before navigation
-    try {
-      const response = await fetch(`/api/documents/${numericDocumentId}`, {
-        method: 'HEAD', // Use HEAD to check existence without downloading
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        // Document exists, proceed with navigation
-        if (onDocumentClick) {
-          console.log(`[INSIGHT-CARD] Using parent document click handler`);
-          onDocumentClick(numericDocumentId);
-        } else {
-          console.log(`[INSIGHT-CARD] Navigating to document page`);
-          setLocation(`/document/${numericDocumentId}`);
-        }
-      } else if (response.status === 404) {
-        // Document not found
-        console.warn(`[INSIGHT-CARD] Document ${numericDocumentId} not found (404)`);
-        toast({
-          title: "Document not found",
-          description: "This document no longer exists. The insight will be cleaned up.",
-          variant: "destructive",
-        });
-        
-        // Trigger a refresh of insights to clean up orphaned ones
-        queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
-      } else if (response.status === 401 || response.status === 403) {
-        // Authentication/permission issues
-        toast({
-          title: "Access denied",
-          description: "You don't have permission to view this document.",
-          variant: "destructive",
-        });
-      } else {
-        // Other server errors
-        toast({
-          title: "Unable to access document",
-          description: `Server error (${response.status}). Please try again later.`,
-          variant: "destructive",
-        });
-      }
-
-    } catch (error) {
-      console.error(`[INSIGHT-CARD] Error checking document ${numericDocumentId}:`, error);
-      toast({
-        title: "Connection error",
-        description: "Unable to verify document access. Please check your connection.",
-        variant: "destructive",
-      });
+    // Navigate directly and let the document page handle the error
+    // This avoids the double-checking that was causing issues
+    console.log(`[INSIGHT-CARD] Navigating to document ${numericDocumentId}`);
+    
+    if (onDocumentClick) {
+      console.log(`[INSIGHT-CARD] Using parent document click handler`);
+      onDocumentClick(numericDocumentId);
+    } else {
+      console.log(`[INSIGHT-CARD] Navigating to document page`);
+      setLocation(`/document/${numericDocumentId}`);
     }
   };
 

@@ -374,14 +374,22 @@ router.get('/:id', async (req: any, res: any) => {
       try {
         const allDocuments = await storage.getDocuments(userId);
         const documentExists = allDocuments.some(doc => doc.id === documentId);
-        console.log(`[DOCUMENT-ROUTE] Document ${documentId} exists in user's documents: ${documentExists}`);
-        console.log(`[DOCUMENT-ROUTE] User ${userId} has ${allDocuments.length} total documents`);
+        const userDocumentIds = allDocuments.map(doc => doc.id).slice(0, 10); // First 10 IDs
+        
+        console.log(`[DOCUMENT-ROUTE] Debug info:`, {
+          requestedDocumentId: documentId,
+          userDocumentCount: allDocuments.length,
+          documentExistsInUserDocs: documentExists,
+          sampleUserDocumentIds: userDocumentIds,
+          userId: userId
+        });
       } catch (debugError) {
         console.warn(`[DOCUMENT-ROUTE] Debug check failed:`, debugError);
       }
       
       return res.status(404).json({ 
-        message: 'Document not found',
+        message: `Document ${documentId} not found or not accessible`,
+        error: 'DOCUMENT_NOT_FOUND',
         documentId,
         userId,
         timestamp: new Date().toISOString()
@@ -661,6 +669,41 @@ router.get('/:id/facts', async (req: any, res: any) => {
     res.status(500).json({
       message: 'Failed to retrieve document facts',
       error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Debug endpoint to list user's documents with IDs
+router.get('/debug/list', async (req: any, res: any) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const userId = req.user.id;
+    const documents = await storage.getDocuments(userId);
+    
+    const documentList = documents.map(doc => ({
+      id: doc.id,
+      name: doc.name,
+      fileName: doc.fileName,
+      uploadedAt: doc.uploadedAt,
+      categoryId: doc.categoryId
+    }));
+
+    console.log(`[DEBUG] User ${userId} has ${documents.length} documents:`, documentList);
+
+    res.json({
+      userId,
+      documentCount: documents.length,
+      documents: documentList
+    });
+
+  } catch (error: any) {
+    console.error('Failed to list documents for debug:', error);
+    res.status(500).json({
+      message: 'Failed to list documents',
+      error: error.message,
     });
   }
 });

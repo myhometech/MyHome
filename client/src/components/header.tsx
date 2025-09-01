@@ -11,7 +11,8 @@ import {
   Mail,
   Copy,
   X,
-  MessageCircle
+  MessageCircle,
+  Brain // Import Brain icon
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
@@ -142,6 +143,17 @@ export function Header({ searchQuery = '', onSearchChange }: HeaderProps) {
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Settings
+                </Button>
+              </Link>
+              {/* Insights Link */}
+              <Link href="/insights">
+                <Button
+                  variant={location === "/insights" ? "default" : "ghost"}
+                  size="sm"
+                  className={location === "/insights" ? "" : "text-gray-600 hover:text-gray-900"}
+                >
+                  <Brain className="h-4 w-4 mr-2" />
+                  Insights
                 </Button>
               </Link>
             </nav>

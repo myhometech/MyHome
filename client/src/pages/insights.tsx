@@ -50,18 +50,22 @@ export function InsightsPage() {
 
   // Check for documentId in URL params and auto-open document viewer
   React.useEffect(() => {
-    const urlParams = new URLSearchParams(location.split('?')[1] || '');
-    const documentIdParam = urlParams.get('documentId');
-    if (documentIdParam) {
-      const docId = parseInt(documentIdParam, 10);
-      if (!isNaN(docId)) {
-        setSelectedDocumentId(docId);
+    try {
+      const urlParams = new URLSearchParams(location.split('?')[1] || '');
+      const documentIdParam = urlParams.get('documentId');
+      if (documentIdParam) {
+        const docId = parseInt(documentIdParam, 10);
+        if (!isNaN(docId)) {
+          setSelectedDocumentId(docId);
+        }
       }
+    } catch (error) {
+      console.error('Error parsing URL params:', error);
     }
   }, [location]);
 
   // Fetch document insights with pagination
-  const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights } = useQuery<{insights: DocumentInsight[], totalCount: number}>({
+  const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights, error: insightsError } = useQuery<{insights: DocumentInsight[], totalCount: number}>({
     queryKey: ['/api/insights', statusFilter, priorityFilter, typeFilter, currentPage, pageSize],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -71,19 +75,33 @@ export function InsightsPage() {
         page: currentPage.toString(),
         limit: pageSize.toString()
       });
-      const response = await fetch(`/api/insights?${params}`);
+      const response = await fetch(`/api/insights?${params}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch insights');
       return response.json();
+    },
+    retry: (failureCount, error) => {
+      // Don't retry on authentication errors
+      if (error?.message?.includes('401') || error?.message?.includes('403')) {
+        return false;
+      }
+      return failureCount < 2;
     },
   });
 
   // Fetch manual events
-  const { data: manualEvents = [], isLoading: manualEventsLoading, refetch: refetchManualEvents } = useQuery<ManualEvent[]>({
+  const { data: manualEvents = [], isLoading: manualEventsLoading, refetch: refetchManualEvents, error: manualEventsError } = useQuery<ManualEvent[]>({
     queryKey: ['/api/manual-events'],
     queryFn: async () => {
       const response = await fetch('/api/manual-events', { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch manual events');
       return response.json();
+    },
+    retry: (failureCount, error) => {
+      // Don't retry on authentication errors
+      if (error?.message?.includes('401') || error?.message?.includes('403')) {
+        return false;
+      }
+      return failureCount < 2;
     },
   });
 
@@ -162,6 +180,37 @@ export function InsightsPage() {
   const handleCloseDocument = () => {
     setSelectedDocumentId(null);
   };
+
+  // Handle errors
+  if (insightsError || manualEventsError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <main className="container mx-auto px-4 py-8">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Brain className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Unable to load insights</h3>
+              <p className="text-gray-600 mb-4">
+                {insightsError?.message || manualEventsError?.message || 'Please try again later.'}
+              </p>
+              <div className="space-x-2">
+                <Button onClick={() => {
+                  refetchInsights();
+                  refetchManualEvents();
+                }}>
+                  Retry
+                </Button>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Refresh Page
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

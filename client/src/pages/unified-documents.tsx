@@ -65,7 +65,8 @@ export default function UnifiedDocuments() {
   const { toast } = useToast();
   const { hasFeature, features } = useFeatures();
   const limits = { documents: features.BULK_OPERATIONS ? 999999 : 50 };
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
 
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -84,6 +85,8 @@ export default function UnifiedDocuments() {
   const handleDocumentSelect = (documentId: number) => {
     console.log('Document selected:', documentId);
     // Could navigate to document detail or open modal
+    // For now, let's set it to be opened via the document viewer component
+    setSelectedDocumentId(documentId);
   };
   const [sortBy, setSortBy] = useState<string>("priority"); // priority, date, name, category
 
@@ -279,6 +282,24 @@ export default function UnifiedDocuments() {
   useEffect(() => {
     initCategoriesMutation.mutate();
   }, []);
+
+  // Check for documentId in URL params and auto-open document viewer
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const documentIdParam = urlParams.get('documentId');
+    if (documentIdParam) {
+      const docId = parseInt(documentIdParam, 10);
+      if (!isNaN(docId)) {
+        console.log('Opening document from URL param:', docId);
+        setSelectedDocumentId(docId);
+        // Clean URL after opening document to prevent issues on refresh
+        const cleanUrl = location.split('?')[0];
+        if (window.history.replaceState) {
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+      }
+    }
+  }, [location]);
 
   // Create insight lookup for efficient filtering
   const insightsByDocument = new Map<number, DocumentInsight[]>();
@@ -811,6 +832,9 @@ export default function UnifiedDocuments() {
                 }}
                 showInsights={true}
                 autoExpandCritical={true}
+                // Pass selectedDocumentId to potentially open the document viewer
+                selectedDocumentId={selectedDocumentId === document.id ? document.id : null}
+                onCloseDocumentViewer={() => setSelectedDocumentId(null)}
               />
             ))}
           </div>

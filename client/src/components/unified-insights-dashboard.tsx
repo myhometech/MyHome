@@ -271,8 +271,8 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
   // Handle clicking on an insight card
   const handleInsightClick = (insight: DocumentInsight) => {
     if (insight.documentId) {
-      // Navigate to insights-first page with document
-      setLocation(`/insights-first?documentId=${insight.documentId}`);
+      // Navigate to unified documents page with document
+      setLocation(`/unified-documents?documentId=${insight.documentId}`);
     } else {
       // Show insight details modal for standalone insights
       setSelectedInsight(insight);
@@ -286,7 +286,7 @@ export function UnifiedInsightsDashboard({ searchQuery = "", onSearchChange }: U
 
   // Handle document click from insight card
   const handleDocumentClick = (documentId: number) => {
-    setLocation(`/insights-first?documentId=${documentId}`);
+    setLocation(`/unified-documents?documentId=${documentId}`);
   };
 
   // Handle document download

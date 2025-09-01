@@ -55,7 +55,13 @@ export function InsightsPage() {
     if (documentIdParam) {
       const docId = parseInt(documentIdParam, 10);
       if (!isNaN(docId)) {
+        console.log('Opening document from insight URL param:', docId);
         setSelectedDocumentId(docId);
+        // Clean URL after opening document to prevent issues on refresh
+        const cleanUrl = location.split('?')[0];
+        if (window.history.replaceState) {
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
       }
     }
   }, [location]);

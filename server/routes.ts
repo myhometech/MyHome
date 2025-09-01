@@ -1119,6 +1119,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentId = parseInt(req.params.id);
 
       console.log(`🔍 [DOCUMENT FETCH] Attempting to fetch document ${documentId} for user ${userId}`);
+      console.log(`🔍 [DOCUMENT FETCH] Request headers:`, {
+        'user-agent': req.get('User-Agent'),
+        'referer': req.get('Referer'),
+        'origin': req.get('Origin')
+      });
 
       if (isNaN(documentId)) {
         console.log(`❌ [DOCUMENT FETCH] Invalid document ID: ${req.params.id}`);
@@ -1128,6 +1133,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         console.log(`❌ [DOCUMENT FETCH] Document ${documentId} not found for user ${userId}`);
+        // Check if document exists for another user (debugging)
+        try {
+          const allDocuments = await storage.getDocuments(userId);
+          console.log(`🔍 [DOCUMENT FETCH] User has ${allDocuments.length} total documents`);
+          console.log(`🔍 [DOCUMENT FETCH] Document IDs: ${allDocuments.map(d => d.id).join(', ')}`);
+        } catch (debugError) {
+          console.error('❌ [DOCUMENT FETCH] Debug query failed:', debugError);
+        }
         return res.status(404).json({ message: "Document not found" });
       }
 

@@ -206,9 +206,9 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
         console.log(`[INSIGHT-CARD] Using parent document click handler for document ${insight.documentId}`);
         onDocumentClick(insight.documentId);
       } else {
-        // Navigate to insights page first, which can handle document opening properly
-        console.log(`[INSIGHT-CARD] Navigating to insights page with document ${insight.documentId}`);
-        setLocation(`/insights?documentId=${insight.documentId}`);
+        // Navigate to document page to view the document
+        console.log(`[INSIGHT-CARD] Navigating to document page for document ${insight.documentId}`);
+        setLocation(`/document/${insight.documentId}`);
       }
     } else {
       console.warn(`[INSIGHT-CARD] Invalid or missing documentId for insight ${insight.id}:`, insight.documentId);

@@ -13,8 +13,7 @@ import {
   BarChart3,
   Settings,
   User,
-  MessageCircle,
-  Brain // Added import for Brain icon
+  MessageCircle
 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,7 +100,7 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
           <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
-
+      
       <SheetContent 
         side="left" 
         className="w-56 p-0 flex flex-col [&~div]:bg-black/20"
@@ -119,7 +118,7 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
         >
           {/* Insights - Pinned at Top */}
           <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-            <Link href="/insights" onClick={handleClose}>
+            <Link href="/" onClick={handleClose}>
               <motion.div 
                 className="flex items-center space-x-3 p-3 rounded-xl hover:bg-white/80 hover:shadow-sm active:bg-blue-100 transition-all duration-200 cursor-pointer"
                 whileHover={{ scale: 1.02 }}
@@ -148,7 +147,7 @@ export function MobileHamburgerMenu({ className = "" }: MobileHamburgerMenuProps
               return (
                 <Link key={item.href} href={item.href} onClick={handleClose}>
                   <motion.div
-                    className="flex items-center space-x-3 p-3 rounded-xl hover:bg-blue-50 hover:shadow-sm active:bg-blue-100 transition-all duration-200 cursor-pointer border border-transparent hover:border-blue-200"
+                    className="flex items-center space-x-3 p-3 rounded-xl hover:bg-blue-50 hover:shadow-sm active:bg-blue-100 transition-all duration-200 cursor-pointer group border border-transparent hover:border-blue-200"
                     whileHover={{ x: 6, scale: 1.01 }}
                     whileTap={{ scale: 0.97 }}
                   >

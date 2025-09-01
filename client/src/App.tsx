@@ -33,7 +33,6 @@ import Pricing from "@/pages/pricing";
 import DocumentPage from "@/pages/document";
 import UnifiedDocuments from "@/pages/unified-documents";
 import InsightsFirstPage from "@/pages/insights-first";
-import { InsightsPage } from '@/pages/insights';
 import Notifications from "@/pages/notifications";
 import Tasks from "@/pages/tasks";
 import Analytics from "@/pages/analytics";
@@ -106,8 +105,7 @@ function Router() {
           </>
         ) : (
           <>
-            <Route path="/" component={Home} />
-            <Route path="/insights" component={InsightsPage} />
+            <Route path="/" component={InsightsFirstPage} />
             <Route path="/documents" component={UnifiedDocuments} />
             <Route path="/notifications" component={Notifications} />
             <Route path="/tasks" component={Tasks} />
@@ -164,7 +162,7 @@ function App() {
   // Emergency bypass: if user adds ?no-error-boundary=true, completely disable ErrorBoundary
   const urlParams = new URLSearchParams(window.location.search);
   const disableErrorBoundary = urlParams.get('no-error-boundary') === 'true';
-
+  
   if (disableErrorBoundary) {
     console.log('🚨 ERROR BOUNDARY COMPLETELY DISABLED');
     return (

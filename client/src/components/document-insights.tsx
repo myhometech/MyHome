@@ -142,47 +142,6 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
-  // Validate documentId prop with safer initialization
-  const validDocumentId = React.useMemo(() => {
-    // Handle undefined/null cases more safely
-    if (documentId === undefined || documentId === null) {
-      console.error('DocumentInsights: Missing documentId prop:', documentId);
-      return null;
-    }
-    
-    // Allow documentId of 0
-    if (documentId === 0) {
-      return 0;
-    }
-    
-    const numericId = typeof documentId === 'string' ? parseInt(documentId, 10) : Number(documentId);
-    
-    if (isNaN(numericId) || numericId < 0) {
-      console.error('DocumentInsights: Invalid documentId prop:', documentId, 'converted to:', numericId);
-      return null;
-    }
-    
-    return numericId;
-  }, [documentId]);
-
-  // Early return for invalid document ID
-  if (validDocumentId === null) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-500">Invalid document ID: {documentId}</p>
-      </div>
-    );
-  }
-
-  // Early return for undefined document ID (still loading)
-  if (documentId === undefined) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">Loading document insights...</p>
-      </div>
-    );
-  }
-
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth <= 768;
@@ -227,73 +186,50 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const limit = React.useMemo(() => isMobile ? 5 : 10, [isMobile]);
 
-  const { data: insightData, isLoading, error, refetch } = useQuery({
-    queryKey: ['/api/documents', validDocumentId, 'insights', 'primary', limit],
+  const { data: insightData, isLoading, error } = useQuery({
+    queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
     queryFn: async ({ signal }) => {
       try {
-        console.log(`🔍 Fetching insights for document ${validDocumentId}`);
-        const response = await fetch(`/api/documents/${validDocumentId}/insights?tier=primary&limit=${limit}`, {
+        const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
           signal,
           credentials: 'include',
         });
         
         if (!response.ok) {
           if (response.status === 404) {
-            console.log(`📝 No insights found for document ${validDocumentId}`);
+            // Document not found or no insights yet - return empty array
             return { insights: [], success: true };
           }
-          if (response.status === 401) {
-            console.error('🔒 Authentication required for insights');
-            throw new Error('Authentication required');
-          }
-          if (response.status === 403) {
-            console.error('🚫 Access denied to document insights');
-            throw new Error('Access denied to document');
-          }
           const errorData = await response.text().catch(() => '');
-          console.error('❌ Failed to fetch insights:', errorData);
+          console.error('Failed to fetch insights:', errorData);
           throw new Error(`Failed to fetch insights: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log(`✅ Fetched ${data.insights?.length || 0} insights for document ${validDocumentId}`);
+        console.log('Fetched insights data:', data);
         return data;
       } catch (error: any) {
         if (error.name === 'AbortError') {
-          console.log('🔄 Insights fetch aborted');
           throw error;
         }
-        console.error('❌ Insight fetch error:', error);
-        
-        // For network errors, return empty state to prevent crashes
-        if (!navigator.onLine || error.name === 'TypeError') {
-          return { insights: [], success: false, error: 'Network error' };
-        }
-        
-        throw error;
+        console.error('Insight fetch error:', error);
+        // Return empty state instead of throwing to prevent component crash
+        return { insights: [], success: false, error: error.message };
       }
     },
-    staleTime: 1 * 60 * 1000, // Reduced stale time for more frequent updates
+    staleTime: 5 * 60 * 1000,
     gcTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: true, // Enable refetch on focus
-    refetchOnReconnect: true, // Enable refetch on reconnect
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: (failureCount, error) => {
-      // Don't retry on authentication or client errors
-      if (error?.message?.includes('404') || 
-          error?.message?.includes('401') || 
-          error?.message?.includes('403') || 
-          error?.message?.includes('400')) {
+      // Don't retry on 404 or client errors
+      if (error?.message?.includes('404') || error?.message?.includes('400')) {
         return false;
       }
       return failureCount < 2;
     },
     select: React.useCallback((data: any) => {
-      if (!data || typeof data !== 'object') {
-        return { insights: [], success: false };
-      }
-      if (!data.insights || !Array.isArray(data.insights)) {
-        return { insights: [], success: data.success || false };
-      }
+      if (!data?.insights) return { insights: [] };
       const limitedInsights = data.insights.slice(0, Math.min(limit, 20));
       return {
         ...data,
@@ -302,88 +238,45 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     }, [limit])
   });
 
-  // Add a refetch after successful generation
-  React.useEffect(() => {
-    if (generateInsightsMutation.isSuccess && !generateInsightsMutation.isPending) {
-      const timer = setTimeout(() => {
-        refetch();
-      }, 500); // Small delay to ensure server has processed
-      return () => clearTimeout(timer);
-    }
-  }, [generateInsightsMutation.isSuccess, generateInsightsMutation.isPending, refetch]);
-
-  const insights = React.useMemo(() => {
-    const rawInsights = insightData?.insights || [];
-    // Filter out any insights that don't have required fields and provide fallback category
-    return rawInsights.filter((insight: any) => 
-      insight && 
-      typeof insight === 'object' && 
-      insight.id && 
-      insight.type && 
-      insight.title && 
-      insight.content
-    ).map((insight: any) => ({
-      ...insight,
-      // Ensure category field exists with fallback
-      category: insight.category || 'general',
-      // Ensure confidence is properly formatted
-      confidence: typeof insight.confidence === 'number' ? insight.confidence : 0.8,
-      // Ensure createdAt exists
-      createdAt: insight.createdAt || new Date().toISOString()
-    }));
-  }, [insightData?.insights]);
+  const insights = insightData?.insights || [];
 
   const generateInsightsMutation = useMutation({
     mutationFn: async ({ signal }: { signal?: AbortSignal }): Promise<InsightResponse> => {
-      console.log(`🔍 [INSIGHT-DEBUG] Starting insight generation for document ${validDocumentId}`);
+      console.log(`🔍 [INSIGHT-DEBUG] Starting insight generation for document ${documentId}`);
 
       const requestSignal = signal || abortControllerRef.current?.signal;
 
-      try {
-        const response = await fetch(`/api/documents/${validDocumentId}/insights`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-          signal: requestSignal
-        });
+      const response = await fetch(`/api/documents/${documentId}/insights`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        signal: requestSignal
+      });
 
-        console.log(`📡 [INSIGHT-DEBUG] Response status: ${response.status}`);
+      console.log(`📡 [INSIGHT-DEBUG] Response status: ${response.status}`);
 
-        if (!response.ok) {
-          let errorData;
-          try {
-            errorData = await response.json();
-          } catch {
-            errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
-          }
-          console.error(`❌ [INSIGHT-DEBUG] Server error:`, errorData);
-          throw new Error(errorData.message || 'Failed to generate insights');
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
         }
-
-        const result = await response.json();
-        
-        // Validate the response structure
-        if (!result || typeof result !== 'object') {
-          throw new Error('Invalid response format from server');
-        }
-
-        console.log(`✅ [INSIGHT-DEBUG] Insights received:`, {
-          success: result.success,
-          insightsCount: result.insights?.length || 0,
-          documentType: result.documentType,
-          confidence: result.confidence
-        });
-
-        return result;
-      } catch (error: any) {
-        if (error.name === 'AbortError') {
-          throw error;
-        }
-        console.error(`❌ [INSIGHT-DEBUG] Request failed:`, error);
-        throw new Error(error.message || 'Network error during insight generation');
+        console.error(`❌ [INSIGHT-DEBUG] Server error:`, errorData);
+        throw new Error(errorData.message || 'Failed to generate insights');
       }
+
+      const result = await response.json();
+      console.log(`✅ [INSIGHT-DEBUG] Insights received:`, {
+        success: result.success,
+        insightsCount: result.insights?.length || 0,
+        documentType: result.documentType,
+        confidence: result.confidence
+      });
+
+      return result;
     },
     onSuccess: React.useCallback((data: InsightResponse) => {
       if (abortControllerRef.current?.signal.aborted) return;
@@ -393,20 +286,11 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         title: "Insights Generated",
         description: `Generated ${actualInsightCount} insight${actualInsightCount === 1 ? '' : 's'}`
       });
-      
-      // Invalidate all related queries to refresh data
       queryClient.invalidateQueries({
-        queryKey: ['/api/documents', validDocumentId, 'insights']
+        queryKey: ['/api/documents', documentId, 'insights']
       });
-      queryClient.invalidateQueries({
-        queryKey: ['/api/insights']
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['/api/documents']
-      });
-      
       setIsGenerating(false);
-    }, [validDocumentId, toast, queryClient]),
+    }, [documentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {
       if (abortControllerRef.current?.signal.aborted || error.name === 'AbortError') {
         return;
@@ -415,7 +299,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       console.error('❌ [INSIGHT-DEBUG] Insight generation error:', {
         message: error.message,
         stack: error.stack,
-        documentId: validDocumentId,
+        documentId,
         documentName,
         timestamp: new Date().toISOString()
       });
@@ -446,7 +330,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const deleteInsightMutation = useMutation({
     mutationFn: async (insightId: string) => {
-      const response = await fetch(`/api/documents/${validDocumentId}/insights/${insightId}`, {
+      const response = await fetch(`/api/documents/${documentId}/insights/${insightId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -465,9 +349,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         description: "The insight has been removed"
       });
       queryClient.invalidateQueries({
-        queryKey: ['/api/documents', validDocumentId, 'insights']
+        queryKey: ['/api/documents', documentId, 'insights']
       });
-    }, [validDocumentId, toast, queryClient]),
+    }, [documentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {
       toast({
         title: "Delete Failed",
@@ -488,7 +372,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const flagInsightMutation = useMutation({
     mutationFn: async ({ insightId, flagged, reason }: { insightId: string; flagged: boolean; reason?: string }) => {
-      const response = await fetch(`/api/documents/${validDocumentId}/insights/${insightId}/flag`, {
+      const response = await fetch(`/api/documents/${documentId}/insights/${insightId}/flag`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -512,9 +396,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           : "Insight flag has been removed."
       });
       queryClient.invalidateQueries({
-        queryKey: ['/api/documents', validDocumentId, 'insights']
+        queryKey: ['/api/documents', documentId, 'insights']
       });
-    }, [validDocumentId, toast, queryClient]),
+    }, [documentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {
       toast({
         title: "Flag Failed",
@@ -577,11 +461,8 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   if (error && !insightData) {
     const errorMessage = error?.message || 'Unknown error';
-    console.error('Insight error details:', { error, errorMessage, documentId: validDocumentId, documentName });
+    console.log('Insight error details:', { error, errorMessage, documentId, documentName });
 
-    // Don't crash on category-related errors, show recovery UI
-    const isCategoryError = errorMessage.includes('category') || errorMessage.includes('undefined');
-    
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -607,29 +488,25 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           </Button>
         </div>
 
-        {/* Enhanced error state with category error handling */}
-        <Card className={`border-orange-200 bg-orange-50 ${isCategoryError ? 'border-blue-200 bg-blue-50' : ''}`}>
+        {/* Error state without redirect */}
+        <Card className="border-orange-200 bg-orange-50">
           <CardContent className="p-6">
             <div className="flex items-center gap-3 mb-3">
-              <AlertCircle className={`h-5 w-5 ${isCategoryError ? 'text-blue-600' : 'text-orange-600'}`} />
-              <h3 className={`font-medium ${isCategoryError ? 'text-blue-900' : 'text-orange-900'}`}>
-                {isCategoryError ? 'Insights need updating' : 'Unable to load insights'}
-              </h3>
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              <h3 className="font-medium text-orange-900">Unable to load insights</h3>
             </div>
-            <p className={`text-sm mb-4 ${isCategoryError ? 'text-blue-700' : 'text-orange-700'}`}>
-              {isCategoryError 
-                ? 'Your insights need to be updated to the new category system. Click "Regenerate" to fix this.'
-                : (errorMessage.includes('404') 
-                  ? 'No insights found for this document yet.'
-                  : 'There was an issue loading insights for this document.')
+            <p className="text-sm text-orange-700 mb-4">
+              {errorMessage.includes('404') 
+                ? 'No insights found for this document yet.'
+                : 'There was an issue loading insights for this document.'
               }
             </p>
             <Button 
               onClick={handleGenerateInsights}
-              className={`text-white ${isCategoryError ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
               size="sm"
             >
-              {isCategoryError ? 'Regenerate Insights' : 'Try Generating Insights'}
+              Try Generating Insights
             </Button>
           </CardContent>
         </Card>
@@ -698,23 +575,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       ) : (
         <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
           {insights.map((insight: DocumentInsight, index: number) => {
-            // Safer config resolution with fallbacks
             const config = insightTypeConfig[insight.type as keyof typeof insightTypeConfig] || insightTypeConfig.summary;
-            
-            // Enhanced category validation with fallback
-            const safeCategory = insight.category && typeof insight.category === 'string' 
-              ? insight.category 
-              : 'general';
-            const categoryData = categoryConfig[safeCategory as keyof typeof categoryConfig] || categoryConfig.general;
-            
-            const IconComponent = config?.icon || FileText;
-            const CategoryIcon = categoryData?.icon || CheckCircle;
-
-            // Skip invalid insights entirely to prevent crashes
-            if (!insight.id || !insight.type || !insight.title || !insight.content) {
-              console.warn('Skipping invalid insight:', insight);
-              return null;
-            }
+            const categoryData = categoryConfig[insight.category];
+            const IconComponent = config.icon;
+            const CategoryIcon = categoryData.icon;
 
             // Extract more specific title from content or metadata
             const getSpecificTitle = (insight: DocumentInsight) => {
@@ -779,15 +643,11 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 return;
               }
 
-              // Only navigate if callback is provided and document exists
-              if (onDocumentClick && validDocumentId) {
-                try {
-                  e.preventDefault();
-                  console.log('Opening document from insight card:', validDocumentId);
-                  onDocumentClick(validDocumentId);
-                } catch (navError) {
-                  console.error('Navigation error from insight card:', navError);
-                }
+              // Only navigate if callback is provided and we're not in an error state
+              if (onDocumentClick && !error) {
+                e.preventDefault();
+                console.log('Opening document from insight card:', documentId);
+                onDocumentClick(documentId);
               }
             };
 
@@ -881,13 +741,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        try {
-                          console.log('View button clicked for document:', validDocumentId);
-                          if (onDocumentClick && validDocumentId) {
-                            onDocumentClick(validDocumentId);
-                          }
-                        } catch (viewError) {
-                          console.error('Error opening document viewer:', viewError);
+                        console.log('View button clicked for document:', documentId);
+                        if (onDocumentClick) {
+                          onDocumentClick(documentId);
                         }
                       }}
                       className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}
@@ -902,14 +758,8 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        try {
-                          console.log('Details button clicked, navigating to:', `/document/${validDocumentId}`);
-                          if (validDocumentId) {
-                            setLocation(`/document/${validDocumentId}`);
-                          }
-                        } catch (navError) {
-                          console.error('Error navigating to document details:', navError);
-                        }
+                        console.log('Details button clicked, navigating to:', `/document/${documentId}`);
+                        setLocation(`/document/${documentId}`);
                       }}
                       className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}
                     >

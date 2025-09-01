@@ -102,17 +102,13 @@ function InsightsFromAllDocuments() {
   // Get insights for first few documents
   const documentInsights = documents.slice(0, 5).map((doc: Document) => {
     const { data: insights } = useQuery({
-      queryKey: ['/api/documents', doc.id, 'insights', 'primary'],
+      queryKey: ['/api/documents', doc.id, 'insights'],
       queryFn: async () => {
-        const response = await fetch(`/api/documents/${doc.id}/insights?tier=primary&limit=5`, {
-          credentials: 'include'
-        });
+        const response = await fetch(`/api/documents/${doc.id}/insights?tier=primary&limit=5`);
         if (!response.ok) return { insights: [] };
         return response.json();
       },
       enabled: !!doc.id,
-      staleTime: 30 * 1000, // 30 seconds
-      refetchOnWindowFocus: true,
     });
     return { document: doc, insights: insights?.insights || [] };
   });
@@ -531,29 +527,6 @@ export default function Home() {
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<number>>(new Set());
 
-  // Add near the top with other query hooks
-  const { data: insightsData, isLoading: insightsLoading, error: insightsError } = useQuery({
-    queryKey: ['/api/insights/critical'],
-    staleTime: 30 * 1000, // 30 seconds
-    gcTime: 2 * 60 * 1000, // 2 minutes
-    retry: (failureCount, error) => {
-      // Don't retry on category-related errors
-      if (error?.message?.includes('category') || error?.message?.includes('undefined')) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-    select: (data: any) => {
-      // Ensure insights have proper category field
-      if (!data || !Array.isArray(data)) return [];
-      return data.map((insight: any) => ({
-        ...insight,
-        category: insight.category || 'general',
-        confidence: typeof insight.confidence === 'number' ? insight.confidence : 0.8
-      }));
-    }
-  });
-
   // Handle dashboard card filter changes
   const handleDashboardFilter = (filter: any) => {
     if (filter.reset) {
@@ -782,67 +755,122 @@ export default function Home() {
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">
-        {/* Financial, Important Dates, and General Cards - At the very top */}
+        {/* Mobile Search */}
+        <div className="md:hidden mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Search documents..."
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Dashboard Overview Cards - Working with real data */}
+        <DashboardOverview onFilterChange={handleDashboardFilter} />
+
+        {/* Quick Action Cards */}
+        <QuickActionCards />
+
+        {/* TICKET 17: Show AI insight generation status */}
+        <FeatureGate feature="AI_INSIGHTS">
+          <InsightJobStatus />
+        </FeatureGate>
+
+        {/* Category Filter Cards - These are the financial/important dates/general cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           {/* Financial Card */}
           <Card 
-            className="bg-gradient-to-br from-accent-purple-600 to-accent-purple-800 border-l-4 border-l-accent-purple-500 cursor-pointer hover:shadow-lg transition-all duration-300 text-white"
+            className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-600 to-accent-purple-700 text-white border-0 shadow-md"
             onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id || null)}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm font-medium text-white">Financial</p>
-                  <p className="text-2xl font-bold text-white">
-                    {documents.filter((doc: any) => doc.categoryId === categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id).length}
-                  </p>
-                  <p className="text-xs text-white/80">Total active</p>
+                  <p className="text-lg font-semibold text-white">Financial</p>
+                  <p className="text-sm text-white/90">Bills, payments & money matters</p>
                 </div>
-                <DollarSign className="h-6 w-6 text-white" />
+                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <DollarSign className="h-6 w-6 text-white" />
+                </div>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('financial'))?.id || null);
+                }}
+              >
+                View Financial Documents
+              </Button>
             </CardContent>
           </Card>
 
           {/* Important Dates Card */}
           <Card 
-            className="bg-gradient-to-br from-accent-purple-500 to-accent-purple-700 border-l-4 border-l-accent-purple-400 cursor-pointer hover:shadow-lg transition-all duration-300 text-white"
+            className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-500 to-accent-purple-600 text-white border-0 shadow-md"
             onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id || null)}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm font-medium text-white">Important Dates</p>
-                  <p className="text-2xl font-bold text-white">
-                    {documents.filter((doc: any) => doc.categoryId === categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id).length}
-                  </p>
-                  <p className="text-xs text-white/80">Total active</p>
+                  <p className="text-lg font-semibold text-white">Important Dates</p>
+                  <p className="text-sm text-white/90">Deadlines & key events</p>
                 </div>
-                <Calendar className="h-6 w-6 text-white" />
+                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-white" />
+                </div>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('important'))?.id || null);
+                }}
+              >
+                View Important Dates
+              </Button>
             </CardContent>
           </Card>
 
           {/* General Card */}
           <Card 
-            className="bg-gradient-to-br from-accent-purple-400 to-accent-purple-600 border-l-4 border-l-accent-purple-300 cursor-pointer hover:shadow-lg transition-all duration-300 text-white"
-            onClick={() => setSelectedCategory(null)}
+            className="cursor-pointer hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-accent-purple-400 to-accent-purple-500 text-white border-0 shadow-md"
+            onClick={() => setSelectedCategory(categories.find((c: Category) => c.name.toLowerCase().includes('general'))?.id || null)}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm font-medium text-white">General</p>
-                  <p className="text-2xl font-bold text-white">
-                    {documents.filter((doc: any) => !doc.categoryId).length}
-                  </p>
-                  <p className="text-xs text-white/80">Total active</p>
+                  <p className="text-lg font-semibold text-white">General</p>
+                  <p className="text-sm text-white/90">All other documents</p>
                 </div>
-                <CheckCircle className="h-6 w-6 text-white" />
+                <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-white" />
+                </div>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-white hover:bg-white/20 rounded-lg font-medium"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCategory(null);
+                }}
+              >
+                View All Documents
+              </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* AI Insights Section */}
+        {/* Insights Section */}
         <div className="mb-8">
           <Card className="bg-white border border-gray-200">
             <CardHeader className="pb-4">
@@ -859,15 +887,31 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Display insights from all documents */}
               <InsightsFromAllDocuments />
             </CardContent>
           </Card>
         </div>
 
-        {/* TICKET 17: Show AI insight generation status */}
-        <FeatureGate feature="AI_INSIGHTS">
-          <InsightJobStatus />
-        </FeatureGate>
+        {/* Unified Insights Dashboard - This should now display the insights */}
+        <div className="mt-8">
+          <UnifiedInsightsDashboard searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        </div>
+
+        {/* Search and Filter Controls */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <SmartSearch
+              onSearchChange={setSearchQuery}
+              onDocumentSelect={(document) => {
+                // Optionally open document modal or navigate to document
+                console.log('Selected document:', document);
+              }}
+              placeholder="Search documents by name, content, or tags..."
+              className="w-full"
+            />
+          </div>
+        </div>
 
         {/* Category Filter */}
         <CategoryFilter

@@ -230,7 +230,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
       } else {
         toast({
           title: "Unable to open document",
-          description: "This insight is not properly linked to a document. Please contact support if this persists.",
+          description: "This insight is not properly linked to a document.",
           variant: "destructive",
         });
       }
@@ -239,22 +239,54 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
 
     const numericDocumentId = Number(documentId);
 
-    // Skip document verification and navigate directly
-    // The document page will handle any access/existence issues
+    // Quick validation before navigation
     try {
-      if (onDocumentClick) {
-        console.log(`[INSIGHT-CARD] Using parent document click handler`);
-        onDocumentClick(numericDocumentId);
+      const response = await fetch(`/api/documents/${numericDocumentId}`, {
+        method: 'HEAD', // Use HEAD to check existence without downloading
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        // Document exists, proceed with navigation
+        if (onDocumentClick) {
+          console.log(`[INSIGHT-CARD] Using parent document click handler`);
+          onDocumentClick(numericDocumentId);
+        } else {
+          console.log(`[INSIGHT-CARD] Navigating to document page`);
+          setLocation(`/document/${numericDocumentId}`);
+        }
+      } else if (response.status === 404) {
+        // Document not found
+        console.warn(`[INSIGHT-CARD] Document ${numericDocumentId} not found (404)`);
+        toast({
+          title: "Document not found",
+          description: "This document no longer exists. The insight will be cleaned up.",
+          variant: "destructive",
+        });
+        
+        // Trigger a refresh of insights to clean up orphaned ones
+        queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      } else if (response.status === 401 || response.status === 403) {
+        // Authentication/permission issues
+        toast({
+          title: "Access denied",
+          description: "You don't have permission to view this document.",
+          variant: "destructive",
+        });
       } else {
-        console.log(`[INSIGHT-CARD] Navigating to document page`);
-        setLocation(`/document/${numericDocumentId}`);
+        // Other server errors
+        toast({
+          title: "Unable to access document",
+          description: `Server error (${response.status}). Please try again later.`,
+          variant: "destructive",
+        });
       }
 
     } catch (error) {
-      console.error(`[INSIGHT-CARD] Error navigating to document ${numericDocumentId}:`, error);
+      console.error(`[INSIGHT-CARD] Error checking document ${numericDocumentId}:`, error);
       toast({
-        title: "Navigation error",
-        description: "Unable to navigate to the document.",
+        title: "Connection error",
+        description: "Unable to verify document access. Please check your connection.",
         variant: "destructive",
       });
     }

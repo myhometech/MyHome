@@ -180,6 +180,14 @@ export default function InsightsFirstPage() {
     },
   });
 
+  // Auto-cleanup orphaned insights on page load
+  const { data: cleanupResult } = useQuery({
+    queryKey: ['/api/documents/auto-cleanup-insights'],
+    staleTime: 5 * 60 * 1000, // Only run once every 5 minutes
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
   // Filter documents based on search and category
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = !searchQuery || 
@@ -197,7 +205,9 @@ export default function InsightsFirstPage() {
       const matchesType = insightTypeFilter === "all" || insight.type === insightTypeFilter;
       const matchesPriority = insightPriorityFilter === "all" || insight.priority === insightPriorityFilter;
       const matchesStatus = insightStatusFilter === "all" || insight.status === insightStatusFilter;
-      return matchesType && matchesPriority && matchesStatus;
+      // Ensure the document for the insight actually exists
+      const documentExists = documents.some(doc => doc.id === insight.documentId);
+      return matchesType && matchesPriority && matchesStatus && documentExists;
     })
     .sort((a, b) => {
       if (sortBy === "priority") {

@@ -48,7 +48,14 @@ export default function DocumentPage() {
   useEffect(() => {
     if (documentError) {
       console.error('Document not found or error loading:', documentError);
-      // Don't immediately redirect - let the UI handle the error gracefully
+      
+      // If it's a 404 error, automatically redirect after a short delay
+      if (documentError instanceof Error && documentError.message.includes('404')) {
+        console.log('Document not found (404), redirecting to insights page');
+        setTimeout(() => {
+          setLocation('/');
+        }, 2000);
+      }
     }
   }, [documentError, setLocation, documentId]);
 
@@ -66,13 +73,19 @@ export default function DocumentPage() {
     );
   }
 
-  if (!document) {
+  if (documentError || !document) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
-            <p className="text-gray-600 mb-4">Document not found</p>
+            <p className="text-gray-600 mb-2">Document not found</p>
+            <p className="text-gray-500 text-sm mb-4">
+              {documentError instanceof Error && documentError.message.includes('404') 
+                ? 'This document may have been deleted or moved. Redirecting...'
+                : 'The document you requested is not available.'
+              }
+            </p>
             <Button onClick={() => setLocation('/')} variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Documents

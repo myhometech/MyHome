@@ -359,9 +359,13 @@ router.get('/:id', async (req: any, res: any) => {
 
     console.log(`[DOCUMENT-ROUTE] Fetching document ${documentId} for user ${userId}`);
 
-    if (isNaN(documentId)) {
+    if (isNaN(documentId) || documentId <= 0) {
       console.log(`[DOCUMENT-ROUTE] Invalid document ID: ${req.params.id}`);
-      return res.status(400).json({ message: 'Invalid document ID' });
+      return res.status(400).json({ 
+        message: 'Invalid document ID',
+        error: 'INVALID_DOCUMENT_ID',
+        providedId: req.params.id
+      });
     }
 
     // Enhanced document retrieval with better error logging
@@ -370,15 +374,25 @@ router.get('/:id', async (req: any, res: any) => {
     if (!document) {
       console.log(`[DOCUMENT-ROUTE] Document ${documentId} not found for user ${userId}`);
 
-      // Enhanced debugging - check for document in insights
+      // Enhanced debugging - check for document in insights and auto-cleanup
       try {
         const userInsights = await storage.getInsights(userId);
-        const insightWithDocument = userInsights.find(insight =>
+        const orphanedInsights = userInsights.filter(insight =>
           insight.documentId && Number(insight.documentId) === documentId
         );
 
-        if (insightWithDocument) {
-          console.log(`[DOCUMENT-ROUTE] Found insight ${insightWithDocument.id} referencing missing document ${documentId}`);
+        if (orphanedInsights.length > 0) {
+          console.log(`[DOCUMENT-ROUTE] Found ${orphanedInsights.length} orphaned insights referencing missing document ${documentId}`);
+          
+          // Auto-cleanup orphaned insights
+          for (const orphanedInsight of orphanedInsights) {
+            try {
+              await storage.deleteInsight(orphanedInsight.id);
+              console.log(`[DOCUMENT-ROUTE] Auto-deleted orphaned insight ${orphanedInsight.id}`);
+            } catch (deleteError) {
+              console.warn(`[DOCUMENT-ROUTE] Failed to delete orphaned insight ${orphanedInsight.id}:`, deleteError);
+            }
+          }
         }
 
         const allDocuments = await storage.getDocuments(userId);
@@ -388,7 +402,7 @@ router.get('/:id', async (req: any, res: any) => {
           requestedDocumentId: documentId,
           userDocumentCount: allDocuments.length,
           sampleUserDocumentIds: userDocumentIds,
-          hasInsightForDocument: !!insightWithDocument,
+          orphanedInsightsFound: orphanedInsights.length,
           userId: userId
         });
       } catch (debugError) {
@@ -396,25 +410,16 @@ router.get('/:id', async (req: any, res: any) => {
       }
 
       return res.status(404).json({
-        message: `Document ${documentId} not found or not accessible`,
+        message: `Document not found`,
         error: 'DOCUMENT_NOT_FOUND',
         documentId,
-        userId,
+        suggestion: 'This document may have been deleted or moved. Any related insights have been cleaned up.',
         timestamp: new Date().toISOString()
       });
     }
 
     console.log(`[DOCUMENT-ROUTE] Document ${documentId} found: ${document.name}`);
-    res.json({
-      id: document.id,
-      name: document.name,
-      fileName: document.fileName,
-      mimeType: document.mimeType,
-      userId: document.userId,
-      exists: true,
-      uploadedAt: document.uploadedAt,
-      categoryId: document.categoryId
-    });
+    res.json(document);
 
   } catch (error: any) {
     console.error(`[DOCUMENT-ROUTE] Failed to fetch document ${req.params.id}:`, {
@@ -607,6 +612,60 @@ router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
     res.status(500).json({
       message: 'OCR analysis failed',
       error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Auto-cleanup orphaned insights when insights are requested
+router.get('/auto-cleanup-insights', async (req: any, res: any) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const userId = req.user.id;
+    console.log(`[AUTO-CLEANUP] Starting automatic cleanup for user ${userId}`);
+
+    // Get all insights and documents for the user
+    const [allInsights, allDocuments] = await Promise.all([
+      storage.getInsights(userId),
+      storage.getDocuments(userId)
+    ]);
+
+    const documentIds = new Set(allDocuments.map(doc => doc.id));
+    let cleanedCount = 0;
+
+    // Find and delete orphaned insights
+    for (const insight of allInsights) {
+      if (insight.documentId && 
+          typeof insight.documentId === 'number' && 
+          insight.documentId > 0 && 
+          !documentIds.has(insight.documentId)) {
+        
+        try {
+          await storage.deleteInsight(insight.id);
+          cleanedCount++;
+          console.log(`[AUTO-CLEANUP] Deleted orphaned insight: ${insight.id} -> document ${insight.documentId}`);
+        } catch (error) {
+          console.error(`[AUTO-CLEANUP] Failed to delete insight ${insight.id}:`, error);
+        }
+      }
+    }
+
+    console.log(`[AUTO-CLEANUP] Completed: ${cleanedCount} orphaned insights removed`);
+
+    res.json({
+      success: true,
+      cleanedCount,
+      totalInsights: allInsights.length,
+      totalDocuments: allDocuments.length
+    });
+
+  } catch (error: any) {
+    console.error('Auto-cleanup failed:', error);
+    res.status(500).json({
+      message: 'Auto-cleanup failed',
+      error: error.message,
     });
   }
 });

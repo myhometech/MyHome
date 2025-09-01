@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { ImageProcessingService } from '../imageProcessingService';
 import { PDFOptimizationService } from '../pdfOptimizationService';
 import { EnhancedOCRStrategies } from '../enhancedOCRStrategies';
@@ -255,10 +256,10 @@ router.post('/', upload.fields([
 
     // Clean up temporary files
     try {
-      const fs = require('fs').promises;
-      await fs.unlink(uploadedFile.path); // Remove original temp file
+      // Use fs.promises for proper async handling
+      await fs.promises.unlink(uploadedFile.path); // Remove original temp file
       if (thumbnailFile) {
-        await fs.unlink(thumbnailFile.path); // Remove temp thumbnail
+        await fs.promises.unlink(thumbnailFile.path); // Remove temp thumbnail
       }
     } catch (cleanupError) {
       console.warn('Failed to clean up temp files:', cleanupError);
@@ -282,13 +283,13 @@ router.post('/', upload.fields([
     // Clean up any temporary files on error
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      const fs = require('fs').promises;
+      // Use fs.promises that we already imported
       
       if (files.file?.[0]) {
-        await fs.unlink(files.file[0].path);
+        await fs.promises.unlink(files.file[0].path);
       }
       if (files.thumbnail?.[0]) {
-        await fs.unlink(files.thumbnail[0].path);
+        await fs.promises.unlink(files.thumbnail[0].path);
       }
     } catch (cleanupError) {
       console.warn('Failed to clean up temp files after error:', cleanupError);
@@ -392,7 +393,6 @@ router.get('/:id/thumbnail', async (req: any, res: any) => {
 
     const thumbnailPath = imageProcessor.getThumbnailPath(document.filePath);
 
-    const fs = require('fs');
     if (fs.existsSync(thumbnailPath)) {
       res.sendFile(path.resolve(thumbnailPath));
     } else {

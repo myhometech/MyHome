@@ -914,26 +914,6 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Unified Insights Dashboard - This should now display the insights */}
-        <div className="mt-8">
-          <UnifiedInsightsDashboard searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-        </div>
-
-        {/* Search and Filter Controls */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <SmartSearch
-              onSearchChange={setSearchQuery}
-              onDocumentSelect={(document) => {
-                // Optionally open document modal or navigate to document
-                console.log('Selected document:', document);
-              }}
-              placeholder="Search documents by name, content, or tags..."
-              className="w-full"
-            />
-          </div>
-        </div>
-
         {/* Category Filter */}
         <CategoryFilter
           categories={categories}

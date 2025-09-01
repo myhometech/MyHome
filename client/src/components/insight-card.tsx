@@ -199,16 +199,32 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
     }
 
     console.log(`[INSIGHT-CARD] Clicked insight ${insight.id} with documentId:`, insight.documentId);
+    console.log(`[INSIGHT-CARD] Insight data:`, { 
+      id: insight.id, 
+      documentId: insight.documentId, 
+      type: typeof insight.documentId,
+      message: insight.message?.substring(0, 50) 
+    });
 
     if (insight.documentId && !isNaN(insight.documentId) && insight.documentId > 0) {
       // First verify the document exists before attempting navigation
       try {
+        console.log(`[INSIGHT-CARD] Verifying document ${insight.documentId}...`);
         const response = await fetch(`/api/documents/${insight.documentId}`, {
           credentials: 'include',
           headers: { 'Accept': 'application/json' }
         });
 
+        console.log(`[INSIGHT-CARD] Document verification response:`, {
+          status: response.status,
+          ok: response.ok,
+          url: response.url
+        });
+
         if (!response.ok) {
+          const errorText = await response.text();
+          console.log(`[INSIGHT-CARD] Document verification failed:`, errorText);
+          
           if (response.status === 404) {
             toast({
               title: "Document Not Found",
@@ -222,13 +238,13 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
               variant: "destructive",
             });
           } else {
-            throw new Error(`HTTP ${response.status}`);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
           }
           return;
         }
 
         const documentData = await response.json();
-        console.log(`[INSIGHT-CARD] Document ${insight.documentId} verified:`, documentData.name);
+        console.log(`[INSIGHT-CARD] Document ${insight.documentId} verified:`, documentData);
 
         // Document exists, proceed with navigation
         if (onDocumentClick) {

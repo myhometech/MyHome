@@ -356,19 +356,24 @@ router.get('/:id', async (req: any, res: any) => {
     const documentId = parseInt(req.params.id);
     const userId = req.user.id;
 
+    console.log(`[DOCUMENT-ROUTE] Fetching document ${documentId} for user ${userId}`);
+
     if (isNaN(documentId)) {
+      console.log(`[DOCUMENT-ROUTE] Invalid document ID: ${req.params.id}`);
       return res.status(400).json({ message: 'Invalid document ID' });
     }
 
     const document = await storage.getDocument(documentId, userId);
     if (!document) {
+      console.log(`[DOCUMENT-ROUTE] Document ${documentId} not found for user ${userId}`);
       return res.status(404).json({ message: 'Document not found' });
     }
 
+    console.log(`[DOCUMENT-ROUTE] Document ${documentId} found: ${document.name}`);
     res.json(document);
 
   } catch (error: any) {
-    console.error('Failed to fetch document:', error);
+    console.error(`[DOCUMENT-ROUTE] Failed to fetch document ${req.params.id}:`, error);
     res.status(500).json({
       message: 'Failed to fetch document',
       error: error.message,

@@ -1064,9 +1064,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document verification endpoint for insights
+  app.get('/api/documents/:id', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const documentId = parseInt(req.params.id);
 
+      console.log(`[DOCUMENT-VERIFY] Verifying document ${documentId} for user ${userId}`);
 
+      if (isNaN(documentId)) {
+        console.log(`[DOCUMENT-VERIFY] Invalid document ID: ${req.params.id}`);
+        return res.status(400).json({ message: "Invalid document ID" });
+      }
 
+      const document = await storage.getDocument(documentId, userId);
+      if (!document) {
+        console.log(`[DOCUMENT-VERIFY] Document ${documentId} not found for user ${userId}`);
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      console.log(`[DOCUMENT-VERIFY] Document ${documentId} verified: ${document.name}`);
+      res.json({
+        id: document.id,
+        name: document.name,
+        fileName: document.fileName,
+        mimeType: document.mimeType,
+        userId: document.userId,
+        exists: true
+      });
+    } catch (error) {
+      console.error(`[DOCUMENT-VERIFY] Error verifying document ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to verify document" });
+    }
+  });
 
   // Get count of recently imported documents via email  
   app.get('/api/documents/imported-count', requireAuth, async (req: any, res) => {
@@ -1088,12 +1118,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Failed to get imported document count' });
     }
   });
-
-
-
-  // Removed duplicate route - handled by documents router
-
-
 
   // Document preview endpoint - optimized for fast PDF loading
   app.get('/api/documents/:id/preview', requireAuth, async (req: any, res) => {
@@ -1719,7 +1743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         confidence: insights.confidence || 0
       });
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error generating document insights:", error);
       captureError(error, req);
 
@@ -2152,8 +2176,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Removed duplicate route - handled by documents router
-
   app.get('/api/documents/:id/download', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
@@ -2272,8 +2294,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to download document" });
     }
   });
-
-
 
   // Admin middleware
   function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {

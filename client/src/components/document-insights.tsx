@@ -726,7 +726,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setLocation(`/insights?documentId=${documentId}`);
+                        setLocation(`/document/${documentId}`);
                       }}
                       className="text-white hover:text-white hover:bg-white/20 transition-colors text-xs"
                     >

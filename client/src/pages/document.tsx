@@ -36,9 +36,6 @@ export default function DocumentPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const documentId = params.id;
 
-  console.log(`[DOCUMENT-PAGE] DocumentPage component loaded with params:`, params);
-  console.log(`[DOCUMENT-PAGE] DocumentId extracted:`, documentId);
-  console.log(`[DOCUMENT-PAGE] Current window location:`, window.location.pathname);
 
   const { data: document, isLoading: documentLoading, error: documentError } = useQuery<Document>({
     queryKey: [`/api/documents/${documentId}`],

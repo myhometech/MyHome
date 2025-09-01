@@ -142,14 +142,20 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
-  // Validate documentId prop
+  // Validate documentId prop with safer initialization
   const validDocumentId = React.useMemo(() => {
-    if (!documentId && documentId !== 0) {
+    // Handle undefined/null cases more safely
+    if (documentId === undefined || documentId === null) {
       console.error('DocumentInsights: Missing documentId prop:', documentId);
       return null;
     }
     
-    const numericId = typeof documentId === 'string' ? parseInt(documentId, 10) : documentId;
+    // Allow documentId of 0
+    if (documentId === 0) {
+      return 0;
+    }
+    
+    const numericId = typeof documentId === 'string' ? parseInt(documentId, 10) : Number(documentId);
     
     if (isNaN(numericId) || numericId < 0) {
       console.error('DocumentInsights: Invalid documentId prop:', documentId, 'converted to:', numericId);
@@ -159,10 +165,20 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     return numericId;
   }, [documentId]);
 
+  // Early return for invalid document ID
   if (validDocumentId === null) {
     return (
       <div className="text-center py-8">
         <p className="text-red-500">Invalid document ID: {documentId}</p>
+      </div>
+    );
+  }
+
+  // Early return for undefined document ID (still loading)
+  if (documentId === undefined) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Loading document insights...</p>
       </div>
     );
   }

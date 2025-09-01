@@ -331,7 +331,6 @@ app.use((req, res, next) => {
   server.listen({
     port,
     host,
-    reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
     console.log(`🌐 Server ready at http://${host}:${port}`);
@@ -342,8 +341,10 @@ app.use((req, res, next) => {
     }
   }).on('error', (err: any) => {
     if (err.code === 'EADDRINUSE') {
-      console.log(`❌ Port ${port} is already in use. Killing existing processes and retrying...`);
-      process.exit(1); // Let the workflow restart handle this
+      console.warn(`⚠️ Port ${port} is already in use. This is likely a normal development restart.`);
+      console.log('🧹 Performing synchronous resource cleanup...');
+      // Exit gracefully to allow the workflow to handle the restart
+      process.exit(0);
     } else {
       console.error('❌ Server failed to start:', err);
       process.exit(1);

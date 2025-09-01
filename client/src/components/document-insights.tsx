@@ -143,11 +143,26 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const [, setLocation] = useLocation();
 
   // Validate documentId prop
-  if (!documentId || typeof documentId !== 'number') {
-    console.error('DocumentInsights: Invalid documentId prop:', documentId);
+  const validDocumentId = React.useMemo(() => {
+    if (!documentId) {
+      console.error('DocumentInsights: Missing documentId prop:', documentId);
+      return null;
+    }
+    
+    const numericId = typeof documentId === 'string' ? parseInt(documentId, 10) : documentId;
+    
+    if (isNaN(numericId) || numericId <= 0) {
+      console.error('DocumentInsights: Invalid documentId prop:', documentId, 'converted to:', numericId);
+      return null;
+    }
+    
+    return numericId;
+  }, [documentId]);
+
+  if (!validDocumentId) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-500">Invalid document ID</p>
+        <p className="text-red-500">Invalid document ID: {documentId}</p>
       </div>
     );
   }
@@ -197,18 +212,18 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const limit = React.useMemo(() => isMobile ? 5 : 10, [isMobile]);
 
   const { data: insightData, isLoading, error } = useQuery({
-    queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
+    queryKey: ['/api/documents', validDocumentId, 'insights', 'primary', limit],
     queryFn: async ({ signal }) => {
       try {
-        console.log(`🔍 Fetching insights for document ${documentId}`);
-        const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
+        console.log(`🔍 Fetching insights for document ${validDocumentId}`);
+        const response = await fetch(`/api/documents/${validDocumentId}/insights?tier=primary&limit=${limit}`, {
           signal,
           credentials: 'include',
         });
         
         if (!response.ok) {
           if (response.status === 404) {
-            console.log(`📝 No insights found for document ${documentId}`);
+            console.log(`📝 No insights found for document ${validDocumentId}`);
             return { insights: [], success: true };
           }
           if (response.status === 401) {
@@ -225,7 +240,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         }
         
         const data = await response.json();
-        console.log(`✅ Fetched ${data.insights?.length || 0} insights for document ${documentId}`);
+        console.log(`✅ Fetched ${data.insights?.length || 0} insights for document ${validDocumentId}`);
         return data;
       } catch (error: any) {
         if (error.name === 'AbortError') {
@@ -272,11 +287,11 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const generateInsightsMutation = useMutation({
     mutationFn: async ({ signal }: { signal?: AbortSignal }): Promise<InsightResponse> => {
-      console.log(`🔍 [INSIGHT-DEBUG] Starting insight generation for document ${documentId}`);
+      console.log(`🔍 [INSIGHT-DEBUG] Starting insight generation for document ${validDocumentId}`);
 
       const requestSignal = signal || abortControllerRef.current?.signal;
 
-      const response = await fetch(`/api/documents/${documentId}/insights`, {
+      const response = await fetch(`/api/documents/${validDocumentId}/insights`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -317,10 +332,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         description: `Generated ${actualInsightCount} insight${actualInsightCount === 1 ? '' : 's'}`
       });
       queryClient.invalidateQueries({
-        queryKey: ['/api/documents', documentId, 'insights']
+        queryKey: ['/api/documents', validDocumentId, 'insights']
       });
       setIsGenerating(false);
-    }, [documentId, toast, queryClient]),
+    }, [validDocumentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {
       if (abortControllerRef.current?.signal.aborted || error.name === 'AbortError') {
         return;
@@ -329,7 +344,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       console.error('❌ [INSIGHT-DEBUG] Insight generation error:', {
         message: error.message,
         stack: error.stack,
-        documentId,
+        documentId: validDocumentId,
         documentName,
         timestamp: new Date().toISOString()
       });
@@ -360,7 +375,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const deleteInsightMutation = useMutation({
     mutationFn: async (insightId: string) => {
-      const response = await fetch(`/api/documents/${documentId}/insights/${insightId}`, {
+      const response = await fetch(`/api/documents/${validDocumentId}/insights/${insightId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -379,9 +394,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         description: "The insight has been removed"
       });
       queryClient.invalidateQueries({
-        queryKey: ['/api/documents', documentId, 'insights']
+        queryKey: ['/api/documents', validDocumentId, 'insights']
       });
-    }, [documentId, toast, queryClient]),
+    }, [validDocumentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {
       toast({
         title: "Delete Failed",
@@ -402,7 +417,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const flagInsightMutation = useMutation({
     mutationFn: async ({ insightId, flagged, reason }: { insightId: string; flagged: boolean; reason?: string }) => {
-      const response = await fetch(`/api/documents/${documentId}/insights/${insightId}/flag`, {
+      const response = await fetch(`/api/documents/${validDocumentId}/insights/${insightId}/flag`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -426,9 +441,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           : "Insight flag has been removed."
       });
       queryClient.invalidateQueries({
-        queryKey: ['/api/documents', documentId, 'insights']
+        queryKey: ['/api/documents', validDocumentId, 'insights']
       });
-    }, [documentId, toast, queryClient]),
+    }, [validDocumentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {
       toast({
         title: "Flag Failed",
@@ -674,11 +689,11 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
               }
 
               // Only navigate if callback is provided and document exists
-              if (onDocumentClick && documentId && typeof documentId === 'number') {
+              if (onDocumentClick && validDocumentId) {
                 try {
                   e.preventDefault();
-                  console.log('Opening document from insight card:', documentId);
-                  onDocumentClick(documentId);
+                  console.log('Opening document from insight card:', validDocumentId);
+                  onDocumentClick(validDocumentId);
                 } catch (navError) {
                   console.error('Navigation error from insight card:', navError);
                 }
@@ -776,9 +791,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.preventDefault();
                         e.stopPropagation();
                         try {
-                          console.log('View button clicked for document:', documentId);
-                          if (onDocumentClick && documentId && typeof documentId === 'number') {
-                            onDocumentClick(documentId);
+                          console.log('View button clicked for document:', validDocumentId);
+                          if (onDocumentClick && validDocumentId) {
+                            onDocumentClick(validDocumentId);
                           }
                         } catch (viewError) {
                           console.error('Error opening document viewer:', viewError);
@@ -797,9 +812,9 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                         e.preventDefault();
                         e.stopPropagation();
                         try {
-                          console.log('Details button clicked, navigating to:', `/document/${documentId}`);
-                          if (documentId && typeof documentId === 'number') {
-                            setLocation(`/document/${documentId}`);
+                          console.log('Details button clicked, navigating to:', `/document/${validDocumentId}`);
+                          if (validDocumentId) {
+                            setLocation(`/document/${validDocumentId}`);
                           }
                         } catch (navError) {
                           console.error('Error navigating to document details:', navError);

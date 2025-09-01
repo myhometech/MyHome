@@ -36,10 +36,6 @@ export default function DocumentPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const documentId = params.id;
 
-  console.log(`[DOCUMENT-PAGE] DocumentId from params:`, documentId);
-  console.log(`[DOCUMENT-PAGE] Query enabled:`, !!documentId);
-  console.log(`[DOCUMENT-PAGE] Query key:`, [`/api/documents/${documentId}`]);
-
   const { data: document, isLoading: documentLoading, error: documentError } = useQuery<Document>({
     queryKey: [`/api/documents/${documentId}`],
     enabled: !!documentId,
@@ -52,7 +48,6 @@ export default function DocumentPage() {
   useEffect(() => {
     if (documentError) {
       console.error('Document not found or error loading:', documentError);
-      console.log('Document ID that failed:', documentId);
       // Don't immediately redirect - let the UI handle the error gracefully
     }
   }, [documentError, setLocation, documentId]);

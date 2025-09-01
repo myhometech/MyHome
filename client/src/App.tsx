@@ -106,7 +106,8 @@ function Router() {
           </>
         ) : (
           <>
-            <Route path="/" component={InsightsPage} />
+            <Route path="/" component={Home} />
+            <Route path="/insights" component={InsightsPage} />
             <Route path="/documents" component={UnifiedDocuments} />
             <Route path="/notifications" component={Notifications} />
             <Route path="/tasks" component={Tasks} />

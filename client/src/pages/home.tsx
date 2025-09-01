@@ -102,13 +102,17 @@ function InsightsFromAllDocuments() {
   // Get insights for first few documents
   const documentInsights = documents.slice(0, 5).map((doc: Document) => {
     const { data: insights } = useQuery({
-      queryKey: ['/api/documents', doc.id, 'insights'],
+      queryKey: ['/api/documents', doc.id, 'insights', 'primary'],
       queryFn: async () => {
-        const response = await fetch(`/api/documents/${doc.id}/insights?tier=primary&limit=5`);
+        const response = await fetch(`/api/documents/${doc.id}/insights?tier=primary&limit=5`, {
+          credentials: 'include'
+        });
         if (!response.ok) return { insights: [] };
         return response.json();
       },
       enabled: !!doc.id,
+      staleTime: 30 * 1000, // 30 seconds
+      refetchOnWindowFocus: true,
     });
     return { document: doc, insights: insights?.insights || [] };
   });

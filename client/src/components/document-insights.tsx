@@ -211,7 +211,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
 
   const limit = React.useMemo(() => isMobile ? 5 : 10, [isMobile]);
 
-  const { data: insightData, isLoading, error } = useQuery({
+  const { data: insightData, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/documents', validDocumentId, 'insights', 'primary', limit],
     queryFn: async ({ signal }) => {
       try {
@@ -257,10 +257,10 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         throw error;
       }
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 1 * 60 * 1000, // Reduced stale time for more frequent updates
     gcTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnWindowFocus: true, // Enable refetch on focus
+    refetchOnReconnect: true, // Enable refetch on reconnect
     retry: (failureCount, error) => {
       // Don't retry on authentication or client errors
       if (error?.message?.includes('404') || 
@@ -285,6 +285,16 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
       };
     }, [limit])
   });
+
+  // Add a refetch after successful generation
+  React.useEffect(() => {
+    if (generateInsightsMutation.isSuccess && !generateInsightsMutation.isPending) {
+      const timer = setTimeout(() => {
+        refetch();
+      }, 500); // Small delay to ensure server has processed
+      return () => clearTimeout(timer);
+    }
+  }, [generateInsightsMutation.isSuccess, generateInsightsMutation.isPending, refetch]);
 
   const insights = React.useMemo(() => {
     const rawInsights = insightData?.insights || [];
@@ -360,9 +370,18 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         title: "Insights Generated",
         description: `Generated ${actualInsightCount} insight${actualInsightCount === 1 ? '' : 's'}`
       });
+      
+      // Invalidate all related queries to refresh data
       queryClient.invalidateQueries({
         queryKey: ['/api/documents', validDocumentId, 'insights']
       });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/insights']
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/documents']
+      });
+      
       setIsGenerating(false);
     }, [validDocumentId, toast, queryClient]),
     onError: React.useCallback((error: any) => {

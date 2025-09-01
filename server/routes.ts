@@ -55,13 +55,14 @@ import {
 
 // Import real database and schema objects
 import { db } from "./db";
-import { users, documents, featureFlags } from "@shared/schema";
+import { users, documents, featureFlags, documentInsights } from "@shared/schema";
 import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "drizzle-orm";
 
 // Import proper types
 import type { Request, Response, NextFunction } from "express";
 import type { User } from "@shared/schema";
 import 'express-session';
+import crypto from 'crypto';
 
 // Extend Express session to include user property
 declare module 'express-session' {
@@ -1672,50 +1673,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`💾 [INSIGHT-DEBUG] Storing ${insights.insights.length} insights in database for document ${documentId}`);
 
-      // Store insights in database with TICKET 4 dashboard fields
+      // Store insights in database
+      const storedInsights = [];
       try {
         for (const insight of insights.insights) {
           try {
-            // TICKET 4: Generate dashboard-ready message and action URL with error handling
-            let message, actionUrl, dueDate;
-
-            try {
-              message = generateInsightMessage(insight, document.name);
-              actionUrl = `/documents/${documentId}`;
-              dueDate = extractDueDate(insight);
-            } catch (helperError: any) {
-              console.error(`❌ [INSIGHT-DEBUG] Helper function error for insight ${insight.id}:`, helperError);
-              message = `${document.name}: ${insight.title || 'Untitled insight'}`;
-              actionUrl = `/documents/${documentId}`;
-              dueDate = null;
-            }
-
-            console.log(`🔍 [INSIGHT-DEBUG] Processing insight: ${insight.id}, type: ${insight.type}, confidence: ${insight.confidence}`);
-
-            await storage.createDocumentInsight({
-              documentId, // Should be number from parseInt above
+            const insightId = crypto.randomUUID();
+            await storage.safeQuery(`
+              INSERT INTO insights (
+                id, document_id, user_id, type, title, content, confidence, 
+                category, metadata, created_at, tier, insight_version, generated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+              insightId,
+              documentId,
               userId,
-              insightId: insight.id,
-              message, // TICKET 4: User-facing message
-              type: insight.type,
-              title: insight.title,
-              content: insight.content,
-              confidence: Math.round((insight.confidence || 0.5) * 100).toString(), // Convert to 0-100 scale as string
-              priority: insight.priority,
-              dueDate, // TICKET 4: Due date for actionable insights
-              actionUrl, // TICKET 4: URL to take action
-              status: 'open', // TICKET 4: Default status
-              metadata: insight.metadata || {},
-              processingTime: insights.processingTime,
-              aiModel: 'mistral-7b-instruct',
-              source: 'ai',
-              // INSIGHT-101: Add tier classification
-              tier: insight.tier,
-              insightVersion: 'v2.0',
-              generatedAt: new Date()
+              insight.type,
+              insight.title,
+              insight.content,
+              Math.min(100, Math.max(0, insight.confidence * 100)), // Ensure proper range
+              insight.category || 'general',
+              JSON.stringify(insight.metadata || {}),
+              new Date().toISOString(),
+              insight.tier || 'primary',
+              'v2.0',
+              new Date()
+            ]);
+
+            // Add the stored insight to our response
+            storedInsights.push({
+              ...insight,
+              id: insightId,
+              createdAt: new Date().toISOString()
             });
 
-            console.log(`✅ [INSIGHT-DEBUG] Successfully stored insight ${insight.id}`);
+            console.log(`✅ [INSIGHT-DEBUG] Successfully stored insight ${insightId}`);
           } catch (insightError: any) {
             console.error(`❌ [INSIGHT-DEBUG] Failed to store insight ${insight.id}:`, insightError);
             // Continue with next insight instead of failing entire request
@@ -1739,7 +1731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        insights: insights.insights || [],
+        insights: storedInsights || [],
         documentType: insights.documentType || 'Unknown',
         recommendedActions: insights.recommendedActions || [],
         processingTime: insights.processingTime || 0,
@@ -1775,40 +1767,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // INSIGHT-102: Get existing insights for a document with tier filtering
   app.get('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
     try {
-      const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
-      const tier = req.query.tier as string; // INSIGHT-102: Optional tier filter ('primary', 'secondary')
+      const userId = getUserId(req);
+      const { tier = 'primary', limit = 10 } = req.query;
 
       if (isNaN(documentId)) {
         return res.status(400).json({ message: "Invalid document ID" });
       }
 
+      // Verify user has access to the document
       const document = await storage.getDocument(documentId, userId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const allInsights = await storage.getDocumentInsights(documentId, userId, tier);
+      // Get insights for this document
+      const insights = await storage.safeQuery(`
+      SELECT 
+        id, type, title, content, confidence, category, metadata, 
+        created_at as createdAt, tier, flagged, flagged_reason as flaggedReason, 
+        flagged_at as flaggedAt
+      FROM insights 
+      WHERE document_id = ? AND user_id = ? 
+      ${tier !== 'all' ? 'AND tier = ?' : ''}
+      ORDER BY created_at DESC 
+      LIMIT ?
+    `, tier !== 'all' 
+      ? [documentId, userId, tier, parseInt(limit as string)] 
+      : [documentId, userId, parseInt(limit as string)]
+    );
 
-      // Return all insights - let frontend handle filtering if needed
-      const insights = allInsights;
+      const formattedInsights = insights.map(insight => ({
+        ...insight,
+        metadata: insight.metadata ? JSON.parse(insight.metadata) : {},
+        confidence: Math.min(100, Math.max(0, insight.confidence)), // Keep as 0-100 scale
+        flagged: !!insight.flagged
+      }));
+
+      console.log(`✅ Returning ${formattedInsights.length} insights for document ${documentId}`);
 
       res.json({
         success: true,
-        insights,
-        documentId,
-        totalCount: insights.length,
-        tier: tier || 'all',
-        // INSIGHT-102: Include tier breakdown
-        tierBreakdown: {
-          primary: insights.filter(i => i.tier === 'primary').length,
-          secondary: insights.filter(i => i.tier === 'secondary').length
-        }
+        insights: formattedInsights,
+        totalCount: formattedInsights.length
       });
 
-    } catch (error) {
-      console.error("Error fetching document insights:", error);
-      res.status(500).json({ message: "Failed to fetch document insights" });
+    } catch (error: any) {
+      console.error('Failed to fetch document insights:', error);
+      res.status(500).json({
+        message: 'Failed to fetch insights',
+        error: error.message
+      });
     }
   });
 
@@ -3764,7 +3773,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const overrides = await storage.getFeatureFlagOverrides("");
+      const { targetUserId } = req.query; // Allow fetching overrides for a specific user
+
+      const overrides = await storage.getFeatureFlagOverrides(targetUserId ? String(targetUserId) : "");
       res.json(overrides);
     } catch (error: any) {
       console.error("Error fetching feature flag overrides:", error);
@@ -3782,6 +3793,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { userId: targetUserId, featureFlagName, isEnabled, overrideReason, expiresAt } = req.body;
+
+      if (!targetUserId || !featureFlagName || typeof isEnabled === 'undefined') {
+        return res.status(400).json({ message: "userId, featureFlagName, and isEnabled are required" });
+      }
 
       await featureFlagService.setUserOverride(
         targetUserId, 

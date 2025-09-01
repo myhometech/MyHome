@@ -36,10 +36,23 @@ export default function DocumentPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const documentId = params.id;
 
+  console.log(`[DOCUMENT-PAGE] Component mounted with documentId: ${documentId}`);
+  console.log(`[DOCUMENT-PAGE] Params object:`, params);
+
   const { data: document, isLoading: documentLoading, error: documentError } = useQuery<Document>({
     queryKey: [`/api/documents/${documentId}`],
     enabled: !!documentId,
   });
+
+  // Debug logging for document loading
+  useEffect(() => {
+    if (document) {
+      console.log(`[DOCUMENT-PAGE] Document loaded successfully:`, { id: document.id, name: document.name });
+    }
+    if (documentError) {
+      console.error(`[DOCUMENT-PAGE] Document query error:`, documentError);
+    }
+  }, [document, documentError]);
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['/api/categories'],

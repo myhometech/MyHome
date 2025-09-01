@@ -208,7 +208,9 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       } else {
         // Navigate to document page to view the document
         console.log(`[INSIGHT-CARD] Navigating to document page for document ${insight.documentId}`);
+        console.log(`[INSIGHT-CARD] Setting location to: /document/${insight.documentId}`);
         setLocation(`/document/${insight.documentId}`);
+        console.log(`[INSIGHT-CARD] Navigation completed`);
       }
     } else {
       console.warn(`[INSIGHT-CARD] Invalid or missing documentId for insight ${insight.id}:`, insight.documentId);

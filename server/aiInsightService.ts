@@ -369,9 +369,20 @@ Ensure all insights are actionable and provide real value to the user.`;
       return { available: true };
     }
 
+    // Check specific reasons for unavailability
+    const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
+    const hasMistralKey = !!process.env.MISTRAL_API_KEY;
+    
+    let reason = 'LLM API key not configured';
+    if (!hasOpenAIKey && !hasMistralKey) {
+      reason = 'No LLM API keys configured (OpenAI or Mistral required)';
+    } else if (!llmClient.isAvailable()) {
+      reason = 'LLM client initialization failed';
+    }
+
     return {
       available: false,
-      reason: 'OpenAI API key not configured'
+      reason
     };
   }
 

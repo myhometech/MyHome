@@ -211,11 +211,20 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       }
     } else {
       console.warn(`[INSIGHT-CARD] Invalid or missing documentId for insight ${insight.id}:`, insight.documentId);
-      toast({
-        title: "Unable to open document",
-        description: "This insight is not linked to a document.",
-        variant: "destructive",
-      });
+      
+      // Check if this is a manual event type insight
+      if (insight.id && insight.id.startsWith('manual-')) {
+        toast({
+          title: "Manual Event",
+          description: "This is a manually created event, not linked to a document.",
+        });
+      } else {
+        toast({
+          title: "Unable to open document",
+          description: "This insight is not linked to a document.",
+          variant: "destructive",
+        });
+      }
     }
   };
 

@@ -1537,10 +1537,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if AI Insight service is available
       if (!aiInsightService.isServiceAvailable()) {
-        console.log(`❌ [INSIGHT-DEBUG] AI service not available for document ${documentId}`);
+        const status = aiInsightService.getServiceStatus();
+        console.log(`❌ [INSIGHT-DEBUG] AI service not available for document ${documentId}:`, status);
         return res.status(503).json({ 
-          message: "AI Insight service not available - LLM API key required",
-          status: aiInsightService.getServiceStatus()
+          message: "AI Insight service not available",
+          reason: status.reason,
+          status: status,
+          debug: {
+            hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+            hasMistralKey: !!process.env.MISTRAL_API_KEY,
+            userTier: req.user?.subscriptionTier || 'unknown'
+          }
         });
       }
 
@@ -2657,6 +2664,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching OpenAI usage:", error);
       res.status(500).json({ message: "Failed to fetch OpenAI usage" });
+    }
+  });
+
+  // AI Insights diagnostic endpoint
+  app.get('/api/insights/diagnostic', requireAuth, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      
+      const diagnostic = {
+        aiServiceAvailable: aiInsightService.isServiceAvailable(),
+        serviceStatus: aiInsightService.getServiceStatus(),
+        userTier: user?.subscriptionTier || 'unknown',
+        hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+        hasMistralKey: !!process.env.MISTRAL_API_KEY,
+        llmClientStatus: {
+          available: llmClient.isAvailable(),
+          status: llmClient.getStatus()
+        },
+        recentInsights: {
+          count: (await storage.getInsights(userId)).length,
+          lastGenerated: 'unknown' // Could be enhanced with timestamp tracking
+        }
+      };
+
+      console.log(`🔍 [DIAGNOSTIC] AI Insights diagnostic for user ${userId}:`, diagnostic);
+      res.json(diagnostic);
+    } catch (error) {
+      console.error("Error in AI insights diagnostic:", error);
+      res.status(500).json({ 
+        error: "Diagnostic failed",
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

@@ -408,9 +408,11 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
                     // Verify document exists before navigating
                     try {
                       const response = await fetch(`/api/documents/${documentId}`, {
+                        method: 'GET',
                         credentials: 'include',
                         headers: {
                           'Accept': 'application/json',
+                          'Content-Type': 'application/json',
                         }
                       });
 
@@ -421,14 +423,20 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
                             description: "This document no longer exists.",
                             variant: "destructive",
                           });
+                          return;
+                        } else if (response.status === 401) {
+                          // Authentication issue - just navigate anyway, let the document page handle it
+                          console.warn(`Auth issue verifying document ${documentId}, navigating anyway`);
+                          navigate(`/document/${documentId}`);
+                          return;
                         } else {
                           toast({
                             title: "Unable to access document",
                             description: "There was an error accessing the document.",
                             variant: "destructive",
                           });
+                          return;
                         }
-                        return;
                       }
 
                       // Navigate if document exists

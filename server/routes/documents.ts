@@ -5,6 +5,7 @@ import { ImageProcessingService } from '../imageProcessingService';
 import { PDFOptimizationService } from '../pdfOptimizationService';
 import { EnhancedOCRStrategies } from '../enhancedOCRStrategies';
 import { storage } from '../storage';
+import { StorageService } from '../storage/StorageService';
 import type { AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
@@ -42,7 +43,7 @@ const enhancedOCR = new EnhancedOCRStrategies();
 router.post('/', upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'thumbnail', maxCount: 1 }
-]), async (req: AuthenticatedRequest, res) => {
+]), async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -273,8 +274,8 @@ router.post('/', upload.fields([
     console.error('🚨 Upload error details:', {
       message: error.message,
       stack: error.stack,
-      fileName: uploadedFile?.originalname,
-      fileSize: uploadedFile?.size,
+      fileName: req.files?.file?.[0]?.originalname,
+      fileSize: req.files?.file?.[0]?.size,
       userId: req.user?.id
     });
     
@@ -306,7 +307,7 @@ router.post('/', upload.fields([
 });
 
 // Get optimized document list with pagination and search
-router.get('/', async (req: AuthenticatedRequest, res) => {
+router.get('/', async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -345,7 +346,7 @@ router.get('/', async (req: AuthenticatedRequest, res) => {
 });
 
 // Get individual document details by ID
-router.get('/:id', async (req: AuthenticatedRequest, res) => {
+router.get('/:id', async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -375,7 +376,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res) => {
 });
 
 // Get document thumbnail
-router.get('/:id/thumbnail', async (req: AuthenticatedRequest, res) => {
+router.get('/:id/thumbnail', async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -409,7 +410,7 @@ router.get('/:id/thumbnail', async (req: AuthenticatedRequest, res) => {
 });
 
 // Enhanced OCR retry endpoint for failed OCR cases
-router.post('/:id/retry-ocr', async (req: AuthenticatedRequest, res) => {
+router.post('/:id/retry-ocr', async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -425,7 +426,8 @@ router.post('/:id/retry-ocr', async (req: AuthenticatedRequest, res) => {
     console.log(`🔄 Retrying OCR for document ${documentId} with enhanced strategies`);
 
     // Get the original file buffer
-    const fileBuffer = await storage.download(document.gcsPath || document.filePath);
+    const storageService = StorageService.initialize();
+    const fileBuffer = await storageService.download(document.gcsPath || document.filePath);
     
     if (!fileBuffer) {
       return res.status(400).json({ message: 'Document file not found' });
@@ -475,7 +477,7 @@ router.post('/:id/retry-ocr', async (req: AuthenticatedRequest, res) => {
 });
 
 // OCR analysis endpoint - provides tips without retrying OCR
-router.post('/:id/analyze-for-ocr', async (req: AuthenticatedRequest, res) => {
+router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -489,7 +491,8 @@ router.post('/:id/analyze-for-ocr', async (req: AuthenticatedRequest, res) => {
     }
 
     // Get the original file buffer
-    const fileBuffer = await storage.download(document.gcsPath || document.filePath);
+    const storageService = StorageService.initialize();
+    const fileBuffer = await storageService.download(document.gcsPath || document.filePath);
     
     if (!fileBuffer) {
       return res.status(400).json({ message: 'Document file not found' });
@@ -516,7 +519,7 @@ router.post('/:id/analyze-for-ocr', async (req: AuthenticatedRequest, res) => {
 });
 
 // Search-as-you-type endpoint with ranking and relevance
-router.get('/search', async (req: AuthenticatedRequest, res) => {
+router.get('/search', async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -551,7 +554,7 @@ router.get('/search', async (req: AuthenticatedRequest, res) => {
 });
 
 // CHAT-008: Get structured facts for a document with RBAC
-router.get('/:id/facts', async (req: AuthenticatedRequest, res) => {
+router.get('/:id/facts', async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }

@@ -199,12 +199,8 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
       return;
     }
 
-    console.log(`[INSIGHT] Navigating to document ${docId}`);
-    if (onDocumentClick) {
-      onDocumentClick(docId);
-    } else {
-      setLocation(`/document/${docId}`);
-    }
+    // Direct navigation - let document page handle errors
+    setLocation(`/document/${docId}`);
   };
 
   const handleViewDocument = (e: React.MouseEvent) => {
@@ -220,12 +216,8 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
       return;
     }
 
-    console.log(`[INSIGHT] Dropdown: Navigating to document ${docId}`);
-    if (onDocumentClick) {
-      onDocumentClick(docId);
-    } else {
-      setLocation(`/document/${docId}`);
-    }
+    // Direct navigation - let document page handle errors
+    setLocation(`/document/${docId}`);
   };
 
   const getStatusColor = (status: string) => {

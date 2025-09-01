@@ -142,6 +142,16 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
+  // Validate documentId prop
+  if (!documentId || typeof documentId !== 'number') {
+    console.error('DocumentInsights: Invalid documentId prop:', documentId);
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-500">Invalid document ID</p>
+      </div>
+    );
+  }
+
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth <= 768;
@@ -190,6 +200,7 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     queryKey: ['/api/documents', documentId, 'insights', 'primary', limit],
     queryFn: async ({ signal }) => {
       try {
+        console.log(`🔍 Fetching insights for document ${documentId}`);
         const response = await fetch(`/api/documents/${documentId}/insights?tier=primary&limit=${limit}`, {
           signal,
           credentials: 'include',
@@ -197,24 +208,38 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
         
         if (!response.ok) {
           if (response.status === 404) {
-            // Document not found or no insights yet - return empty array
+            console.log(`📝 No insights found for document ${documentId}`);
             return { insights: [], success: true };
           }
+          if (response.status === 401) {
+            console.error('🔒 Authentication required for insights');
+            throw new Error('Authentication required');
+          }
+          if (response.status === 403) {
+            console.error('🚫 Access denied to document insights');
+            throw new Error('Access denied to document');
+          }
           const errorData = await response.text().catch(() => '');
-          console.error('Failed to fetch insights:', errorData);
+          console.error('❌ Failed to fetch insights:', errorData);
           throw new Error(`Failed to fetch insights: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log('Fetched insights data:', data);
+        console.log(`✅ Fetched ${data.insights?.length || 0} insights for document ${documentId}`);
         return data;
       } catch (error: any) {
         if (error.name === 'AbortError') {
+          console.log('🔄 Insights fetch aborted');
           throw error;
         }
-        console.error('Insight fetch error:', error);
-        // Return empty state instead of throwing to prevent component crash
-        return { insights: [], success: false, error: error.message };
+        console.error('❌ Insight fetch error:', error);
+        
+        // For network errors, return empty state to prevent crashes
+        if (!navigator.onLine || error.name === 'TypeError') {
+          return { insights: [], success: false, error: 'Network error' };
+        }
+        
+        throw error;
       }
     },
     staleTime: 5 * 60 * 1000,
@@ -222,14 +247,19 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: (failureCount, error) => {
-      // Don't retry on 404 or client errors
-      if (error?.message?.includes('404') || error?.message?.includes('400')) {
+      // Don't retry on authentication or client errors
+      if (error?.message?.includes('404') || 
+          error?.message?.includes('401') || 
+          error?.message?.includes('403') || 
+          error?.message?.includes('400')) {
         return false;
       }
       return failureCount < 2;
     },
     select: React.useCallback((data: any) => {
-      if (!data?.insights) return { insights: [] };
+      if (!data?.insights || !Array.isArray(data.insights)) {
+        return { insights: [] };
+      }
       const limitedInsights = data.insights.slice(0, Math.min(limit, 20));
       return {
         ...data,
@@ -643,11 +673,15 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                 return;
               }
 
-              // Only navigate if callback is provided and we're not in an error state
-              if (onDocumentClick && !error) {
-                e.preventDefault();
-                console.log('Opening document from insight card:', documentId);
-                onDocumentClick(documentId);
+              // Only navigate if callback is provided and document exists
+              if (onDocumentClick && documentId && typeof documentId === 'number') {
+                try {
+                  e.preventDefault();
+                  console.log('Opening document from insight card:', documentId);
+                  onDocumentClick(documentId);
+                } catch (navError) {
+                  console.error('Navigation error from insight card:', navError);
+                }
               }
             };
 
@@ -741,9 +775,13 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('View button clicked for document:', documentId);
-                        if (onDocumentClick) {
-                          onDocumentClick(documentId);
+                        try {
+                          console.log('View button clicked for document:', documentId);
+                          if (onDocumentClick && documentId && typeof documentId === 'number') {
+                            onDocumentClick(documentId);
+                          }
+                        } catch (viewError) {
+                          console.error('Error opening document viewer:', viewError);
                         }
                       }}
                       className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}
@@ -758,8 +796,14 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('Details button clicked, navigating to:', `/document/${documentId}`);
-                        setLocation(`/document/${documentId}`);
+                        try {
+                          console.log('Details button clicked, navigating to:', `/document/${documentId}`);
+                          if (documentId && typeof documentId === 'number') {
+                            setLocation(`/document/${documentId}`);
+                          }
+                        } catch (navError) {
+                          console.error('Error navigating to document details:', navError);
+                        }
                       }}
                       className={`${config.textColor} hover:bg-accent-purple-100 rounded-md px-3 py-1.5 transition-all duration-200 text-xs font-medium`}
                     >

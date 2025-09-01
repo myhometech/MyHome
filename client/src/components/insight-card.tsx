@@ -203,7 +203,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
 
     // Enhanced documentId validation with type checking
     const documentId = insight.documentId;
-    
+
     // Check for null, undefined, empty string, or non-positive numbers
     if (!documentId || 
         documentId === null || 
@@ -213,7 +213,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
         (typeof documentId === 'string' && documentId.trim() === '') ||
         (typeof documentId === 'number' && (isNaN(documentId) || documentId <= 0)) ||
         (typeof documentId === 'string' && (isNaN(Number(documentId)) || Number(documentId) <= 0))) {
-      
+
       console.warn(`[INSIGHT-CARD] Invalid documentId for insight ${insight.id}:`, {
         raw: insight.documentId,
         type: typeof insight.documentId,
@@ -238,68 +238,10 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
     }
 
     const numericDocumentId = Number(documentId);
-    
-    // First verify the document exists before navigating
+
+    // Skip document verification and navigate directly
+    // The document page will handle any access/existence issues
     try {
-      console.log(`[INSIGHT-CARD] Verifying document ${numericDocumentId} exists`);
-      const response = await fetch(`/api/documents/${numericDocumentId}`, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        console.warn(`[INSIGHT-CARD] Document ${numericDocumentId} verification failed:`, {
-          status: response.status,
-          statusText: response.statusText,
-          insightId: insight.id,
-          documentId: numericDocumentId
-        });
-        
-        if (response.status === 404) {
-          // Log for potential cleanup
-          console.error(`[ORPHANED-INSIGHT] Found insight ${insight.id} referencing non-existent document ${numericDocumentId}`);
-          
-          toast({
-            title: "Document not found",
-            description: "This document no longer exists. The insight will be cleaned up automatically.",
-            variant: "destructive",
-          });
-          
-          // Optionally trigger cleanup for this specific insight
-          try {
-            await fetch(`/api/insights/${insight.id}`, {
-              method: 'DELETE',
-              credentials: 'include'
-            });
-            console.log(`[INSIGHT-CARD] Auto-deleted orphaned insight ${insight.id}`);
-            // Refresh the insights list
-            queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
-          } catch (deleteError) {
-            console.warn(`[INSIGHT-CARD] Failed to auto-delete orphaned insight:`, deleteError);
-          }
-          
-        } else if (response.status === 401 || response.status === 403) {
-          toast({
-            title: "Access denied",
-            description: "You don't have permission to view this document.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Unable to access document",
-            description: `Server error (${response.status}). Please try again later.`,
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      const documentData = await response.json();
-      console.log(`[INSIGHT-CARD] Document ${numericDocumentId} verified:`, documentData.name);
-
-      // Navigate to document if verification successful
       if (onDocumentClick) {
         console.log(`[INSIGHT-CARD] Using parent document click handler`);
         onDocumentClick(numericDocumentId);
@@ -309,10 +251,10 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
       }
 
     } catch (error) {
-      console.error(`[INSIGHT-CARD] Error verifying document ${numericDocumentId}:`, error);
+      console.error(`[INSIGHT-CARD] Error navigating to document ${numericDocumentId}:`, error);
       toast({
-        title: "Connection error",
-        description: "Unable to verify document access. Please check your connection.",
+        title: "Navigation error",
+        description: "Unable to navigate to the document.",
         variant: "destructive",
       });
     }
@@ -427,7 +369,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete
                         } else if (response.status === 401) {
                           // Authentication issue - just navigate anyway, let the document page handle it
                           console.warn(`Auth issue verifying document ${documentId}, navigating anyway`);
-                          navigate(`/document/${documentId}`);
+                          setLocation(`/document/${documentId}`);
                           return;
                         } else {
                           toast({

@@ -22,11 +22,11 @@ const upload = multer({
     const allowedTypes = [
       'application/pdf',
       'image/jpeg',
-      'image/jpg', 
+      'image/jpg',
       'image/png',
       'image/webp'
     ];
-    
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -61,7 +61,7 @@ router.post('/', upload.fields([
     const userId = req.user.id;
     let categoryId = req.body.categoryId ? parseInt(req.body.categoryId) : null;
     let categorizationSource = 'manual';
-    
+
     console.log('Processing uploaded file:', {
       name: uploadedFile.originalname,
       size: uploadedFile.size,
@@ -74,7 +74,7 @@ router.post('/', upload.fields([
     if (!categoryId) {
       try {
         const { categorizationService } = await import('../categorizationService.js');
-        
+
         const categorizationResult = await categorizationService.categorizeDocument({
           filename: uploadedFile.originalname,
           mimeType: uploadedFile.mimetype,
@@ -84,7 +84,7 @@ router.post('/', upload.fields([
         if (categorizationResult.categoryId) {
           categoryId = categorizationResult.categoryId;
           categorizationSource = categorizationResult.source;
-          
+
           console.log(`DOC-303 Auto-categorization successful:`, {
             filename: uploadedFile.originalname,
             categoryId,
@@ -108,7 +108,7 @@ router.post('/', upload.fields([
     // Process images with compression and thumbnail generation
     if (uploadedFile.mimetype.startsWith('image/')) {
       const outputPath = path.join('./uploads', `processed_${Date.now()}_${uploadedFile.originalname}`);
-      
+
       const result = await imageProcessor.processImage(
         uploadedFile.path,
         outputPath,
@@ -136,7 +136,7 @@ router.post('/', upload.fields([
     // Process PDFs with optimization
     else if (uploadedFile.mimetype === 'application/pdf') {
       const outputPath = path.join('./uploads', `optimized_${Date.now()}_${uploadedFile.originalname}`);
-      
+
       const result = await pdfOptimizer.optimizePDF(
         uploadedFile.path,
         outputPath,
@@ -190,7 +190,7 @@ router.post('/', upload.fields([
     try {
       const { insightJobQueue } = await import('../insightJobQueue');
       const { documentProcessor } = await import('../documentProcessor');
-      
+
       // Process document to extract text if needed
       let extractedText = '';
       if (document.filePath && uploadedFile.mimetype) {
@@ -201,7 +201,7 @@ router.post('/', upload.fields([
             uploadedFile.mimetype
           );
           extractedText = processedDoc.extractedText || '';
-          
+
           // Update document with extracted text
           if (extractedText && extractedText.length > 20) {
             await storage.updateDocument(document.id, userId, {
@@ -219,7 +219,7 @@ router.post('/', upload.fields([
                 userId,
                 req.user.household?.id
               );
-              
+
               if (factResults.factsExtracted > 0) {
                 console.log(`📊 Extracted ${factResults.factsExtracted} facts from ${uploadedFile.originalname} (avg confidence: ${factResults.confidence.toFixed(2)})`);
               }
@@ -231,7 +231,7 @@ router.post('/', upload.fields([
           console.warn('Document processing failed, will generate insights without text:', processingError);
         }
       }
-      
+
       // Queue insight generation job
       if (extractedText && extractedText.length > 20) {
         const jobId = await insightJobQueue.addInsightJob({
@@ -243,7 +243,7 @@ router.post('/', upload.fields([
           mimeType: uploadedFile.mimetype,
           priority: 5
         });
-        
+
         if (jobId) {
           console.log(`🔍 Queued insight generation job ${jobId} for document ${document.id}`);
         }
@@ -279,12 +279,12 @@ router.post('/', upload.fields([
       fileSize: req.files?.file?.[0]?.size,
       userId: req.user?.id
     });
-    
+
     // Clean up any temporary files on error
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       // Use fs.promises that we already imported
-      
+
       if (files.file?.[0]) {
         await fs.promises.unlink(files.file[0].path);
       }
@@ -366,24 +366,24 @@ router.get('/:id', async (req: any, res: any) => {
 
     // Enhanced document retrieval with better error logging
     const document = await storage.getDocument(documentId, userId);
-    
+
     if (!document) {
       console.log(`[DOCUMENT-ROUTE] Document ${documentId} not found for user ${userId}`);
-      
+
       // Enhanced debugging - check for document in insights
       try {
         const userInsights = await storage.getInsights(userId);
-        const insightWithDocument = userInsights.find(insight => 
+        const insightWithDocument = userInsights.find(insight =>
           insight.documentId && Number(insight.documentId) === documentId
         );
-        
+
         if (insightWithDocument) {
           console.log(`[DOCUMENT-ROUTE] Found insight ${insightWithDocument.id} referencing missing document ${documentId}`);
         }
-        
+
         const allDocuments = await storage.getDocuments(userId);
         const userDocumentIds = allDocuments.map(doc => doc.id).slice(0, 10);
-        
+
         console.log(`[DOCUMENT-ROUTE] Debug info:`, {
           requestedDocumentId: documentId,
           userDocumentCount: allDocuments.length,
@@ -394,8 +394,8 @@ router.get('/:id', async (req: any, res: any) => {
       } catch (debugError) {
         console.warn(`[DOCUMENT-ROUTE] Debug check failed:`, debugError);
       }
-      
-      return res.status(404).json({ 
+
+      return res.status(404).json({
         message: `Document ${documentId} not found or not accessible`,
         error: 'DOCUMENT_NOT_FOUND',
         documentId,
@@ -456,7 +456,7 @@ router.get('/:id/thumbnail', async (req: any, res: any) => {
       try {
         const storageService = StorageService.initialize();
         const fileBuffer = await storageService.download(document.gcsPath);
-        
+
         if (fileBuffer) {
           // Set appropriate content type
           const contentType = document.mimeType || 'application/octet-stream';
@@ -473,7 +473,7 @@ router.get('/:id/thumbnail', async (req: any, res: any) => {
 
     // Check for local thumbnail
     const thumbnailPath = imageProcessor.getThumbnailPath(document.filePath);
-    
+
     if (fs.existsSync(thumbnailPath)) {
       res.sendFile(path.resolve(thumbnailPath));
       return;
@@ -486,7 +486,7 @@ router.get('/:id/thumbnail', async (req: any, res: any) => {
     }
 
     // If no file found, return 404
-    res.status(404).json({ 
+    res.status(404).json({
       message: 'Document file not found',
       documentId,
       filePath: document.filePath,
@@ -511,7 +511,7 @@ router.post('/:id/retry-ocr', async (req: any, res: any) => {
   try {
     const documentId = parseInt(req.params.id);
     const document = await storage.getDocument(documentId, req.user.id);
-    
+
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
@@ -521,7 +521,7 @@ router.post('/:id/retry-ocr', async (req: any, res: any) => {
     // Get the original file buffer
     const storageService = StorageService.initialize();
     const fileBuffer = await storageService.download(document.gcsPath || document.filePath);
-    
+
     if (!fileBuffer) {
       return res.status(400).json({ message: 'Document file not found' });
     }
@@ -544,7 +544,7 @@ router.post('/:id/retry-ocr', async (req: any, res: any) => {
         extractedText: enhancedResult.text,
         ocrConfidence: enhancedResult.confidence
       });
-      
+
       console.log(`✅ Enhanced OCR improved confidence from unknown to ${enhancedResult.confidence}%`);
     }
 
@@ -562,8 +562,8 @@ router.post('/:id/retry-ocr', async (req: any, res: any) => {
 
   } catch (error) {
     console.error('Enhanced OCR retry error:', error);
-    res.status(500).json({ 
-      message: 'Enhanced OCR retry failed', 
+    res.status(500).json({
+      message: 'Enhanced OCR retry failed',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
@@ -578,7 +578,7 @@ router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
   try {
     const documentId = parseInt(req.params.id);
     const document = await storage.getDocument(documentId, req.user.id);
-    
+
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
@@ -586,7 +586,7 @@ router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
     // Get the original file buffer
     const storageService = StorageService.initialize();
     const fileBuffer = await storageService.download(document.gcsPath || document.filePath);
-    
+
     if (!fileBuffer) {
       return res.status(400).json({ message: 'Document file not found' });
     }
@@ -597,61 +597,6 @@ router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
     res.json({
       success: true,
       tips,
-
-
-// Clean up orphaned insights (insights pointing to non-existent documents)
-router.post('/cleanup-orphaned-insights', async (req: AuthenticatedRequest, res: any) => {
-  if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
-  }
-
-  try {
-    const userId = req.user.id;
-    
-    // Get all user insights
-    const insights = await storage.getInsights(userId);
-    
-    // Get all user documents
-    const documents = await storage.getDocuments(userId);
-    const documentIds = new Set(documents.map(doc => doc.id));
-    
-    // Find orphaned insights
-    const orphanedInsights = insights.filter(insight => 
-      insight.documentId && 
-      Number(insight.documentId) > 0 && 
-      !documentIds.has(Number(insight.documentId))
-    );
-    
-    console.log(`[CLEANUP] Found ${orphanedInsights.length} orphaned insights for user ${userId}`);
-    
-    // Mark orphaned insights as dismissed
-    let cleanedCount = 0;
-    for (const insight of orphanedInsights) {
-      try {
-        await storage.updateInsightStatus(insight.id, 'dismissed');
-        cleanedCount++;
-        console.log(`[CLEANUP] Dismissed orphaned insight ${insight.id} pointing to document ${insight.documentId}`);
-      } catch (updateError) {
-        console.error(`[CLEANUP] Failed to dismiss insight ${insight.id}:`, updateError);
-      }
-    }
-    
-    res.json({
-      success: true,
-      orphanedFound: orphanedInsights.length,
-      cleaned: cleanedCount,
-      message: `Cleaned up ${cleanedCount} orphaned insights`
-    });
-
-  } catch (error: any) {
-    console.error('Failed to clean up orphaned insights:', error);
-    res.status(500).json({
-      message: 'Failed to clean up orphaned insights',
-      error: error.message,
-    });
-  }
-});
-
       documentId: documentId,
       currentOcrText: document.extractedText || '',
       currentConfidence: 0
@@ -659,12 +604,74 @@ router.post('/cleanup-orphaned-insights', async (req: AuthenticatedRequest, res:
 
   } catch (error) {
     console.error('OCR analysis error:', error);
-    res.status(500).json({ 
-      message: 'OCR analysis failed', 
+    res.status(500).json({
+      message: 'OCR analysis failed',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
+
+// Clean up orphaned insights that reference deleted documents
+  router.post('/cleanup-orphaned-insights', requireAuth, async (req: AuthenticatedRequest, res: any) => {
+    try {
+      const userId = req.user.id;
+
+      // Get all insights for the user
+      const allInsights = await storage.getInsights(userId);
+      console.log(`[CLEANUP] Found ${allInsights.length} total insights for user ${userId}`);
+
+      let cleanedCount = 0;
+      let orphanedInsights = [];
+
+      // Check each insight to see if its document still exists
+      for (const insight of allInsights) {
+        // Skip insights without documentId (vehicle insights, manual events)
+        if (!insight.documentId || insight.documentId <= 0) {
+          continue;
+        }
+
+        try {
+          const document = await storage.getDocument(insight.documentId, userId);
+          if (!document) {
+            orphanedInsights.push(insight);
+            console.log(`[CLEANUP] Found orphaned insight: ${insight.id} -> document ${insight.documentId}`);
+          }
+        } catch (error) {
+          // Document doesn't exist or error accessing it
+          orphanedInsights.push(insight);
+          console.log(`[CLEANUP] Found orphaned insight (error): ${insight.id} -> document ${insight.documentId}`);
+        }
+      }
+
+      // Delete orphaned insights
+      for (const orphanedInsight of orphanedInsights) {
+        try {
+          await storage.deleteInsight(orphanedInsight.id);
+          cleanedCount++;
+          console.log(`[CLEANUP] Deleted orphaned insight: ${orphanedInsight.id}`);
+        } catch (error) {
+          console.error(`[CLEANUP] Failed to delete orphaned insight ${orphanedInsight.id}:`, error);
+        }
+      }
+
+      console.log(`[CLEANUP] Cleanup completed: ${cleanedCount} orphaned insights removed`);
+
+      res.json({
+        message: `Cleanup completed: ${cleanedCount} orphaned insights removed`,
+        cleanedCount,
+        orphanedFound: orphanedInsights.length,
+        totalInsights: allInsights.length
+      });
+
+    } catch (error: any) {
+      console.error('Failed to clean up orphaned insights:', error);
+      res.status(500).json({
+        message: 'Failed to clean up orphaned insights',
+        error: error.message,
+      });
+    }
+  });
+
 
 // Search-as-you-type endpoint with ranking and relevance
 router.get('/search', async (req: any, res: any) => {
@@ -674,7 +681,7 @@ router.get('/search', async (req: any, res: any) => {
 
   try {
     const { q, limit = 10 } = req.query;
-    
+
     if (!q || typeof q !== 'string') {
       return res.json({ results: [], message: 'Search query required' });
     }
@@ -684,7 +691,7 @@ router.get('/search', async (req: any, res: any) => {
     }
 
     const results = await storage.searchDocuments(req.user.id, q, parseInt(limit as string));
-    
+
     res.json({
       results,
       query: q,
@@ -719,7 +726,7 @@ router.get('/:id/facts', async (req: any, res: any) => {
 
     // Get document facts for this user/document
     const facts = await storage.getDocumentFacts(documentId, userId);
-    
+
     res.json({
       success: true,
       documentId,
@@ -745,7 +752,7 @@ router.get('/debug/list', async (req: any, res: any) => {
   try {
     const userId = req.user.id;
     const documents = await storage.getDocuments(userId);
-    
+
     const documentList = documents.map(doc => ({
       id: doc.id,
       name: doc.name,
@@ -795,7 +802,7 @@ router.get('/:id/download', async (req: any, res: any) => {
       try {
         const storageService = StorageService.initialize();
         const fileBuffer = await storageService.download(document.gcsPath);
-        
+
         if (fileBuffer) {
           // Set appropriate headers for download
           res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
@@ -817,7 +824,7 @@ router.get('/:id/download', async (req: any, res: any) => {
     }
 
     // If no file found, return 404
-    res.status(404).json({ 
+    res.status(404).json({
       message: 'Document file not found',
       documentId,
       filePath: document.filePath,

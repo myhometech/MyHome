@@ -32,6 +32,7 @@ interface InsightCardProps {
   insight: DocumentInsight;
   onStatusUpdate?: (insightId: string, status: 'open' | 'dismissed' | 'resolved') => void;
   onDocumentClick?: (documentId: number) => void;
+  onDelete?: (insightId: string) => void; // Added onDelete prop
 }
 
 // Enhanced type configurations with Pinterest-style gradients and styling
@@ -116,7 +117,7 @@ const priorityConfig = {
   }
 };
 
-export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: InsightCardProps) {
+export function InsightCard({ insight, onStatusUpdate, onDocumentClick, onDelete }: InsightCardProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();

@@ -79,7 +79,7 @@ declare module 'express-session' {
   }
 }
 
-// Extend Express Request to include user from passport
+// Extend Express Request to include user from passport and tenantId
 declare global {
   namespace Express {
     interface User {
@@ -96,6 +96,9 @@ declare global {
         role: string;
         name?: string;
       };
+    }
+    interface Request {
+      tenantId?: string;
     }
   }
 }
@@ -5812,7 +5815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { tenantId } = req;
       
-      const conversations = await storage.getConversations(tenantId);
+      const conversations = await storage.getUserConversations(tenantId || userId);
       res.json(conversations);
       
     } catch (error: any) {
@@ -5833,7 +5836,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const conversation = await storage.createConversation({
-        tenantId,
+        tenantId: tenantId || userId,
         userId,
         title: String(title).slice(0, 100), // Limit title length
       });
@@ -5854,12 +5857,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conversationId = req.params.id;
       
       // Verify user has access to this conversation
-      const conversation = await storage.getConversation(conversationId, tenantId);
+      const conversation = await storage.getConversation(conversationId, tenantId || userId);
       if (!conversation) {
         return res.status(404).json({ message: "Conversation not found" });
       }
       
-      const messages = await storage.getMessages(conversationId, tenantId);
+      const messages = await storage.getConversationMessages(conversationId, tenantId || userId);
       res.json(messages);
       
     } catch (error: any) {
@@ -5878,15 +5881,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { tenantId } = req;
       
-      // Check if chat features are enabled
-      const { chatConfigService } = await import('./chatConfig.js');
-      const chatStatus = await chatConfigService.getChatStatus(req.user!);
-      
-      if (!chatStatus.enabled) {
-        return res.status(403).json({ 
-          message: chatStatus.reason || "Chat features not available" 
-        });
-      }
+      // Chat features are available for authenticated users
+      // (removed chatConfigService.getChatStatus as it doesn't exist)
       
       // Validate request body
       const validatedRequest: ChatRequest = chatRequestSchema.parse(req.body);
@@ -5897,7 +5893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const response = await chatOrchestrationService.processChat(
         validatedRequest, 
         userId, 
-        tenantId
+        tenantId || userId
       );
       
       console.log(`✅ [CHAT] Returning response with ${response.citations.length} citations`);

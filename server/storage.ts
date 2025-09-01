@@ -2,7 +2,7 @@ import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http';
 import { 
   users, categories, documents, emailForwards, households, userHouseholdMembership, pendingInvites,
-  documentInsights, vehicles, documentEvents, userAssets, conversations, messages, documentText,
+  documentInsights, vehicles, documentEvents, userAssets, conversations, messages, documentText, documentFacts,
   type User, type InsertUser, type Category, type InsertCategory, 
   type Document, type InsertDocument, type EmailForward, type InsertEmailForward, 
   type Household, type InsertHousehold, type DocumentInsight, type InsertDocumentInsight,
@@ -10,7 +10,7 @@ import {
   type DocumentEvent, type InsertDocumentEvent, type UserAsset, type InsertUserAsset,
   type Conversation, type InsertConversation, type Message, type InsertMessage,
   type DocumentText, type InsertDocumentText, type SearchSnippetsRequest, type SearchSnippetsResponse,
-  type SearchResult, type SearchSnippet
+  type SearchResult, type SearchSnippet, type InsertDocumentFact, type SelectDocumentFact
 } from '../shared/schema.js';
 
 export interface IStorage {
@@ -1245,7 +1245,7 @@ export class PostgresStorage implements IStorage {
 
         // Extract metadata
         const metadata = {
-          docType: result.tags?.find(tag => ['bill', 'invoice', 'statement', 'receipt', 'contract', 'insurance', 'tax'].includes(tag.toLowerCase())),
+          docType: result.tags?.find((tag: string) => ['bill', 'invoice', 'statement', 'receipt', 'contract', 'insurance', 'tax'].includes(tag.toLowerCase())),
           provider: this.extractProvider(result.text, result.emailContext),
           invoiceDate: result.expiryDate?.toISOString().split('T')[0],
         };

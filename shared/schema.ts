@@ -421,7 +421,7 @@ export type EmailRegisterData = z.infer<typeof emailRegisterSchema>;
 // TICKET 4: Document Events Audit Logging
 export const documentEvents = pgTable("document_events", {
   id: serial("id").primaryKey(),
-  documentId: integer("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  documentId: integer("document_id").references(() => documents.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   householdId: uuid("household_id").references(() => households.id, { onDelete: "cascade" }),
   action: varchar("action", { length: 50 }).notNull(), // 'upload', 'delete', 'rename', 'ai_insight', 'share', 'download'

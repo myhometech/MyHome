@@ -364,9 +364,22 @@ router.get('/:id', async (req: any, res: any) => {
       return res.status(400).json({ message: 'Invalid document ID' });
     }
 
+    // Enhanced document retrieval with better error logging
     const document = await storage.getDocument(documentId, userId);
+    
     if (!document) {
       console.log(`[DOCUMENT-ROUTE] Document ${documentId} not found for user ${userId}`);
+      
+      // Check if document exists for any user (debugging purposes)
+      try {
+        const allDocuments = await storage.getDocuments(userId);
+        const documentExists = allDocuments.some(doc => doc.id === documentId);
+        console.log(`[DOCUMENT-ROUTE] Document ${documentId} exists in user's documents: ${documentExists}`);
+        console.log(`[DOCUMENT-ROUTE] User ${userId} has ${allDocuments.length} total documents`);
+      } catch (debugError) {
+        console.warn(`[DOCUMENT-ROUTE] Debug check failed:`, debugError);
+      }
+      
       return res.status(404).json({ 
         message: 'Document not found',
         documentId,
@@ -391,7 +404,8 @@ router.get('/:id', async (req: any, res: any) => {
     console.error(`[DOCUMENT-ROUTE] Failed to fetch document ${req.params.id}:`, {
       error: error.message,
       stack: error.stack,
-      userId: req.user?.id
+      userId: req.user?.id,
+      documentId: req.params.id
     });
     res.status(500).json({
       message: 'Failed to fetch document',

@@ -1544,7 +1544,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reason: status.reason,
           status: status,
           debug: {
-            hasOpenAIKey: !!process.env.OPENAI_API_KEY,
             hasMistralKey: !!process.env.MISTRAL_API_KEY,
             userTier: req.user?.subscriptionTier || 'unknown'
           }
@@ -2677,7 +2676,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiServiceAvailable: aiInsightService.isServiceAvailable(),
         serviceStatus: aiInsightService.getServiceStatus(),
         userTier: user?.subscriptionTier || 'unknown',
-        hasOpenAIKey: !!process.env.OPENAI_API_KEY,
         hasMistralKey: !!process.env.MISTRAL_API_KEY,
         llmClientStatus: {
           available: llmClient.isAvailable(),

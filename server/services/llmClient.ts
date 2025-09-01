@@ -54,9 +54,9 @@ type LLMConfig = z.infer<typeof configSchema>;
 export class LLMClient {
   private config: LLMConfig;
   private requestCount: number = 0;
-  private openaiApiKey: string = ''; // Added for OpenAI API key
+  // Removed private openaiApiKey: string;
 
-  constructor(config: Partial<LLMConfig> = {}) {
+  constructor(config?: Partial<LLMConfig>) {
     // Load configuration from environment
     const envConfig = {
       apiKey: process.env.MISTRAL_API_KEY || '',
@@ -67,8 +67,7 @@ export class LLMClient {
 
     this.config = configSchema.parse(envConfig);
 
-    // Store OpenAI API key separately for the isConfigured check
-    this.openaiApiKey = this.config.apiKey;
+    // Removed: this.openaiApiKey = this.config.apiKey;
 
     if (!this.config.apiKey) {
       console.warn('⚠️ LLM Client: No API key configured. Set MISTRAL_API_KEY environment variable.');
@@ -308,10 +307,11 @@ export class LLMClient {
    * Alias for isAvailable() for backward compatibility
    */
   private isConfigured(): boolean {
-    const hasKey = !!(this.openaiApiKey && this.openaiApiKey.length > 0);
+    // Changed to check only MISTRAL_API_KEY
+    const hasKey = !!(this.config.apiKey && this.config.apiKey.length > 0);
     console.log(`🔍 [LLM-CLIENT] API Key configured: ${hasKey ? 'YES' : 'NO'}`);
     if (!hasKey) {
-      console.log(`❌ [LLM-CLIENT] OpenAI API key missing or empty`);
+      console.log(`❌ [LLM-CLIENT] Mistral API key missing or empty`);
     }
     return hasKey;
   }
@@ -333,10 +333,8 @@ export class LLMClient {
    */
   updateConfig(newConfig: Partial<LLMConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    // Update the internal openaiApiKey as well if it's changed
-    if (newConfig.apiKey !== undefined) {
-      this.openaiApiKey = newConfig.apiKey;
-    }
+    // Update the internal apiKey as well if it's changed
+    // Removed the specific openaiApiKey update
     console.log(`✅ LLM Client config updated: ${this.config.defaultModel}`);
   }
 

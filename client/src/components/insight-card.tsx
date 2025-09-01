@@ -19,7 +19,8 @@ import {
   FileText,
   Shield,
   Star,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle // Added AlertTriangle import
 } from 'lucide-react';
 import { DocumentInsight } from '@shared/schema';
 import { useLocation, setLocation } from "wouter";
@@ -211,7 +212,7 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       }
     } else {
       console.warn(`[INSIGHT-CARD] Invalid or missing documentId for insight ${insight.id}:`, insight.documentId);
-      
+
       // Check if this is a manual event type insight
       if (insight.id && insight.id.startsWith('manual-')) {
         toast({

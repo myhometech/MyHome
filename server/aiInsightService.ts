@@ -35,15 +35,15 @@ class AIInsightService {
       provider: status.provider,
       model: status.model,
       reason: status.reason,
-      hasOpenAIKey: !!process.env.OPENAI_API_KEY,
-      keyLength: process.env.OPENAI_API_KEY?.length || 0
+      hasMistralKey: !!process.env.MISTRAL_API_KEY,
+      keyLength: process.env.MISTRAL_API_KEY?.length || 0
     });
     
     if (this.isAvailable) {
       console.log(`✅ [AI-SERVICE] AI Insight Service initialized with ${status.provider} (${status.model})`);
     } else {
       console.log(`❌ [AI-SERVICE] AI Insight Service disabled - ${status.reason || 'LLM client not available'}`);
-      console.log(`🔑 [AI-SERVICE] Environment check - OPENAI_API_KEY exists: ${!!process.env.OPENAI_API_KEY}`);
+      console.log(`🔑 [AI-SERVICE] Environment check - MISTRAL_API_KEY exists: ${!!process.env.MISTRAL_API_KEY}`);
     }
   }
 

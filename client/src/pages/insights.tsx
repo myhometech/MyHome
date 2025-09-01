@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Brain, Calendar, PenTool, FileText, Clock, AlertCircle, Filter, RefreshCw, X } from 'lucide-react';
+import { Brain, Calendar, PenTool, FileText, Clock, AlertCircle, Filter, RefreshCw, X, AlertTriangle } from 'lucide-react';
 import AddDropdownMenu from '@/components/add-dropdown-menu';
 import { EnhancedDocumentViewer } from '@/components/enhanced-document-viewer';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -67,7 +67,7 @@ export function InsightsPage() {
   }, [location]);
 
   // Fetch document insights with pagination
-  const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights } = useQuery<{insights: DocumentInsight[], totalCount: number}>({
+  const { data: insightsData, isLoading: insightsLoading, refetch: refetchInsights, error: insightsError } = useQuery<{insights: DocumentInsight[], totalCount: number}>({
     queryKey: ['/api/insights', statusFilter, priorityFilter, typeFilter, currentPage, pageSize],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -77,10 +77,40 @@ export function InsightsPage() {
         page: currentPage.toString(),
         limit: pageSize.toString()
       });
-      const response = await fetch(`/api/insights?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch insights');
-      return response.json();
+      
+      console.log('[INSIGHTS-QUERY] Fetching insights with params:', Object.fromEntries(params));
+      
+      const response = await fetch(`/api/insights?${params}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('[INSIGHTS-QUERY] Failed to fetch insights:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(errorData.message || `Failed to fetch insights: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('[INSIGHTS-QUERY] Successfully fetched insights:', {
+        count: data.insights?.length || 0,
+        totalCount: data.totalCount || 0
+      });
+      
+      return data;
     },
+    retry: (failureCount, error) => {
+      // Don't retry on authentication errors
+      if (error.message.includes('401') || error.message.includes('403')) return false;
+      return failureCount < 2;
+    },
+    refetchOnWindowFocus: false
   });
 
   // Fetch manual events
@@ -357,6 +387,27 @@ export function InsightsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Error Display */}
+        {insightsError && (
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+                <div>
+                  <h3 className="font-medium">Failed to Load Insights</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {insightsError instanceof Error ? insightsError.message : 'Unable to connect to the server. Please try again.'}
+                  </p>
+                </div>
+                <Button onClick={() => refetchInsights()} variant="outline" size="sm" className="ml-auto">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Content - Tabbed View */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">

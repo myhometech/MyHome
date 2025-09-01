@@ -63,46 +63,6 @@ import type { Request, Response, NextFunction } from "express";
 import type { User } from "@shared/schema";
 import 'express-session';
 
-// Extend Express session to include user property
-declare module 'express-session' {
-  interface SessionData {
-    user?: {
-      id: string;
-      email: string;
-      role?: string;
-      household?: {
-        id: string;
-        role: string;
-        name?: string;
-      };
-    };
-  }
-}
-
-// Extend Express Request to include user from passport and tenantId
-declare global {
-  namespace Express {
-    interface User {
-      id: string;
-      email: string;
-      role?: string;
-      subscriptionTier?: string;
-      firstName?: string;
-      lastName?: string;
-      authProvider?: string;
-      providerId?: string;
-      household?: {
-        id: string;
-        role: string;
-        name?: string;
-      };
-    }
-    interface Request {
-      tenantId?: string;
-    }
-  }
-}
-
 // CloudConvert initialization - no browser setup needed
 import cloudConvertHealthRoutes from './routes/cloudConvertHealth.js';
 
@@ -1123,32 +1083,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Get document by ID with enhanced security
-  app.get('/api/documents/:id', requireAuth, async (req: any, res) => {
+  app.get('/api/documents/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const userId = getUserId(req);
-      const documentId = parseInt(req.params.id);
+      const documentId = parseInt(req.params.id, 10);
+      const userId = req.user!.id;
 
-      console.log(`[DOCUMENT-DEBUG] Fetching document ${documentId} for user ${userId}`);
+      console.log(`[DOCUMENT-API] Fetching document ${documentId} for user ${userId}`);
 
-      if (isNaN(documentId)) {
-        console.log(`[DOCUMENT-DEBUG] Invalid document ID: ${req.params.id}`);
-        return res.status(400).json({ message: "Invalid document ID" });
-      }
-
-      const document = await storage.getDocument(documentId, userId);
-      if (!document) {
-        console.log(`[DOCUMENT-DEBUG] Document ${documentId} not found for user ${userId}`);
-        return res.status(404).json({ 
-          message: "Document not found or you don't have permission to access it",
-          documentId 
+      if (isNaN(documentId) || documentId <= 0) {
+        console.warn(`[DOCUMENT-API] Invalid document ID: ${req.params.id}`);
+        return res.status(400).json({ 
+          message: 'Invalid document ID',
+          error: 'Document ID must be a positive integer'
         });
       }
 
-      console.log(`[DOCUMENT-DEBUG] Document ${documentId} found: ${document.name}`);
+      // Validate storage service
+      if (!storage) {
+        console.error('[DOCUMENT-API] Storage service not initialized');
+        return res.status(500).json({
+          message: 'Database service unavailable',
+          error: 'Storage service not initialized'
+        });
+      }
+
+      const document = await storage.getDocument(documentId, userId);
+
+      if (!document) {
+        console.warn(`[DOCUMENT-API] Document ${documentId} not found for user ${userId}`);
+        return res.status(404).json({ 
+          message: 'Document not found',
+          error: 'The requested document does not exist or you do not have access to it'
+        });
+      }
+
+      console.log(`[DOCUMENT-API] Document ${documentId} found: ${document.name}`);
+
       res.json(document);
-    } catch (error) {
-      console.error('Get document error:', error);
-      res.status(500).json({ message: 'Failed to fetch document' });
+    } catch (error: any) {
+      console.error(`[DOCUMENT-API] Error fetching document ${req.params.id}:`, {
+        error: error.message,
+        stack: error.stack,
+        userId: req.user?.id,
+        timestamp: new Date().toISOString()
+      });
+
+      // Return more specific error messages
+      let errorMessage = 'Failed to fetch document';
+      if (error.message?.includes('database') || error.message?.includes('connection')) {
+        errorMessage = 'Database connection error. Please try again.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'Request timed out. Please try again.';
+      }
+
+      res.status(500).json({
+        message: errorMessage,
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+        timestamp: new Date().toISOString()
+      });
     }
   });
 
@@ -2606,7 +2598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get system activities for admin dashboard (admin only)
+  // Get system activities for dashboard (admin only)
   app.get('/api/admin/activities', requireAdmin, async (req: any, res) => {
     try {
       const activities = await storage.getSystemActivities();
@@ -2656,101 +2648,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get OpenAI usage (admin only)
-  app.get('/api/admin/usage/openai', requireAuth, requireAdmin, async (req: any, res) => {
-    try {
-      const usage = await storage.getOpenAIUsage();
-      res.json(usage);
-    } catch (error) {
-      console.error("Error fetching OpenAI usage:", error);
-      res.status(500).json({ message: "Failed to fetch OpenAI usage" });
-    }
-  });
-
-  // AI Insights diagnostic endpoint
-  app.get('/api/insights/diagnostic', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      const user = await storage.getUser(userId);
-      
-      const diagnostic = {
-        aiServiceAvailable: aiInsightService.isServiceAvailable(),
-        serviceStatus: aiInsightService.getServiceStatus(),
-        userTier: user?.subscriptionTier || 'unknown',
-        hasMistralKey: !!process.env.MISTRAL_API_KEY,
-        llmClientStatus: {
-          available: llmClient.isAvailable(),
-          status: llmClient.getStatus()
-        },
-        recentInsights: {
-          count: (await storage.getInsights(userId)).length,
-          lastGenerated: 'unknown' // Could be enhanced with timestamp tracking
-        }
-      };
-
-      console.log(`🔍 [DIAGNOSTIC] AI Insights diagnostic for user ${userId}:`, diagnostic);
-      res.json(diagnostic);
-    } catch (error) {
-      console.error("Error in AI insights diagnostic:", error);
-      res.status(500).json({ 
-        error: "Diagnostic failed",
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
-  // Get LLM usage analytics (admin only) - alias for openai usage
-  app.get('/api/admin/llm-usage/analytics', requireAuth, requireAdmin, async (req: any, res) => {
-    try {
-      const usage = await storage.getOpenAIUsage();
-      res.json(usage);
-    } catch (error) {
-      console.error("Error fetching LLM usage analytics:", error);
-      res.status(500).json({ message: "Failed to fetch LLM usage analytics" });
-    }
-  });
-
-  // Toggle user status (admin only)
-  app.patch('/api/admin/users/:userId/toggle', requireAuth, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.params;
-      const { isActive } = req.body;
-
-      await storage.updateUserStatus(userId, String(isActive));
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error updating user status:", error);
-      res.status(500).json({ message: "Failed to update user status" });
-    }
-  });
-
-  // Duplicate route removed
-
-  // Duplicate route removed - this was causing conflicts
-
-  // Admin search analytics endpoint
-  app.get('/api/admin/search-analytics', requireAuth, requireAdmin, async (req: any, res) => {
-    try {
-      const { timeRange, tierFilter } = req.query;
-      const analytics = await storage.getSearchAnalytics();
-      res.json(analytics);
-    } catch (error) {
-      console.error("Error fetching search analytics:", error);
-      res.status(500).json({ message: "Failed to fetch search analytics" });
-    }
-  });
-
-  // Admin GCS usage endpoint
-  app.get('/api/admin/usage/gcs', requireAuth, requireAdmin, async (req: any, res) => {
-    try {
-      const usage = await storage.getGCSUsage();
-      res.json(usage);
-    } catch (error) {
-      console.error("Error fetching GCS usage:", error);
-      res.status(500).json({ message: "Failed to fetch GCS usage" });
-    }
-  });
-
-  // Admin OpenAI usage endpoint
   app.get('/api/admin/usage/openai', requireAuth, requireAdmin, async (req: any, res) => {
     try {
       const usage = await storage.getOpenAIUsage();
@@ -5493,6 +5390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Debug route to confirm deployment
   app.get("/debug", (_req, res) => {
+    console.log('📞 /debug endpoint called');
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Debug</title><style>body{font-family:monospace;padding:20px}.status{margin:10px 0;padding:10px;border-radius:5px}.success{background:#d4edda;color:#155724}.error{background:#f8d7da;color:#721c24}.info{background:#d1ecf1;color:#0c5460}#root{border:2px dashed #ccc;min-height:100px;margin:20px 0}body{margin:0;padding:0;box-sizing:border-box}#root-status,#js-status,#react-status{padding:10px;margin-bottom:10px;border-radius:4px}#root-status{background-color:#d1ecf1;color:#0c5460}#js-status{background-color:#d4edda;color:#155724}#react-status{background-color:#f8d7da;color:#721c24}</style></head><body><h1>Production Debug</h1><div id="root-status" class="status info">Checking...</div><div id="js-status" class="status info">Loading JS...</div><div id="react-status" class="status info">Waiting...</div><div id="root">React mount here</div><script>function u(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='status '+type}const root=document.getElementById('root');if(root)u('root-status','Root OK','success');else u('root-status','No Root','error');window.addEventListener('error',e=>{u('js-status','JS Error: '+e.message,'error')});window.addEventListener('unhandledrejection',e=>{u('react-status','Promise Error','error')});setTimeout(()=>{if(document.getElementById('js-status').textContent.includes('Loading'))u('js-status','JS OK','success')},2000);setTimeout(()=>{if(document.getElementById('react-status').textContent.includes('React OK'))u('react-status','React OK','success')},5000);</script><link rel="stylesheet" href="/assets/index-DdPLYbvI.css"><script type="module" src="/assets/index-XUqBjYsW.js"></script></body></html>`);
   });
 
@@ -5530,7 +5428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user role:", error);
       res.status(500).json({ message: "Failed to fetch user role" });
-    }
+    });
   });
 
   app.get('/api/household/members', requireAuth, async (req: AuthenticatedRequest, res) => {

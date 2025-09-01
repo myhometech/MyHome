@@ -7,6 +7,7 @@ import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
 import AddDropdownMenu from "@/components/add-dropdown-menu";
 import { UnifiedInsightsDashboard } from "@/components/unified-insights-dashboard";
+import { TestDataReset } from "@/components/test-data-reset"; // Import TestDataReset
 
 import { useFeatures } from "@/hooks/useFeatures";
 import { 
@@ -534,6 +535,14 @@ export default function InsightsFirstPage() {
             </div>
           )}
         </div>
+
+        {/* Development/Testing Section */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="border-t pt-8">
+            <h3 className="text-lg font-semibold mb-4 text-gray-600">Testing Tools</h3>
+            <TestDataReset />
+          </div>
+        )}
       </main>
 
       {/* Upload dialog removed - now handled by AddDropdownMenu */}

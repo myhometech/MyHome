@@ -34,6 +34,7 @@ import { backupRoutes } from './routes/backup.js';
 import advancedScanningRoutes from './routes/advancedScanning.js';
 import { llmUsageRoutes } from './routes/llmUsageRoutes.js';
 import documentsRouter from './routes/documents.js';
+import testRouter from './routes/testRoutes';
 import { securityHeaders, rateLimiter, corsOptions, securityLogger } from './middleware/security.js';
 import { enhancedHealthCheck } from './middleware/healthCheck.js';
 import { setupOCRErrorRoutes } from './routes/ocrErrorRoutes.js';
@@ -4016,6 +4017,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json(fallbackResponse);
     }
   });
+
+  // Register test routes
+  if (process.env.NODE_ENV === 'development') {
+    app.use('/api/test', requireAuth, testRouter);
+  }
 
   app.use(sentryErrorHandler());
 

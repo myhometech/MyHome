@@ -206,65 +206,14 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
       message: insight.message?.substring(0, 50) 
     });
 
-    if (insight.documentId && !isNaN(insight.documentId) && insight.documentId > 0) {
-      // First verify the document exists before attempting navigation
-      try {
-        console.log(`[INSIGHT-CARD] Verifying document ${insight.documentId}...`);
-        const response = await fetch(`/api/documents/${insight.documentId}`, {
-          credentials: 'include',
-          headers: { 'Accept': 'application/json' }
-        });
-
-        console.log(`[INSIGHT-CARD] Document verification response:`, {
-          status: response.status,
-          ok: response.ok,
-          url: response.url
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.log(`[INSIGHT-CARD] Document verification failed:`, errorText);
-          
-          if (response.status === 404) {
-            toast({
-              title: "Document Not Found",
-              description: "The document linked to this insight no longer exists.",
-              variant: "destructive",
-            });
-          } else if (response.status === 403) {
-            toast({
-              title: "Access Denied",
-              description: "You don't have permission to view this document.",
-              variant: "destructive",
-            });
-          } else {
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
-          }
-          return;
-        }
-
-        const documentData = await response.json();
-        console.log(`[INSIGHT-CARD] Document ${insight.documentId} verified:`, documentData);
-
-        // Document exists, proceed with navigation
-        if (onDocumentClick) {
-          console.log(`[INSIGHT-CARD] Using parent document click handler for document ${insight.documentId}`);
-          onDocumentClick(insight.documentId);
-        } else {
-          console.log(`[INSIGHT-CARD] Navigating to document page for document ${insight.documentId}`);
-          setLocation(`/document/${insight.documentId}`);
-        }
-
-      } catch (error) {
-        console.error(`[INSIGHT-CARD] Error verifying document ${insight.documentId}:`, error);
-        toast({
-          title: "Error Opening Document",
-          description: "Failed to access the document. Please try again later.",
-          variant: "destructive",
-        });
-      }
-    } else {
-      console.warn(`[INSIGHT-CARD] Invalid or missing documentId for insight ${insight.id}:`, insight.documentId);
+    // Validate documentId more thoroughly
+    const documentId = Number(insight.documentId);
+    if (!insight.documentId || isNaN(documentId) || documentId <= 0) {
+      console.warn(`[INSIGHT-CARD] Invalid documentId for insight ${insight.id}:`, {
+        raw: insight.documentId,
+        converted: documentId,
+        isNaN: isNaN(documentId)
+      });
 
       // Check if this is a manual event type insight
       if (insight.id && insight.id.startsWith('manual-')) {
@@ -279,6 +228,102 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
           variant: "destructive",
         });
       }
+      return;
+    }
+
+    // First verify the document exists before attempting navigation
+    try {
+      console.log(`[INSIGHT-CARD] Verifying document ${documentId}...`);
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log(`[INSIGHT-CARD] Document verification response:`, {
+        status: response.status,
+        ok: response.ok,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      if (!response.ok) {
+        let errorText = '';
+        let errorData = null;
+        
+        try {
+          errorText = await response.text();
+          if (errorText.startsWith('{')) {
+            errorData = JSON.parse(errorText);
+          }
+        } catch (parseError) {
+          console.warn('[INSIGHT-CARD] Failed to parse error response:', parseError);
+        }
+        
+        console.error(`[INSIGHT-CARD] Document verification failed:`, {
+          status: response.status,
+          errorText,
+          errorData
+        });
+        
+        if (response.status === 404) {
+          toast({
+            title: "Document Not Found",
+            description: "The document linked to this insight no longer exists.",
+            variant: "destructive",
+          });
+        } else if (response.status === 403) {
+          toast({
+            title: "Access Denied",
+            description: "You don't have permission to view this document.",
+            variant: "destructive",
+          });
+        } else if (response.status === 401) {
+          toast({
+            title: "Authentication Required",
+            description: "Please log in to view this document.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error Loading Document",
+            description: `Server error (${response.status}). Please try again.`,
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+
+      const documentData = await response.json();
+      console.log(`[INSIGHT-CARD] Document ${documentId} verified successfully:`, {
+        id: documentData.id,
+        name: documentData.name,
+        exists: documentData.exists
+      });
+
+      // Document exists, proceed with navigation
+      if (onDocumentClick) {
+        console.log(`[INSIGHT-CARD] Using parent document click handler for document ${documentId}`);
+        onDocumentClick(documentId);
+      } else {
+        console.log(`[INSIGHT-CARD] Navigating to document page for document ${documentId}`);
+        setLocation(`/document/${documentId}`);
+      }
+
+    } catch (error) {
+      console.error(`[INSIGHT-CARD] Network/fetch error for document ${documentId}:`, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      toast({
+        title: "Connection Error",
+        description: "Unable to connect to the server. Please check your connection and try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -360,42 +405,68 @@ export function InsightCard({ insight, onStatusUpdate, onDocumentClick }: Insigh
                   <AlertCircle className="h-4 w-4 mr-2" />
                   Reopen
                 </DropdownMenuItem>
-                {insight.documentId && !isNaN(insight.documentId) && (
+                {(() => {
+                  const documentId = Number(insight.documentId);
+                  return !isNaN(documentId) && documentId > 0;
+                })() && (
                   <DropdownMenuItem onClick={async () => {
-                    console.log(`[INSIGHT-CARD] Dropdown: Opening document ${insight.documentId}`);
+                    const documentId = Number(insight.documentId);
+                    console.log(`[INSIGHT-CARD] Dropdown: Opening document ${documentId}`);
                     
                     // Verify document exists before navigation
                     try {
-                      const response = await fetch(`/api/documents/${insight.documentId}`, {
+                      const response = await fetch(`/api/documents/${documentId}`, {
+                        method: 'GET',
                         credentials: 'include',
-                        headers: { 'Accept': 'application/json' }
+                        headers: { 
+                          'Accept': 'application/json',
+                          'Content-Type': 'application/json'
+                        }
                       });
 
                       if (!response.ok) {
+                        console.error(`[INSIGHT-CARD] Dropdown document verification failed:`, {
+                          status: response.status,
+                          documentId
+                        });
+                        
                         if (response.status === 404) {
                           toast({
                             title: "Document Not Found",
                             description: "The document linked to this insight no longer exists.",
                             variant: "destructive",
                           });
+                        } else if (response.status === 403) {
+                          toast({
+                            title: "Access Denied",
+                            description: "You don't have permission to view this document.",
+                            variant: "destructive",
+                          });
                         } else {
-                          throw new Error(`HTTP ${response.status}`);
+                          toast({
+                            title: "Error Loading Document",
+                            description: `Server error (${response.status}). Please try again.`,
+                            variant: "destructive",
+                          });
                         }
                         return;
                       }
 
+                      const documentData = await response.json();
+                      console.log(`[INSIGHT-CARD] Dropdown: Document ${documentId} verified successfully`);
+
                       // Document exists, proceed with navigation
                       if (onDocumentClick) {
-                        onDocumentClick(insight.documentId);
+                        onDocumentClick(documentId);
                       } else {
-                        setLocation(`/document/${insight.documentId}`);
+                        setLocation(`/document/${documentId}`);
                       }
 
                     } catch (error) {
-                      console.error(`[INSIGHT-CARD] Error opening document ${insight.documentId}:`, error);
+                      console.error(`[INSIGHT-CARD] Dropdown network error for document ${documentId}:`, error);
                       toast({
-                        title: "Error Opening Document",
-                        description: "Failed to access the document. Please try again later.",
+                        title: "Connection Error",
+                        description: "Unable to connect to the server. Please check your connection and try again.",
                         variant: "destructive",
                       });
                     }

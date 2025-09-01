@@ -349,6 +349,7 @@ router.get('/', async (req: any, res: any) => {
 // Get individual document details by ID
 router.get('/:id', async (req: any, res: any) => {
   if (!req.user) {
+    console.log(`[DOCUMENT-ROUTE] No user authentication for document ${req.params.id}`);
     return res.status(401).json({ message: 'Authentication required' });
   }
 
@@ -366,17 +367,37 @@ router.get('/:id', async (req: any, res: any) => {
     const document = await storage.getDocument(documentId, userId);
     if (!document) {
       console.log(`[DOCUMENT-ROUTE] Document ${documentId} not found for user ${userId}`);
-      return res.status(404).json({ message: 'Document not found' });
+      return res.status(404).json({ 
+        message: 'Document not found',
+        documentId,
+        userId,
+        timestamp: new Date().toISOString()
+      });
     }
 
     console.log(`[DOCUMENT-ROUTE] Document ${documentId} found: ${document.name}`);
-    res.json(document);
+    res.json({
+      id: document.id,
+      name: document.name,
+      fileName: document.fileName,
+      mimeType: document.mimeType,
+      userId: document.userId,
+      exists: true,
+      uploadedAt: document.uploadedAt,
+      categoryId: document.categoryId
+    });
 
   } catch (error: any) {
-    console.error(`[DOCUMENT-ROUTE] Failed to fetch document ${req.params.id}:`, error);
+    console.error(`[DOCUMENT-ROUTE] Failed to fetch document ${req.params.id}:`, {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id
+    });
     res.status(500).json({
       message: 'Failed to fetch document',
       error: error.message,
+      documentId: req.params.id,
+      timestamp: new Date().toISOString()
     });
   }
 });

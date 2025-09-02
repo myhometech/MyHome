@@ -864,18 +864,18 @@ export default function UnifiedDocumentCard({
             })()}
 
 
-            {/* Actions dropdown - positioned to avoid overlap */}
+            {/* Actions dropdown - positioned in top corner */}
             {!isEditing && !isRenaming && (
-              <div className="absolute top-2 right-2 z-10">
+              <div className="absolute top-1 right-1 z-10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 bg-white/95 hover:bg-white border border-accent-purple-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                      className="h-6 w-6 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200 opacity-70 hover:opacity-100"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreHorizontal className="h-3.5 w-3.5 text-accent-purple-600" />
+                      <X className="h-3 w-3 text-gray-500 hover:text-accent-purple-600 rotate-45" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

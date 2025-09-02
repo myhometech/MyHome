@@ -1148,12 +1148,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (isCloudStorageDocument) {
-        console.log(`📁 GCS PREVIEW: Loading document ${document.filePath} from cloud storage`);
+        console.log(`📁 GCS PREVIEW: Loading document ${document.gcsPath} from cloud storage`);
         console.log(`📁 GCS PREVIEW: Proxying document content to maintain modal functionality`);
         
         const storageService = storageProvider();
         try {
-          const fileBuffer = await storageService.download(document.filePath);
+          const fileBuffer = await storageService.download(document.gcsPath);
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Cache-Control', 'public, max-age=3600');
           res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');

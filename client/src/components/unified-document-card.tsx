@@ -628,13 +628,41 @@ export default function UnifiedDocumentCard({
                             <h3 className="font-semibold text-base leading-tight text-gray-900 line-clamp-2 mb-1">
                               {document.name}
                             </h3>
-                            {/* Insights count with icon */}
+                            {/* Insights with type-specific icons */}
                             {showInsights && openInsights.length > 0 && (
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1 px-2 py-1 bg-accent-purple-100 text-accent-purple-700 rounded-md text-xs font-medium">
-                                  <Brain className="h-3 w-3" />
-                                  <span>{openInsights.length} insight{openInsights.length !== 1 ? 's' : ''}</span>
-                                </div>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {(() => {
+                                  // Group insights by type and count them
+                                  const insightsByType = openInsights.reduce((acc, insight) => {
+                                    acc[insight.type] = (acc[insight.type] || 0) + 1;
+                                    return acc;
+                                  }, {} as Record<string, number>);
+
+                                  // Define type configurations with icons
+                                  const typeConfigs = {
+                                    summary: { icon: FileText, color: 'bg-blue-100 text-blue-700', label: 'Summary' },
+                                    action_items: { icon: ListTodo, color: 'bg-orange-100 text-orange-700', label: 'Actions' },
+                                    key_dates: { icon: Calendar, color: 'bg-purple-100 text-purple-700', label: 'Dates' },
+                                    financial_info: { icon: DollarSign, color: 'bg-green-100 text-green-700', label: 'Financial' },
+                                    contacts: { icon: Users, color: 'bg-cyan-100 text-cyan-700', label: 'Contacts' },
+                                    compliance: { icon: Shield, color: 'bg-red-100 text-red-700', label: 'Compliance' }
+                                  };
+
+                                  return Object.entries(insightsByType).map(([type, count]) => {
+                                    const config = typeConfigs[type as keyof typeof typeConfigs] || typeConfigs.summary;
+                                    const IconComponent = config.icon;
+                                    
+                                    return (
+                                      <div 
+                                        key={type}
+                                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${config.color}`}
+                                      >
+                                        <IconComponent className="h-3 w-3" />
+                                        <span>{count}</span>
+                                      </div>
+                                    );
+                                  });
+                                })()}
                               </div>
                             )}
                           </div>
@@ -831,14 +859,14 @@ export default function UnifiedDocumentCard({
               <div className="absolute bottom-10 right-2 z-10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div 
-                      className="flex items-center gap-0 cursor-pointer rounded-xl overflow-hidden border-2 border-accent-purple-300/40 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 modern-button"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 bg-white/90 hover:bg-accent-purple-50 border border-accent-purple-200/60 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex items-center gap-1 px-2 py-2 bg-gradient-to-r from-white to-accent-purple-50 hover:from-accent-purple-50 hover:to-accent-purple-100">
-                        <MoreHorizontal className="h-4 w-4 text-accent-purple-600" />
-                      </div>
-                    </div>
+                      <MoreHorizontal className="h-4 w-4 text-accent-purple-600" />
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={(e) => {

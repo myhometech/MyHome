@@ -66,8 +66,8 @@ import type { AuthenticatedRequest } from "./middleware/auth";
 import 'express-session';
 
 // Helper function to ensure user has correct shape
-function asAuthenticatedRequest(req: Request): AuthenticatedRequest {
-  return req as AuthenticatedRequest;
+function asAuthenticatedRequest(req: Request): any {
+  return req as any;
 }
 
 // Session type augmentation
@@ -191,7 +191,7 @@ const mailgunUpload = multer({
 });
 
 // Helper function to get user ID from request
-function getUserId(req: AuthenticatedRequest): string {
+function getUserId(req: any): string {
   try {
     if (req.user?.id) {
       console.log(`✅ Found user ID in req.user: ${req.user.id}`);
@@ -448,7 +448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return next();
     }
 
-    return requireAuth(req, res, () => loadHouseholdRole(req as AuthenticatedRequest, res, next));
+    return requireAuth(req, res, () => loadHouseholdRole(req as any, res, next));
   });
 
   // Support both GET and POST for logout (for convenience)
@@ -1354,7 +1354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update document details (name and expiry date)
-  app.patch('/api/documents/:id', requireAuth, requireDocumentAccess('write'), async (req: AuthenticatedRequest, res) => {
+  app.patch('/api/documents/:id', requireAuth, requireDocumentAccess('write'), async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -1746,15 +1746,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error generating document insights:", error);
-      captureError(error, req);
+      captureError(error as Error, req);
 
-      if (error.message.includes('quota exceeded')) {
+      if ((error as Error).message.includes('quota exceeded')) {
         return res.status(429).json({ 
           message: "OpenAI API quota exceeded. Please check your billing and usage limits." 
         });
       }
 
-      if (error.message.includes('Failed to parse AI insight response')) {
+      if ((error as Error).message.includes('Failed to parse AI insight response')) {
         return res.status(200).json({ 
           success: true,
           insights: [],
@@ -1771,7 +1771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // INSIGHT-102: Get insights with optional filters and tier support
-  app.get('/api/insights', requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.get('/api/insights', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const {
@@ -2143,7 +2143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/documents/:id', requireAuth, requireDocumentAccess('delete'), async (req: AuthenticatedRequest, res) => {
+  app.delete('/api/documents/:id', requireAuth, requireDocumentAccess('delete'), async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -2302,7 +2302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin middleware
-  function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  function requireAdmin(req: any, res: Response, next: NextFunction) {
     console.log('🔧 Admin middleware check - Session user:', (req.session as any)?.user?.email, 'Role:', (req.session as any)?.user?.role);
     console.log('🔧 Admin middleware check - Req user:', req.user?.email, 'Role:', req.user?.role);
 
@@ -3984,7 +3984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/chat - Chat orchestration endpoint with search + LLM + persistence
   app.post("/api/chat", requireAuth, async (req, res) => {
     try {
-      const userId = req.user!.id;
+      const userId = (req.user as any)?.id || getUserId(req);
       
       // Get user and determine tenantId (same logic as conversation creation)
       const user = await storage.getUser(userId);

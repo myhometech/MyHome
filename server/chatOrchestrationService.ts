@@ -359,6 +359,8 @@ export class ChatOrchestrationService {
     let llmResponse: LLMChatResponse;
     let tokensIn = 0;
     let tokensOut = 0;
+    let escalationTrigger: 'low_confidence' | 'insufficient_evidence' | 'complex_query' | undefined;
+    let initialConfidence: number | undefined;
 
     try {
       // Initial LLM call
@@ -386,7 +388,6 @@ export class ChatOrchestrationService {
       
       if (shouldEscalate) {
         // Determine escalation trigger for audit logging
-        let escalationTrigger: 'low_confidence' | 'insufficient_evidence' | 'complex_query';
         if (llmResponse.confidence < 0.7) {
           escalationTrigger = 'low_confidence';
         } else if (llmResponse.answer === "INSUFFICIENT_EVIDENCE") {
@@ -397,7 +398,7 @@ export class ChatOrchestrationService {
         
         console.log(`🔄 [CHAT] Escalating to 70B due to: ${escalationTrigger} (confidence=${llmResponse.confidence})`);
         
-        const initialConfidence = llmResponse.confidence;
+        initialConfidence = llmResponse.confidence;
         fallbackTo70B = true;
         finalModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
         llmStartTime = Date.now();
@@ -410,10 +411,6 @@ export class ChatOrchestrationService {
         const accurateResponse = await this.llmAdapter.generate(accurateRequest);
         tokensOut = Math.floor(accurateResponse.text.length / 4);
         llmResponse = await this.parseLLMResponse(accurateResponse.text, prompt);
-        
-        // Store escalation trigger in audit data
-        (auditData as any).escalationTrigger = escalationTrigger;
-        (auditData as any).initialConfidence = initialConfidence;
       }
       
     } catch (llmError: any) {
@@ -429,7 +426,7 @@ export class ChatOrchestrationService {
     const totalLatency = Date.now() - startTime;
     const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Prepare audit data
+    // Prepare audit data for return value (original format)
     const auditData = {
       conversationId: request.conversationId,
       messageId,
@@ -459,13 +456,28 @@ export class ChatOrchestrationService {
       costUsd: provider === 'together' ? llmUsageLogger.calculateTogetherCost(finalModel, tokensIn + tokensOut) : undefined
     });
 
-    // Log model escalation audit data
-    await modelEscalationAuditor.logEscalation({
-      ...auditData,
-      escalationTrigger: (auditData as any).escalationTrigger,
-      initialConfidence: (auditData as any).initialConfidence,
+    // Prepare escalation audit data (new format)
+    const escalationAuditData = {
+      conversationId: request.conversationId,
+      messageId,
+      tenantId,
+      userId,
+      initialModel,
+      finalModel,
+      latencyMsTotal: totalLatency,
+      latencyMsLlm: llmLatency,
+      tokensIn,
+      tokensOut,
+      docIdsTouched: docIdsTouched.map(r => parseInt(r.docId)).filter(id => !isNaN(id)),
+      finalConfidence: llmResponse.confidence,
+      escalated: fallbackTo70B,
+      escalationTrigger,
+      initialConfidence,
       costUsd: provider === 'together' ? llmUsageLogger.calculateTogetherCost(finalModel, tokensIn + tokensOut) : undefined
-    });
+    };
+
+    // Log model escalation audit data
+    await modelEscalationAuditor.logEscalation(escalationAuditData);
 
     return { llmResponse, auditData };
   }

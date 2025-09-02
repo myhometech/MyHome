@@ -271,7 +271,7 @@ export default function ResetPassword() {
           </Form>
 
           <div className="text-center">
-            <Link href="/login" className="inline-flex items-center gap-2 text-sm text-accent-purple-600 hover:text-accent-purple-500">
+            <Link href="/login" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-500">
               <ArrowLeft className="h-4 w-4" />
               Back to login
             </Link>

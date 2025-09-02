@@ -160,6 +160,12 @@ export class ResourceTracker {
    */
   private async deleteFile(filePath: string): Promise<void> {
     try {
+      // Validate file path to prevent directory traversal
+      if (filePath.includes('..') || !path.isAbsolute(filePath)) {
+        console.warn(`⚠️ Invalid file path rejected: ${filePath}`);
+        return;
+      }
+      
       await fs.access(filePath);
       await fs.unlink(filePath);
       console.log(`🗑️ Deleted temporary file: ${filePath}`);

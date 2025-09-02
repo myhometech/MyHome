@@ -37,17 +37,22 @@ class PerformanceMonitoringService {
     resultCount?: number,
     error?: string
   ): void {
-    const metric: QueryMetric = {
-      query: this.sanitizeQuery(query),
-      executionTime,
-      resultCount,
-      userId,
-      endpoint,
-      timestamp: new Date(),
-      error,
-    };
+    try {
+      const metric: QueryMetric = {
+        query: this.sanitizeQuery(query),
+        executionTime: Math.max(0, executionTime), // Ensure non-negative
+        resultCount,
+        userId,
+        endpoint,
+        timestamp: new Date(),
+        error,
+      };
 
-    this.queryMetrics.push(metric);
+      this.queryMetrics.push(metric);
+    } catch (err) {
+      console.error('Failed to record query metric:', err);
+      return; // Fail silently to not break main flow
+    }
 
     // Log slow queries
     if (executionTime > this.slowQueryThreshold) {

@@ -62,8 +62,20 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   handleRetry = () => {
+    // Clear any pending timer
+    if ((this as any).autoBypassTimer) {
+      clearTimeout((this as any).autoBypassTimer);
+      (this as any).autoBypassTimer = null;
+    }
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
+
+  componentWillUnmount() {
+    // Clean up timer on unmount
+    if ((this as any).autoBypassTimer) {
+      clearTimeout((this as any).autoBypassTimer);
+    }
+  }
 
   render() {
     if (this.state.hasError) {
@@ -75,12 +87,15 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       // Auto-bypass on mobile after 3 seconds if user hasn't interacted
-      setTimeout(() => {
+      const autoBypassTimer = setTimeout(() => {
         if (this.state.hasError && !urlParams.get('bypass')) {
           console.log('🚨 AUTO-BYPASSING ERROR BOUNDARY after 3 seconds');
           window.location.href = window.location.pathname + '?bypass=true';
         }
       }, 3000);
+
+      // Store timer reference for cleanup
+      (this as any).autoBypassTimer = autoBypassTimer;
 
       // Custom fallback UI
       if (this.props.fallback) {

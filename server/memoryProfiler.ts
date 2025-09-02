@@ -43,9 +43,16 @@ export class MemoryProfiler {
   private isEnabled = process.env.MEMORY_PROFILING === 'true';
 
   constructor() {
-    if (this.isEnabled) {
+    // Only enable in development or when explicitly requested
+    const isValidEnv = process.env.NODE_ENV === 'development' || 
+                      process.env.MEMORY_PROFILING === 'true';
+    
+    if (this.isEnabled && isValidEnv) {
       this.startProfiling();
       console.log('🔍 Memory profiler enabled');
+    } else if (this.isEnabled && !isValidEnv) {
+      console.warn('⚠️ Memory profiling disabled in production for performance');
+      this.isEnabled = false;
     }
   }
 

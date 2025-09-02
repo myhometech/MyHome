@@ -1136,19 +1136,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      // Check for cloud storage documents first
-      if (document.gcsPath && document.isEncrypted) {
-        // This is a cloud storage document, handle it below
-        console.log(`📁 Cloud storage document detected: ${documentId} (path: ${document.gcsPath})`);
-      } else if (!document.encryptionMetadata && !fs.existsSync(document.filePath)) {
-        // Only check local files for non-cloud storage documents
-        console.log(`Local file not found: ${document.filePath} for document ${documentId}`);
-        return res.status(404).json({ 
-          message: "Document file not found.",
-          code: "FILE_NOT_FOUND",
-          documentId: documentId,
-          fileName: document.fileName
-        });
+      // Check if document is stored in GCS (based on encryption metadata)
+      const isCloudStorageDocument = document.encryptionMetadata?.storageType === 'cloud';
+      
+      if (isCloudStorageDocument) {
+        console.log(`📁 GCS PREVIEW: Loading document ${document.filePath} from cloud storage`);
+        console.log(`📁 GCS PREVIEW: Proxying document content to maintain modal functionality`);
+        
+        const storageService = storageProvider();
+        try {
+          const fileBuffer = await storageService.download(document.filePath);
+          res.setHeader('Content-Type', document.mimeType);
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
+          res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
+          res.setHeader('Access-Control-Allow-Credentials', 'true');
+          res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+          res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+
+          // For PDFs, add headers to ensure proper display in iframe
+          if (document.mimeType === 'application/pdf') {
+            res.setHeader('Content-Security-Policy', 'frame-ancestors \'self\'');
+            res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+          }
+          return res.send(fileBuffer);
+        } catch (downloadError) {
+          console.error('GCS download failed:', downloadError);
+          return res.status(500).json({ 
+            message: "Failed to download document from cloud storage",
+            error: downloadError?.message || 'Unknown error' 
+          });
+        }
       }
 
 
@@ -1429,10 +1447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Document type does not support OCR" });
       }
 
-      if (!fs.existsSync(document.filePath)) {
-        return res.status(404).json({ message: "File not found on server" });
-      }
-
+      // Documents are stored in GCS - filePath contains GCS key, not local path
       try {
         const extractedText = await extractTextFromImage(document.filePath, document.mimeType);
         const updatedDocument = await storage.updateDocumentOCR(documentId, extractedText);
@@ -1466,9 +1481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
-      if (!fs.existsSync(document.filePath)) {
-        return res.status(404).json({ message: "Document file not found" });
-      }
+      // Documents are stored in GCS - filePath contains GCS key, not local path
 
       // Reprocess the document with date extraction
       await processDocumentWithDateExtraction(
@@ -2247,7 +2260,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Check if file exists and handle missing files gracefully
+      // Handle unencrypted cloud storage documents
+      if (document.encryptionMetadata) {
+        const metadata = JSON.parse(document.encryptionMetadata);
+        if (metadata.storageType === 'cloud' && metadata.storageKey) {
+          console.log(`📁 GCS DOWNLOAD: Downloading unencrypted document ${metadata.storageKey} from cloud storage`);
+          
+          try {
+            const storage = storageProvider();
+            const fileBuffer = await storage.download(metadata.storageKey);
+
+            // Set appropriate headers for download
+            res.setHeader('Content-Type', document.mimeType);
+            res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
+            res.setHeader('Cache-Control', 'private, max-age=3600');
+
+            res.send(fileBuffer);
+            return;
+          } catch (gcsError: any) {
+            console.error('GCS download failed:', gcsError);
+            return res.status(500).json({ 
+              message: "Failed to download document from cloud storage",
+              error: gcsError?.message || 'Unknown error' 
+            });
+          }
+        }
+      }
+
+      // Check if local file exists (only for legacy local storage documents)
       if (!fs.existsSync(document.filePath)) {
         console.error(`File not found: ${document.filePath} for document ${document.id}`);
 
@@ -4080,7 +4120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { extractTextFromImage } = await import('./ocrService');
-      const extractedText = await extractTextFromImage(document);
+      const extractedText = await extractTextFromImage(document.filePath, document.mimeType);
       
       if (extractedText) {
         await storage.updateDocumentOCR(documentId, extractedText);

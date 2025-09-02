@@ -4068,6 +4068,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEMP: Internal OCR reprocessing endpoint for debugging (no auth for internal use)
+  app.post('/api/internal/ocr-reprocess/:id', async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      console.log(`🔧 [TEMP-OCR] Reprocessing document ${documentId}`);
+
+      const document = await storage.getDocument(documentId, 'system');
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      const { extractTextFromImage } = await import('./ocrService');
+      const extractedText = await extractTextFromImage(document);
+      
+      if (extractedText) {
+        await storage.updateDocumentOCR(documentId, extractedText);
+        console.log(`✅ [TEMP-OCR] Document ${documentId} reprocessed successfully`);
+        res.json({ 
+          success: true, 
+          extractedText: extractedText.substring(0, 200) + '...',
+          length: extractedText.length
+        });
+      } else {
+        res.status(500).json({ message: "Failed to extract text" });
+      }
+    } catch (error: any) {
+      console.error(`❌ [TEMP-OCR] Error reprocessing document:`, error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Register test routes
   if (process.env.NODE_ENV === 'development') {
     app.use('/api/test', requireAuth, testRouter);

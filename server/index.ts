@@ -39,6 +39,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { withCorrelationId } from "./middleware/correlationId.js";
+import { setupSimpleAuth } from "./simpleAuth.js";
 
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
 console.log('ℹ️  Simplified memory management enabled');

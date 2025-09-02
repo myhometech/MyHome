@@ -13,6 +13,7 @@ import { LlamaProvider } from "./services/llamaProvider";
 import { featureFlagService } from "./featureFlagService";
 import { llmUsageLogger } from "./llmUsageLogger";
 import { modelEscalationAuditor } from "./services/modelEscalationAuditor";
+import { factsFirstService } from "./services/factsFirstService";
 
 export class ChatOrchestrationService {
   private storage = new PostgresStorage(db);
@@ -46,17 +47,123 @@ export class ChatOrchestrationService {
         content: request.message,
       });
 
-      // Step 3: Search for relevant documents
+      // CHAT-BUG-012 Step 2.5: Facts-first answering for amount/date queries
+      const factsResponse = await factsFirstService.tryFactsFirstAnswer(
+        request.message,
+        tenantId,
+        userId,
+        {
+          dateFrom: request.filters?.dateFrom,
+          dateTo: request.filters?.dateTo,
+          provider: request.filters?.provider,
+          docType: request.filters?.docType
+        }
+      );
+
+      if (factsResponse.found && factsResponse.answer) {
+        console.log(`🎯 [FACTS-FIRST] Direct answer from ${factsResponse.facts.length} high-confidence facts`);
+        
+        // Create direct response from facts (no LLM needed)
+        const factsCitations = factsResponse.facts.map(fact => ({
+          docId: fact.citation.docId,
+          page: fact.citation.page || undefined,
+          title: fact.citation.title
+        }));
+
+        const assistantMessage = await this.storage.createMessage({
+          conversationId: request.conversationId,
+          tenantId,
+          userId: null, // Assistant messages don't have a userId
+          role: 'assistant',
+          content: factsResponse.answer,
+          citations: factsCitations.map(c => ({
+            docId: parseInt(c.docId),
+            page: c.page
+          })),
+          verdict: {
+            confidence: factsResponse.confidence,
+            grounded: true, // Facts are always grounded
+            slots: {}
+          },
+          usage: {
+            model: 'facts-first',
+            prompt_tokens: 0,
+            completion_tokens: 0,
+          },
+        });
+
+        console.log(`✅ [FACTS-FIRST] Direct response completed with confidence ${factsResponse.confidence.toFixed(2)}`);
+
+        return {
+          conversationId: request.conversationId,
+          answer: factsResponse.answer,
+          citations: factsCitations,
+          slots: {},
+          confidence: factsResponse.confidence,
+        };
+      }
+
+      // Step 3: Search for relevant documents (CHAT-BUG-012: Updated limits and window)
       const searchRequest: SearchSnippetsRequest = {
         query: request.message,
         filters: request.filters,
-        limit: 20,
-        snippetLimit: 3,
-        snippetCharWindow: 300,
+        limit: 50, // CHAT-BUG-012: Increased from 20
+        snippetLimit: 4, // CHAT-BUG-012: Increased from 3
+        snippetCharWindow: 320, // CHAT-BUG-012: Increased from 300 to ensure context isn't cut off
       };
 
       const searchResults = await this.storage.searchDocumentSnippets(searchRequest, tenantId);
       console.log(`🔍 [CHAT] Found ${searchResults.results.length} relevant documents`);
+
+      // CHAT-BUG-012 Part D: Handle zero search results - don't escalate to 70B, provide document suggestions
+      if (searchResults.results.length === 0) {
+        console.log(`📋 [CHAT] Zero search results - generating document suggestions instead of LLM escalation`);
+        
+        // Get keyword-only document suggestions (title/date only)
+        const documentSuggestions = await this.getDocumentSuggestions(request.message, tenantId, userId);
+        
+        let suggestionsText = '';
+        if (documentSuggestions.length > 0) {
+          const suggestionsList = documentSuggestions
+            .slice(0, 3) // Top 3 suggestions
+            .map((doc, index) => `${index + 1}. ${doc.title}${doc.date ? ` (${doc.date})` : ''}`)
+            .join('\n');
+          
+          suggestionsText = `\n\nHere are some related documents that might help:\n${suggestionsList}`;
+        }
+
+        const noResultsResponse = `INSUFFICIENT_EVIDENCE${suggestionsText}`;
+
+        // Persist the response without LLM processing
+        const assistantMessage = await this.storage.createMessage({
+          conversationId: request.conversationId,
+          tenantId,
+          userId: null,
+          role: 'assistant',
+          content: noResultsResponse,
+          citations: [],
+          verdict: {
+            confidence: 0.0,
+            grounded: false,
+            slots: {}
+          },
+          usage: {
+            model: 'no-escalation',
+            prompt_tokens: 0,
+            completion_tokens: 0,
+          },
+        });
+
+        console.log(`✅ [CHAT] Zero-results response completed with document suggestions`);
+
+        return {
+          conversationId: request.conversationId,
+          answer: noResultsResponse,
+          citations: [],
+          slots: {},
+          confidence: 0.0,
+        };
+      }
 
       // CHAT-008: Step 3.5: Gather structured facts for relevant documents
       const structuredFacts = await this.gatherStructuredFacts(searchResults.results, userId);
@@ -256,7 +363,7 @@ export class ChatOrchestrationService {
   }
 
   /**
-   * Verify numeric/date accuracy against search results
+   * CHAT-BUG-012 Part C: Enhanced verifier with strong cues, better currency parsing, and credit handling
    */
   private verifyResponseAccuracy(llmResponse: LLMChatResponse, searchResults: any): LLMChatResponse {
     if (llmResponse.answer === "INSUFFICIENT_EVIDENCE") {
@@ -266,35 +373,174 @@ export class ChatOrchestrationService {
     let verified = { ...llmResponse };
     
     // Extract amounts and dates from search snippets
-    const snippetText = searchResults.results
-      .flatMap((r: any) => r.snippets)
-      .map((s: any) => s.text)
-      .join(' ');
+    const allSnippets = searchResults.results.flatMap((r: any) => r.snippets);
+    const snippetText = allSnippets.map((s: any) => s.text).join(' ');
 
-    // Check amount accuracy
+    // CHAT-BUG-012: Strong-cue rule - look for "total due", "amount due", "balance due" patterns
+    const strongCuePattern = /total\s+due|amount\s+due|balance\s+due/i;
+    const hasStrongCue = strongCuePattern.test(snippetText);
+
+    // CHAT-BUG-012: Enhanced currency parsing - support £, GBP, EUR, €, USD, US$
+    const currencyPattern = /(£|GBP:?|EUR|€|USD|US\$)\s*(\d+(?:[,.]\d{2})?)/gi;
+    const foundAmounts = [...snippetText.matchAll(currencyPattern)];
+
+    // CHAT-BUG-012: Negative/credit handling - ignore credit/adjustment/refund lines unless explicitly asked
+    const creditPattern = /\b(credit|adjustment|refund|reversal|cancelled|void)\b/i;
+    const filteredSnippets = allSnippets.filter((snippet: any) => {
+      // Keep snippet if it doesn't contain credit terms, or if user query explicitly mentions them
+      const hasCredit = creditPattern.test(snippet.text);
+      const userAskedForCredits = /\b(credit|adjustment|refund|reversal)\b/i.test(verified.answer || '');
+      return !hasCredit || userAskedForCredits;
+    });
+
+    console.log(`🔍 [VERIFIER] Strong cue: ${hasStrongCue}, Amounts found: ${foundAmounts.length}, Filtered snippets: ${filteredSnippets.length}/${allSnippets.length}`);
+
+    // Check amount accuracy with enhanced logic
     if (llmResponse.slots?.amount) {
-      const amountPattern = new RegExp(`£?\\s*${llmResponse.slots.amount}`, 'i');
-      if (!amountPattern.test(snippetText)) {
-        console.warn(`⚠️ [CHAT] Amount ${llmResponse.slots.amount} not found in snippets`);
-        verified.confidence = Math.max(0.1, verified.confidence * 0.5);
-        verified.answer = "INSUFFICIENT_EVIDENCE";
-      }
-    }
+      const slotAmount = llmResponse.slots.amount.replace(/[^\d.,]/g, ''); // Extract numeric part
+      
+      // Build comprehensive amount pattern with multiple currency formats
+      const amountPatterns = [
+        new RegExp(`£\\s*${slotAmount}`, 'i'),
+        new RegExp(`GBP:?\\s*${slotAmount}`, 'i'), 
+        new RegExp(`€\\s*${slotAmount}`, 'i'),
+        new RegExp(`EUR\\s*${slotAmount}`, 'i'),
+        new RegExp(`USD\\s*${slotAmount}`, 'i'),
+        new RegExp(`US\\$\\s*${slotAmount}`, 'i'),
+        new RegExp(`${slotAmount}\\s*(£|GBP|EUR|€|USD|US\\$)`, 'i') // Amount before currency
+      ];
 
-    // Check date accuracy
-    if (llmResponse.slots?.dueDate) {
-      const dateStr = llmResponse.slots.dueDate;
-      const datePattern = new RegExp(dateStr.replace(/-/g, '[-\\s]'), 'i');
-      if (!datePattern.test(snippetText)) {
-        console.warn(`⚠️ [CHAT] Date ${dateStr} not found in snippets`);
-        verified.confidence = Math.max(0.1, verified.confidence * 0.5);
-        if (verified.answer !== "INSUFFICIENT_EVIDENCE") {
+      const amountFound = amountPatterns.some(pattern => pattern.test(snippetText));
+      
+      if (!amountFound) {
+        console.warn(`⚠️ [VERIFIER] Amount ${llmResponse.slots.amount} not found in snippets`);
+        
+        // CHAT-BUG-012: Apply strong-cue rule - accept with confidence ≥ 0.6 if strong cue + currency found
+        if (hasStrongCue && foundAmounts.length > 0) {
+          console.log(`✅ [VERIFIER] Strong cue rule applied - accepting despite amount mismatch`);
+          verified.confidence = Math.max(0.6, verified.confidence);
+        } else {
+          verified.confidence = Math.max(0.1, verified.confidence * 0.5);
           verified.answer = "INSUFFICIENT_EVIDENCE";
+        }
+      } else {
+        console.log(`✅ [VERIFIER] Amount verification passed`);
+        // CHAT-BUG-012: Boost confidence for strong cues
+        if (hasStrongCue) {
+          verified.confidence = Math.min(1.0, verified.confidence * 1.1);
         }
       }
     }
 
+    // CHAT-BUG-012: Enhanced date accuracy with GB locale (dd/mm/yyyy)
+    if (llmResponse.slots?.dueDate) {
+      const dateStr = llmResponse.slots.dueDate;
+      
+      // Build comprehensive date patterns supporting GB format (dd/mm/yyyy)
+      const datePatterns = [
+        new RegExp(dateStr.replace(/-/g, '[-\\s/.]'), 'i'), // ISO format with separators
+        new RegExp(this.convertToGBDateFormat(dateStr), 'i'), // Convert to dd/mm/yyyy
+        new RegExp(dateStr.replace(/(\d{4})-(\d{2})-(\d{2})/, '$3[/.-]$2[/.-]$1'), 'i'), // dd/mm/yyyy
+        new RegExp(dateStr.replace(/(\d{4})-(\d{2})-(\d{2})/, '$2[/.-]$1'), 'i'), // mm/yyyy
+      ];
+
+      const dateFound = datePatterns.some(pattern => pattern.test(snippetText));
+      
+      if (!dateFound) {
+        console.warn(`⚠️ [VERIFIER] Date ${dateStr} not found in snippets`);
+        verified.confidence = Math.max(0.1, verified.confidence * 0.5);
+        if (verified.answer !== "INSUFFICIENT_EVIDENCE") {
+          verified.answer = "INSUFFICIENT_EVIDENCE";
+        }
+      } else {
+        console.log(`✅ [VERIFIER] Date verification passed`);
+      }
+    }
+
+    // CHAT-BUG-012: Final confidence adjustment based on citation quality
+    if (llmResponse.citations && llmResponse.citations.length > 0) {
+      verified.confidence = Math.min(1.0, verified.confidence * 1.05); // Small boost for citations
+    }
+
+    console.log(`📊 [VERIFIER] Final confidence: ${verified.confidence.toFixed(3)}, Strong cue: ${hasStrongCue}`);
     return verified;
+  }
+
+  /**
+   * CHAT-BUG-012: Convert ISO date to GB format (dd/mm/yyyy) for pattern matching
+   */
+  private convertToGBDateFormat(isoDate: string): string {
+    const match = isoDate.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const [, year, month, day] = match;
+      return `${day}[/.-]${month}[/.-]${year}`;
+    }
+    return isoDate;
+  }
+
+  /**
+   * CHAT-BUG-012 Part D: Get document suggestions for zero search results (keyword-only, title/date)
+   */
+  private async getDocumentSuggestions(
+    query: string, 
+    tenantId: string, 
+    userId: string
+  ): Promise<Array<{title: string, date?: string}>> {
+    try {
+      // Extract keywords from query (remove common words)
+      const commonWords = new Set(['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'my', 'what', 'how', 'when', 'where', 'much', 'many', 'is', 'was', 'are', 'were']);
+      const keywords = query.toLowerCase()
+        .split(/\s+/)
+        .filter(word => word.length > 2 && !commonWords.has(word))
+        .slice(0, 5); // Top 5 keywords
+
+      if (keywords.length === 0) {
+        return [];
+      }
+
+      console.log(`🔍 [DOC-SUGGESTIONS] Searching for keywords: ${keywords.join(', ')}`);
+
+      // Query recent documents using getDocuments with recent sort
+      const suggestions = await this.storage.getDocuments(userId, undefined, undefined, undefined, {tenantId}, 'recent');
+      
+      // Filter and score by keyword relevance
+      const scoredSuggestions = suggestions
+        .map(doc => {
+          let score = 0;
+          const title = doc.name.toLowerCase();
+          
+          // Score by keyword matches in title
+          keywords.forEach(keyword => {
+            if (title.includes(keyword)) {
+              score += 2; // Higher weight for title matches
+            }
+          });
+          
+          // Slight boost for recent documents
+          const daysOld = doc.uploadedAt ? 
+            Math.floor((Date.now() - new Date(doc.uploadedAt).getTime()) / (1000 * 60 * 60 * 24)) : 
+            999;
+          if (daysOld < 30) score += 0.5;
+          if (daysOld < 7) score += 0.5;
+          
+          return {
+            title: doc.name,
+            date: doc.expiryDate ? 
+              new Date(doc.expiryDate).toLocaleDateString('en-GB') : 
+              new Date(doc.uploadedAt).toLocaleDateString('en-GB'),
+            score
+          };
+        })
+        .filter(item => item.score > 0) // Only include items with some relevance
+        .sort((a, b) => b.score - a.score); // Sort by relevance score
+
+      console.log(`📋 [DOC-SUGGESTIONS] Found ${scoredSuggestions.length} relevant documents`);
+      return scoredSuggestions;
+
+    } catch (error) {
+      console.error('Error getting document suggestions:', error);
+      return [];
+    }
   }
 
   /**

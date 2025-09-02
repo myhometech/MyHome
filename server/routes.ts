@@ -3747,7 +3747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { featureName } = req.params;
       const context = {
         userId,
-        userTier: user.subscriptionTier as 'free' | 'beginner' | 'pro' | 'duo',
+        userTier: (user.subscriptionTier === 'free' ? 'free' : 'premium') as 'free' | 'premium',
         sessionId: req.sessionID,
         userAgent: req.get('User-Agent'),
         ipAddress: req.ip,
@@ -3773,7 +3773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { chatConfigService } = await import('./chatConfig.js');
       const context = {
         userId,
-        userTier: user.subscriptionTier as 'free' | 'beginner' | 'pro' | 'duo',
+        userTier: (user.subscriptionTier === 'free' ? 'free' : 'premium') as 'free' | 'premium',
         sessionId: req.sessionID,
         userAgent: req.get('User-Agent'),
         ipAddress: req.ip,
@@ -3793,6 +3793,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error getting config:", error);
       res.status(500).json({ message: "Failed to get configuration", error: error.message });
+    }
+  });
+
+  // CHAT-BUG-012: Facts backfill job trigger API
+  app.post('/api/internal/jobs/facts-backfill', requireAuth, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Determine tenantId (userId for individual users, householdId for Duo users)
+      let tenantId = userId;
+      if (user.subscriptionTier === 'duo') {
+        const membership = await storage.getUserHouseholdMembership(userId);
+        if (membership?.householdId) {
+          tenantId = membership.householdId;
+        }
+      }
+
+      // Parse optional fields from request body
+      const { fields } = req.body;
+      const fieldsToBackfill = Array.isArray(fields) ? fields : ['totalAmount', 'dueDate', 'invoiceDate'];
+      
+      console.log(`🔄 [FACTS-BACKFILL] API called for user ${userId}, tenant ${tenantId}, fields: ${fieldsToBackfill.join(', ')}`);
+
+      const { factsFirstService } = await import('./services/factsFirstService.js');
+      const result = await factsFirstService.triggerFactsBackfill(tenantId, userId, fieldsToBackfill);
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error triggering facts backfill:", error);
+      res.status(500).json({ 
+        status: 'error',
+        message: "Failed to trigger facts backfill", 
+        error: error.message 
+      });
     }
   });
 

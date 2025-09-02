@@ -32,8 +32,8 @@ export interface OptimizedSearchResult {
   expiryDate: Date | null;
   extractedText: string | null;
   summary: string | null;
-  ocrProcessed: boolean;
-  uploadedAt: Date;
+  ocrProcessed: boolean | null;
+  uploadedAt: Date | null;
   categoryName: string | null;
   matchType: string;
   snippet: string;
@@ -101,8 +101,8 @@ class SearchOptimizationService {
 
       // Enhanced result processing with relevance scoring
       const enhancedResults = results.map(doc => {
-        const relevanceScore = this.calculateRelevanceScore(doc, searchTerms);
-        const matchInfo = this.determineMatchType(doc, searchTerms);
+        const relevanceScore = this.calculateRelevanceScore(doc as OptimizedSearchResult, searchTerms);
+        const matchInfo = this.determineMatchType(doc as OptimizedSearchResult, searchTerms);
         
         return {
           ...doc,
@@ -110,7 +110,7 @@ class SearchOptimizationService {
           matchType: matchInfo.type,
           snippet: matchInfo.snippet,
           relevanceScore,
-        };
+        } as OptimizedSearchResult;
       });
 
       // Sort by relevance score
@@ -206,7 +206,7 @@ class SearchOptimizationService {
     }
 
     // Boost score for recent documents
-    const daysSinceUpload = (Date.now() - new Date(doc.uploadedAt).getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceUpload = doc.uploadedAt ? (Date.now() - new Date(doc.uploadedAt).getTime()) / (1000 * 60 * 60 * 24) : 999;
     if (daysSinceUpload < 7) score += 2;
     else if (daysSinceUpload < 30) score += 1;
 

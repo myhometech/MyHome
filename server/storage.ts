@@ -1185,122 +1185,221 @@ export class PostgresStorage implements IStorage {
       const {
         query,
         filters = {},
-        limit = 20,
-        snippetLimit = 3,
-        snippetCharWindow = 280
+        limit = 50, // CHAT-BUG-012: Increased from 20
+        snippetLimit = 4, // CHAT-BUG-012: Increased from 3
+        snippetCharWindow = Math.max(320, request.snippetCharWindow || 320) // CHAT-BUG-012: Default 320, min 220
       } = request;
 
-      // Build the full-text search query
-      const searchQuery = sql`plainto_tsquery('english', ${query})`;
-      
-      // Base query with full-text search
-      let dbQuery = this.db
-        .select({
-          docId: documentText.docId,
-          text: documentText.text,
-          pageBreaks: documentText.pageBreaks,
-          title: documents.name,
-          score: sql<number>`ts_rank_cd(${documentText.tsv}, ${searchQuery})`,
-          // Document metadata for filtering
-          tags: documents.tags,
-          uploadedAt: documents.uploadedAt,
-          extractedText: documents.extractedText,
-          emailContext: documents.emailContext,
-          expiryDate: documents.expiryDate,
-        })
-        .from(documentText)
-        .innerJoin(documents, eq(documentText.docId, documents.id))
-        .where(and(
-          eq(documentText.tenantId, tenantId),
-          sql`${documentText.tsv} @@ ${searchQuery}`
-        ));
+      // CHAT-BUG-012: Normalize query with month tokens and synonyms
+      const enhancedQuery = this.enhanceQueryWithSynonyms(query);
+      console.log(`🔍 [SEARCH] Enhanced query: "${query}" -> "${enhancedQuery}"`);
 
-      // Apply filters
-      const conditions: any[] = [
-        eq(documentText.tenantId, tenantId),
-        sql`${documentText.tsv} @@ ${searchQuery}`
-      ];
+      // CHAT-BUG-012: Try primary search first
+      let searchResults = await this.performDocumentSearch(
+        enhancedQuery,
+        tenantId,
+        filters,
+        limit,
+        snippetLimit,
+        snippetCharWindow
+      );
 
-      if (filters.docType && filters.docType.length > 0) {
-        // Filter by document tags (docType is determined by AI categorization stored in tags)
-        conditions.push(sql`EXISTS (SELECT 1 FROM unnest(COALESCE(${documents.tags}, ARRAY[]::text[])) AS tag WHERE tag = ANY(${filters.docType}))`);
-      }
-
-      if (filters.provider) {
-        // Search for provider in document text or email context
-        conditions.push(or(
-          ilike(documentText.text, `%${filters.provider}%`),
-          sql`${documents.emailContext}->>'from' ILIKE ${`%${filters.provider}%`}`
-        ));
-      }
-
-      if (filters.dateFrom || filters.dateTo) {
-        // Filter by expiry date (invoice date) or upload date as fallback
-        const dateConditions: any[] = [];
+      // CHAT-BUG-012: Provider fallback - if 0 results and provider filter set, retry without provider
+      let retriedWithoutProvider = false;
+      if (searchResults.results.length === 0 && filters.provider) {
+        console.log(`🔄 [SEARCH] Provider fallback: Retrying without provider filter`);
+        const fallbackFilters = { ...filters };
+        delete fallbackFilters.provider;
         
-        if (filters.dateFrom) {
-          dateConditions.push(sql`COALESCE(${documents.expiryDate}, ${documents.uploadedAt}) >= ${filters.dateFrom}`);
-        }
-        
-        if (filters.dateTo) {
-          dateConditions.push(sql`COALESCE(${documents.expiryDate}, ${documents.uploadedAt}) <= ${filters.dateTo}`);
-        }
-        
-        conditions.push(and(...dateConditions));
-      }
-
-      if (filters.createdByUserId) {
-        conditions.push(eq(documents.userId, filters.createdByUserId));
-      }
-
-      // Apply all conditions
-      if (conditions.length > 2) { // More than the base conditions
-        dbQuery = dbQuery.where(and(...conditions));
-      }
-
-      // Execute query with ranking and limit
-      const searchResults = await dbQuery
-        .orderBy(sql`ts_rank_cd(${documentText.tsv}, ${searchQuery}) DESC`, desc(documents.uploadedAt))
-        .limit(limit);
-
-      // Generate snippets for each result
-      const results: SearchResult[] = [];
-      
-      for (const result of searchResults) {
-        const snippets = this.extractSnippets(
-          result.text,
-          query,
-          result.pageBreaks,
+        searchResults = await this.performDocumentSearch(
+          enhancedQuery,
+          tenantId,
+          fallbackFilters,
+          limit,
           snippetLimit,
           snippetCharWindow
         );
+        retriedWithoutProvider = true;
+      }
 
-        // Extract metadata
-        const metadata = {
-          docType: result.tags?.find((tag: string) => ['bill', 'invoice', 'statement', 'receipt', 'contract', 'insurance', 'tax'].includes(tag.toLowerCase())),
-          provider: this.extractProvider(result.text, result.emailContext),
-          invoiceDate: result.expiryDate?.toISOString().split('T')[0],
-        };
-
-        results.push({
-          docId: result.docId.toString(),
-          title: result.title,
-          score: Math.min(result.score, 1), // Normalize score to 0-1 range
-          snippets,
-          metadata: Object.keys(metadata).some(key => metadata[key as keyof typeof metadata]) ? metadata : undefined
+      // CHAT-BUG-012: Debug diagnostics (feature flagged)
+      if (process.env.CHAT_DEBUG_RETRIEVAL_LOGS === 'true') {
+        console.log(`📊 [SEARCH-DEBUG]`, {
+          retriedWithoutProvider,
+          tokensQuery: enhancedQuery.split(/\s+/),
+          filtersApplied: Object.keys(filters || {}),
+          resultCount: searchResults.results.length
         });
       }
 
-      return {
-        results,
-        totalResults: results.length,
-        hasMore: results.length === limit,
-      };
+      return searchResults;
 
     } catch (error) {
       console.error('Error in searchDocumentSnippets:', error);
       throw new Error('Failed to search document snippets');
     }
+  }
+
+  /**
+   * CHAT-BUG-012: Perform the actual document search with enhanced ranking
+   */
+  private async performDocumentSearch(
+    query: string,
+    tenantId: string,
+    filters: any,
+    limit: number,
+    snippetLimit: number,
+    snippetCharWindow: number
+  ): Promise<SearchSnippetsResponse> {
+    // Build the full-text search query
+    const searchQuery = sql`plainto_tsquery('english', ${query})`;
+      
+    // Base query with full-text search
+    let dbQuery = this.db
+      .select({
+        docId: documentText.docId,
+        text: documentText.text,
+        pageBreaks: documentText.pageBreaks,
+        title: documents.name,
+        score: sql<number>`ts_rank_cd(${documentText.tsv}, ${searchQuery})`,
+        // Document metadata for filtering
+        tags: documents.tags,
+        uploadedAt: documents.uploadedAt,
+        extractedText: documents.extractedText,
+        emailContext: documents.emailContext,
+        expiryDate: documents.expiryDate,
+      })
+      .from(documentText)
+      .innerJoin(documents, eq(documentText.docId, documents.id))
+      .where(and(
+        eq(documentText.tenantId, tenantId),
+        sql`${documentText.tsv} @@ ${searchQuery}`
+      ));
+
+    // Apply filters
+    const conditions: any[] = [
+      eq(documentText.tenantId, tenantId),
+      sql`${documentText.tsv} @@ ${searchQuery}`
+    ];
+
+    if (filters.docType && filters.docType.length > 0) {
+      // Filter by document tags (docType is determined by AI categorization stored in tags)
+      conditions.push(sql`EXISTS (SELECT 1 FROM unnest(COALESCE(${documents.tags}, ARRAY[]::text[])) AS tag WHERE tag = ANY(${filters.docType}))`);
+    }
+
+    if (filters.provider) {
+      // Search for provider in document text or email context
+      conditions.push(or(
+        ilike(documentText.text, `%${filters.provider}%`),
+        sql`${documents.emailContext}->>'from' ILIKE ${`%${filters.provider}%`}`
+      ));
+    }
+
+    if (filters.dateFrom || filters.dateTo) {
+      // Filter by expiry date (invoice date) or upload date as fallback
+      const dateConditions: any[] = [];
+      
+      if (filters.dateFrom) {
+        dateConditions.push(sql`COALESCE(${documents.expiryDate}, ${documents.uploadedAt}) >= ${filters.dateFrom}`);
+      }
+      
+      if (filters.dateTo) {
+        dateConditions.push(sql`COALESCE(${documents.expiryDate}, ${documents.uploadedAt}) <= ${filters.dateTo}`);
+      }
+      
+      conditions.push(and(...dateConditions));
+    }
+
+    if (filters.createdByUserId) {
+      conditions.push(eq(documents.userId, filters.createdByUserId));
+    }
+
+    // Apply all conditions
+    if (conditions.length > 2) { // More than the base conditions
+      dbQuery = dbQuery.where(and(...conditions));
+    }
+
+    // Execute query with ranking and limit
+    const searchResults = await dbQuery
+      .orderBy(sql`ts_rank_cd(${documentText.tsv}, ${searchQuery}) DESC`, desc(documents.uploadedAt))
+      .limit(limit);
+
+    // Generate snippets for each result
+    const results: SearchResult[] = [];
+    
+    for (const result of searchResults) {
+      const snippets = this.extractSnippets(
+        result.text,
+        query,
+        result.pageBreaks,
+        snippetLimit,
+        snippetCharWindow
+      );
+
+      // Extract metadata
+      const metadata = {
+        docType: result.tags?.find((tag: string) => ['bill', 'invoice', 'statement', 'receipt', 'contract', 'insurance', 'tax'].includes(tag.toLowerCase())),
+        provider: this.extractProvider(result.text, result.emailContext),
+        invoiceDate: result.expiryDate?.toISOString().split('T')[0],
+      };
+
+      results.push({
+        docId: result.docId.toString(),
+        title: result.title,
+        score: Math.min(result.score, 1), // Normalize score to 0-1 range
+        snippets,
+        metadata: Object.keys(metadata).some(key => metadata[key as keyof typeof metadata]) ? metadata : undefined
+      });
+    }
+
+    return {
+      results,
+      totalResults: results.length,
+      hasMore: results.length === limit,
+    };
+  }
+
+  /**
+   * CHAT-BUG-012: Enhance query with month normalization and synonyms
+   */
+  private enhanceQueryWithSynonyms(query: string): string {
+    let enhanced = query.toLowerCase();
+    
+    // Month normalization
+    const monthMappings: Record<string, string> = {
+      'jan': 'january', 'feb': 'february', 'mar': 'march', 'apr': 'april',
+      'may': 'may', 'jun': 'june', 'jul': 'july', 'aug': 'august',
+      'sep': 'september', 'sept': 'september', 'oct': 'october', 
+      'nov': 'november', 'dec': 'december'
+    };
+    
+    // Replace month abbreviations with full names
+    for (const [abbr, full] of Object.entries(monthMappings)) {
+      enhanced = enhanced.replace(new RegExp(`\\b${abbr}\\b`, 'gi'), full);
+    }
+    
+    // Add synonyms
+    const synonymMappings: Record<string, string[]> = {
+      'phone': ['phone', 'mobile', 'cell', 'cellular'],
+      'mobile': ['phone', 'mobile', 'cell', 'cellular'],
+      'cell': ['phone', 'mobile', 'cell', 'cellular'],
+      'bill': ['bill', 'invoice', 'statement'],
+      'invoice': ['bill', 'invoice', 'statement'],
+      'statement': ['bill', 'invoice', 'statement']
+    };
+    
+    // Expand with synonyms
+    const words = enhanced.split(/\s+/);
+    const expandedWords = new Set<string>();
+    
+    for (const word of words) {
+      expandedWords.add(word);
+      if (synonymMappings[word]) {
+        synonymMappings[word].forEach(synonym => expandedWords.add(synonym));
+      }
+    }
+    
+    return Array.from(expandedWords).join(' ');
   }
 
   private extractSnippets(

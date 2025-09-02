@@ -532,7 +532,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className={`p-3 sm:p-4 pb-4 relative mobile-document-card-content ${viewMode === "list" ? "h-auto" : "h-full flex flex-col"} overflow-hidden card-content`}>
+        <CardContent className={`p-2 sm:p-3 pb-3 relative mobile-document-card-content ${viewMode === "list" ? "h-auto" : "h-full flex flex-col"} overflow-hidden card-content`}>
             {/* Bulk selection checkbox */}
             {bulkMode && (
               <div className="absolute top-0.5 left-0.5 z-10">
@@ -552,9 +552,9 @@ export default function UnifiedDocumentCard({
 
           {/* List View Layout */}
           {viewMode === "list" ? (
-            <div className="flex items-center gap-4 min-h-0">
+            <div className="flex items-center gap-3 min-h-0">
               {/* Document thumbnail */}
-              <div className="relative w-12 h-12 flex-shrink-0 rounded-lg border-2 border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm">
+              <div className="relative w-10 h-10 flex-shrink-0 rounded-md border border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm">
                 {thumbnailError ? (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
                     {getFileIcon()}
@@ -577,42 +577,36 @@ export default function UnifiedDocumentCard({
                       value={renameName}
                       onChange={(e) => setRenameName(e.target.value)}
                       onKeyDown={handleRenameKeyPress}
-                      className="text-sm h-8 flex-1"
+                      className="text-sm h-7 flex-1"
                       autoFocus
                       placeholder="Enter new document name"
                     />
-                    <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-8 w-8 p-0">
+                    <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-7 w-7 p-0">
                       <Check className="h-3 w-3" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-8 w-8 p-0">
+                    <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-7 w-7 p-0">
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
                 ) : (
                   <div>
-                    <h3 className="font-semibold text-base leading-tight text-gray-900 truncate mb-1">
+                    <h3 className="font-medium text-sm leading-snug text-gray-900 truncate mb-1">
                       {document.name}
                     </h3>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span>{formatFileSize(document.fileSize)}</span>
                       <span>•</span>
                       <span>{formatDate(document.uploadedAt)}</span>
                       {category && (
                         <>
                           <span>•</span>
-                          <div className="flex items-center gap-1">
-                            <FolderIcon className="h-3 w-3" />
-                            <span className="truncate max-w-[80px]">{category.name}</span>
-                          </div>
+                          <span className="truncate max-w-[100px]">{category.name}</span>
                         </>
                       )}
                       {document.expiryDate && (
                         <>
                           <span>•</span>
-                          <div className="flex items-center gap-1 text-orange-600">
-                            <Calendar className="h-3 w-3" />
-                            <span>Due {formatDate(document.expiryDate)}</span>
-                          </div>
+                          <span className="text-orange-600">Due {formatDate(document.expiryDate)}</span>
                         </>
                       )}
                     </div>
@@ -621,7 +615,7 @@ export default function UnifiedDocumentCard({
               </div>
 
               {/* Insights section for list view */}
-              <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {showInsights && (
                   <div className="flex items-center gap-2">
                     {openInsights.length > 0 ? (
@@ -705,7 +699,7 @@ export default function UnifiedDocumentCard({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-8 px-3 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
+                          className="h-7 px-2 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
                           onClick={(e) => {
                             e.stopPropagation();
                             setModalInitialTab('insights');
@@ -713,7 +707,7 @@ export default function UnifiedDocumentCard({
                           }}
                         >
                           <Brain className="h-3 w-3 mr-1" />
-                          <span className="text-xs font-medium">{openInsights.length} Insight{openInsights.length > 1 ? 's' : ''}</span>
+                          <span className="text-xs font-medium">{openInsights.length}</span>
                         </Button>
                       </>
                     ) : (
@@ -721,7 +715,7 @@ export default function UnifiedDocumentCard({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 px-3 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400 hover:from-accent-purple-600 hover:to-accent-purple-700"
+                        className="h-7 px-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400 hover:from-accent-purple-600 hover:to-accent-purple-700"
                         onClick={(e) => {
                           e.stopPropagation();
                           generateInsightsMutation.mutate();
@@ -736,7 +730,7 @@ export default function UnifiedDocumentCard({
                         ) : (
                           <>
                             <Brain className="h-3 w-3 mr-1" />
-                            <span className="text-xs font-medium">Generate Insights</span>
+                            <span className="text-xs font-medium">Generate</span>
                           </>
                         )}
                       </Button>
@@ -753,10 +747,10 @@ export default function UnifiedDocumentCard({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200"
+                        className="h-7 w-7 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <MoreHorizontal className="h-4 w-4 text-gray-500 hover:text-accent-purple-600" />
+                        <MoreHorizontal className="h-3 w-3 text-gray-500 hover:text-accent-purple-600" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

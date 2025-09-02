@@ -413,7 +413,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`group relative bg-gradient-to-br from-white to-purple-50/20 rounded-lg border border-purple-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer hover:border-purple-300 hover:bg-gradient-to-br hover:from-purple-50/30 hover:to-purple-100/20 h-40 ${isSelected ? "ring-2 ring-purple-500" : ""}`}
+        className={`group relative bg-gradient-to-br from-white to-purple-50/20 rounded-lg border border-purple-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer hover:border-purple-300 hover:bg-gradient-to-br hover:from-purple-50/30 hover:to-purple-100/20 h-48 w-full ${isSelected ? "ring-2 ring-purple-500" : ""}`}
         onClick={handleCardClick}
         data-testid={`document-card-${document.id}`}
       >

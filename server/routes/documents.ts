@@ -41,6 +41,31 @@ const imageProcessor = new ImageProcessingService('./uploads');
 const pdfOptimizer = new PDFOptimizationService('./uploads');
 const enhancedOCR = new EnhancedOCRStrategies();
 
+// Helper function to generate document placeholder thumbnails
+function generateDocumentPlaceholder(mimeType: string, fileName: string): string {
+  let iconPath = 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8';
+  let backgroundColor = '#8B5CF6'; // Purple
+  let iconColor = '#FFFFFF';
+  
+  if (mimeType?.includes('pdf')) {
+    backgroundColor = '#8B5CF6'; // Purple for PDFs
+    iconPath = 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8';
+  } else if (mimeType?.startsWith('image/')) {
+    backgroundColor = '#8B5CF6'; // Purple for images
+    iconPath = 'M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z M8.5 8.5l5.5 5.5 4-4';
+  }
+  
+  const fileExtension = path.extname(fileName).slice(1).toUpperCase() || 'DOC';
+  
+  return `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <rect width="200" height="200" fill="${backgroundColor}" rx="8"/>
+    <svg x="50" y="40" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
+      <path d="${iconPath}"/>
+    </svg>
+    <text x="100" y="170" text-anchor="middle" fill="${iconColor}" font-family="Arial, sans-serif" font-size="14" font-weight="bold">${fileExtension}</text>
+  </svg>`;
+}
+
 // DOC-303: Enhanced document upload with auto-categorization via rules and AI fallback
 router.post('/', upload.fields([
   { name: 'file', maxCount: 1 },
@@ -483,38 +508,81 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    // Check if document is stored in GCS
-    if (document.gcsPath) {
-      try {
-        const storageService = StorageService.initialize();
-        const fileBuffer = await storageService.download(document.gcsPath);
+    // Generate thumbnail on-demand
+    try {
+      let fileBuffer: Buffer;
+      let sourceFilePath: string;
 
-        if (fileBuffer) {
-          // Set appropriate content type
-          const contentType = document.mimeType || 'application/octet-stream';
-          res.setHeader('Content-Type', contentType);
-          res.setHeader('Content-Length', fileBuffer.length);
-          res.send(fileBuffer);
-          return;
+      // Get file buffer from GCS or local storage
+      if (document.gcsPath) {
+        try {
+          const storageService = StorageService.initialize();
+          fileBuffer = await storageService.download(document.gcsPath);
+          // Create temporary file for thumbnail generation
+          sourceFilePath = path.join('/tmp', `temp_${documentId}_${Date.now()}${path.extname(document.fileName)}`);
+          fs.writeFileSync(sourceFilePath, fileBuffer);
+        } catch (gcsError) {
+          console.warn(`Failed to fetch from GCS for document ${documentId}:`, gcsError);
+          return res.status(500).json({ message: 'Failed to load document from storage' });
         }
-      } catch (gcsError) {
-        console.warn(`Failed to fetch from GCS for document ${documentId}:`, gcsError);
-        // Fall through to local file check
+      } else if (document.filePath && fs.existsSync(document.filePath)) {
+        sourceFilePath = document.filePath;
+      } else {
+        return res.status(404).json({ message: 'Document file not found' });
       }
-    }
 
-    // Check for local thumbnail
-    const thumbnailPath = imageProcessor.getThumbnailPath(document.filePath);
+      // Check for existing thumbnail first
+      const thumbnailPath = imageProcessor.getThumbnailPath(sourceFilePath);
+      
+      if (fs.existsSync(thumbnailPath)) {
+        // Cleanup temp file if created
+        if (document.gcsPath && fs.existsSync(sourceFilePath)) {
+          fs.unlinkSync(sourceFilePath);
+        }
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.sendFile(path.resolve(thumbnailPath));
+        return;
+      }
 
-    if (fs.existsSync(thumbnailPath)) {
-      res.sendFile(path.resolve(thumbnailPath));
-      return;
-    }
+      // Generate thumbnail for images
+      if (document.mimeType?.startsWith('image/')) {
+        try {
+          // Use imageProcessor to generate thumbnail
+          const thumbnailOutputPath = path.join('/tmp', `thumb_${documentId}_${Date.now()}.jpg`);
+          const result = await imageProcessor.processImage(sourceFilePath, thumbnailOutputPath);
 
-    // Check if original file exists locally
-    if (document.filePath && fs.existsSync(document.filePath)) {
-      res.sendFile(path.resolve(document.filePath));
-      return;
+          // Cleanup temp file if created
+          if (document.gcsPath && fs.existsSync(sourceFilePath)) {
+            fs.unlinkSync(sourceFilePath);
+          }
+
+          if (fs.existsSync(thumbnailOutputPath)) {
+            res.setHeader('Content-Type', 'image/jpeg');
+            res.sendFile(path.resolve(thumbnailOutputPath));
+            return;
+          }
+        } catch (thumbnailError) {
+          console.warn(`Failed to generate thumbnail for document ${documentId}:`, thumbnailError);
+        }
+      }
+
+      // For PDFs and other documents, generate a placeholder thumbnail
+      const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
+      
+      // Cleanup temp file if created
+      if (document.gcsPath && fs.existsSync(sourceFilePath)) {
+        fs.unlinkSync(sourceFilePath);
+      }
+      
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.send(placeholderSvg);
+      
+    } catch (error) {
+      console.error(`Failed to generate thumbnail for document ${documentId}:`, error);
+      // Return a generic placeholder
+      const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.send(placeholderSvg);
     }
 
     // If no file found, return 404

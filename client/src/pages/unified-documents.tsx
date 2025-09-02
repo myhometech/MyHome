@@ -61,7 +61,7 @@ interface DocumentInsight {
 }
 
 export default function UnifiedDocuments() {
-  const { toast } = useUseToast();
+  const { toast } = useToast();
   const { hasFeature, features } = useFeatures();
   const limits = { documents: features.BULK_OPERATIONS ? 999999 : 50 };
   const [location, setLocation] = useLocation();
@@ -752,7 +752,7 @@ export default function UnifiedDocuments() {
 
         {/* Documents List */}
         {documentsLoading ? (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Card key={i} className="animate-pulse">
                 <CardContent className="p-4">
@@ -788,7 +788,7 @@ export default function UnifiedDocuments() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
             {filteredAndSortedDocuments.map((document) => (
               <UnifiedDocumentCard
                 key={document.id}
@@ -808,9 +808,6 @@ export default function UnifiedDocuments() {
                 }}
                 showInsights={true}
                 autoExpandCritical={true}
-                // Pass selectedDocumentId to potentially open the document viewer
-                selectedDocumentId={selectedDocumentId === document.id ? document.id : null}
-                onCloseDocumentViewer={() => setSelectedDocumentId(null)}
               />
             ))}
           </div>

@@ -344,11 +344,11 @@ export default function UnifiedDocumentCard({
 
   const getFileTypeIconColor = () => {
     if (document.mimeType?.startsWith("image/")) {
-      return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      return "bg-purple-100 text-purple-700 border-purple-200";
     } else if (document.mimeType === "application/pdf") {
-      return "bg-red-100 text-red-700 border-red-200";
+      return "bg-purple-100 text-purple-700 border-purple-200";
     } else {
-      return "bg-blue-100 text-blue-700 border-blue-200";
+      return "bg-purple-100 text-purple-700 border-purple-200";
     }
   };
 
@@ -380,7 +380,7 @@ export default function UnifiedDocumentCard({
       const displayCount = insightsCount > 99 ? '99+' : insightsCount.toString();
       return (
         <div 
-          className="flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-semibold rounded-full"
+          className="flex items-center justify-center w-6 h-6 bg-purple-600 text-white text-xs font-semibold rounded-full"
           data-testid={`insights-badge-${document.id}`}
         >
           {displayCount}
@@ -390,7 +390,7 @@ export default function UnifiedDocumentCard({
       // Show brain icon
       return (
         <Brain 
-          className="h-5 w-5 text-gray-400" 
+          className="h-5 w-5 text-purple-400" 
           data-testid={`insights-brain-${document.id}`}
         />
       );
@@ -413,7 +413,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`group relative bg-gradient-to-br from-white to-accent-purple-50/20 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer hover:border-accent-purple-300 hover:bg-gradient-to-br hover:from-accent-purple-50/30 hover:to-accent-purple-100/20 h-64 ${isSelected ? "ring-2 ring-accent-purple-500" : ""}`}
+        className={`group relative bg-gradient-to-br from-white to-purple-50/20 rounded-lg border border-purple-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer hover:border-purple-300 hover:bg-gradient-to-br hover:from-purple-50/30 hover:to-purple-100/20 h-40 ${isSelected ? "ring-2 ring-purple-500" : ""}`}
         onClick={handleCardClick}
         data-testid={`document-card-${document.id}`}
       >
@@ -423,7 +423,7 @@ export default function UnifiedDocumentCard({
             <div className="absolute top-2 left-2 z-10 bg-white/90 rounded-full p-1 shadow-sm">
               <div className="w-5 h-5 flex items-center justify-center">
                 {isSelected ? (
-                  <CheckSquare className="h-5 w-5 text-accent-purple-600" />
+                  <CheckSquare className="h-5 w-5 text-purple-600" />
                 ) : (
                   <Square className="h-5 w-5 text-gray-400" />
                 )}
@@ -501,10 +501,10 @@ export default function UnifiedDocumentCard({
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-8 w-8 p-0 rounded-full hover:bg-gray-100"
+                      className="h-8 w-8 p-0 rounded-full hover:bg-purple-100"
                       data-testid={`document-menu-${document.id}`}
                     >
-                      <MoreHorizontal className="h-4 w-4" />
+                      <MoreHorizontal className="h-4 w-4 text-purple-600" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

@@ -702,30 +702,28 @@ export default function UnifiedDocumentCard({
               // Priority 1: Generate Insights (when no insights exist)
               if (showInsights && openInsights.length === 0 && !insightsLoading) {
                 return (
-                  <div className="absolute bottom-10 left-2">
+                  <div className="absolute bottom-2 left-2 right-12">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div 
-                            className="flex items-center gap-0 cursor-pointer rounded-xl overflow-hidden border-2 border-accent-purple-300/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 modern-button"
+                            className="flex items-center justify-center gap-2 cursor-pointer rounded-xl px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-accent-purple-400/50"
                             onClick={(e) => {
                               e.stopPropagation();
                               generateInsightsMutation.mutate();
                             }}
                           >
-                            <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-l-4 border-l-accent-purple-400">
-                              {generateInsightsMutation.isPending ? (
-                                <>
-                                  <Clock className="h-4 w-4 animate-spin" />
-                                  <span className="text-sm font-semibold">Analyzing...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Brain className="h-4 w-4" />
-                                  <span className="text-sm font-semibold">Generate Insights</span>
-                                </>
-                              )}
-                            </div>
+                            {generateInsightsMutation.isPending ? (
+                              <>
+                                <Clock className="h-4 w-4 animate-spin" />
+                                <span className="text-sm font-medium">Analyzing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Brain className="h-4 w-4" />
+                                <span className="text-sm font-medium">Generate AI Insights</span>
+                              </>
+                            )}
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -740,7 +738,7 @@ export default function UnifiedDocumentCard({
               // Priority 2: Insights Count (highest priority - clickable)
               if (openInsights.length > 0) {
                 return (
-                  <div className="absolute bottom-10 left-2">
+                  <div className="absolute bottom-2 left-2 right-12">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -752,32 +750,32 @@ export default function UnifiedDocumentCard({
 
                             const priorityOrder = ['high', 'medium', 'low'];
                             const priorityColors: Record<string, string> = {
-                              high: 'bg-accent-purple-500 text-white',
-                              medium: 'bg-orange-500 text-white', 
-                              low: 'bg-accent-purple-400 text-white'
+                              high: 'bg-white text-accent-purple-600 border-accent-purple-200',
+                              medium: 'bg-orange-100 text-orange-700 border-orange-200', 
+                              low: 'bg-accent-purple-100 text-accent-purple-600 border-accent-purple-200'
                             };
 
                             return (
                               <div 
-                                className="flex items-center gap-0 cursor-pointer rounded-xl overflow-hidden border-2 border-accent-purple-300/60 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 modern-button"
+                                className="flex items-center justify-between gap-2 cursor-pointer rounded-xl px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-accent-purple-400/50"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setModalInitialTab('insights');
                                   setShowModal(true);
                                 }}
                               >
-                                <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-l-4 border-l-accent-purple-400">
+                                <div className="flex items-center gap-2">
                                   <Brain className="h-4 w-4" />
-                                  <span className="text-sm font-semibold">AI Insights</span>
+                                  <span className="text-sm font-medium">AI Insights</span>
                                 </div>
-                                <div className="flex items-center gap-1 px-2 py-2 bg-gradient-to-r from-accent-purple-50 to-accent-purple-100">
+                                <div className="flex items-center gap-1">
                                   {priorityOrder.map(priority => {
                                     const count = priorityCounts[priority];
                                     if (!count) return null;
                                     return (
                                       <div 
                                         key={priority}
-                                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${priorityColors[priority]} border-2 border-white shadow-md`}
+                                        className={`px-2 py-1 rounded-full text-xs font-bold border ${priorityColors[priority]}`}
                                       >
                                         {count}
                                       </div>
@@ -803,14 +801,14 @@ export default function UnifiedDocumentCard({
                 const isValid = !isNaN(expiryDate.getTime());
                 if (isValid) {
                   return (
-                    <div className="absolute bottom-8 left-2">
+                    <div className="absolute bottom-2 left-2 right-12">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger>
-                            <Badge variant="secondary" className="text-xs bg-gradient-to-r from-orange-100 to-orange-200 border-orange-300 text-orange-800 px-3 py-1.5 font-semibold shadow-sm">
-                              <Calendar className="h-4 w-4 mr-1.5" />
-                              <span className="text-xs font-semibold">{format(expiryDate, 'MMM dd')}</span>
-                            </Badge>
+                            <div className="flex items-center justify-center gap-2 rounded-xl px-3 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg border border-orange-400/50">
+                              <Calendar className="h-4 w-4" />
+                              <span className="text-sm font-medium">Due {format(expiryDate, 'MMM dd')}</span>
+                            </div>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>Due: {format(expiryDate, 'MMM dd, yyyy')}</p>
@@ -824,21 +822,22 @@ export default function UnifiedDocumentCard({
 
               // Priority 4: Upload Source  
               if (document.uploadSource) {
-                const sourceIcons: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-                  'camera': { icon: <Type className="h-4 w-4" />, label: 'Scanned', color: 'bg-gradient-to-r from-green-100 to-green-200 border-green-300 text-green-800' },
-                  'email': { icon: <FileText className="h-4 w-4" />, label: 'Email', color: 'bg-gradient-to-r from-accent-purple-100 to-accent-purple-200 border-accent-purple-300 text-accent-purple-800' },
-                  'upload': { icon: <FileText className="h-4 w-4" />, label: 'Uploaded', color: 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300 text-gray-800' }
+                const sourceIcons: Record<string, { icon: React.ReactNode; label: string; gradient: string }> = {
+                  'camera': { icon: <Type className="h-4 w-4" />, label: 'Scanned', gradient: 'from-green-500 to-green-600' },
+                  'email': { icon: <FileText className="h-4 w-4" />, label: 'Email', gradient: 'from-blue-500 to-blue-600' },
+                  'upload': { icon: <FileText className="h-4 w-4" />, label: 'Uploaded', gradient: 'from-gray-500 to-gray-600' }
                 };
 
                 const sourceInfo = sourceIcons[document.uploadSource] || sourceIcons['upload'];
                 return (
-                  <div className="absolute bottom-8 left-2">
+                  <div className="absolute bottom-2 left-2 right-12">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
-                          <Badge variant="secondary" className={`text-xs px-3 py-1.5 font-semibold shadow-sm ${sourceInfo.color}`}>
+                          <div className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 bg-gradient-to-r ${sourceInfo.gradient} text-white shadow-lg border border-white/20`}>
                             {sourceInfo.icon}
-                          </Badge>
+                            <span className="text-sm font-medium">{sourceInfo.label}</span>
+                          </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>{sourceInfo.label}</p>
@@ -854,18 +853,18 @@ export default function UnifiedDocumentCard({
             })()}
 
 
-            {/* Actions dropdown - positioned in bottom-right, aligned with insight badges */}
+            {/* Actions dropdown - positioned in top-right corner */}
             {!isEditing && !isRenaming && (
-              <div className="absolute bottom-10 right-2 z-10">
+              <div className="absolute top-2 right-2 z-10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 bg-white/90 hover:bg-accent-purple-50 border border-accent-purple-200/60 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+                      className="h-8 w-8 p-0 bg-gradient-to-br from-accent-purple-500/90 to-accent-purple-600/90 hover:from-accent-purple-600 hover:to-accent-purple-700 border border-accent-purple-400/40 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 backdrop-blur-sm"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreHorizontal className="h-4 w-4 text-accent-purple-600" />
+                      <MoreHorizontal className="h-4 w-4 text-white" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

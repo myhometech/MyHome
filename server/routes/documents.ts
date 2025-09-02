@@ -720,9 +720,18 @@ router.post('/cleanup-orphaned-insights', requireAuth, async (req: any, res: any
       const documentId = insight.documentId;
 
       // Flag insights with invalid documentId values
-      if (documentId !== null && documentId !== undefined && 
-          (typeof documentId === 'string' && documentId.trim() !== '' && documentId !== '0') ||
-          (typeof documentId === 'number' && documentId > 0)) {
+      let hasValidId = false;
+      
+      if (documentId !== null && documentId !== undefined) {
+        if (typeof documentId === 'string') {
+          const stringId = documentId as string;
+          hasValidId = stringId.trim() !== '' && stringId !== '0';
+        } else if (typeof documentId === 'number') {
+          hasValidId = documentId > 0;
+        }
+      }
+      
+      if (hasValidId) {
 
         const numericDocumentId = Number(documentId);
 

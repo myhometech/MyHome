@@ -603,7 +603,7 @@ export default function UnifiedDocumentCard({
                       </div>
                       
                       {/* Document info */}
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-10">
                         {isRenaming ? (
                           <div className="space-y-2">
                             <Input
@@ -624,13 +624,13 @@ export default function UnifiedDocumentCard({
                             </div>
                           </div>
                         ) : (
-                          <div className="space-y-1">
+                          <div className="space-y-1.5">
                             <h3 className="font-semibold text-base leading-tight text-gray-900 line-clamp-2 mb-1">
                               {document.name}
                             </h3>
                             {/* Insights with type-specific icons */}
                             {showInsights && openInsights.length > 0 && (
-                              <div className="flex items-center gap-1 flex-wrap">
+                              <div className="flex items-center gap-1 flex-wrap max-w-[calc(100%-2rem)]">
                                 {(() => {
                                   // Group insights by type and count them
                                   const insightsByType = openInsights.reduce((acc, insight) => {
@@ -638,24 +638,24 @@ export default function UnifiedDocumentCard({
                                     return acc;
                                   }, {} as Record<string, number>);
 
-                                  // Define type configurations with icons
+                                  // Use consistent accent-purple theme for all badges
                                   const typeConfigs = {
-                                    summary: { icon: FileText, color: 'bg-blue-100 text-blue-700', label: 'Summary' },
-                                    action_items: { icon: ListTodo, color: 'bg-orange-100 text-orange-700', label: 'Actions' },
-                                    key_dates: { icon: Calendar, color: 'bg-purple-100 text-purple-700', label: 'Dates' },
-                                    financial_info: { icon: DollarSign, color: 'bg-green-100 text-green-700', label: 'Financial' },
-                                    contacts: { icon: Users, color: 'bg-cyan-100 text-cyan-700', label: 'Contacts' },
-                                    compliance: { icon: Shield, color: 'bg-red-100 text-red-700', label: 'Compliance' }
+                                    summary: { icon: FileText, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Summary' },
+                                    action_items: { icon: ListTodo, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Actions' },
+                                    key_dates: { icon: Calendar, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Dates' },
+                                    financial_info: { icon: DollarSign, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Financial' },
+                                    contacts: { icon: Users, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Contacts' },
+                                    compliance: { icon: Shield, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Compliance' }
                                   };
 
-                                  return Object.entries(insightsByType).map(([type, count]) => {
+                                  return Object.entries(insightsByType).slice(0, 3).map(([type, count]) => {
                                     const config = typeConfigs[type as keyof typeof typeConfigs] || typeConfigs.summary;
                                     const IconComponent = config.icon;
                                     
                                     return (
                                       <div 
                                         key={type}
-                                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${config.color}`}
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.color} shadow-sm`}
                                       >
                                         <IconComponent className="h-3 w-3" />
                                         <span>{count}</span>
@@ -663,6 +663,17 @@ export default function UnifiedDocumentCard({
                                     );
                                   });
                                 })()}
+                                {Object.keys(openInsights.reduce((acc, insight) => {
+                                  acc[insight.type] = true;
+                                  return acc;
+                                }, {} as Record<string, boolean>)).length > 3 && (
+                                  <div className="flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-accent-purple-50 text-accent-purple-600 border border-accent-purple-200 shadow-sm">
+                                    <span>+{Object.keys(openInsights.reduce((acc, insight) => {
+                                      acc[insight.type] = true;
+                                      return acc;
+                                    }, {} as Record<string, boolean>)).length - 3}</span>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -853,7 +864,7 @@ export default function UnifiedDocumentCard({
             })()}
 
 
-            {/* Actions dropdown - positioned in top-right corner */}
+            {/* Actions dropdown - positioned to avoid overlap */}
             {!isEditing && !isRenaming && (
               <div className="absolute top-2 right-2 z-10">
                 <DropdownMenu>
@@ -861,10 +872,10 @@ export default function UnifiedDocumentCard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 bg-gradient-to-br from-accent-purple-500/90 to-accent-purple-600/90 hover:from-accent-purple-600 hover:to-accent-purple-700 border border-accent-purple-400/40 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 backdrop-blur-sm"
+                      className="h-7 w-7 p-0 bg-white/95 hover:bg-white border border-accent-purple-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreHorizontal className="h-4 w-4 text-white" />
+                      <MoreHorizontal className="h-3.5 w-3.5 text-accent-purple-600" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

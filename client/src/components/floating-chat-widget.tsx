@@ -17,6 +17,34 @@ export default function FloatingChatWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+
+  // Create conversation when chat is first opened
+  const initializeConversation = async () => {
+    if (conversationId) return conversationId;
+    
+    try {
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: 'Quick Chat'
+        })
+      });
+      
+      if (response.ok) {
+        const conversation = await response.json();
+        setConversationId(conversation.id);
+        return conversation.id;
+      } else {
+        throw new Error('Failed to create conversation');
+      }
+    } catch (error) {
+      console.error('Failed to initialize conversation:', error);
+      throw error;
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -29,16 +57,21 @@ export default function FloatingChatWidget() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageToSend = inputValue;
     setInputValue("");
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat/message', {
+      // Ensure we have a conversation
+      const activeConversationId = await initializeConversation();
+      
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          message: inputValue,
-          conversationId: 'widget-session'
+          message: messageToSend,
+          conversationId: activeConversationId
         })
       });
 
@@ -46,15 +79,17 @@ export default function FloatingChatWidget() {
         const data = await response.json();
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: data.response,
+          content: data.answer,
           role: 'assistant',
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
       } else {
-        throw new Error('Failed to send message');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to send message');
       }
     } catch (error) {
+      console.error('Chat error:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: "Sorry, I'm having trouble responding right now. Please try again later.",

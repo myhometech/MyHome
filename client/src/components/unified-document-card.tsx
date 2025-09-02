@@ -765,6 +765,219 @@ export default function UnifiedDocumentCard({
                 </div>
               )}
             </div>
+          ) : (
+            // Grid View Layout
+            <div className="flex flex-col h-full">
+              {/* Document thumbnail/preview */}
+              <div className="relative w-full aspect-square rounded-lg border border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm mb-2">
+                {thumbnailError ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
+                    {getFileIcon()}
+                  </div>
+                ) : (
+                  <img
+                    src={`/api/documents/${document.id}/thumbnail`}
+                    alt={document.name}
+                    className="w-full h-full object-cover"
+                    onError={() => setThumbnailError(true)}
+                  />
+                )}
+                
+                {/* Actions dropdown for grid view - positioned in top right */}
+                {!isEditing && !isRenaming && (
+                  <div className="absolute top-1 right-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-3 w-3 text-gray-500 hover:text-accent-purple-600" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          if (onClick) {
+                            onClick();
+                          } else {
+                            setModalInitialTab('properties');
+                            setShowModal(true);
+                          }
+                        }}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload();
+                        }}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartRename();
+                        }}>
+                          <Type className="h-4 w-4 mr-2" />
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEdit();
+                        }}>
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          setShowShareDialog(true);
+                        }}>
+                          <FileSearch className="h-4 w-4 mr-2" />
+                          Share
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(e);
+                        }} className="text-accent-purple-600 hover:text-accent-purple-700">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
+              </div>
+
+              {/* Document info */}
+              <div className="flex-1 space-y-1">
+                {isRenaming ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={renameName}
+                      onChange={(e) => setRenameName(e.target.value)}
+                      onKeyDown={handleRenameKeyPress}
+                      className="text-sm h-7 flex-1"
+                      autoFocus
+                      placeholder="Enter new document name"
+                    />
+                    <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Document title */}
+                    <h3 className="font-medium text-sm leading-tight text-gray-900 line-clamp-2">
+                      {document.name}
+                    </h3>
+                    
+                    {/* Document metadata */}
+                    <div className="flex flex-col gap-1 text-xs text-gray-500">
+                      <div className="flex items-center gap-1.5">
+                        <span>{formatFileSize(document.fileSize)}</span>
+                        <span>•</span>
+                        <span>{formatDate(document.uploadedAt)}</span>
+                      </div>
+                      {category && (
+                        <div className="truncate">
+                          <span className="text-accent-purple-600">{category.name}</span>
+                        </div>
+                      )}
+                      {document.expiryDate && (
+                        <div className="text-orange-600">Due {formatDate(document.expiryDate)}</div>
+                      )}
+                    </div>
+
+                    {/* Insights section */}
+                    {showInsights && (
+                      <div className="flex flex-wrap gap-1">
+                        {openInsights.length > 0 ? (
+                          <>
+                            {/* Priority indicators */}
+                            {criticalInsights.length > 0 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 border border-red-200">
+                                      <AlertTriangle className="h-3 w-3 text-red-600" />
+                                      <span className="text-xs font-bold text-red-700">{criticalInsights.length}</span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{criticalInsights.length} Critical</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+
+                            {openInsights.filter(i => i.priority === 'medium').length > 0 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 border border-orange-200">
+                                      <Clock className="h-3 w-3 text-orange-600" />
+                                      <span className="text-xs font-medium text-orange-700">{openInsights.filter(i => i.priority === 'medium').length}</span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{openInsights.filter(i => i.priority === 'medium').length} Medium</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+
+                            {/* Total insights button - smaller for grid */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setModalInitialTab('insights');
+                                setShowModal(true);
+                              }}
+                            >
+                              <Brain className="h-2.5 w-2.5 mr-1" />
+                              <span className="text-xs font-medium">{openInsights.length}</span>
+                            </Button>
+                          </>
+                        ) : (
+                          // No insights - show generate button
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 px-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400 hover:from-accent-purple-600 hover:to-accent-purple-700"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              generateInsightsMutation.mutate();
+                            }}
+                            disabled={generateInsightsMutation.isPending || insightsLoading}
+                          >
+                            {generateInsightsMutation.isPending ? (
+                              <>
+                                <Clock className="h-2.5 w-2.5 mr-1 animate-spin" />
+                                <span className="text-xs font-medium">...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Brain className="h-2.5 w-2.5 mr-1" />
+                                <span className="text-xs font-medium">AI</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

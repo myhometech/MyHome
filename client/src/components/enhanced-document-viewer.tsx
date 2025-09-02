@@ -434,28 +434,57 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
 
   // Initialize loading state for preview
   useEffect(() => {
+    console.log(`🖼️ [PREVIEW] Initializing preview for document ${document.id}, type: ${document.mimeType}`);
+    
     const safetyTimeout = setTimeout(() => {
+      console.warn(`⚠️ [PREVIEW] Safety timeout reached for document ${document.id}`);
       setIsLoading(false);
       if (!error) {
         setError('Document loading took too long. Please try again.');
       }
-    }, 5000);
+    }, 10000); // Increased timeout to 10 seconds
 
     // For images, preload to ensure they work
     if (isImage()) {
+      console.log(`📸 [PREVIEW] Preloading image for document ${document.id}`);
       const img = new (globalThis as any).Image();
       img.onload = () => {
+        console.log(`✅ [PREVIEW] Image loaded successfully for document ${document.id}`);
         setIsLoading(false);
         clearTimeout(safetyTimeout);
       };
-      img.onerror = () => {
-        setError('Failed to load image');
+      img.onerror = (e) => {
+        console.error(`❌ [PREVIEW] Image failed to load for document ${document.id}:`, e);
+        setError('Failed to load image preview');
         setIsLoading(false);
         clearTimeout(safetyTimeout);
       };
-      img.src = getPreviewUrl();
+      
+      const previewUrl = getPreviewUrl();
+      console.log(`🔗 [PREVIEW] Using preview URL: ${previewUrl}`);
+      img.src = previewUrl;
+    } else if (isPDF()) {
+      console.log(`📄 [PREVIEW] PDF preview for document ${document.id}`);
+      // Test if PDF URL is accessible
+      fetch(getPreviewUrl(), { method: 'HEAD', credentials: 'include' })
+        .then(response => {
+          console.log(`📡 [PREVIEW] PDF HEAD request status: ${response.status}`);
+          if (response.ok) {
+            setIsLoading(false);
+          } else {
+            setError(`Failed to access PDF (Status: ${response.status})`);
+            setIsLoading(false);
+          }
+          clearTimeout(safetyTimeout);
+        })
+        .catch(err => {
+          console.error(`❌ [PREVIEW] PDF HEAD request failed:`, err);
+          setError('Failed to load PDF preview');
+          setIsLoading(false);
+          clearTimeout(safetyTimeout);
+        });
     } else {
-      // For non-images, just stop loading immediately
+      console.log(`📁 [PREVIEW] Non-previewable document type: ${document.mimeType}`);
       setIsLoading(false);
       clearTimeout(safetyTimeout);
     }
@@ -463,7 +492,7 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
     return () => {
       clearTimeout(safetyTimeout);
     };
-  }, [document.id, error]);
+  }, [document.id, document.mimeType, error]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-white mobile-document-viewer fixed inset-0" style={{ width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh' }}>
@@ -645,6 +674,11 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                   alt={document.name}
                   className="max-w-full max-h-full object-contain touch-pinch-zoom"
                   style={{ width: 'auto', height: 'auto' }}
+                  onLoad={() => console.log(`✅ [PREVIEW] Image rendered successfully for document ${document.id}`)}
+                  onError={(e) => {
+                    console.error(`❌ [PREVIEW] Image render error for document ${document.id}:`, e);
+                    setError('Failed to display image');
+                  }}
                 />
               </div>
             )}
@@ -729,6 +763,11 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
                     className="w-full h-full border-0"
                     title={document.name}
                     allow="fullscreen"
+                    onLoad={() => console.log(`✅ [PREVIEW] PDF iframe loaded for document ${document.id}`)}
+                    onError={(e) => {
+                      console.error(`❌ [PREVIEW] PDF iframe error for document ${document.id}:`, e);
+                      setError('Failed to load PDF in browser view');
+                    }}
                   />
                 )}
               </div>

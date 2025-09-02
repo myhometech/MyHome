@@ -162,98 +162,6 @@ export default function UnifiedDocumentCard({
 
   const category = categories?.find(c => c.id === document.categoryId);
 
-  // Generate insights mutation with auto-OCR support
-  const generateInsightsMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/documents/${document.id}/insights`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-
-      const responseData = await response.json();
-
-      // Handle OCR processing response (202 status)
-      if (response.status === 202) {
-        return {
-          status: 'processing',
-          message: responseData.message,
-          ocrJobId: responseData.ocrJobId,
-          estimatedTime: responseData.estimatedTime
-        };
-      }
-
-      if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to generate insights');
-      }
-
-      return responseData;
-    },
-    onSuccess: (data) => {
-      if (data.status === 'processing') {
-        // Handle OCR processing status
-        toast({
-          title: "Processing Document",
-          description: data.message || "Text extraction in progress. Insights will be available shortly.",
-          duration: 5000
-        });
-
-        // Set up polling to check when OCR is complete
-        const pollForCompletion = () => {
-          const interval = setInterval(async () => {
-            try {
-              // Refetch document to check if extractedText is now available
-              const docResponse = await fetch(`/api/documents/${document.id}`, {
-                credentials: 'include'
-              });
-
-              if (docResponse.ok) {
-                const docData = await docResponse.json();
-                if (docData.extractedText && docData.extractedText.trim()) {
-                  clearInterval(interval);
-
-                  // Retry insights generation now that OCR is complete
-                  setTimeout(() => {
-                    generateInsightsMutation.mutate();
-                  }, 1000);
-                }
-              }
-            } catch (error) {
-              console.error('Error polling for OCR completion:', error);
-            }
-          }, 3000); // Poll every 3 seconds
-
-          // Stop polling after 2 minutes
-          setTimeout(() => clearInterval(interval), 120000);
-        };
-
-        pollForCompletion();
-      } else {
-        // Handle successful insights generation
-        toast({
-          title: "Insights Generated",
-          description: `Generated ${data.insights?.length || 0} insights in ${data.processingTime || 0}ms`
-        });
-
-        // Invalidate insights queries to refresh the data
-        queryClient.invalidateQueries({
-          queryKey: [`/api/documents/${document.id}/insights`]
-        });
-        queryClient.invalidateQueries({ queryKey: ["/api/insights"] });
-      }
-    },
-    onError: (error: any) => {
-      console.error('Error generating insights:', error);
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate document insights",
-        variant: "destructive"
-      });
-    }
-  });
-
   // Fetch insights for this document
   const { data: insightsData, isLoading: insightsLoading } = useQuery({
     queryKey: [`/api/documents/${document.id}/insights`],
@@ -275,14 +183,6 @@ export default function UnifiedDocumentCard({
     i.status === 'open' && 
     !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(i.type)
   );
-  const criticalInsights = openInsights.filter(i => i.priority === 'high');
-  const highestPriorityInsight = openInsights.sort((a, b) => {
-    const priorityOrder = { high: 3, medium: 2, low: 1 };
-    return priorityOrder[b.priority] - priorityOrder[a.priority];
-  })[0];
-
-  // Auto-expand critical insights
-  const shouldAutoExpand = autoExpandCritical && criticalInsights.length > 0;
 
   const updateDocumentMutation = useMutation({
     mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {
@@ -325,43 +225,6 @@ export default function UnifiedDocumentCard({
       setRenameName(document.name);
       setIsEditing(false);
       setIsRenaming(false);
-    },
-  });
-
-  const updateInsightStatusMutation = useMutation({
-    mutationFn: async ({ insightId, status }: { insightId: string; status: 'open' | 'resolved' | 'dismissed' }) => {
-      console.log('[DEBUG] Updating insight status:', insightId, 'to', status);
-      const response = await fetch(`/api/insights/${insightId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        console.error('[DEBUG] Failed to update insight status:', response.status, response.statusText);
-        throw new Error('Failed to update insight status');
-      }
-      console.log('[DEBUG] Successfully updated insight status');
-      return response.json();
-    },
-    onSuccess: () => {
-      console.log('[DEBUG] Insight status update successful, invalidating queries');
-      // Invalidate the specific document insights query
-      queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
-      queryClient.refetchQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
-      // Also invalidate global insights queries
-      queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
-      toast({
-        title: "Insight dismissed",
-        description: "The insight has been successfully dismissed.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Update failed",
-        description: "Failed to update insight status. Please try again.",
-        variant: "destructive",
-      });
     },
   });
 
@@ -474,18 +337,18 @@ export default function UnifiedDocumentCard({
 
   const getFileIcon = () => {
     if (document.mimeType?.startsWith("image/")) {
-      return <Image className="h-4 w-4" />;
+      return <Image className="h-6 w-6" />;
     }
-    return <FileText className="h-4 w-4" />;
+    return <FileText className="h-6 w-6" />;
   };
 
   const getFileTypeIconColor = () => {
     if (document.mimeType?.startsWith("image/")) {
       return "bg-emerald-100 text-emerald-700 border-emerald-200";
     } else if (document.mimeType === "application/pdf") {
-      return "bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200";
+      return "bg-red-100 text-red-700 border-red-200";
     } else {
-      return "bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200";
+      return "bg-blue-100 text-blue-700 border-blue-200";
     }
   };
 
@@ -501,233 +364,156 @@ export default function UnifiedDocumentCard({
     return format(new Date(dateString), "MMM dd, yyyy");
   };
 
-  // Determine card border color based on highest priority insight
-  let cardBorderClass = "";
-  if (criticalInsights.length > 0) {
-    cardBorderClass = "border-l-4 border-l-accent-purple-500";
-  } else if (openInsights.some(i => i.priority === 'medium')) {
-    cardBorderClass = "border-l-4 border-l-accent-purple-400";
-  } else if (openInsights.length > 0) {
-    cardBorderClass = "border-l-4 border-l-accent-purple-300";
-  }
+  // Get thumbnail URL for images
+  const thumbnailUrl = document.mimeType?.startsWith('image/') 
+    ? `/api/documents/${document.id}/thumbnail`
+    : null;
+
+  // Calculate insights count for badge
+  const insightsCount = openInsights.length;
+  const hasOcrCompleted = document.ocrProcessed;
+
+  // Insights indicator component
+  const renderInsightsIndicator = () => {
+    if (insightsCount > 0 && hasOcrCompleted) {
+      // Show circular badge with count (cap at 99+)
+      const displayCount = insightsCount > 99 ? '99+' : insightsCount.toString();
+      return (
+        <div 
+          className="flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-semibold rounded-full"
+          data-testid={`insights-badge-${document.id}`}
+        >
+          {displayCount}
+        </div>
+      );
+    } else {
+      // Show brain icon
+      return (
+        <Brain 
+          className="h-5 w-5 text-gray-400" 
+          data-testid={`insights-brain-${document.id}`}
+        />
+      );
+    }
+  };
+
+  const handleCardClick = () => {
+    if (bulkMode && onToggleSelection) {
+      onToggleSelection();
+    } else if (!bulkMode && !isEditing && !isRenaming) {
+      if (onClick) {
+        onClick();
+      } else {
+        setModalInitialTab('properties');
+        setShowModal(true);
+      }
+    }
+  };
 
   return (
     <>
       <Card 
-        className={`mobile-document-card group dashboard-card hover:shadow-lg hover:scale-[1.01] transition-all duration-300 ${cardBorderClass} ${isSelected ? "ring-2 ring-accent-purple-500" : ""} cursor-pointer bg-gradient-to-br from-accent-purple-50/30 via-accent-purple-50/20 to-accent-purple-100/30 border-accent-purple-200/60 overflow-hidden shadow-sm`}
-        onClick={() => {
-          if (isRenaming || isEditing) {
-            // Prevent modal from opening when in edit/rename mode
-            return;
-          }
-          if (bulkMode) {
-            onToggleSelection?.();
-          } else if (onClick) {
-            onClick();
-          } else {
-            setModalInitialTab('properties');
-            setShowModal(true);
-          }
-        }}
+        className={`group relative bg-gradient-to-br from-white to-accent-purple-50/20 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer hover:border-accent-purple-300 hover:bg-gradient-to-br hover:from-accent-purple-50/30 hover:to-accent-purple-100/20 h-64 ${isSelected ? "ring-2 ring-accent-purple-500" : ""}`}
+        onClick={handleCardClick}
+        data-testid={`document-card-${document.id}`}
       >
-        <CardContent className={`p-2 sm:p-2.5 pb-2.5 relative mobile-document-card-content h-auto overflow-hidden card-content`}>
-            {/* Bulk selection checkbox */}
-            {bulkMode && (
-              <div className="absolute top-0.5 left-0.5 z-10">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleSelection?.();
-                  }}
-                  className="w-4 h-4 p-0"
-                >
-                  {isSelected ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
-                </Button>
+        <CardContent className="p-0 h-full flex flex-col">
+          {/* Bulk Selection Checkbox - positioned absolutely */}
+          {bulkMode && (
+            <div className="absolute top-2 left-2 z-10 bg-white/90 rounded-full p-1 shadow-sm">
+              <div className="w-5 h-5 flex items-center justify-center">
+                {isSelected ? (
+                  <CheckSquare className="h-5 w-5 text-accent-purple-600" />
+                ) : (
+                  <Square className="h-5 w-5 text-gray-400" />
+                )}
               </div>
-            )}
-
-          {/* List View Layout */}
-          <div className="flex items-center gap-2.5 min-h-0">
-            {/* Document thumbnail */}
-            <div className="relative w-9 h-9 flex-shrink-0 rounded-md border border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm">
-              {thumbnailError ? (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-200/80 to-accent-purple-300/70 text-accent-purple-700">
-                  {getFileIcon()}
-                </div>
-              ) : (
-                <img
-                  src={`/api/documents/${document.id}/thumbnail`}
-                  alt={document.name}
-                  className="w-full h-full object-cover"
-                  onError={() => setThumbnailError(true)}
-                />
-              )}
             </div>
+          )}
 
-            {/* Document info - main content */}
-            <div className="flex-1 min-w-0">
+          {/* Thumbnail Section - 75% height */}
+          <div 
+            className="relative flex-1 bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
+            style={{ height: '75%' }}
+          >
+            {thumbnailError || !thumbnailUrl ? (
+              <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${getFileTypeIconColor()}`}>
+                {getFileIcon()}
+              </div>
+            ) : (
+              <img 
+                src={thumbnailUrl}
+                alt={document.name}
+                className="w-full h-full object-cover"
+                onError={() => setThumbnailError(true)}
+                data-testid={`document-thumbnail-${document.id}`}
+              />
+            )}
+          </div>
+
+          {/* Bottom Row - 25% height */}
+          <div 
+            className="flex items-center justify-between px-3 py-2 bg-white"
+            style={{ height: '25%', minHeight: '48px' }}
+          >
+            {/* Title - Left aligned */}
+            <div className="flex-1 min-w-0 mr-2">
               {isRenaming ? (
-                <div className="flex items-center gap-2">
+                <div className="space-y-1">
                   <Input
                     value={renameName}
                     onChange={(e) => setRenameName(e.target.value)}
                     onKeyDown={handleRenameKeyPress}
-                    className="text-sm h-7 flex-1"
+                    className="text-sm h-6 text-gray-900"
                     autoFocus
                     placeholder="Enter new document name"
                   />
-                  <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-7 w-7 p-0">
-                    <Check className="h-3 w-3" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-7 w-7 p-0">
-                    <X className="h-3 w-3" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-5 w-5 p-0">
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-5 w-5 p-0">
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-1">
-                  {/* Document title */}
-                  <h3 className="font-medium text-sm leading-tight text-gray-900 truncate">
-                    {document.name}
-                  </h3>
-
-                  {/* Document metadata */}
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <span>{formatFileSize(document.fileSize)}</span>
-                    <span>•</span>
-                    <span>{formatDate(document.uploadedAt)}</span>
-                    {category && (
-                      <>
-                        <span>•</span>
-                        <span className="truncate max-w-[100px]">{category.name}</span>
-                      </>
-                    )}
-                    {document.expiryDate && (
-                      <>
-                        <span>•</span>
-                        <span className="text-orange-600">Due {formatDate(document.expiryDate)}</span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Insights section - on separate line */}
-                  {showInsights && (
-                    <div className="flex items-center gap-1.5">
-                      {openInsights.length > 0 ? (
-                        <>
-                          {/* Priority indicators first */}
-                          {criticalInsights.length > 0 && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 border border-red-200">
-                                    <AlertTriangle className="h-3 w-3 text-red-600" />
-                                    <span className="text-xs font-bold text-red-700">{criticalInsights.length}</span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{criticalInsights.length} Critical</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-
-                          {openInsights.filter(i => i.priority === 'medium').length > 0 && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 border border-orange-200">
-                                    <Clock className="h-3 w-3 text-orange-600" />
-                                    <span className="text-xs font-medium text-orange-700">{openInsights.filter(i => i.priority === 'medium').length}</span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{openInsights.filter(i => i.priority === 'medium').length} Medium</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-
-                          {/* Total insights button */}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-5 px-1.5 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setModalInitialTab('insights');
-                              setShowModal(true);
-                            }}
-                          >
-                            <Brain className="h-2.5 w-2.5 mr-1" />
-                            <span className="text-xs font-medium">{openInsights.length} insight{openInsights.length > 1 ? 's' : ''}</span>
-                          </Button>
-                        </>
-                      ) : (
-                        // No insights - show generate button
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-5 px-1.5 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400 hover:from-accent-purple-600 hover:to-accent-purple-700"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            generateInsightsMutation.mutate();
-                          }}
-                          disabled={generateInsightsMutation.isPending || insightsLoading}
-                        >
-                          {generateInsightsMutation.isPending ? (
-                            <>
-                              <Clock className="h-2.5 w-2.5 mr-1 animate-spin" />
-                              <span className="text-xs font-medium">Analyzing...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Brain className="h-2.5 w-2.5 mr-1" />
-                              <span className="text-xs font-medium">Generate Insights</span>
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <h3 
+                  className="font-semibold text-sm text-gray-900 truncate leading-tight"
+                  title={document.name}
+                  data-testid={`document-title-${document.id}`}
+                >
+                  {document.name}
+                </h3>
               )}
             </div>
 
-            {/* Actions dropdown for list view */}
-            {!isEditing && !isRenaming && (
-              <div className="flex-shrink-0 ml-2">
+            {/* Insights Indicator - Center */}
+            <div className="flex-shrink-0 mx-2">
+              {renderInsightsIndicator()}
+            </div>
+
+            {/* Overflow Menu - Right aligned */}
+            {!bulkMode && (
+              <div className="flex-shrink-0">
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200"
-                      onClick={(e) => e.stopPropagation()}
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 rounded-full hover:bg-gray-100"
+                      data-testid={`document-menu-${document.id}`}
                     >
-                      <MoreHorizontal className="h-3 w-3 text-gray-500 hover:text-accent-purple-600" />
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      if (onClick) {
-                        onClick();
-                      } else {
-                        setModalInitialTab('properties');
-                        setShowModal(true);
-                      }
+                    <DropdownMenuItem onClick={() => {
+                      setModalInitialTab('properties');
+                      setShowModal(true);
                     }}>
                       <Eye className="h-4 w-4 mr-2" />
                       View
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload();
-                    }}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation();
@@ -736,24 +522,18 @@ export default function UnifiedDocumentCard({
                       <Type className="h-4 w-4 mr-2" />
                       Rename
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      handleStartEdit();
-                    }}>
-                      <Edit2 className="h-4 w-4 mr-2" />
-                      Edit
+                    <DropdownMenuItem onClick={handleDownload}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      setShowShareDialog(true);
-                    }}>
-                      <FileSearch className="h-4 w-4 mr-2" />
-                      Share
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(e);
-                    }} className="text-accent-purple-600 hover:text-accent-purple-700">
+                    <ShareDocumentDialog documentId={document.id} documentName={document.name} />
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(e);
+                      }}
+                      className="text-red-600 focus:text-red-600"
+                    >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
                     </DropdownMenuItem>
@@ -767,15 +547,34 @@ export default function UnifiedDocumentCard({
 
       {/* Modals */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-white">
-          <div className="w-full h-full bg-white overflow-hidden">
-            <EnhancedDocumentViewer
-              document={document}
-              onClose={() => setShowModal(false)}
-              onUpdate={onUpdate}
-              onDownload={handleDownload}
-              initialTab={modalInitialTab}
-            />
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg w-full max-w-[95vw] lg:max-w-[90vw] max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-end p-2 border-b bg-[#FAF4EF]">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowModal(false)}
+                className="flex-shrink-0 modal-header-close-btn"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="h-full max-h-[calc(90vh-4rem)]">
+              <EnhancedDocumentViewer
+                document={document}
+                onClose={() => setShowModal(false)}
+                onUpdate={onUpdate}
+                onDownload={handleDownload}
+                initialTab={modalInitialTab}
+                showCloseButton={false}
+              />
+            </div>
           </div>
         </div>
       )}

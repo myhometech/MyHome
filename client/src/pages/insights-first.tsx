@@ -47,7 +47,7 @@ import SmartHelpTooltip, { HelpBadge, HelpSection } from "@/components/smart-hel
 import FloatingChatWidget from "@/components/floating-chat-widget";
 import type { Category, Document } from "@shared/schema";
 import React from "react";
-import { useLocation, setLocation } from "wouter";
+import { useLocation } from "wouter";
 
 interface DocumentInsight {
   id: string;

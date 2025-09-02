@@ -310,11 +310,13 @@ router.post('/', upload.fields([
 // Get optimized document list with pagination and search
 router.get('/', async (req: any, res: any) => {
   if (!req.user) {
+    console.log('[DOCUMENTS] No user authentication on GET /');
     return res.status(401).json({ message: 'Authentication required' });
   }
 
   try {
     const userId = req.user.id;
+    console.log(`[DOCUMENTS] Fetching documents for user ${userId}`);
     const {
       search,
       category,

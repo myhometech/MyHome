@@ -246,6 +246,29 @@ export default function InsightsFirstPage() {
 
   if (documentsError) {
     console.error('Insights page documents error:', documentsError);
+    
+    // Enhanced error message based on error type
+    let errorMessage = 'Please check your internet connection and try again.';
+    let errorTitle = 'Unable to load documents';
+    
+    if (documentsError instanceof Error) {
+      if (documentsError.message.includes('fetch')) {
+        errorMessage = 'Connection failed. Please check your internet connection or try refreshing the page.';
+        errorTitle = 'Connection Error';
+      } else if (documentsError.message.includes('401')) {
+        errorMessage = 'Please log in again to continue.';
+        errorTitle = 'Authentication Required';
+      } else if (documentsError.message.includes('500')) {
+        errorMessage = 'Server error. Please try again in a moment or contact support if the issue persists.';
+        errorTitle = 'Server Error';
+      } else {
+        errorMessage = `Error: ${documentsError.message}`;
+      }
+    } else if (!navigator.onLine) {
+      errorMessage = 'You appear to be offline. Please check your internet connection.';
+      errorTitle = 'No Internet Connection';
+    }
+    
     return (
       <div className="min-h-screen bg-gray-50">
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
@@ -253,13 +276,8 @@ export default function InsightsFirstPage() {
           <Card>
             <CardContent className="p-8 text-center">
               <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">Unable to load documents</h3>
-              <p className="text-gray-600 mb-4">
-                {documentsError instanceof Error 
-                  ? `Connection error: ${documentsError.message}` 
-                  : 'Please check your internet connection and try again.'
-                }
-              </p>
+              <h3 className="text-lg font-medium mb-2">{errorTitle}</h3>
+              <p className="text-gray-600 mb-4">{errorMessage}</p>
               <div className="space-x-2">
                 <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/documents"] })}>
                   Retry
@@ -268,6 +286,19 @@ export default function InsightsFirstPage() {
                   Refresh Page
                 </Button>
               </div>
+              {process.env.NODE_ENV === 'development' && (
+                <details className="mt-4 text-left text-xs">
+                  <summary className="cursor-pointer text-gray-500">Debug Info</summary>
+                  <pre className="mt-2 p-2 bg-gray-100 rounded text-gray-700">
+                    {JSON.stringify({
+                      error: documentsError,
+                      isOnline: navigator.onLine,
+                      userAgent: navigator.userAgent,
+                      timestamp: new Date().toISOString()
+                    }, null, 2)}
+                  </pre>
+                </details>
+              )}
             </CardContent>
           </Card>
         </main>

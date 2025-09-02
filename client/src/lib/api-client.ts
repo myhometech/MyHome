@@ -68,12 +68,29 @@ export async function apiRequestWithRetry<T = any>(
           response.status >= 500 && response.status < 600
         );
         
+        console.error(`API Error for ${url}:`, {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          attempt: attempt + 1
+        });
+        
         throw error;
       }
 
       return await response.json();
     } catch (error: any) {
       lastError = error;
+      
+      // Enhanced error logging
+      console.error(`API Request failed for ${url}:`, {
+        attempt: attempt + 1,
+        error: error.message,
+        type: error.name,
+        status: error.status,
+        isNetworkError: !error.response,
+        isOnline: navigator.onLine
+      });
       
       // Don't retry on the last attempt or if error is not retryable
       if (attempt === config.maxRetries || !config.retryCondition!(error)) {
@@ -112,6 +129,17 @@ export async function enhancedApiRequest<T = any>(
   try {
     return await apiRequestWithRetry<T>(url, requestOptions, retryConfig);
   } catch (error: any) {
+    // Log detailed error for debugging
+    console.error('Enhanced API request failed:', {
+      url,
+      method,
+      error: error.message,
+      status: error.status,
+      isOnline: navigator.onLine,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString()
+    });
+
     // Transform error for better user experience
     if (error instanceof ApiError) {
       // Don't show technical details to users
@@ -126,9 +154,14 @@ export async function enhancedApiRequest<T = any>(
       }
     }
     
-    // Network error
+    // Network error - provide more specific guidance
     if (!navigator.onLine) {
-      throw new Error('You\'re offline. Please check your internet connection');
+      throw new Error('You\'re offline. Please check your internet connection and try again');
+    }
+    
+    // Generic fetch failures (CORS, DNS, etc.)
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('Connection failed. Please check your internet connection or try refreshing the page');
     }
     
     throw error;

@@ -180,9 +180,11 @@ export default function UnifiedDocumentCard({
         if (response.ok) {
           const blob = await response.blob();
           const blobUrl = URL.createObjectURL(blob);
+          console.log(`[THUMBNAIL] Successfully created blob URL for document ${document.id}:`, blobUrl);
           setThumbnailBlobUrl(blobUrl);
           setThumbnailError(false);
         } else {
+          console.warn(`[THUMBNAIL] Failed to fetch thumbnail for document ${document.id}:`, response.status, response.statusText);
           setThumbnailError(true);
         }
       } catch (error) {
@@ -452,11 +454,11 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`group relative bg-gradient-to-br from-white to-purple-50/20 rounded-lg border border-purple-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer hover:border-purple-300 hover:bg-gradient-to-br hover:from-purple-50/30 hover:to-purple-100/20 h-48 w-full ${isSelected ? "ring-2 ring-purple-500" : ""}`}
+        className={`mobile-document-card group relative bg-gradient-to-br from-white to-purple-50/20 rounded-lg border border-purple-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer hover:border-purple-300 hover:bg-gradient-to-br hover:from-purple-50/30 hover:to-purple-100/20 h-48 w-full ${isSelected ? "ring-2 ring-purple-500" : ""}`}
         onClick={handleCardClick}
         data-testid={`document-card-${document.id}`}
       >
-        <CardContent className="p-0 h-full flex flex-col">
+        <CardContent className="mobile-document-card-content p-0 h-full flex flex-col">
           {/* Bulk Selection Checkbox - positioned absolutely */}
           {bulkMode && (
             <div className="absolute top-2 left-2 z-10 bg-white/90 rounded-full p-1 shadow-sm">
@@ -476,17 +478,27 @@ export default function UnifiedDocumentCard({
             style={{ height: '75%' }}
           >
             {thumbnailError || !thumbnailBlobUrl ? (
+              <>{console.log(`[THUMBNAIL] Rendering fallback for document ${document.id}: error=${thumbnailError}, blobUrl=${thumbnailBlobUrl}`)}</>,
               <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${getFileTypeIconColor()}`}>
                 {getFileIcon()}
               </div>
             ) : (
-              <img 
-                src={thumbnailBlobUrl}
-                alt={document.name}
-                className="w-full h-full object-cover"
-                onError={() => setThumbnailError(true)}
-                data-testid={`document-thumbnail-${document.id}`}
-              />
+              <>
+                {console.log(`[THUMBNAIL] Rendering image for document ${document.id} with blobUrl:`, thumbnailBlobUrl)}
+                <img 
+                  src={thumbnailBlobUrl}
+                  alt={document.name}
+                  className="w-full h-full object-cover"
+                  onError={() => {
+                    console.warn(`[THUMBNAIL] Image error for document ${document.id}`);
+                    setThumbnailError(true);
+                  }}
+                  onLoad={() => {
+                    console.log(`[THUMBNAIL] Image loaded successfully for document ${document.id}`);
+                  }}
+                  data-testid={`document-thumbnail-${document.id}`}
+                />
+              </>
             )}
           </div>
 

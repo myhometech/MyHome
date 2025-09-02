@@ -848,106 +848,96 @@ export default function UnifiedDocumentCard({
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-1">
-                      <div className="flex items-start gap-3">
-                        {/* Document thumbnail */}
-                        <div className="relative w-16 h-16 flex-shrink-0 rounded-xl border-2 border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm icon-container">
-                          {thumbnailError ? (
-                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
-                              {getFileIcon()}
-                            </div>
-                          ) : (
-                            <img
-                              src={`/api/documents/${document.id}/thumbnail`}
-                              alt={document.name}
-                              className="w-full h-full object-cover"
-                              onError={() => setThumbnailError(true)}
-                            />
-                          )}
+                    <div className="space-y-2">
+                      {isRenaming ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={renameName}
+                            onChange={(e) => setRenameName(e.target.value)}
+                            onKeyDown={handleRenameKeyPress}
+                            className="text-sm h-7"
+                            autoFocus
+                            placeholder="Enter new document name"
+                          />
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                        
-                        {/* Document info */}
-                        <div className="flex-1 min-w-0 pr-10">
-                          {isRenaming ? (
-                            <div className="space-y-2">
-                              <Input
-                                value={renameName}
-                                onChange={(e) => setRenameName(e.target.value)}
-                                onKeyDown={handleRenameKeyPress}
-                                className="text-sm h-7"
-                                autoFocus
-                                placeholder="Enter new document name"
-                              />
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                                  <Check className="h-3 w-3" />
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-1.5">
-                              <h3 className="font-semibold text-base leading-tight text-gray-900 line-clamp-2 mb-1">
-                                {document.name}
-                              </h3>
-                              {/* Insights with type-specific icons */}
-                              {showInsights && openInsights.length > 0 && (
-                                <div className="flex items-center gap-1 flex-wrap max-w-[calc(100%-2rem)]">
-                                  {(() => {
-                                    // Group insights by type and count them
-                                    const insightsByType = openInsights.reduce((acc, insight) => {
-                                      acc[insight.type] = (acc[insight.type] || 0) + 1;
-                                      return acc;
-                                    }, {} as Record<string, number>);
+                      ) : (
+                        <div className="space-y-2 pr-8">
+                          <h3 className="font-semibold text-lg leading-tight text-gray-900 line-clamp-3">
+                            {document.name}
+                          </h3>
+                          
+                          {/* Document metadata */}
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <span className="font-medium">{formatFileSize(document.fileSize)}</span>
+                            <span>•</span>
+                            <span>{formatDate(document.uploadedAt)}</span>
+                            {document.expiryDate && (
+                              <>
+                                <span>•</span>
+                                <div className="flex items-center gap-1 text-orange-600">
+                                  <Calendar className="h-3 w-3" />
+                                  <span>Due {formatDate(document.expiryDate)}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
 
-                                    // Use consistent accent-purple theme for all badges
-                                    const typeConfigs = {
-                                      summary: { icon: FileText, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Summary' },
-                                      action_items: { icon: ListTodo, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Actions' },
-                                      key_dates: { icon: Calendar, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Dates' },
-                                      financial_info: { icon: DollarSign, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Financial' },
-                                      contacts: { icon: Users, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Contacts' },
-                                      compliance: { icon: Shield, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Compliance' }
-                                    };
+                          {/* Insights with type-specific icons */}
+                          {showInsights && openInsights.length > 0 && (
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {(() => {
+                                // Group insights by type and count them
+                                const insightsByType = openInsights.reduce((acc, insight) => {
+                                  acc[insight.type] = (acc[insight.type] || 0) + 1;
+                                  return acc;
+                                }, {} as Record<string, number>);
 
-                                    return Object.entries(insightsByType).slice(0, 3).map(([type, count]) => {
-                                      const config = typeConfigs[type as keyof typeof typeConfigs] || typeConfigs.summary;
-                                      const IconComponent = config.icon;
-                                      
-                                      return (
-                                        <div 
-                                          key={type}
-                                          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.color} shadow-sm`}
-                                        >
-                                          <IconComponent className="h-3 w-3" />
-                                          <span>{count}</span>
-                                        </div>
-                                      );
-                                    });
-                                  })()}
-                                  {Object.keys(openInsights.reduce((acc, insight) => {
+                                // Use consistent accent-purple theme for all badges
+                                const typeConfigs = {
+                                  summary: { icon: FileText, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Summary' },
+                                  action_items: { icon: ListTodo, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Actions' },
+                                  key_dates: { icon: Calendar, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Dates' },
+                                  financial_info: { icon: DollarSign, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Financial' },
+                                  contacts: { icon: Users, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Contacts' },
+                                  compliance: { icon: Shield, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Compliance' }
+                                };
+
+                                return Object.entries(insightsByType).slice(0, 4).map(([type, count]) => {
+                                  const config = typeConfigs[type as keyof typeof typeConfigs] || typeConfigs.summary;
+                                  const IconComponent = config.icon;
+                                  
+                                  return (
+                                    <div 
+                                      key={type}
+                                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${config.color} shadow-sm`}
+                                    >
+                                      <IconComponent className="h-3 w-3" />
+                                      <span>{count}</span>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                              {Object.keys(openInsights.reduce((acc, insight) => {
+                                acc[insight.type] = true;
+                                return acc;
+                              }, {} as Record<string, boolean>)).length > 4 && (
+                                <div className="flex items-center px-2 py-1 rounded-full text-xs font-medium bg-accent-purple-50 text-accent-purple-600 border border-accent-purple-200 shadow-sm">
+                                  <span>+{Object.keys(openInsights.reduce((acc, insight) => {
                                     acc[insight.type] = true;
                                     return acc;
-                                  }, {} as Record<string, boolean>)).length > 3 && (
-                                    <div className="flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-accent-purple-50 text-accent-purple-600 border border-accent-purple-200 shadow-sm">
-                                      <span>+{Object.keys(openInsights.reduce((acc, insight) => {
-                                        acc[insight.type] = true;
-                                        return acc;
-                                      }, {} as Record<string, boolean>)).length - 3}</span>
-                                    </div>
-                                  )}
+                                  }, {} as Record<string, boolean>)).length - 4}</span>
                                 </div>
                               )}
                             </div>
                           )}
-                        </div>
-                      </div>
-                      {document.expiryDate && (
-                        <div className="flex items-center gap-1 text-xs text-accent-purple-600 ml-16">
-                          <Calendar className="h-3 w-3" />
-                          <span className="text-xs truncate font-medium">{formatDate(document.expiryDate)}</span>
                         </div>
                       )}
                     </div>

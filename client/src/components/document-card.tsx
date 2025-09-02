@@ -480,39 +480,38 @@ export default function DocumentCard({
                       </div>
                     </div>
                   ) : (
-                    <h3 className="font-medium text-sm truncate">{document.name}</h3>
+                    <div>
+                      <h3 className="font-medium text-sm truncate">{document.name}</h3>
+                      <div className="flex items-center justify-between mt-1">
+                        <div className="flex items-center space-x-2 text-xs text-gray-500">
+                          <span>{category?.name || "Uncategorized"}</span>
+                          <span>•</span>
+                          <span>{formatFileSize(document.fileSize)}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-xs text-gray-500">
+                          <span>{formatDate(document.uploadedAt)}</span>
+                          {supportsOCR() && document.ocrProcessed && (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 ml-2">
+                              Text Extracted
+                            </Badge>
+                          )}
+                          {insightsLoading && (
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1 ml-2">
+                              <div className="animate-spin h-2 w-2 border border-blue-400 border-t-transparent rounded-full"></div>
+                              Generating
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   )}
-                  <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
-                    <span>{category?.name || "Uncategorized"}</span>
-                    <span>•</span>
-                    <span>{formatFileSize(document.fileSize)}</span>
-                    <span>•</span>
-                    <span>{formatDate(document.uploadedAt)}</span>
-                    {supportsOCR() && document.ocrProcessed && (
-                      <>
-                        <span>•</span>
-                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                          Text Extracted
-                        </Badge>
-                      </>
-                    )}
-                    {insightsLoading && (
-                      <>
-                        <span>•</span>
-                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1">
-                          <div className="animate-spin h-2 w-2 border border-blue-400 border-t-transparent rounded-full"></div>
-                          Generating Insights
-                        </Badge>
-                      </>
-                    )}
-                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center ml-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 flex items-center justify-center">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>

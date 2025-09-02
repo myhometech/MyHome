@@ -72,7 +72,7 @@ export default function UnifiedDocuments() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchActive, setIsSearchActive] = useState(false);
-  
+
 
   // Search-as-you-type handlers
   const handleSearchChange = (query: string, results: any[]) => {
@@ -652,7 +652,7 @@ export default function UnifiedDocuments() {
                     </Select>
                   </div>
 
-                  
+
                 </div>
 
                 <div className="flex items-center gap-2">

@@ -1059,6 +1059,10 @@ function AssetsTabContent() {
   }
 
   if (error) {
+    const handleRetry = () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/vehicles'] });
+    };
+
     return (
       <div className="space-y-6">
         <Card>
@@ -1082,12 +1086,47 @@ function AssetsTabContent() {
                   <p className="text-amber-600 mb-4">You don't have access to Vehicle Assets.</p>
                   <Button variant="outline">Contact Admin</Button>
                 </div>
+              ) : error?.type === 'timeout' ? (
+                <div>
+                  <p className="text-orange-600 mb-4">Request timed out. The server is taking too long to respond.</p>
+                  <div className="space-y-2">
+                    <Button onClick={handleRetry}>
+                      Try Again
+                    </Button>
+                    <p className="text-xs text-gray-500">
+                      If this persists, the server may be experiencing high load.
+                    </p>
+                  </div>
+                </div>
+              ) : error?.type === 'network' ? (
+                <div>
+                  <p className="text-red-600 mb-4">Network connection error.</p>
+                  <div className="space-y-2">
+                    <Button onClick={handleRetry}>
+                      Retry Connection
+                    </Button>
+                    <p className="text-xs text-gray-500">
+                      Check your internet connection and try again.
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <div>
-                  <p className="text-red-600">
-                    Could not load your vehicles. Please refresh or try again.
-                    {error?.cid && <span className="text-xs block mt-1">Ref: {error.cid}</span>}
+                  <p className="text-red-600 mb-4">
+                    {error?.message || 'Could not load your vehicles. Please try again.'}
                   </p>
+                  <div className="space-y-2">
+                    <Button onClick={handleRetry}>
+                      Retry
+                    </Button>
+                    {(error?.cid || error?.status || error?.details) && (
+                      <div className="text-xs text-gray-500 space-y-1">
+                        {error?.status && <div>Status: {error.status}</div>}
+                        {error?.cid && <div>Ref: {error.cid}</div>}
+                        {error?.details && <div>Details: {error.details}</div>}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

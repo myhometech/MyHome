@@ -7,13 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square, Brain, ChevronDown, ChevronRight, Zap, Type } from "lucide-react";
+import { FileText, Image, MoreHorizontal, Download, Trash2, Eye, Edit2, Check, X, FileSearch, Calendar, AlertTriangle, Clock, CheckSquare, Square, Brain, Type } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { EnhancedDocumentViewer } from "./enhanced-document-viewer";
 import type { DocumentInsight } from "@shared/schema";
 import { cn } from "@/lib/utils";
-
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 interface Document {
@@ -51,6 +49,41 @@ interface DocumentCardProps {
   className?: string;
 }
 
+// Thumbnail component with error handling
+function DocumentThumbnail({ 
+  src, 
+  alt, 
+  documentId, 
+  fallbackIcon, 
+  fallbackIconColor 
+}: {
+  src: string;
+  alt: string;
+  documentId: number;
+  fallbackIcon: React.ReactElement;
+  fallbackIconColor: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${fallbackIconColor}`}>
+        {fallbackIcon}
+      </div>
+    );
+  }
+
+  return (
+    <img 
+      src={src}
+      alt={alt}
+      className="w-full h-full object-cover"
+      onError={() => setHasError(true)}
+      data-testid={`document-thumbnail-${documentId}`}
+    />
+  );
+}
+
 export default function DocumentCard({ 
   document, 
   categories = [], 
@@ -67,24 +100,19 @@ export default function DocumentCard({
   const [editName, setEditName] = useState(document.name);
   const [renameName, setRenameName] = useState(document.name);
   const [editImportantDate, setEditImportantDate] = useState(document.expiryDate || "");
-  const [insightsExpanded, setInsightsExpanded] = useState(false);
   const { toast } = useToast();
 
   const category = categories?.find(c => c.id === document.categoryId);
 
-  // Fetch insights for this document - always log query attempts
-
-
-  const { data: insightsData, isLoading: insightsLoading, error: insightsError } = useQuery({
+  // Fetch insights for this document
+  const { data: insightsData, isLoading: insightsLoading } = useQuery({
     queryKey: [`/api/documents/${document.id}/insights`],
     queryFn: async () => {
-
       const response = await fetch(`/api/documents/${document.id}/insights`, {
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch insights');
       const data = await response.json();
-
       return data;
     },
   });
@@ -92,89 +120,44 @@ export default function DocumentCard({
   // Extract insights array from the response object
   const insights: DocumentInsight[] = insightsData?.insights || [];
 
-  // Debug logging for all documents now
-
-
   // Calculate insight summary - filter out unwanted types
   const openInsights = insights.filter(i => 
     i.status === 'open' && 
     !['financial_info', 'compliance', 'key_dates', 'action_items'].includes(i.type)
   );
-  const criticalInsights = openInsights.filter(i => i.priority === 'high');
 
-  // More debug logging for document 28
-  if (document.id === 28) {
+  // Calculate insights count for badge
+  const insightsCount = openInsights.length;
+  const hasOcrCompleted = document.ocrProcessed;
 
-  }
-
-  // Insight dismiss mutation - copied from working critical insights dashboard
-  const dismissInsightMutation = useMutation({
-    mutationFn: async (insightId: string) => {
-
-      const response = await fetch(`/api/insights/${insightId}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'dismissed' }),
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        console.error('[DEBUG] Failed to dismiss insight:', response.status, response.statusText);
-        throw new Error('Failed to dismiss insight');
-      }
-
-      return response.json();
-    },
-    onMutate: async (insightId: string) => {
-
-      // Cancel any outgoing refetches so they don't overwrite our optimistic update
-      await queryClient.cancelQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
-
-      // Snapshot the previous value
-      const previousInsights = queryClient.getQueryData([`/api/documents/${document.id}/insights`]);
-
-      // Optimistically update to the new value by removing the dismissed insight
-      queryClient.setQueryData([`/api/documents/${document.id}/insights`], (old: any) => {
-        if (!old?.insights) return old;
-        return {
-          ...old,
-          insights: old.insights.filter((insight: any) => insight.id !== insightId)
-        };
-      });
-
-      // Return a context object with the snapshotted value
-      return { previousInsights };
-    },
-    onSuccess: () => {
-
-      // Invalidate and refetch insights queries to refresh the list immediately
-      queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
-      queryClient.refetchQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
-      // Also invalidate the main insights query to keep all views synchronized
-      queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
-      queryClient.refetchQueries({ queryKey: ['/api/insights'] });
-      toast({
-        title: "Insight dismissed",
-        description: "The insight has been successfully dismissed.",
-      });
-    },
-    onError: (error, insightId, context) => {
-      console.error('[DEBUG] Failed to dismiss insight:', error);
-      // If the mutation fails, use the context returned from onMutate to roll back
-      queryClient.setQueryData([`/api/documents/${document.id}/insights`], context?.previousInsights);
-      toast({
-        title: "Failed to dismiss insight",
-        description: "Please try again later.",
-        variant: "destructive",
-      });
-    },
-    onSettled: () => {
-      // Always refetch after error or success to sync with server
-      queryClient.invalidateQueries({ queryKey: [`/api/documents/${document.id}/insights`] });
+  // Insights indicator component
+  const renderInsightsIndicator = () => {
+    if (insightsCount > 0 && hasOcrCompleted) {
+      // Show circular badge with count (cap at 99+)
+      const displayCount = insightsCount > 99 ? '99+' : insightsCount.toString();
+      return (
+        <div 
+          className="flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-semibold rounded-full"
+          data-testid={`insights-badge-${document.id}`}
+        >
+          {displayCount}
+        </div>
+      );
+    } else {
+      // Show brain icon
+      return (
+        <Brain 
+          className="h-5 w-5 text-gray-400" 
+          data-testid={`insights-brain-${document.id}`}
+        />
+      );
     }
-  });
+  };
+
+  // Get thumbnail URL for the document
+  const thumbnailUrl = document.mimeType.startsWith('image/') 
+    ? `/api/documents/${document.id}/thumbnail`
+    : null;
 
   const updateDocumentMutation = useMutation({
     mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {
@@ -219,74 +202,6 @@ export default function DocumentCard({
       setIsRenaming(false);
     },
   });
-
-  const handleStartEdit = () => {
-    setIsEditing(true);
-    setEditName(document.name);
-    setEditImportantDate(document.expiryDate || "");
-  };
-
-  const handleStartRename = () => {
-    setIsRenaming(true);
-    setRenameName(document.name);
-  };
-
-  const handleSaveEdit = () => {
-    const hasNameChange = editName.trim() !== document.name;
-    const hasExpiryChange = editImportantDate !== (document.expiryDate || "");
-
-    if (hasNameChange || hasExpiryChange) {
-      updateDocumentMutation.mutate({ 
-        id: document.id, 
-        name: editName.trim(), 
-        expiryDate: editImportantDate || null 
-      });
-    } else {
-      setIsEditing(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditName(document.name);
-    setEditImportantDate(document.expiryDate || "");
-    setIsEditing(false);
-  };
-
-  const handleSaveRename = () => {
-    if (renameName.trim() !== document.name && renameName.trim() !== "") {
-      updateDocumentMutation.mutate({ 
-        id: document.id, 
-        name: renameName.trim(), 
-        expiryDate: document.expiryDate 
-      });
-    }
-    setIsRenaming(false);
-  };
-
-  const handleCancelRename = () => {
-    setRenameName(document.name);
-    setIsRenaming(false);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSaveEdit();
-    } else if (e.key === 'Escape') {
-      handleCancelEdit();
-    }
-  };
-
-  const handleRenameKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSaveRename();
-    } else if (e.key === 'Escape') {
-      handleCancelRename();
-    }
-  };
-
-
-
-
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -387,12 +302,75 @@ export default function DocumentCard({
     });
   };
 
+  const handleStartEdit = () => {
+    setIsEditing(true);
+    setEditName(document.name);
+    setEditImportantDate(document.expiryDate || "");
+  };
+
+  const handleStartRename = () => {
+    setIsRenaming(true);
+    setRenameName(document.name);
+  };
+
+  const handleSaveEdit = () => {
+    const hasNameChange = editName.trim() !== document.name;
+    const hasExpiryChange = editImportantDate !== (document.expiryDate || "");
+
+    if (hasNameChange || hasExpiryChange) {
+      updateDocumentMutation.mutate({ 
+        id: document.id, 
+        name: editName.trim(), 
+        expiryDate: editImportantDate || null 
+      });
+    } else {
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditName(document.name);
+    setEditImportantDate(document.expiryDate || "");
+    setIsEditing(false);
+  };
+
+  const handleSaveRename = () => {
+    if (renameName.trim() !== document.name && renameName.trim() !== "") {
+      updateDocumentMutation.mutate({ 
+        id: document.id, 
+        name: renameName.trim(), 
+        expiryDate: document.expiryDate 
+      });
+    }
+    setIsRenaming(false);
+  };
+
+  const handleCancelRename = () => {
+    setRenameName(document.name);
+    setIsRenaming(false);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
+  const handleRenameKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveRename();
+    } else if (e.key === 'Escape') {
+      handleCancelRename();
+    }
+  };
+
   const handleDownload = () => {
     window.open(`/api/documents/${document.id}/download`, '_blank');
   };
 
   const handleDelete = () => {
-    // Enhanced confirmation dialog with details
     const documentName = document.name.length > 30 ? document.name.substring(0, 30) + '...' : document.name;
     const confirmMessage = `Are you sure you want to delete "${documentName}"?\n\nThis action cannot be undone. The document will be permanently removed from your account.`;
 
@@ -400,8 +378,6 @@ export default function DocumentCard({
       deleteMutation.mutate(document.id);
     }
   };
-
-
 
   const supportsOCR = () => {
     return ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'].includes(document.mimeType);
@@ -561,8 +537,6 @@ export default function DocumentCard({
             </div>
           </CardContent>
         </Card>
-
-
       </>
     );
   }
@@ -575,273 +549,172 @@ export default function DocumentCard({
     }
   };
 
-
-
   return (
     <>
-
-
       <Card 
         className={cn(
-        "group relative bg-gradient-to-br from-white to-accent-purple-50/20 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer",
-        "hover:border-accent-purple-300 hover:bg-gradient-to-br hover:from-accent-purple-50/30 hover:to-accent-purple-100/20",
-        className
-      )}
+          "group relative bg-gradient-to-br from-white to-accent-purple-50/20 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer",
+          "hover:border-accent-purple-300 hover:bg-gradient-to-br hover:from-accent-purple-50/30 hover:to-accent-purple-100/20",
+          "h-64", // Fixed height for consistent card sizing
+          className
+        )}
         onClick={handleCardClick}
+        data-testid={`document-card-${document.id}`}
       >
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            {/* Bulk Selection Checkbox */}
-            {bulkMode && (
-              <div className="flex items-center mr-3">
-                <div className="w-5 h-5 flex items-center justify-center">
-                  {isSelected ? (
-                    <CheckSquare className="h-5 w-5 text-accent-purple-600" />
-                  ) : (
-                    <Square className="h-5 w-5 text-gray-400" />
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getFileIconColor()}`}>
-              {getFileIcon()}
-            </div>
-            {!bulkMode && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" className={cn(
-              "p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity",
-              "bg-white/90 backdrop-blur-sm border border-gray-200",
-              "hover:bg-accent-purple-50 hover:border-accent-purple-300"
-            )}>
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setShowModal(true)}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  View
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  handleStartRename();
-                }}>
-                  <Type className="h-4 w-4 mr-2" />
-                  Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => {
-                  e.stopPropagation();
-                  handleStartEdit();
-                }}>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDownload}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </DropdownMenuItem>
-                <ShareDocumentDialog documentId={document.id} documentName={document.name} />
-                {supportsOCR() && (
-                  <DropdownMenuItem 
-                    onClick={handleProcessOCR}
-                    disabled={ocrMutation.isPending}
-                  >
-                    <FileSearch className="h-4 w-4 mr-2" />
-                    {document.ocrProcessed ? 'Re-extract Text' : 'Extract Text'}
-                  </DropdownMenuItem>
+        <CardContent className="p-0 h-full flex flex-col">
+          {/* Bulk Selection Checkbox - positioned absolutely */}
+          {bulkMode && (
+            <div className="absolute top-2 left-2 z-10 bg-white/90 rounded-full p-1 shadow-sm">
+              <div className="w-5 h-5 flex items-center justify-center">
+                {isSelected ? (
+                  <CheckSquare className="h-5 w-5 text-accent-purple-600" />
+                ) : (
+                  <Square className="h-5 w-5 text-gray-400" />
                 )}
-                <DropdownMenuItem 
-                  onClick={handleDelete}
-                  className="text-red-600 focus:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              </div>
+            </div>
+          )}
+
+          {/* Thumbnail Section - 75% height */}
+          <div 
+            className="relative flex-1 bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
+            style={{ height: '75%' }}
+            onClick={(isEditing || isRenaming) ? undefined : () => setShowModal(true)}
+          >
+            {thumbnailUrl ? (
+              <DocumentThumbnail
+                src={thumbnailUrl}
+                alt={document.name}
+                documentId={document.id}
+                fallbackIcon={getFileIcon()}
+                fallbackIconColor={getFileIconColor()}
+              />
+            ) : (
+              <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${getFileIconColor()}`}>
+                {getFileIcon()}
+              </div>
             )}
           </div>
 
-          <div onClick={(isEditing || isRenaming) ? undefined : () => setShowModal(true)}>
-            {isEditing ? (
-              <div className="mb-2 space-y-2">
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">Document Name</label>
+          {/* Bottom Row - 25% height */}
+          <div 
+            className="flex items-center justify-between px-3 py-2 bg-white"
+            style={{ height: '25%', minHeight: '48px' }}
+          >
+            {/* Title - Left aligned */}
+            <div className="flex-1 min-w-0 mr-2">
+              {isEditing ? (
+                <div className="space-y-1">
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={handleKeyPress}
-                    className="text-sm h-7"
+                    className="text-sm h-6 text-gray-900"
                     autoFocus
                     placeholder="Enter document name"
                   />
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending} className="h-5 w-5 p-0">
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateDocumentMutation.isPending} className="h-5 w-5 p-0">
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">Important Date (Optional)</label>
-                  <Input
-                    type="date"
-                    value={editImportantDate}
-                    onChange={(e) => setEditImportantDate(e.target.value)}
-                    className="text-sm h-7"
-                    placeholder="Select important date"
-                  />
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                    <Check className="h-3 w-3" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            ) : isRenaming ? (
-              <div className="mb-2 space-y-2">
-                <div>
+              ) : isRenaming ? (
+                <div className="space-y-1">
                   <Input
                     value={renameName}
                     onChange={(e) => setRenameName(e.target.value)}
                     onKeyDown={handleRenameKeyPress}
-                    className="text-sm h-7"
+                    className="text-sm h-6 text-gray-900"
                     autoFocus
                     placeholder="Enter new document name"
                   />
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                    <Check className="h-3 w-3" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <h3 className="font-medium text-sm mb-1 truncate">{document.name}</h3>
-            )}
-            <p className="text-xs text-gray-500 mb-2">{category?.name || "Uncategorized"}</p>
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-              <span>{formatFileSize(document.fileSize)}</span>
-              <span>{formatDate(document.uploadedAt)}</span>
-            </div>
-
-            <div className="mb-2 flex flex-wrap gap-1">
-              {supportsOCR() && document.ocrProcessed && (
-                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                  Text Extracted
-                </Badge>
-              )}
-              {insightsLoading && (
-                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1">
-                  <div className="animate-spin h-2 w-2 border border-blue-400 border-t-transparent rounded-full"></div>
-                  Generating Insights
-                </Badge>
-              )}
-            </div>
-
-            {/* Important Date Display */}
-            {document.expiryDate && (
-              <div className="mb-2">
-                <ExpiryBadge expiryDate={document.expiryDate} />
-              </div>
-            )}
-
-
-
-            {/* AI Insights Section */}
-            {openInsights.length > 0 && (
-              <div className="mt-3 border-t pt-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-gray-700">
-                      AI Insights
-                    </span>
-                    {criticalInsights.length > 0 && (
-                      <Badge variant="destructive" className="text-xs h-5">
-                        {criticalInsights.length}
-                      </Badge>
-                    )}
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-5 w-5 p-0">
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-5 w-5 p-0">
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setInsightsExpanded(!insightsExpanded);
-                    }}
-                    className="h-6 w-6 p-0"
-                  >
-                    {insightsExpanded ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
+              ) : (
+                <h3 
+                  className="font-semibold text-sm text-gray-900 truncate leading-tight"
+                  title={document.name}
+                  data-testid={`document-title-${document.id}`}
+                >
+                  {document.name}
+                </h3>
+              )}
+            </div>
 
-                <Collapsible open={insightsExpanded} onOpenChange={setInsightsExpanded}>
-                  <CollapsibleContent className="space-y-2">
-                    {openInsights.slice(0, 3).map((insight) => (
-                      <div
-                        key={insight.id}
-                        className="p-4 bg-white border border-blue-100 rounded-xl mb-3 shadow-sm hover:shadow-md transition-all duration-200"
+            {/* Insights Indicator - Center */}
+            <div className="flex-shrink-0 mx-2">
+              {renderInsightsIndicator()}
+            </div>
+
+            {/* Overflow Menu - Right aligned */}
+            {!bulkMode && (
+              <div className="flex-shrink-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 rounded-full hover:bg-gray-100"
+                      data-testid={`document-menu-${document.id}`}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setShowModal(true)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartRename();
+                    }}>
+                      <Type className="h-4 w-4 mr-2" />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartEdit();
+                    }}>
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDownload}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </DropdownMenuItem>
+                    <ShareDocumentDialog documentId={document.id} documentName={document.name} />
+                    {supportsOCR() && (
+                      <DropdownMenuItem 
+                        onClick={handleProcessOCR}
+                        disabled={ocrMutation.isPending}
                       >
-                        <div className="flex justify-between items-start gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className={`w-2 h-2 rounded-full ${
-                                insight.priority === 'high' ? 'bg-red-500' : 
-                                insight.priority === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'
-                              }`}></div>
-                              <div className="text-sm font-semibold text-gray-800">
-                                {insight.type.replace('_', ' ').toUpperCase()}
-                              </div>
-                            </div>
-                            <div className="text-sm text-gray-700 mb-2 leading-relaxed">{insight.content}</div>
-                            <div className={`text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1 ${
-                              insight.priority === 'high' ? 'bg-red-100 text-red-700' : 
-                              insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              {insight.priority === 'high' ? '🔥' : insight.priority === 'medium' ? '⚡' : '💡'} 
-                              {insight.priority.charAt(0).toUpperCase() + insight.priority.slice(1)}
-                            </div>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              dismissInsightMutation.mutate(String(insight.id));
-                            }}
-                            className="text-xs px-3 py-1 h-auto hover:bg-gray-50 border-gray-300 rounded-lg transition-colors"
-                            disabled={dismissInsightMutation.isPending}
-                          >
-                            {dismissInsightMutation.isPending ? (
-                              <div className="flex items-center gap-1">
-                                <div className="animate-spin h-3 w-3 border border-gray-400 border-t-transparent rounded-full"></div>
-                                <span>Dismissing</span>
-                              </div>
-                            ) : (
-                              <span>Dismiss</span>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {openInsights.length > 3 && (
-                      <div className="text-xs text-gray-500 text-center">
-                        +{openInsights.length - 3} more insights
-                      </div>
+                        <FileSearch className="h-4 w-4 mr-2" />
+                        {document.ocrProcessed ? 'Re-extract Text' : 'Extract Text'}
+                      </DropdownMenuItem>
                     )}
-                  </CollapsibleContent>
-                </Collapsible>
+                    <DropdownMenuItem 
+                      onClick={handleDelete}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )}
-
-
           </div>
         </CardContent>
       </Card>
@@ -877,8 +750,6 @@ export default function DocumentCard({
           </div>
         </div>
       )}
-
-
     </>
   );
 }

@@ -63,7 +63,38 @@ export async function fetchVehicles(): Promise<any[]> {
       } as VehicleFetchError;
     }
     
-    const data = await res.json();
+    // Check if response is actually JSON
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const responseText = await res.text();
+      console.error('[VEHICLES] Non-JSON response received:', {
+        contentType,
+        status: res.status,
+        responsePreview: responseText.substring(0, 200)
+      });
+      throw { 
+        type: 'server', 
+        status: res.status,
+        message: `Server returned non-JSON response (${contentType})`,
+        details: `Expected JSON but got: ${contentType}. Preview: ${responseText.substring(0, 200)}`
+      } as VehicleFetchError;
+    }
+    
+    let data;
+    try {
+      data = await res.json();
+    } catch (jsonError) {
+      console.error('[VEHICLES] JSON parsing failed:', jsonError);
+      const responseText = await res.text();
+      console.error('[VEHICLES] Raw response text:', responseText.substring(0, 500));
+      throw { 
+        type: 'server', 
+        status: res.status,
+        message: `Invalid JSON response from server`,
+        details: `Response was not valid JSON. First 500 chars: ${responseText.substring(0, 500)}`
+      } as VehicleFetchError;
+    }
+    
     return Array.isArray(data) ? data : [];
     
   } catch (error: any) {

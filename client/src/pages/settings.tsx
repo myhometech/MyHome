@@ -53,12 +53,12 @@ const getStatusDisplay = (status?: string, dueDate?: string) => {
   if (!status && !dueDate) {
     return { color: 'text-gray-500', text: 'Unknown' };
   }
-  
+
   if (dueDate) {
     const due = new Date(dueDate);
     const now = new Date();
     const daysUntilDue = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysUntilDue < 0) {
       return { color: 'text-red-600', text: 'Overdue' };
     } else if (daysUntilDue <= 7) {
@@ -69,13 +69,13 @@ const getStatusDisplay = (status?: string, dueDate?: string) => {
       return { color: 'text-green-600', text: `Due ${due.toLocaleDateString()}` };
     }
   }
-  
+
   // Fallback to status text
   if (status === 'Taxed') return { color: 'text-green-600', text: 'Taxed' };
   if (status === 'Valid') return { color: 'text-green-600', text: 'Valid' };
   if (status === 'Not Taxed') return { color: 'text-red-600', text: 'Not Taxed' };
   if (status === 'Expired') return { color: 'text-red-600', text: 'Expired' };
-  
+
   return { color: 'text-gray-500', text: status || 'Unknown' };
 };
 
@@ -110,7 +110,7 @@ function VehicleCard({ vehicle, onViewDetails, onEdit, onDelete }: {
             </Badge>
           )}
         </div>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 flex-1">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -119,7 +119,7 @@ function VehicleCard({ vehicle, onViewDetails, onEdit, onDelete }: {
             </div>
             <p className={`text-xs sm:text-sm ${taxDisplay.color} break-words`}>{taxDisplay.text}</p>
           </div>
-          
+
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Calendar className="h-4 w-4 text-gray-500" />
@@ -128,13 +128,13 @@ function VehicleCard({ vehicle, onViewDetails, onEdit, onDelete }: {
             <p className={`text-xs sm:text-sm ${motDisplay.color} break-words`}>{motDisplay.text}</p>
           </div>
         </div>
-        
+
         {vehicle.notes && (
           <div className="mb-4">
             <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{vehicle.notes}</p>
           </div>
         )}
-        
+
         <div className="flex flex-col sm:flex-row gap-2 mt-auto">
           <Button 
             variant="outline" 
@@ -254,7 +254,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.vehicle) {
         setDvlaData(data.vehicle);
         setLookupError(null);
@@ -265,7 +265,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
           // Show "No data available" placeholders
         });
       }
-      
+
       setHasLookedUp(true);
     } catch (error: any) {
       console.error('DVLA lookup error:', error);
@@ -409,7 +409,7 @@ function AddVehicleModal({ isOpen, onClose, onVehicleAdded }: {
                   <FileText className="h-5 w-5 text-blue-600" />
                   DVLA Vehicle Information (Read-only)
                 </h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   <div>
                     <Label className="text-gray-600">Make</Label>
@@ -541,7 +541,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
   const updateVehicleMutation = useMutation({
     mutationFn: async (updatedNotes: string) => {
       if (!vehicle) throw new Error('No vehicle selected');
-      
+
       const response = await fetch(`/api/vehicles/${vehicle.id}`, {
         method: 'PUT',
         headers: {
@@ -578,7 +578,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
   const refreshDvlaMutation = useMutation({
     mutationFn: async () => {
       if (!vehicle) throw new Error('No vehicle selected');
-      
+
       const response = await fetch(`/api/vehicles/${vehicle.id}/refresh-dvla`, {
         method: 'POST',
         headers: {
@@ -714,7 +714,7 @@ function VehicleDetailModal({ vehicle, isOpen, onClose }: {
                 </Alert>
               )}
             </div>
-            
+
             <div className="space-y-3 text-xs">
               <div className="space-y-2">
                 <div>
@@ -981,9 +981,9 @@ function AssetsTabContent() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [vehicleToEdit, setVehicleToEdit] = useState<Vehicle | null>(null);
-  
+
   // Fetch vehicles data with enhanced error handling
-  const { data: vehicles, isLoading, error } = useVehicles();
+  const { data: vehicles, isLoading, error, refetch: refetchVehicles } = useVehicles();
 
   const handleAddVehicle = () => {
     setIsAddVehicleModalOpen(true);
@@ -1060,12 +1060,12 @@ function AssetsTabContent() {
 
   if (error) {
     const handleRetry = () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/vehicles'] });
+      refetchVehicles();
     };
 
     const runDiagnostics = async () => {
       console.log('Running connection diagnostics...');
-      
+
       // Test basic connectivity
       try {
         const healthCheck = await fetch('/api/health', { 
@@ -1277,7 +1277,7 @@ export default function Settings() {
     queryKey: ["/api/stripe/subscription-status"],
     enabled: isAuthenticated,
   });
-  
+
   const isPremium = subscriptionStatus?.tier === 'premium' && subscriptionStatus?.status === 'active';
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -1345,7 +1345,7 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-[#FAF4EF]">
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-      
+
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-8">
         {/* Page Header */}
         <div className="mb-6">
@@ -1413,13 +1413,13 @@ export default function Settings() {
                       {getInitials((user as any)?.firstName, (user as any)?.lastName)}
                     </AvatarFallback>
                   </Avatar>
-                  
+
                   <div className="flex-1 space-y-2">
                     <div>
                       <h3 className="text-lg font-semibold">{getDisplayName()}</h3>
                       <p className="text-gray-600">{(user as any)?.email}</p>
                     </div>
-                    
+
                     <div className="flex gap-2">
                       <Badge variant="secondary">Verified Account</Badge>
                       {isPremium ? (
@@ -1431,7 +1431,7 @@ export default function Settings() {
                         <Badge variant="outline">Free Plan</Badge>
                       )}
                     </div>
-                    
+
                     <p className="text-sm text-gray-500">
                       Member since {(user as any)?.createdAt ? new Date((user as any).createdAt).toLocaleDateString('en-US', { 
                         month: 'long', 
@@ -1439,7 +1439,7 @@ export default function Settings() {
                       }) : 'Recently'}
                     </p>
                   </div>
-                  
+
                   <Button variant="outline" size="sm">
                     Edit Profile
                   </Button>
@@ -1541,7 +1541,7 @@ export default function Settings() {
                     Configure
                   </Button>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-medium">Email Processing Updates</h4>
@@ -1551,7 +1551,7 @@ export default function Settings() {
                     Configure
                   </Button>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-medium">Sharing Notifications</h4>
@@ -1584,7 +1584,7 @@ export default function Settings() {
                     Manage
                   </Button>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-medium">Data Export</h4>
@@ -1594,7 +1594,7 @@ export default function Settings() {
                     Export
                   </Button>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-medium">Delete Account</h4>
@@ -1627,7 +1627,7 @@ export default function Settings() {
                     View Docs
                   </Button>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-medium">Contact Support</h4>
@@ -1637,7 +1637,7 @@ export default function Settings() {
                     Contact Us
                   </Button>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-medium">Feature Requests</h4>

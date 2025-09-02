@@ -516,7 +516,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`mobile-document-card group dashboard-card hover:shadow-lg ${viewMode === "list" ? "hover:scale-[1.01]" : "hover:scale-[1.02]"} transition-all duration-300 ${cardBorderClass} ${isSelected ? "ring-2 ring-accent-purple-500" : ""} cursor-pointer bg-gradient-to-br from-white via-accent-purple-50/10 to-accent-purple-100/20 border-accent-purple-200/50 overflow-hidden`}
+        className={`mobile-document-card group dashboard-card hover:shadow-lg ${viewMode === "list" ? "hover:scale-[1.01]" : "hover:scale-[1.02]"} transition-all duration-300 ${cardBorderClass} ${isSelected ? "ring-2 ring-accent-purple-500" : ""} cursor-pointer bg-gradient-to-br from-accent-purple-50/30 via-accent-purple-50/20 to-accent-purple-100/30 border-accent-purple-200/60 overflow-hidden shadow-sm`}
         onClick={() => {
           if (isRenaming || isEditing) {
             // Prevent modal from opening when in edit/rename mode
@@ -532,7 +532,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className={`p-2 sm:p-3 pb-3 relative mobile-document-card-content ${viewMode === "list" ? "h-auto" : "h-full flex flex-col"} overflow-hidden card-content`}>
+        <CardContent className={`p-2 sm:p-2.5 pb-2.5 relative mobile-document-card-content ${viewMode === "list" ? "h-auto" : "h-full flex flex-col"} overflow-hidden card-content`}>
             {/* Bulk selection checkbox */}
             {bulkMode && (
               <div className="absolute top-0.5 left-0.5 z-10">
@@ -552,9 +552,9 @@ export default function UnifiedDocumentCard({
 
           {/* List View Layout */}
           {viewMode === "list" ? (
-            <div className="flex items-center gap-3 min-h-0">
+            <div className="flex items-center gap-2.5 min-h-0">
               {/* Document thumbnail */}
-              <div className="relative w-10 h-10 flex-shrink-0 rounded-md border border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm">
+              <div className="relative w-9 h-9 flex-shrink-0 rounded-md border border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm">
                 {thumbnailError ? (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
                     {getFileIcon()}
@@ -589,14 +589,14 @@ export default function UnifiedDocumentCard({
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {/* Document title */}
                     <h3 className="font-medium text-sm leading-tight text-gray-900 truncate">
                       {document.name}
                     </h3>
                     
                     {/* Document metadata */}
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <span>{formatFileSize(document.fileSize)}</span>
                       <span>•</span>
                       <span>{formatDate(document.uploadedAt)}</span>
@@ -616,7 +616,7 @@ export default function UnifiedDocumentCard({
 
                     {/* Insights section - on separate line */}
                     {showInsights && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {openInsights.length > 0 ? (
                           <>
                             {/* Priority indicators first */}
@@ -656,14 +656,14 @@ export default function UnifiedDocumentCard({
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-6 px-2 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
+                              className="h-5 px-1.5 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setModalInitialTab('insights');
                                 setShowModal(true);
                               }}
                             >
-                              <Brain className="h-3 w-3 mr-1" />
+                              <Brain className="h-2.5 w-2.5 mr-1" />
                               <span className="text-xs font-medium">{openInsights.length} insight{openInsights.length > 1 ? 's' : ''}</span>
                             </Button>
                           </>
@@ -672,7 +672,7 @@ export default function UnifiedDocumentCard({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-6 px-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400 hover:from-accent-purple-600 hover:to-accent-purple-700"
+                            className="h-5 px-1.5 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400 hover:from-accent-purple-600 hover:to-accent-purple-700"
                             onClick={(e) => {
                               e.stopPropagation();
                               generateInsightsMutation.mutate();
@@ -681,12 +681,12 @@ export default function UnifiedDocumentCard({
                           >
                             {generateInsightsMutation.isPending ? (
                               <>
-                                <Clock className="h-3 w-3 mr-1 animate-spin" />
+                                <Clock className="h-2.5 w-2.5 mr-1 animate-spin" />
                                 <span className="text-xs font-medium">Analyzing...</span>
                               </>
                             ) : (
                               <>
-                                <Brain className="h-3 w-3 mr-1" />
+                                <Brain className="h-2.5 w-2.5 mr-1" />
                                 <span className="text-xs font-medium">Generate Insights</span>
                               </>
                             )}
@@ -710,242 +710,6 @@ export default function UnifiedDocumentCard({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <MoreHorizontal className="h-3 w-3 text-gray-500 hover:text-accent-purple-600" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        if (onClick) {
-                          onClick();
-                        } else {
-                          setModalInitialTab('properties');
-                          setShowModal(true);
-                        }
-                      }}>
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownload();
-                      }}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartRename();
-                      }}>
-                        <Type className="h-4 w-4 mr-2" />
-                        Rename
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEdit();
-                      }}>
-                        <Edit2 className="h-4 w-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        setShowShareDialog(true);
-                      }}>
-                        <FileSearch className="h-4 w-4 mr-2" />
-                        Share
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(e);
-                      }} className="text-accent-purple-600 hover:text-accent-purple-700">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Grid View Layout - Clean and Organized */
-            <div className="h-full flex flex-col">
-              {/* Document Thumbnail */}
-              <div className="relative w-full h-20 flex-shrink-0 rounded-lg border border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm mb-3">
-                {thumbnailError ? (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
-                    {getFileIcon()}
-                  </div>
-                ) : (
-                  <img
-                    src={`/api/documents/${document.id}/thumbnail`}
-                    alt={document.name}
-                    className="w-full h-full object-cover"
-                    onError={() => setThumbnailError(true)}
-                  />
-                )}
-              </div>
-
-              {/* Document Title and Basic Info */}
-              <div className="flex-1 min-h-0 pr-6">
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="text-sm font-medium"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveEdit();
-                        if (e.key === "Escape") handleCancelEdit();
-                      }}
-                    />
-                    <Input
-                      type="date"
-                      value={editImportantDate}
-                      onChange={(e) => setEditImportantDate(e.target.value)}
-                      className="text-sm"
-                      placeholder="Important date"
-                    />
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending}>
-                        <Check className="h-3 w-3 mr-1" />
-                        Save
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                        <X className="h-3 w-3 mr-1" />
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : isRenaming ? (
-                  <div className="space-y-2">
-                    <Input
-                      value={renameName}
-                      onChange={(e) => setRenameName(e.target.value)}
-                      onKeyDown={handleRenameKeyPress}
-                      className="text-sm h-7"
-                      autoFocus
-                      placeholder="Enter new document name"
-                    />
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                        <Check className="h-3 w-3" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-sm leading-snug text-gray-900 line-clamp-2 mb-2 break-words">
-                      {document.name}
-                    </h3>
-                    
-                    <div className="text-xs text-gray-500 space-y-1">
-                      <div className="flex items-center gap-1">
-                        <span>{formatFileSize(document.fileSize)}</span>
-                        <span>•</span>
-                        <span>{formatDate(document.uploadedAt)}</span>
-                      </div>
-                      
-                      {document.expiryDate && (
-                        <div className="flex items-center gap-1 text-orange-600">
-                          <Calendar className="h-3 w-3" />
-                          <span>Due {formatDate(document.expiryDate)}</span>
-                        </div>
-                      )}
-                      
-                      {category && (
-                        <div className="flex items-center gap-1">
-                          <FolderIcon className="h-3 w-3" />
-                          <span className="truncate">{category.name}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom Action Area */}
-              <div className="mt-auto">
-                {(() => {
-                  // Priority 1: Generate Insights Button
-                  if (showInsights && openInsights.length === 0 && !insightsLoading) {
-                    return (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full h-8 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-0 hover:from-accent-purple-600 hover:to-accent-purple-700"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          generateInsightsMutation.mutate();
-                        }}
-                        disabled={generateInsightsMutation.isPending}
-                      >
-                        {generateInsightsMutation.isPending ? (
-                          <>
-                            <Clock className="h-3 w-3 mr-1 animate-spin" />
-                            <span className="text-xs">Analyzing...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Brain className="h-3 w-3 mr-1" />
-                            <span className="text-xs">Generate Insights</span>
-                          </>
-                        )}
-                      </Button>
-                    );
-                  }
-
-                  // Priority 2: Insights Summary
-                  if (openInsights.length > 0) {
-                    const priorityCounts = openInsights.reduce((acc, insight) => {
-                      acc[insight.priority] = (acc[insight.priority] || 0) + 1;
-                      return acc;
-                    }, {} as Record<string, number>);
-
-                    return (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full h-8 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModalInitialTab('insights');
-                          setShowModal(true);
-                        }}
-                      >
-                        <Brain className="h-3 w-3 mr-1" />
-                        <span className="text-xs mr-2">{openInsights.length} Insights</span>
-                        {priorityCounts.high > 0 && (
-                          <Badge variant="destructive" className="h-4 text-xs px-1">
-                            {priorityCounts.high}
-                          </Badge>
-                        )}
-                      </Button>
-                    );
-                  }
-
-                  // Priority 3: File size and type info
-                  return (
-                    <div className="text-xs text-gray-500 text-center py-1">
-                      {formatFileSize(document.fileSize)}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Actions Menu - Top Right Corner */}
-              {!isEditing && !isRenaming && (
-                <div className="absolute top-1 right-1 z-10">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm transition-all duration-200 opacity-70 hover:opacity-100"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontal className="h-3 w-3 text-gray-500" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

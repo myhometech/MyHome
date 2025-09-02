@@ -11,7 +11,6 @@ import SearchAsYouType from "@/components/search-as-you-type";
 import { FeatureGate, FeatureLimitAlert } from "@/components/feature-gate";
 import { useFeatures } from "@/hooks/useFeatures";
 import { 
-  Grid, 
   List, 
   SortAsc, 
   Search, 
@@ -73,7 +72,7 @@ export default function UnifiedDocuments() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  
 
   // Search-as-you-type handlers
   const handleSearchChange = (query: string, results: any[]) => {
@@ -653,24 +652,7 @@ export default function UnifiedDocuments() {
                     </Select>
                   </div>
 
-                  <div className="flex items-center border rounded-md">
-                    <Button
-                      variant={viewMode === "grid" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("grid")}
-                      className="rounded-r-none"
-                    >
-                      <Grid className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === "list" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setViewMode("list")}
-                      className="rounded-l-none"
-                    >
-                      <List className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -809,10 +791,7 @@ export default function UnifiedDocuments() {
             </CardContent>
           </Card>
         ) : (
-          <div className={viewMode === "grid" 
-            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-            : "space-y-4"
-          }>
+          <div className="space-y-3">
             {filteredAndSortedDocuments.map((document) => (
               <UnifiedDocumentCard
                 key={document.id}
@@ -822,7 +801,7 @@ export default function UnifiedDocuments() {
                   expiryDate: document.expiryDate ? (typeof document.expiryDate === 'string' ? document.expiryDate : new Date(document.expiryDate).toISOString()) : null
                 }}
                 categories={categories}
-                viewMode={viewMode}
+                viewMode="list"
                 bulkMode={bulkMode}
                 isSelected={selectedDocuments.has(document.id)}
                 onToggleSelection={() => toggleDocumentSelection(document.id)}

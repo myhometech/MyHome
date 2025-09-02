@@ -463,34 +463,36 @@ export function DocumentInsights({ documentId, documentName, onDocumentClick }: 
           <div className="p-2 bg-gradient-to-br from-accent-purple-400 to-accent-purple-600 rounded-xl">
             <Brain className="h-6 w-6 text-white" />
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Smart Insights</h2>
-            <p className="text-sm text-gray-500">AI-powered document analysis</p>
-          </div>
-          {insights.length > 0 && (
-            <div className="ml-4">
-              <Badge variant="secondary" className="bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200">
+          <div className="flex items-center gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Smart Insights</h2>
+              <p className="text-sm text-gray-500">AI-powered document analysis</p>
+            </div>
+            {insights.length > 0 && (
+              <Badge variant="secondary" className="bg-accent-purple-50 text-accent-purple-600 border-accent-purple-200 text-sm font-medium px-3 py-1">
                 {insights.length} insight{insights.length !== 1 ? 's' : ''}
               </Badge>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <Button 
           onClick={handleGenerateInsights} 
           disabled={isGenerating || generateInsightsMutation.isPending}
-          className="bg-gradient-to-r from-accent-purple-600 to-accent-purple-700 hover:from-accent-purple-700 hover:to-accent-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-          size={isMobile ? "default" : "lg"}
+          className="bg-gradient-to-r from-accent-purple-600 to-accent-purple-700 hover:from-accent-purple-700 hover:to-accent-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4"
+          size={isMobile ? "default" : "default"}
         >
           {isGenerating || generateInsightsMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Analyzing...
+              <span className="text-sm font-medium">Analyzing...</span>
             </>
           ) : (
             <>
               <Brain className="mr-2 h-4 w-4" />
-              {insights.length > 0 ? 'Refresh Insights' : 'Generate Insights'}
+              <span className="text-sm font-medium">
+                {insights.length > 0 ? 'Refresh Insights' : 'Generate Insights'}
+              </span>
             </>
           )}
         </Button>

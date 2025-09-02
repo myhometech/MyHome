@@ -556,7 +556,7 @@ export default function UnifiedDocumentCard({
               {/* Document thumbnail */}
               <div className="relative w-9 h-9 flex-shrink-0 rounded-md border border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm">
                 {thumbnailError ? (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-200/80 to-accent-purple-300/70 text-accent-purple-700">
                     {getFileIcon()}
                   </div>
                 ) : (
@@ -594,7 +594,7 @@ export default function UnifiedDocumentCard({
                     <h3 className="font-medium text-sm leading-tight text-gray-900 truncate">
                       {document.name}
                     </h3>
-                    
+
                     {/* Document metadata */}
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <span>{formatFileSize(document.fileSize)}</span>
@@ -771,7 +771,7 @@ export default function UnifiedDocumentCard({
               {/* Document thumbnail/preview */}
               <div className="relative w-full aspect-square rounded-lg border border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm mb-2">
                 {thumbnailError ? (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-200/80 to-accent-purple-300/70 text-accent-purple-700">
                     {getFileIcon()}
                   </div>
                 ) : (
@@ -782,7 +782,7 @@ export default function UnifiedDocumentCard({
                     onError={() => setThumbnailError(true)}
                   />
                 )}
-                
+
                 {/* Actions dropdown for grid view - positioned in top right */}
                 {!isEditing && !isRenaming && (
                   <div className="absolute top-1 right-1">
@@ -876,7 +876,7 @@ export default function UnifiedDocumentCard({
                     <h3 className="font-medium text-sm leading-tight text-gray-900 line-clamp-2">
                       {document.name}
                     </h3>
-                    
+
                     {/* Document metadata */}
                     <div className="flex flex-col gap-1 text-xs text-gray-500">
                       <div className="flex items-center gap-1.5">

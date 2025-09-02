@@ -951,12 +951,42 @@ export const chatRequestSchema = z.object({
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
+// CHAT-015: Legacy citation schema (maintained for backward compatibility)
 export const citationSchema = z.object({
   docId: z.string(),
   page: z.number().int().min(1),
 });
 
+// CHAT-015: New minimal citation source schema for deep-linking
+export const sourceLocationSchema = z.object({
+  page: z.number().int().min(1),
+  charStart: z.number().int().optional(),
+  charEnd: z.number().int().optional(),
+  anchorText: z.string().max(80).optional(),
+});
+
+export const sourceSchema = z.object({
+  docId: z.string(),
+  loc: sourceLocationSchema,
+});
+
+export const verdictSchema = z.object({
+  grounded: z.boolean(),
+  confidence: z.number().min(0).max(1),
+});
+
+// CHAT-015: Updated chat response schema with minimal sources
 export const chatResponseSchema = z.object({
+  conversationId: z.string(),
+  answer: z.string(),
+  sources: z.array(sourceSchema),
+  verdict: verdictSchema,
+}).refine(data => data.sources.length <= 3, {
+  message: "Maximum 3 sources allowed for minimal citation UI"
+});
+
+// CHAT-015: Legacy response schema (for backward compatibility)
+export const legacyChatResponseSchema = z.object({
   conversationId: z.string(),
   answer: z.string(),
   citations: z.array(citationSchema),
@@ -968,9 +998,15 @@ export const chatResponseSchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
+// CHAT-015: Type exports for minimal citation UI
+export type SourceLocation = z.infer<typeof sourceLocationSchema>;
+export type Source = z.infer<typeof sourceSchema>;
+export type Verdict = z.infer<typeof verdictSchema>;
 export type ChatResponse = z.infer<typeof chatResponseSchema>;
+export type LegacyChatResponse = z.infer<typeof legacyChatResponseSchema>;
 
 // LLM response parsing schemas
+// CHAT-015: Updated LLM response for minimal citation (internal use - still uses citations)
 export const llmChatResponseSchema = z.object({
   answer: z.string(),
   citations: z.array(citationSchema),

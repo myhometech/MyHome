@@ -5,7 +5,10 @@ import {
   ChatResponse, 
   LLMChatResponse,
   llmChatResponseSchema,
-  SearchSnippetsRequest 
+  SearchSnippetsRequest,
+  Source,
+  SourceLocation,
+  Verdict
 } from "../shared/schema";
 import { LLMAdapter } from "./services/llmAdapter";
 import { LLMProviderFactory } from "./services/llmProviderFactory";
@@ -18,6 +21,43 @@ import { factsFirstService } from "./services/factsFirstService";
 export class ChatOrchestrationService {
   private storage = new PostgresStorage(db);
   private llmAdapter = LLMProviderFactory.getInstance();
+
+  /**
+   * CHAT-015: Helper function to convert citations to minimal sources format
+   */
+  private async convertCitationsToSources(
+    citations: { docId: string; page?: number; title?: string }[], 
+    searchResults?: any[]
+  ): Promise<Source[]> {
+    const sources: Source[] = [];
+    
+    for (const citation of citations.slice(0, 3)) { // Limit to 3 sources max
+      const docId = citation.docId;
+      const page = citation.page || 1;
+      
+      // Try to find anchor text from search results
+      let anchorText: string | undefined;
+      if (searchResults) {
+        const docResult = searchResults.find(r => r.docId === docId);
+        if (docResult && docResult.snippets?.length > 0) {
+          // Use first snippet text as anchor text (truncated to 80 chars)
+          const snippet = docResult.snippets[0];
+          anchorText = snippet.text.substring(0, 80);
+          if (snippet.text.length > 80) anchorText += '...';
+        }
+      }
+      
+      sources.push({
+        docId,
+        loc: {
+          page,
+          anchorText
+        }
+      });
+    }
+    
+    return sources;
+  }
 
   /**
    * Handle complete chat flow: search → LLM → verify → persist
@@ -94,12 +134,17 @@ export class ChatOrchestrationService {
 
         console.log(`✅ [FACTS-FIRST] Direct response completed with confidence ${factsResponse.confidence.toFixed(2)}`);
 
+        // CHAT-015: Convert to minimal citation format
+        const sources = await this.convertCitationsToSources(factsCitations);
+
         return {
           conversationId: request.conversationId,
           answer: factsResponse.answer,
-          citations: factsCitations,
-          slots: {},
-          confidence: factsResponse.confidence,
+          sources,
+          verdict: {
+            grounded: true,
+            confidence: factsResponse.confidence
+          }
         };
       }
 
@@ -159,9 +204,11 @@ export class ChatOrchestrationService {
         return {
           conversationId: request.conversationId,
           answer: noResultsResponse,
-          citations: [],
-          slots: {},
-          confidence: 0.0,
+          sources: [],
+          verdict: {
+            grounded: false,
+            confidence: 0.0
+          }
         };
       }
 
@@ -212,23 +259,31 @@ export class ChatOrchestrationService {
       const duration = Date.now() - startTime;
       console.log(`✅ [CHAT] Completed in ${duration}ms with confidence ${verifiedResponse.confidence}`);
 
+      // CHAT-015: Convert to minimal citation format
+      const sources = await this.convertCitationsToSources(verifiedResponse.citations, searchResults.results);
+
       return {
         conversationId: request.conversationId,
         answer: verifiedResponse.answer,
-        citations: verifiedResponse.citations,
-        slots: verifiedResponse.slots,
-        confidence: verifiedResponse.confidence,
+        sources,
+        verdict: {
+          grounded: verifiedResponse.confidence >= 0.7,
+          confidence: verifiedResponse.confidence
+        }
       };
 
     } catch (error: any) {
       console.error(`❌ [CHAT] Processing failed:`, error);
       
-      // Return fallback response on error
+      // Return fallback response on error  
       return {
         conversationId: request.conversationId,
         answer: "INSUFFICIENT_EVIDENCE",
-        citations: [],
-        confidence: 0.0,
+        sources: [],
+        verdict: {
+          grounded: false,
+          confidence: 0.0
+        }
       };
     }
   }
@@ -527,7 +582,7 @@ export class ChatOrchestrationService {
             title: doc.name,
             date: doc.expiryDate ? 
               new Date(doc.expiryDate).toLocaleDateString('en-GB') : 
-              new Date(doc.uploadedAt).toLocaleDateString('en-GB'),
+              (doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-GB') : 'Unknown'),
             score
           };
         })

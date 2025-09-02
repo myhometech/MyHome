@@ -131,6 +131,12 @@ export const FEATURES: Record<string, FeatureFlag> = {
     tier: 'free', // Start with free tier for testing
     category: 'ai'
   },
+  CHAT_MINIMAL_CITATION_ENABLED: {
+    name: 'Minimal Citation UI',
+    description: 'Enable minimal citation format with source icons for deep-linking to document sections',
+    tier: 'free', // Available for all users  
+    category: 'ai'
+  },
 
   // Automation Features (Premium Tier)
   EMAIL_IMPORT: {

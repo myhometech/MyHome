@@ -500,13 +500,13 @@ export default function UnifiedDocumentCard({
             )}
           </div>
 
-          {/* Bottom Row - 25% height */}
+          {/* Bottom Section - 25% height with 2 rows */}
           <div 
-            className="flex items-center justify-between px-3 py-2 bg-white"
+            className="px-3 py-1 bg-white flex flex-col justify-between"
             style={{ height: '25%', minHeight: '48px' }}
           >
-            {/* Title - Left aligned */}
-            <div className="flex-1 min-w-0 mr-2">
+            {/* Title Row */}
+            <div className="flex-1 min-w-0">
               {isRenaming ? (
                 <div className="space-y-1">
                   <Input
@@ -528,7 +528,7 @@ export default function UnifiedDocumentCard({
                 </div>
               ) : (
                 <h3 
-                  className="font-semibold text-sm text-gray-900 truncate leading-tight"
+                  className="font-medium text-xs text-gray-900 truncate leading-tight"
                   title={document.name}
                   data-testid={`document-title-${document.id}`}
                 >
@@ -537,25 +537,27 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-            {/* Insights Indicator - Center */}
-            <div className="flex-shrink-0 mx-2">
-              {renderInsightsIndicator()}
-            </div>
-
-            {/* Overflow Menu - Right aligned */}
-            {!bulkMode && (
+            {/* Icons Row */}
+            <div className="flex items-center justify-between">
+              {/* Insights Indicator - Left */}
               <div className="flex-shrink-0">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 w-8 p-0 rounded-full hover:bg-purple-100"
-                      data-testid={`document-menu-${document.id}`}
-                    >
-                      <MoreHorizontal className="h-4 w-4 text-purple-600" />
-                    </Button>
-                  </DropdownMenuTrigger>
+                {renderInsightsIndicator()}
+              </div>
+
+              {/* Overflow Menu - Right */}
+              {!bulkMode && (
+                <div className="flex-shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0 rounded-full hover:bg-purple-100"
+                        data-testid={`document-menu-${document.id}`}
+                      >
+                        <MoreHorizontal className="h-3 w-3 text-purple-600" />
+                      </Button>
+                    </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => {
                       setModalInitialTab('properties');
@@ -588,8 +590,9 @@ export default function UnifiedDocumentCard({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -8,10 +8,15 @@ import {
   SearchSnippetsRequest 
 } from "../shared/schema";
 import { LLMAdapter } from "./services/llmAdapter";
+import { LLMProviderFactory } from "./services/llmProviderFactory";
+import { LlamaProvider } from "./services/llamaProvider";
+import { featureFlagService } from "./featureFlagService";
+import { llmUsageLogger } from "./llmUsageLogger";
+import { modelEscalationAuditor } from "./services/modelEscalationAuditor";
 
 export class ChatOrchestrationService {
   private storage = new PostgresStorage(db);
-  private llmAdapter = new LLMAdapter();
+  private llmAdapter = LLMProviderFactory.getInstance();
 
   /**
    * Handle complete chat flow: search → LLM → verify → persist
@@ -60,27 +65,14 @@ export class ChatOrchestrationService {
       // Step 4: Build LLM prompt with context and structured facts
       const prompt = this.buildLLMPrompt(request.message, searchResults, structuredFacts);
 
-      // Step 5: Call LLM with retry logic
-      let llmResponse: LLMChatResponse;
-      try {
-        const llmRequest = {
-          model: 'mistral-large',
-          messages: [{ role: 'user' as const, content: prompt }],
-          max_tokens: 500,
-          temperature: 0.1, // Lower temperature for factual responses
-          stop: [] // Add required stop parameter
-        };
-        const rawResponse = await this.llmAdapter.generate(llmRequest);
-        
-        llmResponse = await this.parseLLMResponse(rawResponse.text, prompt);
-      } catch (llmError: any) {
-        console.error(`❌ [CHAT] LLM failed:`, llmError);
-        llmResponse = {
-          answer: "INSUFFICIENT_EVIDENCE",
-          citations: [],
-          confidence: 0.0,
-        };
-      }
+      // Step 5: Smart model selection and LLM call with escalation
+      const { llmResponse, auditData } = await this.processLLMWithEscalation(
+        prompt, 
+        request, 
+        userId, 
+        tenantId, 
+        searchResults.results
+      );
 
       // Step 6: Verify numeric/date accuracy
       const verifiedResponse = this.verifyResponseAccuracy(llmResponse, searchResults);
@@ -104,9 +96,9 @@ export class ChatOrchestrationService {
           slots: verifiedResponse.slots || {}
         },
         usage: {
-          model: 'mistral-large',
-          prompt_tokens: Math.floor(prompt.length / 4), // Rough estimate
-          completion_tokens: Math.floor(verifiedResponse.answer.length / 4),
+          model: auditData.finalModel,
+          prompt_tokens: auditData.tokensIn,
+          completion_tokens: auditData.tokensOut,
         },
       });
 
@@ -240,9 +232,9 @@ export class ChatOrchestrationService {
       
       try {
         const retryRequest = {
-          model: 'mistral-large',
+          model: 'mistral-large', // Note: Do not auto-escalate on formatting-only failures per spec
           messages: [{ role: 'user' as const, content: retryPrompt }],
-          max_tokens: 500,
+          max_tokens: parseInt(process.env.LLM_MAX_OUTPUT_TOKENS || '512'),
           temperature: 0.0, // Even lower temperature for retry
           stop: [] // Add required stop parameter
         };
@@ -304,6 +296,196 @@ export class ChatOrchestrationService {
 
     return verified;
   }
+
+  /**
+   * CHAT-011: Smart model selection with escalation logic
+   */
+  private async processLLMWithEscalation(
+    prompt: string,
+    request: ChatRequest,
+    userId: string,
+    tenantId: string,
+    docIdsTouched: any[]
+  ): Promise<{
+    llmResponse: LLMChatResponse;
+    auditData: {
+      conversationId: string;
+      messageId: string;
+      tenantId: string;
+      userId: string;
+      model: string;
+      finalModel: string;
+      latencyMs_total: number;
+      latencyMs_llm: number;
+      tokensIn: number;
+      tokensOut: number;
+      docIdsTouched: number[];
+      verifierConfidence: number;
+      fallbackTo70B: boolean;
+    };
+  }> {
+    const startTime = Date.now();
+    
+    // Check feature flags
+    const useLlama = await featureFlagService.isFeatureEnabled('CHAT_USE_LLAMA', {
+      userId,
+      userTier: 'premium' // Simplified for now
+    });
+    
+    const useLlamaAccurate = await featureFlagService.isFeatureEnabled('CHAT_USE_LLAMA_ACCURATE', {
+      userId,
+      userTier: 'premium'
+    });
+
+    // Determine initial model based on feature flags and request
+    let initialModel: string;
+    let provider: 'mistral' | 'together' = 'mistral';
+    
+    if (useLlama) {
+      provider = 'together';
+      initialModel = process.env.LLM_MODEL_STANDARD || 'meta-llama/Llama-3.3-8B-Instruct-Turbo';
+    } else {
+      initialModel = 'mistral-large';
+    }
+    
+    // Check if user requested accurate model tier
+    if ((request as any).modelTier === 'accurate' && useLlamaAccurate && useLlama) {
+      initialModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
+    }
+
+    let finalModel = initialModel;
+    let fallbackTo70B = false;
+    let llmStartTime = Date.now();
+    let llmResponse: LLMChatResponse;
+    let tokensIn = 0;
+    let tokensOut = 0;
+
+    try {
+      // Initial LLM call
+      const llmRequest = {
+        model: initialModel,
+        messages: [{ role: 'user' as const, content: prompt }],
+        max_tokens: parseInt(process.env.LLM_MAX_OUTPUT_TOKENS || '512'),
+        temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.1'),
+        stop: []
+      };
+      
+      tokensIn = Math.floor(prompt.length / 4); // Rough estimate
+      const rawResponse = await this.llmAdapter.generate(llmRequest);
+      tokensOut = Math.floor(rawResponse.text.length / 4);
+      
+      llmResponse = await this.parseLLMResponse(rawResponse.text, prompt);
+      
+      // Check if escalation to 70B is needed
+      const shouldEscalate = useLlama && useLlamaAccurate && 
+        initialModel.includes('8B') && (
+          llmResponse.confidence < 0.7 ||
+          llmResponse.answer === "INSUFFICIENT_EVIDENCE" ||
+          this.isComplexQuery(request.message)
+        );
+      
+      if (shouldEscalate) {
+        // Determine escalation trigger for audit logging
+        let escalationTrigger: 'low_confidence' | 'insufficient_evidence' | 'complex_query';
+        if (llmResponse.confidence < 0.7) {
+          escalationTrigger = 'low_confidence';
+        } else if (llmResponse.answer === "INSUFFICIENT_EVIDENCE") {
+          escalationTrigger = 'insufficient_evidence';
+        } else {
+          escalationTrigger = 'complex_query';
+        }
+        
+        console.log(`🔄 [CHAT] Escalating to 70B due to: ${escalationTrigger} (confidence=${llmResponse.confidence})`);
+        
+        const initialConfidence = llmResponse.confidence;
+        fallbackTo70B = true;
+        finalModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
+        llmStartTime = Date.now();
+        
+        const accurateRequest = {
+          ...llmRequest,
+          model: finalModel
+        };
+        
+        const accurateResponse = await this.llmAdapter.generate(accurateRequest);
+        tokensOut = Math.floor(accurateResponse.text.length / 4);
+        llmResponse = await this.parseLLMResponse(accurateResponse.text, prompt);
+        
+        // Store escalation trigger in audit data
+        (auditData as any).escalationTrigger = escalationTrigger;
+        (auditData as any).initialConfidence = initialConfidence;
+      }
+      
+    } catch (llmError: any) {
+      console.error(`❌ [CHAT] LLM failed:`, llmError);
+      llmResponse = {
+        answer: "INSUFFICIENT_EVIDENCE",
+        citations: [],
+        confidence: 0.0,
+      };
+    }
+
+    const llmLatency = Date.now() - llmStartTime;
+    const totalLatency = Date.now() - startTime;
+    const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Prepare audit data
+    const auditData = {
+      conversationId: request.conversationId,
+      messageId,
+      tenantId,
+      userId,
+      model: initialModel,
+      finalModel,
+      latencyMs_total: totalLatency,
+      latencyMs_llm: llmLatency,
+      tokensIn,
+      tokensOut,
+      docIdsTouched: docIdsTouched.map(r => parseInt(r.docId)).filter(id => !isNaN(id)),
+      verifierConfidence: llmResponse.confidence,
+      fallbackTo70B
+    };
+
+    // Log to LLM usage logger
+    await llmUsageLogger.logUsage({
+      userId,
+      route: '/api/chat',
+      model: finalModel,
+      provider
+    }, {
+      tokensUsed: tokensIn + tokensOut,
+      durationMs: llmLatency,
+      status: llmResponse.answer !== "INSUFFICIENT_EVIDENCE" ? 'success' : 'error',
+      costUsd: provider === 'together' ? llmUsageLogger.calculateTogetherCost(finalModel, tokensIn + tokensOut) : undefined
+    });
+
+    // Log model escalation audit data
+    await modelEscalationAuditor.logEscalation({
+      ...auditData,
+      escalationTrigger: (auditData as any).escalationTrigger,
+      initialConfidence: (auditData as any).initialConfidence,
+      costUsd: provider === 'together' ? llmUsageLogger.calculateTogetherCost(finalModel, tokensIn + tokensOut) : undefined
+    });
+
+    return { llmResponse, auditData };
+  }
+
+  /**
+   * Determine if a query is complex and should use accurate model
+   */
+  private isComplexQuery(message: string): boolean {
+    const complexPatterns = [
+      /compar(e|ing|ison)/i,
+      /\b(vs|versus|against|between)\b/i,
+      /\b(multi|multiple)\b.*\b(month|provider|year|document)/i,
+      /\b(analyze|analysis|breakdown|summary)\b/i,
+      /\b(trend|pattern|correlation)\b/i,
+      /\b(calculate|computation|total|sum)\b/i
+    ];
+    
+    return complexPatterns.some(pattern => pattern.test(message));
+  }
+
 }
 
 export const chatOrchestrationService = new ChatOrchestrationService();

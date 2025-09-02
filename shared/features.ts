@@ -119,6 +119,18 @@ export const FEATURES: Record<string, FeatureFlag> = {
     tier: 'premium',
     category: 'ai'
   },
+  CHAT_USE_LLAMA: {
+    name: 'Llama 3.3 Chat Models',
+    description: 'Use Llama 3.3 models for chatbot responses instead of Mistral',
+    tier: 'free', // Start with free tier for testing
+    category: 'ai'
+  },
+  CHAT_USE_LLAMA_ACCURATE: {
+    name: 'Llama 3.3 70B Accurate Model',
+    description: 'Enable escalation to Llama 3.3 70B for complex queries and low confidence responses',
+    tier: 'free', // Start with free tier for testing
+    category: 'ai'
+  },
 
   // Automation Features (Premium Tier)
   EMAIL_IMPORT: {

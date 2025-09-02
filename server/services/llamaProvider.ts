@@ -1,37 +1,36 @@
 import type { LLMProvider, LLMGenerateRequest, LLMGenerateResponse } from './llmAdapter.js';
 
 /**
- * Llama Provider Implementation (Stub)
- * Ready for future implementation when Llama integration is needed
+ * Together.ai Llama Provider Implementation
+ * Supports Llama 3.3 8B and 70B Instruct Turbo models
  */
 export class LlamaProvider implements LLMProvider {
-  name = 'llama';
+  name = 'together';
   private apiKey: string;
   private baseURL: string;
   private defaultModel: string;
+  private accurateModel: string;
 
   constructor() {
-    this.apiKey = process.env.LLAMA_API_KEY || '';
-    this.baseURL = process.env.LLAMA_BASE_URL || 'https://api.llama.local/v1';
-    this.defaultModel = process.env.LLM_MODEL_STANDARD || 'llama-2-7b-chat';
+    this.apiKey = process.env.TOGETHER_API_KEY || process.env.LLAMA_API_KEY || '';
+    this.baseURL = process.env.TOGETHER_BASE_URL || process.env.LLAMA_BASE_URL || 'https://api.together.xyz/v1';
+    this.defaultModel = process.env.LLM_MODEL_STANDARD || 'meta-llama/Llama-3.3-8B-Instruct-Turbo';
+    this.accurateModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
 
     if (!this.apiKey) {
-      throw new Error('LLAMA_API_KEY environment variable is required');
+      throw new Error('TOGETHER_API_KEY (or LLAMA_API_KEY) environment variable is required');
     }
 
-    console.log(`🦙 [LLAMA-PROVIDER] Initialized (STUB) with endpoint: ${this.baseURL}`);
+    console.log(`🦙 [TOGETHER-PROVIDER] Initialized with endpoint: ${this.baseURL}`);
+    console.log(`🦙 [TOGETHER-PROVIDER] Models: ${this.defaultModel} (standard), ${this.accurateModel} (accurate)`);
   }
 
   async generate(request: LLMGenerateRequest): Promise<LLMGenerateResponse> {
-    // TODO: Implement actual Llama API integration
-    // For now, this is a placeholder that throws an error
-    throw new Error('Llama provider not yet implemented. Use LLM_PROVIDER=mistral instead.');
-    
-    // Example implementation structure for future:
-    /*
     const startTime = Date.now();
     
     try {
+      const model = request.model || this.defaultModel;
+      
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -39,19 +38,41 @@ export class LlamaProvider implements LLMProvider {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: request.model || this.defaultModel,
+          model,
           messages: request.messages,
-          max_tokens: request.max_tokens,
-          temperature: request.temperature,
+          max_tokens: request.max_tokens || 512,
+          temperature: request.temperature || 0.1,
           stop: request.stop.length > 0 ? request.stop : undefined,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Llama API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error?.message) {
+            errorMessage = errorData.error.message;
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch {
+          // Use the raw error text if JSON parsing fails
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+        
+        throw new Error(`Together.ai API error: ${errorMessage}`);
       }
 
       const data = await response.json();
+      
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('Invalid response format from Together.ai API');
+      }
+
       const usage = data.usage || { prompt_tokens: 0, completion_tokens: 0 };
       const latencyMs = Date.now() - startTime;
 
@@ -65,29 +86,29 @@ export class LlamaProvider implements LLMProvider {
       };
 
     } catch (error) {
-      throw new Error(`Llama Provider: ${error.message}`);
+      if (error instanceof Error) {
+        throw new Error(`Together.ai Provider: ${error.message}`);
+      }
+      throw new Error('Together.ai Provider: Unknown error occurred');
     }
-    */
   }
 
   async isHealthy(): Promise<boolean> {
-    // TODO: Implement actual health check for Llama provider
-    return false;
-    
-    // Example implementation structure for future:
-    /*
     try {
-      const response = await fetch(`${this.baseURL}/health`, {
+      const response = await fetch(`${this.baseURL}/models`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
         },
-        timeout: 5000,
+        signal: AbortSignal.timeout(5000),
       });
       return response.ok;
     } catch {
       return false;
     }
-    */
+  }
+
+  getAccurateModel(): string {
+    return this.accurateModel;
   }
 }

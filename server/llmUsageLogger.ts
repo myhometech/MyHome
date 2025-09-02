@@ -106,6 +106,20 @@ export class LlmUsageLogger {
   }
 
   /**
+   * Calculate estimated cost for Together.ai Llama models
+   */
+  calculateTogetherCost(model: string, tokensUsed: number): number {
+    // Together.ai pricing rates
+    const rates: Record<string, number> = {
+      'meta-llama/Llama-3.3-8B-Instruct-Turbo': 0.18 / 1_000_000, // $0.18 per 1M tokens
+      'meta-llama/Llama-3.3-70B-Instruct-Turbo': 0.88 / 1_000_000, // $0.88 per 1M tokens
+    };
+    
+    const rate = rates[model] || 0.18 / 1_000_000; // Default to 8B rate
+    return tokensUsed * rate;
+  }
+
+  /**
    * Calculate estimated cost for OpenAI based on model and token usage
    */
   calculateOpenAICost(model: string, tokensUsed: number): number {

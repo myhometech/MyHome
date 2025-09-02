@@ -33,6 +33,7 @@ export class LLMProviderFactory {
         return new MistralProvider();
       
       case 'llama':
+      case 'together':
         return new LlamaProvider();
       
       default:

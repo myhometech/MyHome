@@ -43,7 +43,7 @@ class FeatureFlagService {
             name: key,
             description: feature.description,
             category: feature.category,
-            tierRequired: feature.tier,
+            tierRequired: Array.isArray(feature.tier) ? feature.tier.join(',') : feature.tier,
             enabled: true,
             rolloutStrategy: 'tier_based',
             rolloutPercentage: 100,

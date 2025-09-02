@@ -405,7 +405,42 @@ export const llmUsageLogs = pgTable("llm_usage_logs", {
   index("idx_llm_usage_status").on(table.status),
 ]);
 
+// Model escalation audit log for comprehensive tracking
+export const modelEscalationLogs = pgTable("model_escalation_logs", {
+  id: serial("id").primaryKey(),
+  conversationId: text("conversation_id").notNull(),
+  messageId: text("message_id").notNull(),
+  tenantId: varchar("tenant_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  initialModel: text("initial_model").notNull(),
+  finalModel: text("final_model").notNull(),
+  escalationTrigger: text("escalation_trigger"), // 'low_confidence', 'insufficient_evidence', 'complex_query', 'manual_request'
+  initialConfidence: numeric("initial_confidence", { precision: 3, scale: 2 }),
+  finalConfidence: numeric("final_confidence", { precision: 3, scale: 2 }),
+  tokensIn: integer("tokens_in").notNull(),
+  tokensOut: integer("tokens_out").notNull(),
+  latencyMsTotal: integer("latency_ms_total").notNull(),
+  latencyMsLlm: integer("latency_ms_llm").notNull(),
+  docIdsTouched: integer("doc_ids_touched").array(),
+  escalated: boolean("escalated").default(false).notNull(),
+  costUsd: numeric("cost_usd", { precision: 10, scale: 4 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  // Indexes for analytics queries
+  index("idx_escalation_logs_created_at").on(table.createdAt),
+  index("idx_escalation_logs_user_id").on(table.userId),
+  index("idx_escalation_logs_tenant_id").on(table.tenantId),
+  index("idx_escalation_logs_final_model").on(table.finalModel),
+  index("idx_escalation_logs_escalated").on(table.escalated),
+  index("idx_escalation_logs_escalation_trigger").on(table.escalationTrigger),
+]);
+
 export const insertLlmUsageLogSchema = createInsertSchema(llmUsageLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertModelEscalationLogSchema = createInsertSchema(modelEscalationLogs).omit({
   id: true,
   createdAt: true,
 });
@@ -413,6 +448,10 @@ export const insertLlmUsageLogSchema = createInsertSchema(llmUsageLogs).omit({
 // TICKET 1: LLM Usage Log types
 export type LlmUsageLog = typeof llmUsageLogs.$inferSelect;
 export type InsertLlmUsageLog = z.infer<typeof insertLlmUsageLogSchema>;
+
+// Model escalation log types
+export type ModelEscalationLog = typeof modelEscalationLogs.$inferSelect;
+export type InsertModelEscalationLog = z.infer<typeof insertModelEscalationLogSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
 export type OAuthRegisterData = z.infer<typeof oauthRegisterSchema>;

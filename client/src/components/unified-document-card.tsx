@@ -589,10 +589,13 @@ export default function UnifiedDocumentCard({
                     </Button>
                   </div>
                 ) : (
-                  <div>
-                    <h3 className="font-medium text-sm leading-snug text-gray-900 truncate mb-1">
+                  <div className="space-y-1.5">
+                    {/* Document title */}
+                    <h3 className="font-medium text-sm leading-tight text-gray-900 truncate">
                       {document.name}
                     </h3>
+                    
+                    {/* Document metadata */}
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span>{formatFileSize(document.fileSize)}</span>
                       <span>•</span>
@@ -610,130 +613,86 @@ export default function UnifiedDocumentCard({
                         </>
                       )}
                     </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Insights section for list view */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {showInsights && (
-                  <div className="flex items-center gap-2">
-                    {openInsights.length > 0 ? (
-                      <>
-                        {/* Insight type breakdown */}
-                        <div className="flex items-center gap-1">
-                          {(() => {
-                            const insightsByType = openInsights.reduce((acc, insight) => {
-                              acc[insight.type] = (acc[insight.type] || 0) + 1;
-                              return acc;
-                            }, {} as Record<string, number>);
-
-                            const typeConfigs = {
-                              summary: { icon: FileText, color: 'text-accent-purple-600', label: 'Summary' },
-                              action_items: { icon: ListTodo, color: 'text-accent-purple-600', label: 'Actions' },
-                              key_dates: { icon: Calendar, color: 'text-accent-purple-600', label: 'Dates' },
-                              financial_info: { icon: DollarSign, color: 'text-accent-purple-600', label: 'Financial' },
-                              contacts: { icon: Users, color: 'text-accent-purple-600', label: 'Contacts' },
-                              compliance: { icon: Shield, color: 'text-accent-purple-600', label: 'Compliance' }
-                            };
-
-                            return Object.entries(insightsByType).slice(0, 4).map(([type, count]) => {
-                              const config = typeConfigs[type as keyof typeof typeConfigs] || typeConfigs.summary;
-                              const IconComponent = config.icon;
-                              
-                              return (
-                                <TooltipProvider key={type}>
-                                  <Tooltip>
-                                    <TooltipTrigger>
-                                      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-accent-purple-50 border border-accent-purple-200">
-                                        <IconComponent className={`h-3 w-3 ${config.color}`} />
-                                        <span className="text-xs font-medium text-accent-purple-700">{count}</span>
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>{count} {config.label}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              );
-                            });
-                          })()}
-                        </div>
-
-                        {/* Priority indicators */}
-                        <div className="flex items-center gap-1">
-                          {criticalInsights.length > 0 && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 border border-red-200">
-                                    <AlertTriangle className="h-3 w-3 text-red-600" />
-                                    <span className="text-xs font-bold text-red-700">{criticalInsights.length}</span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{criticalInsights.length} Critical Insight{criticalInsights.length > 1 ? 's' : ''}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-
-                          {openInsights.filter(i => i.priority === 'medium').length > 0 && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-orange-50 border border-orange-200">
-                                    <Clock className="h-3 w-3 text-orange-600" />
-                                    <span className="text-xs font-medium text-orange-700">{openInsights.filter(i => i.priority === 'medium').length}</span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{openInsights.filter(i => i.priority === 'medium').length} Medium Priority</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-
-                        {/* Total insights badge */}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setModalInitialTab('insights');
-                            setShowModal(true);
-                          }}
-                        >
-                          <Brain className="h-3 w-3 mr-1" />
-                          <span className="text-xs font-medium">{openInsights.length}</span>
-                        </Button>
-                      </>
-                    ) : (
-                      // No insights - show generate button
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 px-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400 hover:from-accent-purple-600 hover:to-accent-purple-700"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          generateInsightsMutation.mutate();
-                        }}
-                        disabled={generateInsightsMutation.isPending || insightsLoading}
-                      >
-                        {generateInsightsMutation.isPending ? (
+                    {/* Insights section - on separate line */}
+                    {showInsights && (
+                      <div className="flex items-center gap-2">
+                        {openInsights.length > 0 ? (
                           <>
-                            <Clock className="h-3 w-3 mr-1 animate-spin" />
-                            <span className="text-xs font-medium">Analyzing...</span>
+                            {/* Priority indicators first */}
+                            {criticalInsights.length > 0 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 border border-red-200">
+                                      <AlertTriangle className="h-3 w-3 text-red-600" />
+                                      <span className="text-xs font-bold text-red-700">{criticalInsights.length}</span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{criticalInsights.length} Critical</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+
+                            {openInsights.filter(i => i.priority === 'medium').length > 0 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 border border-orange-200">
+                                      <Clock className="h-3 w-3 text-orange-600" />
+                                      <span className="text-xs font-medium text-orange-700">{openInsights.filter(i => i.priority === 'medium').length}</span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{openInsights.filter(i => i.priority === 'medium').length} Medium</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+
+                            {/* Total insights button */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setModalInitialTab('insights');
+                                setShowModal(true);
+                              }}
+                            >
+                              <Brain className="h-3 w-3 mr-1" />
+                              <span className="text-xs font-medium">{openInsights.length} insight{openInsights.length > 1 ? 's' : ''}</span>
+                            </Button>
                           </>
                         ) : (
-                          <>
-                            <Brain className="h-3 w-3 mr-1" />
-                            <span className="text-xs font-medium">Generate</span>
-                          </>
+                          // No insights - show generate button
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 px-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400 hover:from-accent-purple-600 hover:to-accent-purple-700"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              generateInsightsMutation.mutate();
+                            }}
+                            disabled={generateInsightsMutation.isPending || insightsLoading}
+                          >
+                            {generateInsightsMutation.isPending ? (
+                              <>
+                                <Clock className="h-3 w-3 mr-1 animate-spin" />
+                                <span className="text-xs font-medium">Analyzing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Brain className="h-3 w-3 mr-1" />
+                                <span className="text-xs font-medium">Generate Insights</span>
+                              </>
+                            )}
+                          </Button>
                         )}
-                      </Button>
+                      </div>
                     )}
                   </div>
                 )}

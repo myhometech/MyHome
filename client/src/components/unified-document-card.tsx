@@ -813,312 +813,159 @@ export default function UnifiedDocumentCard({
               )}
             </div>
           ) : (
-            /* Grid View Layout (existing) */
-            <div className="h-full flex flex-col justify-between gap-1">
-              {/* Compact header */}
-              <div className="flex items-start justify-between min-h-0">
-                <div className="flex-1 min-w-0">
-                  {isEditing ? (
-                    <div className="space-y-2">
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="text-sm font-medium"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSaveEdit();
-                          if (e.key === "Escape") handleCancelEdit();
-                        }}
-                      />
-                      <Input
-                        type="date"
-                        value={editImportantDate}
-                        onChange={(e) => setEditImportantDate(e.target.value)}
-                        className="text-sm"
-                        placeholder="Important date"
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending}>
-                          <Check className="h-3 w-3 mr-1" />
-                          Save
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                          <X className="h-3 w-3 mr-1" />
-                          Cancel
-                        </Button>
-                      </div>
+            /* Grid View Layout - Clean and Organized */
+            <div className="h-full flex flex-col">
+              {/* Document Title and Basic Info */}
+              <div className="flex-1 min-h-0 pr-8">
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="text-sm font-medium"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveEdit();
+                        if (e.key === "Escape") handleCancelEdit();
+                      }}
+                    />
+                    <Input
+                      type="date"
+                      value={editImportantDate}
+                      onChange={(e) => setEditImportantDate(e.target.value)}
+                      className="text-sm"
+                      placeholder="Important date"
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending}>
+                        <Check className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {isRenaming ? (
-                        <div className="space-y-2">
-                          <Input
-                            value={renameName}
-                            onChange={(e) => setRenameName(e.target.value)}
-                            onKeyDown={handleRenameKeyPress}
-                            className="text-sm h-7"
-                            autoFocus
-                            placeholder="Enter new document name"
-                          />
-                          <div className="flex gap-1">
-                            <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                              <Check className="h-3 w-3" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
+                  </div>
+                ) : isRenaming ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={renameName}
+                      onChange={(e) => setRenameName(e.target.value)}
+                      onKeyDown={handleRenameKeyPress}
+                      className="text-sm h-7"
+                      autoFocus
+                      placeholder="Enter new document name"
+                    />
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                        <Check className="h-3 w-3" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-base leading-tight text-gray-900 line-clamp-2 mb-2">
+                      {document.name}
+                    </h3>
+                    
+                    <div className="text-xs text-gray-600 space-y-1">
+                      <div className="flex items-center gap-1">
+                        <span>{formatFileSize(document.fileSize)}</span>
+                        <span>•</span>
+                        <span>{formatDate(document.uploadedAt)}</span>
+                      </div>
+                      
+                      {document.expiryDate && (
+                        <div className="flex items-center gap-1 text-orange-600">
+                          <Calendar className="h-3 w-3" />
+                          <span>Due {formatDate(document.expiryDate)}</span>
                         </div>
-                      ) : (
-                        <div className="space-y-2 pr-8">
-                          <h3 className="font-semibold text-lg leading-tight text-gray-900 line-clamp-3">
-                            {document.name}
-                          </h3>
-                          
-                          {/* Document metadata */}
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <span className="font-medium">{formatFileSize(document.fileSize)}</span>
-                            <span>•</span>
-                            <span>{formatDate(document.uploadedAt)}</span>
-                            {document.expiryDate && (
-                              <>
-                                <span>•</span>
-                                <div className="flex items-center gap-1 text-orange-600">
-                                  <Calendar className="h-3 w-3" />
-                                  <span>Due {formatDate(document.expiryDate)}</span>
-                                </div>
-                              </>
-                            )}
-                          </div>
-
-                          {/* Insights with type-specific icons */}
-                          {showInsights && openInsights.length > 0 && (
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {(() => {
-                                // Group insights by type and count them
-                                const insightsByType = openInsights.reduce((acc, insight) => {
-                                  acc[insight.type] = (acc[insight.type] || 0) + 1;
-                                  return acc;
-                                }, {} as Record<string, number>);
-
-                                // Use consistent accent-purple theme for all badges
-                                const typeConfigs = {
-                                  summary: { icon: FileText, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Summary' },
-                                  action_items: { icon: ListTodo, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Actions' },
-                                  key_dates: { icon: Calendar, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Dates' },
-                                  financial_info: { icon: DollarSign, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Financial' },
-                                  contacts: { icon: Users, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Contacts' },
-                                  compliance: { icon: Shield, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Compliance' }
-                                };
-
-                                return Object.entries(insightsByType).slice(0, 4).map(([type, count]) => {
-                                  const config = typeConfigs[type as keyof typeof typeConfigs] || typeConfigs.summary;
-                                  const IconComponent = config.icon;
-                                  
-                                  return (
-                                    <div 
-                                      key={type}
-                                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${config.color} shadow-sm`}
-                                    >
-                                      <IconComponent className="h-3 w-3" />
-                                      <span>{count}</span>
-                                    </div>
-                                  );
-                                });
-                              })()}
-                              {Object.keys(openInsights.reduce((acc, insight) => {
-                                acc[insight.type] = true;
-                                return acc;
-                              }, {} as Record<string, boolean>)).length > 4 && (
-                                <div className="flex items-center px-2 py-1 rounded-full text-xs font-medium bg-accent-purple-50 text-accent-purple-600 border border-accent-purple-200 shadow-sm">
-                                  <span>+{Object.keys(openInsights.reduce((acc, insight) => {
-                                    acc[insight.type] = true;
-                                    return acc;
-                                  }, {} as Record<string, boolean>)).length - 4}</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                      )}
+                      
+                      {category && (
+                        <div className="flex items-center gap-1">
+                          <FolderIcon className="h-3 w-3" />
+                          <span className="truncate">{category.name}</span>
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-
+                  </div>
+                )}
               </div>
 
-
-            {/* Rich footer with metadata */}
-              <div className="mt-auto mb-1">
-                {/* Bottom row with file size and category */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-accent-purple-600 text-xs font-medium">{formatFileSize(document.fileSize)}</span>
-
-                  {category && (
-                    <Badge variant="outline" className="text-xs bg-accent-purple-50 border-accent-purple-300 text-accent-purple-700 px-2 py-1 badge font-medium">
-                      <FolderIcon className="h-3 w-3 mr-1" />
-                      <span className="truncate max-w-[50px]">{category.name}</span>
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Smart contextual info - positioned at same level as brain icon */}
-              {(() => {
-                // Priority 1: Generate Insights (when no insights exist)
-                if (showInsights && openInsights.length === 0 && !insightsLoading) {
-                  return (
-                    <div className="absolute bottom-2 left-2 right-12">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div 
-                              className="flex items-center justify-center gap-2 cursor-pointer rounded-xl px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-accent-purple-400/50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                generateInsightsMutation.mutate();
-                              }}
-                            >
-                              {generateInsightsMutation.isPending ? (
-                                <>
-                                  <Clock className="h-4 w-4 animate-spin" />
-                                  <span className="text-sm font-medium">Analyzing...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Brain className="h-4 w-4" />
-                                  <span className="text-sm font-medium">Generate AI Insights</span>
-                                </>
-                              )}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{generateInsightsMutation.isPending ? 'AI is analyzing this document...' : 'Click to generate AI insights'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  );
-                }
-
-                // Priority 2: Insights Count (highest priority - clickable)
-                if (openInsights.length > 0) {
-                  return (
-                    <div className="absolute bottom-2 left-2 right-12">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            {(() => {
-                              const priorityCounts = openInsights.reduce((acc, insight) => {
-                                acc[insight.priority] = (acc[insight.priority] || 0) + 1;
-                                return acc;
-                              }, {} as Record<string, number>);
-
-                              const priorityOrder = ['high', 'medium', 'low'];
-                              const priorityColors: Record<string, string> = {
-                                high: 'bg-white text-accent-purple-600 border-accent-purple-200',
-                                medium: 'bg-orange-100 text-orange-700 border-orange-200', 
-                                low: 'bg-accent-purple-100 text-accent-purple-600 border-accent-purple-200'
-                              };
-
-                              return (
-                                <div 
-                                  className="flex items-center justify-between gap-2 cursor-pointer rounded-xl px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-accent-purple-400/50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setModalInitialTab('insights');
-                                    setShowModal(true);
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <Brain className="h-4 w-4" />
-                                    <span className="text-sm font-medium">AI Insights</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    {priorityOrder.map(priority => {
-                                      const count = priorityCounts[priority];
-                                      if (!count) return null;
-                                      return (
-                                        <div 
-                                          key={priority}
-                                          className={`px-2 py-1 rounded-full text-xs font-bold border ${priorityColors[priority]}`}
-                                        >
-                                          {count}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Click to view {openInsights.length} insight{openInsights.length > 1 ? 's' : ''}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  );
-                }
-
-                // Priority 3: Expiry/Due Date
-                if (document.expiryDate) {
-                  const expiryDate = new Date(document.expiryDate);
-                  const isValid = !isNaN(expiryDate.getTime());
-                  if (isValid) {
+              {/* Bottom Action Area */}
+              <div className="mt-auto">
+                {(() => {
+                  // Priority 1: Generate Insights Button
+                  if (showInsights && openInsights.length === 0 && !insightsLoading) {
                     return (
-                      <div className="absolute bottom-2 left-2 right-12">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <div className="flex items-center justify-center gap-2 rounded-xl px-3 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg border border-orange-400/50">
-                                <Calendar className="h-4 w-4" />
-                                <span className="text-sm font-medium">Due {format(expiryDate, 'MMM dd')}</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Due: {format(expiryDate, 'MMM dd, yyyy')}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-8 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-0 hover:from-accent-purple-600 hover:to-accent-purple-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          generateInsightsMutation.mutate();
+                        }}
+                        disabled={generateInsightsMutation.isPending}
+                      >
+                        {generateInsightsMutation.isPending ? (
+                          <>
+                            <Clock className="h-3 w-3 mr-1 animate-spin" />
+                            <span className="text-xs">Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="h-3 w-3 mr-1" />
+                            <span className="text-xs">Generate Insights</span>
+                          </>
+                        )}
+                      </Button>
                     );
                   }
-                }
 
-                // Priority 4: Upload Source  
-                if (document.uploadSource) {
-                  const sourceIcons: Record<string, { icon: React.ReactNode; label: string; gradient: string }> = {
-                    'camera': { icon: <Type className="h-4 w-4" />, label: 'Scanned', gradient: 'from-green-500 to-green-600' },
-                    'email': { icon: <FileText className="h-4 w-4" />, label: 'Email', gradient: 'from-blue-500 to-blue-600' },
-                    'upload': { icon: <FileText className="h-4 w-4" />, label: 'Uploaded', gradient: 'from-gray-500 to-gray-600' }
-                  };
+                  // Priority 2: Insights Summary
+                  if (openInsights.length > 0) {
+                    const priorityCounts = openInsights.reduce((acc, insight) => {
+                      acc[insight.priority] = (acc[insight.priority] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>);
 
-                  const sourceInfo = sourceIcons[document.uploadSource] || sourceIcons['upload'];
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-8 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalInitialTab('insights');
+                          setShowModal(true);
+                        }}
+                      >
+                        <Brain className="h-3 w-3 mr-1" />
+                        <span className="text-xs mr-2">{openInsights.length} Insights</span>
+                        {priorityCounts.high > 0 && (
+                          <Badge variant="destructive" className="h-4 text-xs px-1">
+                            {priorityCounts.high}
+                          </Badge>
+                        )}
+                      </Button>
+                    );
+                  }
+
+                  // Priority 3: File size and type info
                   return (
-                    <div className="absolute bottom-2 left-2 right-12">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <div className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 bg-gradient-to-r ${sourceInfo.gradient} text-white shadow-lg border border-white/20`}>
-                              {sourceInfo.icon}
-                              <span className="text-sm font-medium">{sourceInfo.label}</span>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{sourceInfo.label}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                    <div className="text-xs text-gray-500 text-center py-1">
+                      {formatFileSize(document.fileSize)}
                     </div>
                   );
-                }
+                })()}
+              </div>
 
-                // No contextual info to show
-                return null;
-              })()}
-
-
-              {/* Actions dropdown - positioned in top corner */}
+              {/* Actions Menu - Top Right Corner */}
               {!isEditing && !isRenaming && (
                 <div className="absolute top-1 right-1 z-10">
                   <DropdownMenu>
@@ -1126,10 +973,10 @@ export default function UnifiedDocumentCard({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 w-6 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200 opacity-70 hover:opacity-100"
+                        className="h-6 w-6 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm transition-all duration-200 opacity-70 hover:opacity-100"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <MoreHorizontal className="h-3 w-3 text-gray-500 hover:text-accent-purple-600" />
+                        <MoreHorizontal className="h-3 w-3 text-gray-500" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -1184,21 +1031,6 @@ export default function UnifiedDocumentCard({
                   </DropdownMenu>
                 </div>
               )}
-
-              {/* Rich footer with metadata */}
-              <div className="mt-auto mb-1">
-                {/* Bottom row with file size and category */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-accent-purple-600 text-xs font-medium">{formatFileSize(document.fileSize)}</span>
-
-                  {category && (
-                    <Badge variant="outline" className="text-xs bg-accent-purple-50 border-accent-purple-300 text-accent-purple-700 px-2 py-1 badge font-medium">
-                      <FolderIcon className="h-3 w-3 mr-1" />
-                      <span className="truncate max-w-[50px]">{category.name}</span>
-                    </Badge>
-                  )}
-                </div>
-              </div>
             </div>
           )}
         </CardContent>

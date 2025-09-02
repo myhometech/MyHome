@@ -510,42 +510,56 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
 
     // Generate thumbnail on-demand
     try {
-      let fileBuffer: Buffer;
-      let sourceFilePath: string;
+      console.log(`[THUMBNAIL] Generating thumbnail for document ${documentId}, gcsPath: ${document.gcsPath}, filePath: ${document.filePath}`);
+      
+      let fileBuffer: Buffer | null = null;
+      let sourceFilePath: string | null = null;
 
       // Get file buffer from GCS or local storage
-      if (document.gcsPath) {
+      if (document.gcsPath && document.gcsPath.trim()) {
         try {
           const storageService = StorageService.initialize();
           fileBuffer = await storageService.download(document.gcsPath);
-          // Create temporary file for thumbnail generation
-          sourceFilePath = path.join('/tmp', `temp_${documentId}_${Date.now()}${path.extname(document.fileName)}`);
-          fs.writeFileSync(sourceFilePath, fileBuffer);
+          if (fileBuffer) {
+            // Create temporary file for thumbnail generation
+            sourceFilePath = path.join('/tmp', `temp_${documentId}_${Date.now()}${path.extname(document.fileName)}`);
+            fs.writeFileSync(sourceFilePath, fileBuffer);
+          }
         } catch (gcsError) {
-          console.warn(`Failed to fetch from GCS for document ${documentId}:`, gcsError);
-          return res.status(500).json({ message: 'Failed to load document from storage' });
+          console.warn(`[THUMBNAIL] Failed to fetch from GCS for document ${documentId}:`, gcsError);
+          // Don't return error, fall through to placeholder
         }
       } else if (document.filePath && fs.existsSync(document.filePath)) {
         sourceFilePath = document.filePath;
-      } else {
-        return res.status(404).json({ message: 'Document file not found' });
+      }
+      
+      // If we have no valid source, return placeholder immediately
+      if (!sourceFilePath && !fileBuffer) {
+        console.log(`[THUMBNAIL] No valid source file for document ${documentId}, returning placeholder`);
+        const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
+        const dataUrl = `data:image/svg+xml;base64,${Buffer.from(placeholderSvg).toString('base64')}`;
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.send(dataUrl);
       }
 
       // Check for existing thumbnail first
-      const thumbnailPath = imageProcessor.getThumbnailPath(sourceFilePath);
-      
-      if (fs.existsSync(thumbnailPath)) {
-        // Cleanup temp file if created
-        if (document.gcsPath && fs.existsSync(sourceFilePath)) {
-          fs.unlinkSync(sourceFilePath);
+      if (sourceFilePath) {
+        const thumbnailPath = imageProcessor.getThumbnailPath(sourceFilePath);
+        
+        if (fs.existsSync(thumbnailPath)) {
+          // Cleanup temp file if created
+          if (document.gcsPath && sourceFilePath && fs.existsSync(sourceFilePath)) {
+            fs.unlinkSync(sourceFilePath);
+          }
+          res.setHeader('Content-Type', 'image/jpeg');
+          res.sendFile(path.resolve(thumbnailPath));
+          return;
         }
-        res.setHeader('Content-Type', 'image/jpeg');
-        res.sendFile(path.resolve(thumbnailPath));
-        return;
       }
 
-      // Generate thumbnail for images
-      if (document.mimeType?.startsWith('image/')) {
+      // Generate thumbnail for images  
+      if (document.mimeType?.startsWith('image/') && sourceFilePath) {
         try {
           // Use imageProcessor to generate thumbnail
           const thumbnailOutputPath = path.join('/tmp', `thumb_${documentId}_${Date.now()}.jpg`);
@@ -567,22 +581,27 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       }
 
       // For PDFs and other documents, generate a placeholder thumbnail
+      console.log(`[THUMBNAIL] Generating placeholder for document ${documentId}, mimeType: ${document.mimeType}`);
       const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
       
       // Cleanup temp file if created
-      if (document.gcsPath && fs.existsSync(sourceFilePath)) {
+      if (sourceFilePath && fs.existsSync(sourceFilePath) && sourceFilePath.includes('/tmp/')) {
         fs.unlinkSync(sourceFilePath);
       }
       
-      res.setHeader('Content-Type', 'image/svg+xml');
-      res.send(placeholderSvg);
+      const dataUrl = `data:image/svg+xml;base64,${Buffer.from(placeholderSvg).toString('base64')}`;
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.send(dataUrl);
       
     } catch (error) {
       console.error(`Failed to generate thumbnail for document ${documentId}:`, error);
       // Return a generic placeholder
       const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
-      res.setHeader('Content-Type', 'image/svg+xml');
-      res.send(placeholderSvg);
+      const dataUrl = `data:image/svg+xml;base64,${Buffer.from(placeholderSvg).toString('base64')}`;
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.send(dataUrl);
     }
 
     // If no file found, return 404

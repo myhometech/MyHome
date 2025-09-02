@@ -180,11 +180,9 @@ export default function UnifiedDocumentCard({
         if (response.ok) {
           const blob = await response.blob();
           const blobUrl = URL.createObjectURL(blob);
-          console.log(`[THUMBNAIL] Successfully created blob URL for document ${document.id}:`, blobUrl);
           setThumbnailBlobUrl(blobUrl);
           setThumbnailError(false);
         } else {
-          console.warn(`[THUMBNAIL] Failed to fetch thumbnail for document ${document.id}:`, response.status, response.statusText);
           setThumbnailError(true);
         }
       } catch (error) {
@@ -478,27 +476,17 @@ export default function UnifiedDocumentCard({
             style={{ height: '75%' }}
           >
             {thumbnailError || !thumbnailBlobUrl ? (
-              <>{console.log(`[THUMBNAIL] Rendering fallback for document ${document.id}: error=${thumbnailError}, blobUrl=${thumbnailBlobUrl}`)}</>,
               <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${getFileTypeIconColor()}`}>
                 {getFileIcon()}
               </div>
             ) : (
-              <>
-                {console.log(`[THUMBNAIL] Rendering image for document ${document.id} with blobUrl:`, thumbnailBlobUrl)}
-                <img 
-                  src={thumbnailBlobUrl}
-                  alt={document.name}
-                  className="w-full h-full object-cover"
-                  onError={() => {
-                    console.warn(`[THUMBNAIL] Image error for document ${document.id}`);
-                    setThumbnailError(true);
-                  }}
-                  onLoad={() => {
-                    console.log(`[THUMBNAIL] Image loaded successfully for document ${document.id}`);
-                  }}
-                  data-testid={`document-thumbnail-${document.id}`}
-                />
-              </>
+              <img 
+                src={thumbnailBlobUrl}
+                alt={document.name}
+                className="w-full h-full object-cover"
+                onError={() => setThumbnailError(true)}
+                data-testid={`document-thumbnail-${document.id}`}
+              />
             )}
           </div>
 

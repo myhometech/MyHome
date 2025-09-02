@@ -162,8 +162,14 @@ export default function UnifiedDocumentCard({
 
   // Fetch thumbnail as blob with authentication
   useEffect(() => {
+    // Guard against missing document ID
+    if (!document?.id) {
+      return;
+    }
+
     const fetchThumbnail = async () => {
       try {
+        const thumbnailUrl = `/api/documents/${document.id}/thumbnail`;
         const response = await fetch(thumbnailUrl, {
           credentials: 'include',
           headers: {
@@ -193,7 +199,7 @@ export default function UnifiedDocumentCard({
         URL.revokeObjectURL(thumbnailBlobUrl);
       }
     };
-  }, [document.id, thumbnailUrl]);
+  }, [document?.id]);
   const { toast } = useToast();
 
   const category = categories?.find(c => c.id === document.categoryId);
@@ -400,8 +406,7 @@ export default function UnifiedDocumentCard({
     return format(new Date(dateString), "MMM dd, yyyy");
   };
 
-  // Get thumbnail URL for all document types
-  const thumbnailUrl = `/api/documents/${document.id}/thumbnail`;
+  // State for thumbnail management
 
   // Calculate insights count for badge
   const insightsCount = openInsights.length;

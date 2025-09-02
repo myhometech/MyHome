@@ -54,7 +54,21 @@ export function ChatWindow() {
   const [selectedDocument, setSelectedDocument] = useState<{ id: number; page?: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Check if chat is enabled
+  // Check if user is authenticated first
+  const { data: authStatus } = useQuery({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const response = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!response.ok) {
+        if (response.status === 401) return null; // Not authenticated
+        throw new Error('Failed to check auth status');
+      }
+      return response.json();
+    },
+    retry: false,
+  });
+
+  // Check if chat is enabled (only if authenticated)
   const { data: chatConfig } = useQuery({
     queryKey: ['/api/config'],
     queryFn: async () => {
@@ -62,9 +76,10 @@ export function ChatWindow() {
       if (!response.ok) throw new Error('Failed to fetch config');
       return response.json();
     },
+    enabled: !!authStatus,
   });
 
-  // Fetch conversations list
+  // Fetch conversations list (only if authenticated and chat enabled)
   const { data: conversations = [] } = useQuery({
     queryKey: ['/api/conversations'],
     queryFn: async () => {
@@ -72,7 +87,7 @@ export function ChatWindow() {
       if (!response.ok) throw new Error('Failed to fetch conversations');
       return response.json();
     },
-    enabled: chatConfig?.chat?.enabled,
+    enabled: !!authStatus && chatConfig?.chat?.enabled,
   });
 
   // Fetch messages for selected conversation
@@ -165,6 +180,27 @@ export function ChatWindow() {
   const handleCitationClick = (citation: Citation) => {
     setSelectedDocument({ id: parseInt(citation.docId), page: citation.page });
   };
+
+  // If user is not authenticated, show auth required state
+  if (!authStatus) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              Chat Assistant
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              Please log in to access the chat assistant.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // If chat is not enabled, show disabled state
   if (!chatConfig?.chat?.enabled) {

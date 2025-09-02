@@ -815,8 +815,24 @@ export default function UnifiedDocumentCard({
           ) : (
             /* Grid View Layout - Clean and Organized */
             <div className="h-full flex flex-col">
+              {/* Document Thumbnail */}
+              <div className="relative w-full h-20 flex-shrink-0 rounded-lg border border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm mb-3">
+                {thumbnailError ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
+                    {getFileIcon()}
+                  </div>
+                ) : (
+                  <img
+                    src={`/api/documents/${document.id}/thumbnail`}
+                    alt={document.name}
+                    className="w-full h-full object-cover"
+                    onError={() => setThumbnailError(true)}
+                  />
+                )}
+              </div>
+
               {/* Document Title and Basic Info */}
-              <div className="flex-1 min-h-0 pr-8">
+              <div className="flex-1 min-h-0 pr-6">
                 {isEditing ? (
                   <div className="space-y-2">
                     <Input
@@ -867,11 +883,11 @@ export default function UnifiedDocumentCard({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <h3 className="font-semibold text-base leading-tight text-gray-900 line-clamp-2 mb-2">
+                    <h3 className="font-medium text-sm leading-snug text-gray-900 line-clamp-2 mb-2 break-words">
                       {document.name}
                     </h3>
                     
-                    <div className="text-xs text-gray-600 space-y-1">
+                    <div className="text-xs text-gray-500 space-y-1">
                       <div className="flex items-center gap-1">
                         <span>{formatFileSize(document.fileSize)}</span>
                         <span>•</span>

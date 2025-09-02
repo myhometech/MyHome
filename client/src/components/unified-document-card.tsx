@@ -875,7 +875,7 @@ export default function UnifiedDocumentCard({
                       className="h-6 w-6 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200 opacity-70 hover:opacity-100"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <X className="h-3 w-3 text-gray-500 hover:text-accent-purple-600 rotate-45" />
+                      <MoreHorizontal className="h-3 w-3 text-gray-500 hover:text-accent-purple-600" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

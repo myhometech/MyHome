@@ -3807,10 +3807,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Validate request body using Zod schema
-      const { insertConversationSchema } = await import('../shared/schema.js');
-      const validatedData = insertConversationSchema.parse(req.body);
-
       // Determine tenantId (userId for individual users, householdId for Duo users)
       let tenantId = userId;
       if (user.subscriptionTier === 'duo') {
@@ -3820,11 +3816,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const conversation = await storage.createConversation({
-        ...validatedData,
+      // Build complete conversation data and validate
+      const { insertConversationSchema } = await import('../shared/schema.js');
+      const conversationData = {
+        title: req.body.title || 'New Conversation',
         tenantId,
         userId,
-      });
+      };
+      
+      const validatedData = insertConversationSchema.parse(conversationData);
+
+      const conversation = await storage.createConversation(validatedData);
 
       console.log(`✅ [CHAT] Created conversation ${conversation.id} for user ${user.email} (tenant: ${tenantId})`);
       res.status(201).json(conversation);

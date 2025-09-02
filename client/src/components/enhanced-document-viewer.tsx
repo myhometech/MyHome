@@ -566,6 +566,19 @@ export function EnhancedDocumentViewer({ document, category: propCategory, onClo
             </Button>
           )}
 
+          {/* Close button - visible on mobile and desktop */}
+          {showCloseButton && (
+            <Button
+              onClick={onClose}
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 bg-white/80 hover:bg-white text-[#2B2F40] rounded-lg shadow-sm"
+              title="Close document viewer"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+
         </div>
       </div>
 

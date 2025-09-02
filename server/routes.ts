@@ -3985,21 +3985,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
-      const { tenantId } = req;
+      
+      // Get user and determine tenantId (same logic as conversation creation)
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
 
-      // Chat features are available for authenticated users
-      // (removed chatConfigService.getChatStatus as it doesn't exist)
+      let tenantId = userId;
+      if (user.subscriptionTier === 'duo') {
+        const membership = await storage.getUserHouseholdMembership(userId);
+        if (membership?.householdId) {
+          tenantId = membership.householdId;
+        }
+      }
 
       // Validate request body
       const validatedRequest: ChatRequest = chatRequestSchema.parse(req.body);
 
-      console.log(`🤖 [CHAT] Received query: "${validatedRequest.message}" from user ${userId}`);
+      console.log(`🤖 [CHAT] Received query: "${validatedRequest.message}" from user ${userId} (tenant: ${tenantId})`);
 
       // Process chat through orchestration service
       const response = await chatOrchestrationService.processChat(
         validatedRequest, 
         userId, 
-        tenantId || userId
+        tenantId
       );
 
       console.log(`✅ [CHAT] Returning response with ${response.citations.length} citations`);

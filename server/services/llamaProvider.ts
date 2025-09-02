@@ -14,8 +14,8 @@ export class LlamaProvider implements LLMProvider {
   constructor() {
     this.apiKey = process.env.TOGETHER_API_KEY || process.env.LLAMA_API_KEY || '';
     this.baseURL = process.env.TOGETHER_BASE_URL || process.env.LLAMA_BASE_URL || 'https://api.together.xyz/v1';
-    this.defaultModel = process.env.LLM_MODEL_STANDARD || 'meta-llama/Llama-3.3-8B-Instruct-Turbo';
-    this.accurateModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
+    this.defaultModel = process.env.LLM_MODEL_STANDARD || 'meta-llama/Llama-3.1-8B-Instruct-Turbo';
+    this.accurateModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct';
 
     if (!this.apiKey) {
       throw new Error('TOGETHER_API_KEY (or LLAMA_API_KEY) environment variable is required');

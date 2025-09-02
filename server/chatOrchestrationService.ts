@@ -343,14 +343,14 @@ export class ChatOrchestrationService {
     
     if (useLlama) {
       provider = 'together';
-      initialModel = process.env.LLM_MODEL_STANDARD || 'meta-llama/Llama-3.3-8B-Instruct-Turbo';
+      initialModel = process.env.LLM_MODEL_STANDARD || 'meta-llama/Llama-3.1-8B-Instruct-Turbo';
     } else {
       initialModel = 'mistral-large';
     }
     
     // Check if user requested accurate model tier
     if ((request as any).modelTier === 'accurate' && useLlamaAccurate && useLlama) {
-      initialModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
+      initialModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct';
     }
 
     let finalModel = initialModel;
@@ -400,7 +400,7 @@ export class ChatOrchestrationService {
         
         initialConfidence = llmResponse.confidence;
         fallbackTo70B = true;
-        finalModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
+        finalModel = process.env.LLM_MODEL_ACCURATE || 'meta-llama/Llama-3.3-70B-Instruct';
         llmStartTime = Date.now();
         
         const accurateRequest = {

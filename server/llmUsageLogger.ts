@@ -111,8 +111,8 @@ export class LlmUsageLogger {
   calculateTogetherCost(model: string, tokensUsed: number): number {
     // Together.ai pricing rates
     const rates: Record<string, number> = {
-      'meta-llama/Llama-3.3-8B-Instruct-Turbo': 0.18 / 1_000_000, // $0.18 per 1M tokens
-      'meta-llama/Llama-3.3-70B-Instruct-Turbo': 0.88 / 1_000_000, // $0.88 per 1M tokens
+      'meta-llama/Llama-3.1-8B-Instruct-Turbo': 0.18 / 1_000_000, // $0.18 per 1M tokens
+      'meta-llama/Llama-3.3-70B-Instruct': 0.88 / 1_000_000, // $0.88 per 1M tokens
     };
     
     const rate = rates[model] || 0.18 / 1_000_000; // Default to 8B rate

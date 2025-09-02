@@ -10,13 +10,27 @@ export interface VehicleFetchError {
 }
 
 export async function fetchVehicles(): Promise<any[]> {
+  console.log('[VEHICLES] Starting fetch request to /api/vehicles');
+  console.log('[VEHICLES] Network status:', {
+    online: navigator.onLine,
+    userAgent: navigator.userAgent,
+    url: window.location.href
+  });
+  
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
+    console.log('[VEHICLES] Making fetch request...');
     const res = await fetch('/api/vehicles', { 
       credentials: 'include',
       signal: controller.signal
+    });
+    
+    console.log('[VEHICLES] Fetch response received:', {
+      status: res.status,
+      statusText: res.statusText,
+      headers: Object.fromEntries(res.headers.entries())
     });
     
     clearTimeout(timeoutId);
@@ -53,6 +67,15 @@ export async function fetchVehicles(): Promise<any[]> {
     return Array.isArray(data) ? data : [];
     
   } catch (error: any) {
+    console.error('[VEHICLES] Fetch failed with error:', {
+      name: error.name,
+      message: error.message,
+      type: error.type,
+      stack: error.stack,
+      online: navigator.onLine,
+      currentUrl: window.location.href
+    });
+    
     // Handle network errors and timeouts
     if (error.name === 'AbortError') {
       throw { 
@@ -65,6 +88,16 @@ export async function fetchVehicles(): Promise<any[]> {
     if (error.type) {
       // Already a VehicleFetchError, re-throw
       throw error;
+    }
+    
+    // Enhanced network error detection
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      console.error('[VEHICLES] Network/CORS error detected');
+      throw { 
+        type: 'network', 
+        message: 'Connection failed. The server may be unreachable or there may be a network issue.',
+        details: `Fetch error: ${error.message}. Online: ${navigator.onLine}`
+      } as VehicleFetchError;
     }
     
     // Network or other fetch errors

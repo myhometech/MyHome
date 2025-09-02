@@ -1063,6 +1063,45 @@ function AssetsTabContent() {
       queryClient.invalidateQueries({ queryKey: ['/api/vehicles'] });
     };
 
+    const runDiagnostics = async () => {
+      console.log('Running connection diagnostics...');
+      
+      // Test basic connectivity
+      try {
+        const healthCheck = await fetch('/api/health', { 
+          method: 'GET',
+          cache: 'no-cache',
+          credentials: 'include'
+        });
+        console.log('Health check result:', {
+          status: healthCheck.status,
+          ok: healthCheck.ok
+        });
+      } catch (e) {
+        console.error('Health check failed:', e);
+      }
+
+      // Test vehicles endpoint specifically
+      try {
+        const vehiclesTest = await fetch('/api/vehicles', {
+          method: 'HEAD', // Just check if endpoint exists
+          credentials: 'include',
+          cache: 'no-cache'
+        });
+        console.log('Vehicles endpoint test:', {
+          status: vehiclesTest.status,
+          ok: vehiclesTest.ok
+        });
+      } catch (e) {
+        console.error('Vehicles endpoint test failed:', e);
+      }
+
+      toast({
+        title: 'Diagnostics Complete',
+        description: 'Check the browser console for detailed results.',
+      });
+    };
+
     return (
       <div className="space-y-6">
         <Card>
@@ -1102,11 +1141,16 @@ function AssetsTabContent() {
                 <div>
                   <p className="text-red-600 mb-4">Network connection error.</p>
                   <div className="space-y-2">
-                    <Button onClick={handleRetry}>
-                      Retry Connection
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button onClick={handleRetry}>
+                        Retry Connection
+                      </Button>
+                      <Button variant="outline" onClick={runDiagnostics}>
+                        Run Diagnostics
+                      </Button>
+                    </div>
                     <p className="text-xs text-gray-500">
-                      Check your internet connection and try again.
+                      Check your internet connection and try again. Use diagnostics to get more details.
                     </p>
                   </div>
                 </div>
@@ -1116,9 +1160,14 @@ function AssetsTabContent() {
                     {error?.message || 'Could not load your vehicles. Please try again.'}
                   </p>
                   <div className="space-y-2">
-                    <Button onClick={handleRetry}>
-                      Retry
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button onClick={handleRetry}>
+                        Retry
+                      </Button>
+                      <Button variant="outline" onClick={runDiagnostics}>
+                        Diagnostics
+                      </Button>
+                    </div>
                     {(error?.cid || error?.status || error?.details) && (
                       <div className="text-xs text-gray-500 space-y-1">
                         {error?.status && <div>Status: {error.status}</div>}

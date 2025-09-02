@@ -1137,7 +1137,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if document is stored in GCS (based on encryption metadata)
-      const isCloudStorageDocument = document.encryptionMetadata?.storageType === 'cloud';
+      let isCloudStorageDocument = false;
+      if (document.encryptionMetadata) {
+        try {
+          const metadata = JSON.parse(document.encryptionMetadata);
+          isCloudStorageDocument = metadata?.storageType === 'cloud';
+        } catch (e) {
+          // Invalid JSON, assume not cloud storage
+        }
+      }
       
       if (isCloudStorageDocument) {
         console.log(`📁 GCS PREVIEW: Loading document ${document.filePath} from cloud storage`);
@@ -1164,7 +1172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('GCS download failed:', downloadError);
           return res.status(500).json({ 
             message: "Failed to download document from cloud storage",
-            error: downloadError?.message || 'Unknown error' 
+            error: downloadError instanceof Error ? downloadError.message : 'Unknown error' 
           });
         }
       }
@@ -3787,7 +3795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { featureName } = req.params;
       const context = {
         userId,
-        userTier: (user.subscriptionTier === 'free' ? 'free' : 'premium') as 'free' | 'premium',
+        userTier: user.subscriptionTier as 'free' | 'duo' | 'beginner' | 'pro',
         sessionId: req.sessionID,
         userAgent: req.get('User-Agent'),
         ipAddress: req.ip,
@@ -3813,7 +3821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { chatConfigService } = await import('./chatConfig.js');
       const context = {
         userId,
-        userTier: (user.subscriptionTier === 'free' ? 'free' : 'premium') as 'free' | 'premium',
+        userTier: user.subscriptionTier as 'free' | 'duo' | 'beginner' | 'pro',
         sessionId: req.sessionID,
         userAgent: req.get('User-Agent'),
         ipAddress: req.ip,
@@ -4060,17 +4068,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ====================
 
   // POST /api/chat - Chat orchestration endpoint with search + LLM + persistence
-  app.post("/api/chat", requireAuth, async (req, res) => {
+  app.post("/api/chat", requireAuth, requireChatEnabled, async (req, res) => {
+    const startTime = Date.now();
+    let userId = 'unknown';
+    let tenantId = 'unknown';
+    let conversationId = 'unknown';
+
     try {
-      const userId = (req.user as any)?.id || getUserId(req);
+      // Enhanced request validation
+      if (!req.body || typeof req.body !== 'object') {
+        console.log(`❌ [CHAT] Invalid payload: empty or non-object request body`);
+        return res.status(400).json({ 
+          error: "Invalid request payload", 
+          message: "Request body must be a valid JSON object" 
+        });
+      }
+
+      // Validate required fields
+      if (!req.body.message || typeof req.body.message !== 'string' || !req.body.message.trim()) {
+        console.log(`❌ [CHAT] Invalid payload: empty or invalid message`);
+        return res.status(400).json({ 
+          error: "Invalid message", 
+          message: "Message is required and must be a non-empty string" 
+        });
+      }
+
+      if (!req.body.conversationId || typeof req.body.conversationId !== 'string') {
+        console.log(`❌ [CHAT] Invalid payload: missing or invalid conversationId`);
+        return res.status(400).json({ 
+          error: "Invalid conversationId", 
+          message: "Conversation ID is required" 
+        });
+      }
+
+      userId = getUserId(req);
+      conversationId = req.body.conversationId;
       
-      // Get user and determine tenantId (same logic as conversation creation)
+      // Get user and determine tenantId
       const user = await storage.getUser(userId);
       if (!user) {
+        console.log(`❌ [CHAT] User not found: ${userId}`);
         return res.status(404).json({ error: "User not found" });
       }
 
-      let tenantId = userId;
+      tenantId = userId;
       if (user.subscriptionTier === 'duo') {
         const membership = await storage.getUserHouseholdMembership(userId);
         if (membership?.householdId) {
@@ -4078,33 +4119,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Validate request body
+      // Validate request body schema
       const validatedRequest: ChatRequest = chatRequestSchema.parse(req.body);
 
-      console.log(`🤖 [CHAT] Received query: "${validatedRequest.message}" from user ${userId} (tenant: ${tenantId})`);
+      // Log request details for monitoring
+      console.log(`🤖 [CHAT] Processing: {tenantId: ${tenantId}, userId: ${userId}, conversationId: ${conversationId}, message: "${validatedRequest.message.substring(0, 100)}${validatedRequest.message.length > 100 ? '...' : ''}", filters: ${JSON.stringify(validatedRequest.filters || {})}}`);
 
-      // Process chat through orchestration service
-      const response = await chatOrchestrationService.processChat(
+      // Process chat through orchestration service with timeout wrapper
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('LLM timeout')), 25000); // 25s timeout for accurate tier
+      });
+
+      const chatPromise = chatOrchestrationService.processChat(
         validatedRequest, 
         userId, 
         tenantId
       );
 
-      console.log(`✅ [CHAT] Returning response with ${response.citations.length} citations`);
+      const response = await Promise.race([chatPromise, timeoutPromise]) as ChatResponse;
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ [CHAT] Completed in ${duration}ms with ${response.sources?.length || 0} sources`);
+      
+      // Log success metrics
+      console.log(`📊 [CHAT] Success: {stage: 'complete', tenantId: ${tenantId}, userId: ${userId}, conversationId: ${conversationId}, duration: ${duration}ms}`);
+
       res.json(response);
 
     } catch (error: any) {
-      console.error(`❌ [CHAT] Endpoint error:`, error);
+      const duration = Date.now() - startTime;
+      
+      // Enhanced error handling with specific HTTP status codes
+      if (error.name === 'ZodError') {
+        console.log(`❌ [CHAT] Validation error: {stage: 'payload', errClass: 'ZodError', httpStatus: 400, tenantId: ${tenantId}, userId: ${userId}}`);
+        return res.status(400).json({ 
+          error: "Invalid request data", 
+          message: "Please check your request format and try again",
+          details: error.errors 
+        });
+      }
 
-      // Return structured error response matching schema
-      const fallbackResponse = {
-        conversationId: req.body.conversationId || "unknown",
-        answer: "I encountered an error processing your request. Please try again.",
-        citations: [],
-        confidence: 0.0
-      };
+      if (error.message === 'LLM timeout') {
+        console.log(`❌ [CHAT] Timeout error: {stage: 'llm', errClass: 'TimeoutError', httpStatus: 504, tenantId: ${tenantId}, userId: ${userId}, duration: ${duration}ms}`);
+        return res.status(504).json({
+          error: "LLM timeout",
+          message: "The request took too long — please retry"
+        });
+      }
 
-      res.status(500).json(fallbackResponse);
+      if (error.message?.includes('rate limit') || error.status === 429) {
+        console.log(`❌ [CHAT] Rate limit error: {stage: 'upstream', errClass: 'RateLimitError', httpStatus: 429, tenantId: ${tenantId}, userId: ${userId}}`);
+        return res.status(429).json({
+          error: "Rate limit exceeded",
+          message: "Too many requests — try again in a moment"
+        });
+      }
+
+      if (error.message?.includes('Conversation not found')) {
+        console.log(`❌ [CHAT] Conversation error: {stage: 'validation', errClass: 'ConversationNotFound', httpStatus: 404, tenantId: ${tenantId}, userId: ${userId}}`);
+        return res.status(404).json({
+          error: "Conversation not found",
+          message: "Please create a new conversation and try again"
+        });
+      }
+
+      // Log detailed error for monitoring
+      console.error(`❌ [CHAT] Endpoint error: {stage: 'unknown', errClass: ${error.constructor.name}, httpStatus: 500, tenantId: ${tenantId}, userId: ${userId}, duration: ${duration}ms, message: ${error.message}}`);
+
+      // Return structured error response
+      res.status(500).json({
+        error: "Internal server error",
+        message: "We couldn't send that. Please retry"
+      });
     }
   });
 

@@ -178,10 +178,20 @@ export default function UnifiedDocumentCard({
         });
         
         if (response.ok) {
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          setThumbnailBlobUrl(blobUrl);
-          setThumbnailError(false);
+          const contentType = response.headers.get('content-type') || '';
+          
+          // If response is a data URL (text/plain), use it directly
+          if (contentType.includes('text/plain')) {
+            const dataUrl = await response.text();
+            setThumbnailBlobUrl(dataUrl);
+            setThumbnailError(false);
+          } else {
+            // For binary image data, create blob URL
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            setThumbnailBlobUrl(blobUrl);
+            setThumbnailError(false);
+          }
         } else {
           setThumbnailError(true);
         }

@@ -39,12 +39,36 @@ export function requireAdmin(req: AuthenticatedRequest, res: Response, next: Nex
  * Basic authentication check with correlation ID support
  */
 export function requireAuth(req: AuthenticatedRequest & { cid?: string }, res: Response, next: NextFunction) {
+  // Enhanced debugging for auth failures
+  const sessionUser = (req as any).session?.user;
+  const hasSession = !!(req as any).session;
+  const sessionId = (req as any).session?.id;
+  
+  console.log(`[${req.cid || 'no-cid'}] auth_check:`, {
+    hasUser: !!req.user,
+    hasSession,
+    hasSessionUser: !!sessionUser,
+    sessionId: sessionId?.substring(0, 8) + '...',
+    userAgent: req.get('User-Agent')?.substring(0, 50),
+    cookies: Object.keys(req.cookies || {}),
+    path: req.path
+  });
+
   if (!req.user) {
-    console.warn(`[${req.cid || 'no-cid'}] auth_missing_user`);
+    console.warn(`[${req.cid || 'no-cid'}] auth_missing_user - session details:`, {
+      sessionExists: hasSession,
+      sessionUser: sessionUser ? 'present' : 'missing',
+      cookieCount: Object.keys(req.cookies || {}).length
+    });
+    
     return res.status(401).json({ 
       code: 'AUTH_REQUIRED',
       message: 'Authentication required',
-      cid: req.cid
+      cid: req.cid,
+      debug: process.env.NODE_ENV === 'development' ? {
+        sessionExists: hasSession,
+        sessionUser: !!sessionUser
+      } : undefined
     });
   }
 

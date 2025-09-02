@@ -28,6 +28,7 @@ export function getSession() {
       path: '/',
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     },
+    rolling: true, // Extend session on activity
   });
 }
 
@@ -42,9 +43,38 @@ export const requireAuth: RequestHandler = (req: any, res: any, next: any) => {
   // Check both session and req.user (for different auth methods)
   const user = req.user || req.session?.user;
 
+  // Enhanced debugging for auth issues
+  console.log('[SIMPLE-AUTH] requireAuth check:', {
+    hasReqUser: !!req.user,
+    hasSessionUser: !!req.session?.user,
+    sessionId: req.session?.id?.substring(0, 8) + '...',
+    path: req.path,
+    method: req.method
+  });
+
   if (!user) {
-    return res.status(401).json({ message: "Authentication required" });
+    console.warn('[SIMPLE-AUTH] Authentication failed:', {
+      sessionExists: !!req.session,
+      sessionUser: req.session?.user ? 'present' : 'missing',
+      cookies: Object.keys(req.cookies || {}),
+      userAgent: req.get('User-Agent')?.substring(0, 50)
+    });
+    
+    return res.status(401).json({ 
+      message: "Authentication required",
+      debug: process.env.NODE_ENV === 'development' ? {
+        sessionExists: !!req.session,
+        cookiesPresent: Object.keys(req.cookies || {}).length > 0
+      } : undefined
+    });
   }
+
+  // Set req.user if it's not already set (for compatibility)
+  if (!req.user && req.session?.user) {
+    req.user = req.session.user;
+  }
+
+  next();
 
   // Ensure req.user is set for downstream middleware
   req.user = user;

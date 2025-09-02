@@ -85,7 +85,6 @@ interface DocumentInsight {
 interface UnifiedDocumentCardProps {
   document: Document;
   categories?: Category[];
-  viewMode?: "grid" | "list";
   bulkMode?: boolean;
   isSelected?: boolean;
   onToggleSelection?: () => void;
@@ -142,7 +141,6 @@ function getPriorityIcon(priority: string, className = "w-4 h-4") {
 export default function UnifiedDocumentCard({ 
   document, 
   categories = [], 
-  viewMode = "grid", 
   bulkMode = false,
   isSelected = false,
   onToggleSelection,
@@ -516,7 +514,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`mobile-document-card group dashboard-card hover:shadow-lg ${viewMode === "list" ? "hover:scale-[1.01]" : "hover:scale-[1.02]"} transition-all duration-300 ${cardBorderClass} ${isSelected ? "ring-2 ring-accent-purple-500" : ""} cursor-pointer bg-gradient-to-br from-accent-purple-50/30 via-accent-purple-50/20 to-accent-purple-100/30 border-accent-purple-200/60 overflow-hidden shadow-sm`}
+        className={`mobile-document-card group dashboard-card hover:shadow-lg hover:scale-[1.01] transition-all duration-300 ${cardBorderClass} ${isSelected ? "ring-2 ring-accent-purple-500" : ""} cursor-pointer bg-gradient-to-br from-accent-purple-50/30 via-accent-purple-50/20 to-accent-purple-100/30 border-accent-purple-200/60 overflow-hidden shadow-sm`}
         onClick={() => {
           if (isRenaming || isEditing) {
             // Prevent modal from opening when in edit/rename mode
@@ -532,7 +530,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className={`p-2 sm:p-2.5 pb-2.5 relative mobile-document-card-content ${viewMode === "list" ? "h-auto" : "h-full flex flex-col"} overflow-hidden card-content`}>
+        <CardContent className={`p-2 sm:p-2.5 pb-2.5 relative mobile-document-card-content h-auto overflow-hidden card-content`}>
             {/* Bulk selection checkbox */}
             {bulkMode && (
               <div className="absolute top-0.5 left-0.5 z-10">

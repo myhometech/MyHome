@@ -651,8 +651,6 @@ export default function UnifiedDocuments() {
                       </SelectContent>
                     </Select>
                   </div>
-
-
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -801,7 +799,7 @@ export default function UnifiedDocuments() {
                   expiryDate: document.expiryDate ? (typeof document.expiryDate === 'string' ? document.expiryDate : new Date(document.expiryDate).toISOString()) : null
                 }}
                 categories={categories}
-                viewMode="list"
+                
                 bulkMode={bulkMode}
                 isSelected={selectedDocuments.has(document.id)}
                 onToggleSelection={() => toggleDocumentSelection(document.id)}

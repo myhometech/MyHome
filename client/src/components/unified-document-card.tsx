@@ -516,7 +516,7 @@ export default function UnifiedDocumentCard({
   return (
     <>
       <Card 
-        className={`mobile-document-card group dashboard-card hover:shadow-lg hover:scale-[1.02] transition-all duration-300 ${cardBorderClass} ${isSelected ? "ring-2 ring-accent-purple-500" : ""} cursor-pointer bg-gradient-to-br from-white via-accent-purple-50/10 to-accent-purple-100/20 border-accent-purple-200/50 overflow-hidden`}
+        className={`mobile-document-card group dashboard-card hover:shadow-lg ${viewMode === "list" ? "hover:scale-[1.01]" : "hover:scale-[1.02]"} transition-all duration-300 ${cardBorderClass} ${isSelected ? "ring-2 ring-accent-purple-500" : ""} cursor-pointer bg-gradient-to-br from-white via-accent-purple-50/10 to-accent-purple-100/20 border-accent-purple-200/50 overflow-hidden`}
         onClick={() => {
           if (isRenaming || isEditing) {
             // Prevent modal from opening when in edit/rename mode
@@ -532,7 +532,7 @@ export default function UnifiedDocumentCard({
           }
         }}
       >
-        <CardContent className="p-3 sm:p-4 pb-4 relative mobile-document-card-content h-full flex flex-col overflow-hidden card-content">
+        <CardContent className={`p-3 sm:p-4 pb-4 relative mobile-document-card-content ${viewMode === "list" ? "h-auto" : "h-full flex flex-col"} overflow-hidden card-content`}>
             {/* Bulk selection checkbox */}
             {bulkMode && (
               <div className="absolute top-0.5 left-0.5 z-10">
@@ -550,388 +550,667 @@ export default function UnifiedDocumentCard({
               </div>
             )}
 
-          <div className="h-full flex flex-col justify-between gap-1">
-            {/* Compact header */}
-            <div className="flex items-start justify-between min-h-0">
-              <div className="flex-1 min-w-0">
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="text-sm font-medium"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveEdit();
-                        if (e.key === "Escape") handleCancelEdit();
-                      }}
-                    />
-                    <Input
-                      type="date"
-                      value={editImportantDate}
-                      onChange={(e) => setEditImportantDate(e.target.value)}
-                      className="text-sm"
-                      placeholder="Important date"
-                    />
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending}>
-                        <Check className="h-3 w-3 mr-1" />
-                        Save
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                        <X className="h-3 w-3 mr-1" />
-                        Cancel
-                      </Button>
-                    </div>
+          {/* List View Layout */}
+          {viewMode === "list" ? (
+            <div className="flex items-center gap-4 min-h-0">
+              {/* Document thumbnail */}
+              <div className="relative w-12 h-12 flex-shrink-0 rounded-lg border-2 border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm">
+                {thumbnailError ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
+                    {getFileIcon()}
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    <div className="flex items-start gap-3">
-                      {/* Document thumbnail */}
-                      <div className="relative w-16 h-16 flex-shrink-0 rounded-xl border-2 border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm icon-container">
-                        {thumbnailError ? (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
-                            {getFileIcon()}
-                          </div>
-                        ) : (
-                          <img
-                            src={`/api/documents/${document.id}/thumbnail`}
-                            alt={document.name}
-                            className="w-full h-full object-cover"
-                            onError={() => setThumbnailError(true)}
-                          />
-                        )}
-                      </div>
-                      
-                      {/* Document info */}
-                      <div className="flex-1 min-w-0 pr-10">
-                        {isRenaming ? (
-                          <div className="space-y-2">
-                            <Input
-                              value={renameName}
-                              onChange={(e) => setRenameName(e.target.value)}
-                              onKeyDown={handleRenameKeyPress}
-                              className="text-sm h-7"
-                              autoFocus
-                              placeholder="Enter new document name"
-                            />
-                            <div className="flex gap-1">
-                              <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                                <Check className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-1.5">
-                            <h3 className="font-semibold text-base leading-tight text-gray-900 line-clamp-2 mb-1">
-                              {document.name}
-                            </h3>
-                            {/* Insights with type-specific icons */}
-                            {showInsights && openInsights.length > 0 && (
-                              <div className="flex items-center gap-1 flex-wrap max-w-[calc(100%-2rem)]">
-                                {(() => {
-                                  // Group insights by type and count them
-                                  const insightsByType = openInsights.reduce((acc, insight) => {
-                                    acc[insight.type] = (acc[insight.type] || 0) + 1;
-                                    return acc;
-                                  }, {} as Record<string, number>);
+                  <img
+                    src={`/api/documents/${document.id}/thumbnail`}
+                    alt={document.name}
+                    className="w-full h-full object-cover"
+                    onError={() => setThumbnailError(true)}
+                  />
+                )}
+              </div>
 
-                                  // Use consistent accent-purple theme for all badges
-                                  const typeConfigs = {
-                                    summary: { icon: FileText, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Summary' },
-                                    action_items: { icon: ListTodo, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Actions' },
-                                    key_dates: { icon: Calendar, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Dates' },
-                                    financial_info: { icon: DollarSign, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Financial' },
-                                    contacts: { icon: Users, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Contacts' },
-                                    compliance: { icon: Shield, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Compliance' }
-                                  };
-
-                                  return Object.entries(insightsByType).slice(0, 3).map(([type, count]) => {
-                                    const config = typeConfigs[type as keyof typeof typeConfigs] || typeConfigs.summary;
-                                    const IconComponent = config.icon;
-                                    
-                                    return (
-                                      <div 
-                                        key={type}
-                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.color} shadow-sm`}
-                                      >
-                                        <IconComponent className="h-3 w-3" />
-                                        <span>{count}</span>
-                                      </div>
-                                    );
-                                  });
-                                })()}
-                                {Object.keys(openInsights.reduce((acc, insight) => {
-                                  acc[insight.type] = true;
-                                  return acc;
-                                }, {} as Record<string, boolean>)).length > 3 && (
-                                  <div className="flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-accent-purple-50 text-accent-purple-600 border border-accent-purple-200 shadow-sm">
-                                    <span>+{Object.keys(openInsights.reduce((acc, insight) => {
-                                      acc[insight.type] = true;
-                                      return acc;
-                                    }, {} as Record<string, boolean>)).length - 3}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+              {/* Document info - main content */}
+              <div className="flex-1 min-w-0">
+                {isRenaming ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={renameName}
+                      onChange={(e) => setRenameName(e.target.value)}
+                      onKeyDown={handleRenameKeyPress}
+                      className="text-sm h-8 flex-1"
+                      autoFocus
+                      placeholder="Enter new document name"
+                    />
+                    <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-8 w-8 p-0">
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-8 w-8 p-0">
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="font-semibold text-base leading-tight text-gray-900 truncate mb-1">
+                      {document.name}
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <span>{formatFileSize(document.fileSize)}</span>
+                      <span>•</span>
+                      <span>{formatDate(document.uploadedAt)}</span>
+                      {category && (
+                        <>
+                          <span>•</span>
+                          <div className="flex items-center gap-1">
+                            <FolderIcon className="h-3 w-3" />
+                            <span className="truncate max-w-[80px]">{category.name}</span>
                           </div>
-                        )}
-                      </div>
+                        </>
+                      )}
+                      {document.expiryDate && (
+                        <>
+                          <span>•</span>
+                          <div className="flex items-center gap-1 text-orange-600">
+                            <Calendar className="h-3 w-3" />
+                            <span>Due {formatDate(document.expiryDate)}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {document.expiryDate && (
-                      <div className="flex items-center gap-1 text-xs text-accent-purple-600 ml-16">
-                        <Calendar className="h-3 w-3" />
-                        <span className="text-xs truncate font-medium">{formatDate(document.expiryDate)}</span>
-                      </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Insights section for list view */}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {showInsights && (
+                  <div className="flex items-center gap-2">
+                    {openInsights.length > 0 ? (
+                      <>
+                        {/* Insight type breakdown */}
+                        <div className="flex items-center gap-1">
+                          {(() => {
+                            const insightsByType = openInsights.reduce((acc, insight) => {
+                              acc[insight.type] = (acc[insight.type] || 0) + 1;
+                              return acc;
+                            }, {} as Record<string, number>);
+
+                            const typeConfigs = {
+                              summary: { icon: FileText, color: 'text-accent-purple-600', label: 'Summary' },
+                              action_items: { icon: ListTodo, color: 'text-accent-purple-600', label: 'Actions' },
+                              key_dates: { icon: Calendar, color: 'text-accent-purple-600', label: 'Dates' },
+                              financial_info: { icon: DollarSign, color: 'text-accent-purple-600', label: 'Financial' },
+                              contacts: { icon: Users, color: 'text-accent-purple-600', label: 'Contacts' },
+                              compliance: { icon: Shield, color: 'text-accent-purple-600', label: 'Compliance' }
+                            };
+
+                            return Object.entries(insightsByType).slice(0, 4).map(([type, count]) => {
+                              const config = typeConfigs[type as keyof typeof typeConfigs] || typeConfigs.summary;
+                              const IconComponent = config.icon;
+                              
+                              return (
+                                <TooltipProvider key={type}>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-accent-purple-50 border border-accent-purple-200">
+                                        <IconComponent className={`h-3 w-3 ${config.color}`} />
+                                        <span className="text-xs font-medium text-accent-purple-700">{count}</span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{count} {config.label}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            });
+                          })()}
+                        </div>
+
+                        {/* Priority indicators */}
+                        <div className="flex items-center gap-1">
+                          {criticalInsights.length > 0 && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 border border-red-200">
+                                    <AlertTriangle className="h-3 w-3 text-red-600" />
+                                    <span className="text-xs font-bold text-red-700">{criticalInsights.length}</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{criticalInsights.length} Critical Insight{criticalInsights.length > 1 ? 's' : ''}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+
+                          {openInsights.filter(i => i.priority === 'medium').length > 0 && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-orange-50 border border-orange-200">
+                                    <Clock className="h-3 w-3 text-orange-600" />
+                                    <span className="text-xs font-medium text-orange-700">{openInsights.filter(i => i.priority === 'medium').length}</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{openInsights.filter(i => i.priority === 'medium').length} Medium Priority</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+
+                        {/* Total insights badge */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 bg-accent-purple-50 border-accent-purple-200 text-accent-purple-700 hover:bg-accent-purple-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModalInitialTab('insights');
+                            setShowModal(true);
+                          }}
+                        >
+                          <Brain className="h-3 w-3 mr-1" />
+                          <span className="text-xs font-medium">{openInsights.length} Insight{openInsights.length > 1 ? 's' : ''}</span>
+                        </Button>
+                      </>
+                    ) : (
+                      // No insights - show generate button
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white border-accent-purple-400 hover:from-accent-purple-600 hover:to-accent-purple-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          generateInsightsMutation.mutate();
+                        }}
+                        disabled={generateInsightsMutation.isPending || insightsLoading}
+                      >
+                        {generateInsightsMutation.isPending ? (
+                          <>
+                            <Clock className="h-3 w-3 mr-1 animate-spin" />
+                            <span className="text-xs font-medium">Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="h-3 w-3 mr-1" />
+                            <span className="text-xs font-medium">Generate Insights</span>
+                          </>
+                        )}
+                      </Button>
                     )}
                   </div>
                 )}
               </div>
 
+              {/* Actions dropdown for list view */}
+              {!isEditing && !isRenaming && (
+                <div className="flex-shrink-0 ml-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-4 w-4 text-gray-500 hover:text-accent-purple-600" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        if (onClick) {
+                          onClick();
+                        } else {
+                          setModalInitialTab('properties');
+                          setShowModal(true);
+                        }
+                      }}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload();
+                      }}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartRename();
+                      }}>
+                        <Type className="h-4 w-4 mr-2" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartEdit();
+                      }}>
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        setShowShareDialog(true);
+                      }}>
+                        <FileSearch className="h-4 w-4 mr-2" />
+                        Share
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(e);
+                      }} className="text-accent-purple-600 hover:text-accent-purple-700">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
             </div>
+          ) : (
+            /* Grid View Layout (existing) */
+            <div className="h-full flex flex-col justify-between gap-1">
+              {/* Compact header */}
+              <div className="flex items-start justify-between min-h-0">
+                <div className="flex-1 min-w-0">
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="text-sm font-medium"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveEdit();
+                          if (e.key === "Escape") handleCancelEdit();
+                        }}
+                      />
+                      <Input
+                        type="date"
+                        value={editImportantDate}
+                        onChange={(e) => setEditImportantDate(e.target.value)}
+                        className="text-sm"
+                        placeholder="Important date"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSaveEdit} disabled={updateDocumentMutation.isPending}>
+                          <Check className="h-3 w-3 mr-1" />
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+                          <X className="h-3 w-3 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="flex items-start gap-3">
+                        {/* Document thumbnail */}
+                        <div className="relative w-16 h-16 flex-shrink-0 rounded-xl border-2 border-accent-purple-200/60 bg-gradient-to-br from-accent-purple-50 to-accent-purple-100/50 overflow-hidden shadow-sm icon-container">
+                          {thumbnailError ? (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent-purple-100 to-accent-purple-200 text-accent-purple-600">
+                              {getFileIcon()}
+                            </div>
+                          ) : (
+                            <img
+                              src={`/api/documents/${document.id}/thumbnail`}
+                              alt={document.name}
+                              className="w-full h-full object-cover"
+                              onError={() => setThumbnailError(true)}
+                            />
+                          )}
+                        </div>
+                        
+                        {/* Document info */}
+                        <div className="flex-1 min-w-0 pr-10">
+                          {isRenaming ? (
+                            <div className="space-y-2">
+                              <Input
+                                value={renameName}
+                                onChange={(e) => setRenameName(e.target.value)}
+                                onKeyDown={handleRenameKeyPress}
+                                className="text-sm h-7"
+                                autoFocus
+                                placeholder="Enter new document name"
+                              />
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={handleCancelRename} disabled={updateDocumentMutation.isPending} className="h-6 w-6 p-0">
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <h3 className="font-semibold text-base leading-tight text-gray-900 line-clamp-2 mb-1">
+                                {document.name}
+                              </h3>
+                              {/* Insights with type-specific icons */}
+                              {showInsights && openInsights.length > 0 && (
+                                <div className="flex items-center gap-1 flex-wrap max-w-[calc(100%-2rem)]">
+                                  {(() => {
+                                    // Group insights by type and count them
+                                    const insightsByType = openInsights.reduce((acc, insight) => {
+                                      acc[insight.type] = (acc[insight.type] || 0) + 1;
+                                      return acc;
+                                    }, {} as Record<string, number>);
+
+                                    // Use consistent accent-purple theme for all badges
+                                    const typeConfigs = {
+                                      summary: { icon: FileText, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Summary' },
+                                      action_items: { icon: ListTodo, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Actions' },
+                                      key_dates: { icon: Calendar, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Dates' },
+                                      financial_info: { icon: DollarSign, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Financial' },
+                                      contacts: { icon: Users, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Contacts' },
+                                      compliance: { icon: Shield, color: 'bg-accent-purple-100 text-accent-purple-700 border-accent-purple-200', label: 'Compliance' }
+                                    };
+
+                                    return Object.entries(insightsByType).slice(0, 3).map(([type, count]) => {
+                                      const config = typeConfigs[type as keyof typeof typeConfigs] || typeConfigs.summary;
+                                      const IconComponent = config.icon;
+                                      
+                                      return (
+                                        <div 
+                                          key={type}
+                                          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.color} shadow-sm`}
+                                        >
+                                          <IconComponent className="h-3 w-3" />
+                                          <span>{count}</span>
+                                        </div>
+                                      );
+                                    });
+                                  })()}
+                                  {Object.keys(openInsights.reduce((acc, insight) => {
+                                    acc[insight.type] = true;
+                                    return acc;
+                                  }, {} as Record<string, boolean>)).length > 3 && (
+                                    <div className="flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-accent-purple-50 text-accent-purple-600 border border-accent-purple-200 shadow-sm">
+                                      <span>+{Object.keys(openInsights.reduce((acc, insight) => {
+                                        acc[insight.type] = true;
+                                        return acc;
+                                      }, {} as Record<string, boolean>)).length - 3}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {document.expiryDate && (
+                        <div className="flex items-center gap-1 text-xs text-accent-purple-600 ml-16">
+                          <Calendar className="h-3 w-3" />
+                          <span className="text-xs truncate font-medium">{formatDate(document.expiryDate)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+              </div>
 
 
             {/* Rich footer with metadata */}
-            <div className="mt-auto mb-1">
-              {/* Bottom row with file size and category */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-accent-purple-600 text-xs font-medium">{formatFileSize(document.fileSize)}</span>
+              <div className="mt-auto mb-1">
+                {/* Bottom row with file size and category */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-accent-purple-600 text-xs font-medium">{formatFileSize(document.fileSize)}</span>
 
-                {category && (
-                  <Badge variant="outline" className="text-xs bg-accent-purple-50 border-accent-purple-300 text-accent-purple-700 px-2 py-1 badge font-medium">
-                    <FolderIcon className="h-3 w-3 mr-1" />
-                    <span className="truncate max-w-[50px]">{category.name}</span>
-                  </Badge>
-                )}
+                  {category && (
+                    <Badge variant="outline" className="text-xs bg-accent-purple-50 border-accent-purple-300 text-accent-purple-700 px-2 py-1 badge font-medium">
+                      <FolderIcon className="h-3 w-3 mr-1" />
+                      <span className="truncate max-w-[50px]">{category.name}</span>
+                    </Badge>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Smart contextual info - positioned at same level as brain icon */}
-            {(() => {
-              // Priority 1: Generate Insights (when no insights exist)
-              if (showInsights && openInsights.length === 0 && !insightsLoading) {
-                return (
-                  <div className="absolute bottom-2 left-2 right-12">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div 
-                            className="flex items-center justify-center gap-2 cursor-pointer rounded-xl px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-accent-purple-400/50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              generateInsightsMutation.mutate();
-                            }}
-                          >
-                            {generateInsightsMutation.isPending ? (
-                              <>
-                                <Clock className="h-4 w-4 animate-spin" />
-                                <span className="text-sm font-medium">Analyzing...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Brain className="h-4 w-4" />
-                                <span className="text-sm font-medium">Generate AI Insights</span>
-                              </>
-                            )}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{generateInsightsMutation.isPending ? 'AI is analyzing this document...' : 'Click to generate AI insights'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                );
-              }
-
-              // Priority 2: Insights Count (highest priority - clickable)
-              if (openInsights.length > 0) {
-                return (
-                  <div className="absolute bottom-2 left-2 right-12">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          {(() => {
-                            const priorityCounts = openInsights.reduce((acc, insight) => {
-                              acc[insight.priority] = (acc[insight.priority] || 0) + 1;
-                              return acc;
-                            }, {} as Record<string, number>);
-
-                            const priorityOrder = ['high', 'medium', 'low'];
-                            const priorityColors: Record<string, string> = {
-                              high: 'bg-white text-accent-purple-600 border-accent-purple-200',
-                              medium: 'bg-orange-100 text-orange-700 border-orange-200', 
-                              low: 'bg-accent-purple-100 text-accent-purple-600 border-accent-purple-200'
-                            };
-
-                            return (
-                              <div 
-                                className="flex items-center justify-between gap-2 cursor-pointer rounded-xl px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-accent-purple-400/50"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setModalInitialTab('insights');
-                                  setShowModal(true);
-                                }}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Brain className="h-4 w-4" />
-                                  <span className="text-sm font-medium">AI Insights</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  {priorityOrder.map(priority => {
-                                    const count = priorityCounts[priority];
-                                    if (!count) return null;
-                                    return (
-                                      <div 
-                                        key={priority}
-                                        className={`px-2 py-1 rounded-full text-xs font-bold border ${priorityColors[priority]}`}
-                                      >
-                                        {count}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Click to view {openInsights.length} insight{openInsights.length > 1 ? 's' : ''}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                );
-              }
-
-              // Priority 3: Expiry/Due Date
-              if (document.expiryDate) {
-                const expiryDate = new Date(document.expiryDate);
-                const isValid = !isNaN(expiryDate.getTime());
-                if (isValid) {
+              {/* Smart contextual info - positioned at same level as brain icon */}
+              {(() => {
+                // Priority 1: Generate Insights (when no insights exist)
+                if (showInsights && openInsights.length === 0 && !insightsLoading) {
                   return (
                     <div className="absolute bottom-2 left-2 right-12">
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
-                            <div className="flex items-center justify-center gap-2 rounded-xl px-3 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg border border-orange-400/50">
-                              <Calendar className="h-4 w-4" />
-                              <span className="text-sm font-medium">Due {format(expiryDate, 'MMM dd')}</span>
+                          <TooltipTrigger asChild>
+                            <div 
+                              className="flex items-center justify-center gap-2 cursor-pointer rounded-xl px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-accent-purple-400/50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                generateInsightsMutation.mutate();
+                              }}
+                            >
+                              {generateInsightsMutation.isPending ? (
+                                <>
+                                  <Clock className="h-4 w-4 animate-spin" />
+                                  <span className="text-sm font-medium">Analyzing...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Brain className="h-4 w-4" />
+                                  <span className="text-sm font-medium">Generate AI Insights</span>
+                                </>
+                              )}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Due: {format(expiryDate, 'MMM dd, yyyy')}</p>
+                            <p>{generateInsightsMutation.isPending ? 'AI is analyzing this document...' : 'Click to generate AI insights'}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
                   );
                 }
-              }
 
-              // Priority 4: Upload Source  
-              if (document.uploadSource) {
-                const sourceIcons: Record<string, { icon: React.ReactNode; label: string; gradient: string }> = {
-                  'camera': { icon: <Type className="h-4 w-4" />, label: 'Scanned', gradient: 'from-green-500 to-green-600' },
-                  'email': { icon: <FileText className="h-4 w-4" />, label: 'Email', gradient: 'from-blue-500 to-blue-600' },
-                  'upload': { icon: <FileText className="h-4 w-4" />, label: 'Uploaded', gradient: 'from-gray-500 to-gray-600' }
-                };
+                // Priority 2: Insights Count (highest priority - clickable)
+                if (openInsights.length > 0) {
+                  return (
+                    <div className="absolute bottom-2 left-2 right-12">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {(() => {
+                              const priorityCounts = openInsights.reduce((acc, insight) => {
+                                acc[insight.priority] = (acc[insight.priority] || 0) + 1;
+                                return acc;
+                              }, {} as Record<string, number>);
 
-                const sourceInfo = sourceIcons[document.uploadSource] || sourceIcons['upload'];
-                return (
-                  <div className="absolute bottom-2 left-2 right-12">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <div className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 bg-gradient-to-r ${sourceInfo.gradient} text-white shadow-lg border border-white/20`}>
-                            {sourceInfo.icon}
-                            <span className="text-sm font-medium">{sourceInfo.label}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{sourceInfo.label}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                );
-              }
+                              const priorityOrder = ['high', 'medium', 'low'];
+                              const priorityColors: Record<string, string> = {
+                                high: 'bg-white text-accent-purple-600 border-accent-purple-200',
+                                medium: 'bg-orange-100 text-orange-700 border-orange-200', 
+                                low: 'bg-accent-purple-100 text-accent-purple-600 border-accent-purple-200'
+                              };
 
-              // No contextual info to show
-              return null;
-            })()}
+                              return (
+                                <div 
+                                  className="flex items-center justify-between gap-2 cursor-pointer rounded-xl px-3 py-2 bg-gradient-to-r from-accent-purple-500 to-accent-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-accent-purple-400/50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setModalInitialTab('insights');
+                                    setShowModal(true);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Brain className="h-4 w-4" />
+                                    <span className="text-sm font-medium">AI Insights</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    {priorityOrder.map(priority => {
+                                      const count = priorityCounts[priority];
+                                      if (!count) return null;
+                                      return (
+                                        <div 
+                                          key={priority}
+                                          className={`px-2 py-1 rounded-full text-xs font-bold border ${priorityColors[priority]}`}
+                                        >
+                                          {count}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Click to view {openInsights.length} insight{openInsights.length > 1 ? 's' : ''}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  );
+                }
+
+                // Priority 3: Expiry/Due Date
+                if (document.expiryDate) {
+                  const expiryDate = new Date(document.expiryDate);
+                  const isValid = !isNaN(expiryDate.getTime());
+                  if (isValid) {
+                    return (
+                      <div className="absolute bottom-2 left-2 right-12">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <div className="flex items-center justify-center gap-2 rounded-xl px-3 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg border border-orange-400/50">
+                                <Calendar className="h-4 w-4" />
+                                <span className="text-sm font-medium">Due {format(expiryDate, 'MMM dd')}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Due: {format(expiryDate, 'MMM dd, yyyy')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    );
+                  }
+                }
+
+                // Priority 4: Upload Source  
+                if (document.uploadSource) {
+                  const sourceIcons: Record<string, { icon: React.ReactNode; label: string; gradient: string }> = {
+                    'camera': { icon: <Type className="h-4 w-4" />, label: 'Scanned', gradient: 'from-green-500 to-green-600' },
+                    'email': { icon: <FileText className="h-4 w-4" />, label: 'Email', gradient: 'from-blue-500 to-blue-600' },
+                    'upload': { icon: <FileText className="h-4 w-4" />, label: 'Uploaded', gradient: 'from-gray-500 to-gray-600' }
+                  };
+
+                  const sourceInfo = sourceIcons[document.uploadSource] || sourceIcons['upload'];
+                  return (
+                    <div className="absolute bottom-2 left-2 right-12">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <div className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 bg-gradient-to-r ${sourceInfo.gradient} text-white shadow-lg border border-white/20`}>
+                              {sourceInfo.icon}
+                              <span className="text-sm font-medium">{sourceInfo.label}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{sourceInfo.label}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  );
+                }
+
+                // No contextual info to show
+                return null;
+              })()}
 
 
-            {/* Actions dropdown - positioned in top corner */}
-            {!isEditing && !isRenaming && (
-              <div className="absolute top-1 right-1 z-10">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200 opacity-70 hover:opacity-100"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MoreHorizontal className="h-3 w-3 text-gray-500 hover:text-accent-purple-600" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      if (onClick) {
-                        onClick();
-                      } else {
-                        setModalInitialTab('properties');
-                        setShowModal(true);
-                      }
-                    }}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      View
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload();
-                    }}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      handleStartRename();
-                    }}>
-                      <Type className="h-4 w-4 mr-2" />
-                      Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      handleStartEdit();
-                    }}>
-                      <Edit2 className="h-4 w-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      setShowShareDialog(true);
-                    }}>
-                      <FileSearch className="h-4 w-4 mr-2" />
-                      Share
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(e);
-                    }} className="text-accent-purple-600 hover:text-accent-purple-700">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {/* Actions dropdown - positioned in top corner */}
+              {!isEditing && !isRenaming && (
+                <div className="absolute top-1 right-1 z-10">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 bg-white/90 hover:bg-accent-purple-50 border-0 rounded-full shadow-sm hover:shadow-md transition-all duration-200 opacity-70 hover:opacity-100"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-3 w-3 text-gray-500 hover:text-accent-purple-600" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        if (onClick) {
+                          onClick();
+                        } else {
+                          setModalInitialTab('properties');
+                          setShowModal(true);
+                        }
+                      }}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload();
+                      }}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartRename();
+                      }}>
+                        <Type className="h-4 w-4 mr-2" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartEdit();
+                      }}>
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        setShowShareDialog(true);
+                      }}>
+                        <FileSearch className="h-4 w-4 mr-2" />
+                        Share
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(e);
+                      }} className="text-accent-purple-600 hover:text-accent-purple-700">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+
+              {/* Rich footer with metadata */}
+              <div className="mt-auto mb-1">
+                {/* Bottom row with file size and category */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-accent-purple-600 text-xs font-medium">{formatFileSize(document.fileSize)}</span>
+
+                  {category && (
+                    <Badge variant="outline" className="text-xs bg-accent-purple-50 border-accent-purple-300 text-accent-purple-700 px-2 py-1 badge font-medium">
+                      <FolderIcon className="h-3 w-3 mr-1" />
+                      <span className="truncate max-w-[50px]">{category.name}</span>
+                    </Badge>
+                  )}
+                </div>
               </div>
-            )}
-
             </div>
+          )}
         </CardContent>
       </Card>
 

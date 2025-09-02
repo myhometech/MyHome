@@ -131,7 +131,7 @@ app.use((req, res, next) => {
   // PRODUCTION WHITE SCREEN FIX: Completely disable backup service in production
   if (process.env.NODE_ENV !== 'production') {
     try {
-      // Dynamic import prevents loading GCS modules in production  
+      // Dynamic import prevents loading GCS modules in production
       const { backupService: bs } = await import('./backupService.js');
       backupService = bs;
       backupService.initialize()
@@ -156,24 +156,24 @@ app.use((req, res, next) => {
     try {
       console.log('🚀 BYPASS EMAIL INGEST: Request received');
       console.log('📧 Body data:', Object.keys(req.body || {}));
-      
+
       const { recipient, sender, subject, 'body-plain': bodyPlain, 'body-html': bodyHtml } = req.body;
-      
+
       if (!recipient || !sender || !subject) {
         return res.status(400).json({ error: 'Missing required email fields' });
       }
-      
+
       const userMatch = recipient.match(/upload\+([a-zA-Z0-9\-]+)@/);
       if (!userMatch) {
         return res.status(400).json({ error: 'Invalid recipient format' });
       }
-      
+
       const userId = userMatch[1];
       console.log(`👤 User ID extracted: ${userId}`);
-      
+
       if (bodyPlain || bodyHtml) {
         console.log('📄 Creating email body PDF...');
-        
+
         // Create email body PDF data
         const emailData = {
           messageId: req.body['Message-Id'] || `bypass-${Date.now()}`,
@@ -185,7 +185,7 @@ app.use((req, res, next) => {
           categoryId: null,
           tags: ['email', 'email-body']
         };
-        
+
         // Generate simple PDF content - for now just create a basic HTML structure
         const htmlContent = bodyHtml || `<p>${bodyPlain?.replace(/\n/g, '<br>') || 'No content'}</p>`;
         const pdfContent = `
@@ -200,14 +200,14 @@ app.use((req, res, next) => {
             ${htmlContent}
           </body></html>
         `;
-        
+
         // Convert HTML to buffer (simplified for testing - in production use Puppeteer)
         const pdfBuffer = Buffer.from(pdfContent, 'utf8');
-        
+
         const emailBodyDocument = await storage.createEmailBodyDocument(userId, emailData, pdfBuffer);
-        
+
         console.log(`✅ Email body PDF created: Document ID ${emailBodyDocument.id}`);
-        
+
         return res.status(200).json({
           message: 'Email body PDF created successfully',
           documentId: emailBodyDocument.id,
@@ -304,6 +304,23 @@ app.use((req, res, next) => {
     throw err;
   });
 
+  // Apply auth middleware
+  setupSimpleAuth(app);
+
+  // Debug middleware order
+  app.use((req: any, res, next) => {
+    if (req.path.startsWith('/api/') && req.path !== '/api/health') {
+      console.log(`[MIDDLEWARE-DEBUG] ${req.method} ${req.path}:`, {
+        hasSession: !!req.session,
+        hasSessionUser: !!req.session?.user,
+        hasReqUser: !!req.user,
+        sessionId: req.session?.id?.substring(0, 8) + '...',
+        cookies: Object.keys(req.cookies || {})
+      });
+    }
+    next();
+  });
+
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
@@ -327,7 +344,7 @@ app.use((req, res, next) => {
     console.log('🚀 REPLIT_DEPLOYMENT:', process.env.REPLIT_DEPLOYMENT);
   }
 
-  // Start server 
+  // Start server
   server.listen({
     port,
     host,

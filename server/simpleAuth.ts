@@ -69,13 +69,6 @@ export const requireAuth: RequestHandler = (req: any, res: any, next: any) => {
     });
   }
 
-  // Set req.user if it's not already set (for compatibility)
-  if (!req.user && req.session?.user) {
-    req.user = req.session.user;
-  }
-
-  next();
-
   // Ensure req.user is set for downstream middleware
   req.user = user;
   next();

@@ -8,6 +8,7 @@ import { EnhancedOCRStrategies } from '../enhancedOCRStrategies';
 import { storage } from '../storage';
 import { StorageService } from '../storage/StorageService';
 import type { AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth } from '../simpleAuth';
 
 const router = Router();
 
@@ -44,7 +45,7 @@ const enhancedOCR = new EnhancedOCRStrategies();
 router.post('/', upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'thumbnail', maxCount: 1 }
-]), async (req: any, res: any) => {
+]), requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -308,7 +309,7 @@ router.post('/', upload.fields([
 });
 
 // Get optimized document list with pagination and search
-router.get('/', async (req: any, res: any) => {
+router.get('/', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     console.log('[DOCUMENTS] No user authentication on GET /');
     return res.status(401).json({ message: 'Authentication required' });
@@ -349,7 +350,7 @@ router.get('/', async (req: any, res: any) => {
 });
 
 // Get individual document details by ID
-router.get('/:id', async (req: any, res: any) => {
+router.get('/:id', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     console.log(`[DOCUMENT-ROUTE] No user authentication for document ${req.params.id}`);
     return res.status(401).json({ message: 'Authentication required' });
@@ -396,7 +397,7 @@ router.get('/:id', async (req: any, res: any) => {
 
         if (relatedInsights.length > 0) {
           console.log(`[DOCUMENT-ROUTE] Found ${relatedInsights.length} insights referencing missing document ${documentId}`);
-          
+
           // Clean up orphaned insights
           for (const insight of relatedInsights) {
             try {
@@ -411,7 +412,7 @@ router.get('/:id', async (req: any, res: any) => {
         // Debug info
         const allDocuments = await storage.getDocuments(userId);
         console.log(`[DOCUMENT-ROUTE] User has ${allDocuments.length} total documents, but document ${documentId} not found`);
-        
+
       } catch (debugError) {
         console.warn(`[DOCUMENT-ROUTE] Debug operations failed:`, debugError);
       }
@@ -426,7 +427,7 @@ router.get('/:id', async (req: any, res: any) => {
     }
 
     console.log(`[DOCUMENT-ROUTE] Document ${documentId} found: ${document.name} (encrypted: ${document.isEncrypted})`);
-    
+
     // Return document with proper structure
     res.json({
       id: document.id,
@@ -464,7 +465,7 @@ router.get('/:id', async (req: any, res: any) => {
 });
 
 // Get document thumbnail
-router.get('/:id/thumbnail', async (req: any, res: any) => {
+router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -534,7 +535,7 @@ router.get('/:id/thumbnail', async (req: any, res: any) => {
 });
 
 // Enhanced OCR retry endpoint for failed OCR cases
-router.post('/:id/retry-ocr', async (req: any, res: any) => {
+router.post('/:id/retry-ocr', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -601,7 +602,7 @@ router.post('/:id/retry-ocr', async (req: any, res: any) => {
 });
 
 // OCR analysis endpoint - provides tips without retrying OCR
-router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
+router.post('/:id/analyze-for-ocr', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -643,7 +644,7 @@ router.post('/:id/analyze-for-ocr', async (req: any, res: any) => {
 });
 
 // Auto-cleanup orphaned insights when insights are requested
-router.get('/auto-cleanup-insights', async (req: any, res: any) => {
+router.get('/auto-cleanup-insights', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -667,7 +668,7 @@ router.get('/auto-cleanup-insights', async (req: any, res: any) => {
           typeof insight.documentId === 'number' && 
           insight.documentId > 0 && 
           !documentIds.has(insight.documentId)) {
-        
+
         try {
           await storage.deleteInsight(insight.id);
           cleanedCount++;
@@ -697,7 +698,7 @@ router.get('/auto-cleanup-insights', async (req: any, res: any) => {
 });
 
 // Clean up orphaned insights that reference deleted documents
-router.post('/cleanup-orphaned-insights', async (req: any, res: any) => {
+router.post('/cleanup-orphaned-insights', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -717,14 +718,14 @@ router.post('/cleanup-orphaned-insights', async (req: any, res: any) => {
     for (const insight of allInsights) {
       // Check for invalid documentId data types and values
       const documentId = insight.documentId;
-      
+
       // Flag insights with invalid documentId values
       if (documentId !== null && documentId !== undefined && 
           (typeof documentId === 'string' && documentId.trim() !== '' && documentId !== '0') ||
           (typeof documentId === 'number' && documentId > 0)) {
-        
+
         const numericDocumentId = Number(documentId);
-        
+
         if (isNaN(numericDocumentId) || numericDocumentId <= 0) {
           invalidDataInsights.push(insight);
           console.log(`[CLEANUP] Found insight with invalid documentId data: ${insight.id} -> ${documentId} (${typeof documentId})`);
@@ -794,7 +795,7 @@ router.post('/cleanup-orphaned-insights', async (req: any, res: any) => {
 
 
 // Search-as-you-type endpoint with ranking and relevance
-router.get('/search', async (req: any, res: any) => {
+router.get('/search', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -829,7 +830,7 @@ router.get('/search', async (req: any, res: any) => {
 });
 
 // CHAT-008: Get structured facts for a document with RBAC
-router.get('/:id/facts', async (req: any, res: any) => {
+router.get('/:id/facts', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -864,7 +865,7 @@ router.get('/:id/facts', async (req: any, res: any) => {
 });
 
 // Debug endpoint to list user's documents with IDs
-router.get('/debug/list', async (req: any, res: any) => {
+router.get('/debug/list', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -899,7 +900,7 @@ router.get('/debug/list', async (req: any, res: any) => {
 });
 
 // Debug endpoint to validate insights and their document references
-router.get('/debug/validate-insights', async (req: any, res: any) => {
+router.get('/debug/validate-insights', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -908,7 +909,7 @@ router.get('/debug/validate-insights', async (req: any, res: any) => {
     const userId = req.user.id;
     const insights = await storage.getInsights(userId);
     const documents = await storage.getDocuments(userId);
-    
+
     const documentIds = new Set(documents.map(doc => doc.id));
     const validInsights = [];
     const invalidInsights = [];
@@ -962,7 +963,7 @@ router.get('/debug/validate-insights', async (req: any, res: any) => {
 });
 
 // Download document file
-router.get('/:id/download', async (req: any, res: any) => {
+router.get('/:id/download', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }

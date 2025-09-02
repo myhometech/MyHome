@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -158,6 +158,42 @@ export default function UnifiedDocumentCard({
   const [editImportantDate, setEditImportantDate] = useState(document.expiryDate || "");
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [thumbnailError, setThumbnailError] = useState(false);
+  const [thumbnailBlobUrl, setThumbnailBlobUrl] = useState<string | null>(null);
+
+  // Fetch thumbnail as blob with authentication
+  useEffect(() => {
+    const fetchThumbnail = async () => {
+      try {
+        const response = await fetch(thumbnailUrl, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'image/*,image/svg+xml'
+          }
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          setThumbnailBlobUrl(blobUrl);
+          setThumbnailError(false);
+        } else {
+          setThumbnailError(true);
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch thumbnail for document ${document.id}:`, error);
+        setThumbnailError(true);
+      }
+    };
+
+    fetchThumbnail();
+
+    // Cleanup blob URL on unmount
+    return () => {
+      if (thumbnailBlobUrl) {
+        URL.revokeObjectURL(thumbnailBlobUrl);
+      }
+    };
+  }, [document.id, thumbnailUrl]);
   const { toast } = useToast();
 
   const category = categories?.find(c => c.id === document.categoryId);
@@ -364,10 +400,8 @@ export default function UnifiedDocumentCard({
     return format(new Date(dateString), "MMM dd, yyyy");
   };
 
-  // Get thumbnail URL for images
-  const thumbnailUrl = document.mimeType?.startsWith('image/') 
-    ? `/api/documents/${document.id}/thumbnail`
-    : null;
+  // Get thumbnail URL for all document types
+  const thumbnailUrl = `/api/documents/${document.id}/thumbnail`;
 
   // Calculate insights count for badge
   const insightsCount = openInsights.length;
@@ -436,13 +470,13 @@ export default function UnifiedDocumentCard({
             className="relative flex-1 bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
             style={{ height: '75%' }}
           >
-            {thumbnailError || !thumbnailUrl ? (
+            {thumbnailError || !thumbnailBlobUrl ? (
               <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${getFileTypeIconColor()}`}>
                 {getFileIcon()}
               </div>
             ) : (
               <img 
-                src={thumbnailUrl}
+                src={thumbnailBlobUrl}
                 alt={document.name}
                 className="w-full h-full object-cover"
                 onError={() => setThumbnailError(true)}

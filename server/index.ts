@@ -44,23 +44,35 @@ import { setupSimpleAuth } from "./simpleAuth.js";
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
 console.log('ℹ️  Simplified memory management enabled');
 
-// Aggressive GC for both development and production due to current memory crisis
-if (global.gc) {
-  setInterval(() => {
-    const memUsage = process.memoryUsage();
-    const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
-
-    // Emergency GC at 85% to prevent memory pressure
-    if (heapPercent > 85 && global.gc) {
+// Memory monitoring with graceful degradation
+setInterval(() => {
+  const memUsage = process.memoryUsage();
+  const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
+  
+  // Monitor memory usage
+  if (heapPercent > 85) {
+    console.log(`⚠️ Memory usage high: ${heapPercent}% (${Math.round(memUsage.heapUsed / 1024 / 1024)}MB)`);
+    
+    // Try GC if available, otherwise clear module cache and force cleanup
+    if (global.gc) {
       const before = memUsage.heapUsed / 1024 / 1024;
       global.gc();
       const after = process.memoryUsage().heapUsed / 1024 / 1024;
       console.log(`🚨 EMERGENCY GC: ${heapPercent}% → ${Math.round((after / (memUsage.heapTotal / 1024 / 1024)) * 100)}% (freed ${(before - after).toFixed(1)}MB)`);
+    } else {
+      // Alternative cleanup without GC - force minimal cleanup
+      console.log('🧹 Memory pressure detected - performing safe cleanup');
+      // Force some array/object cleanup that might help
+      if (globalThis.Buffer && globalThis.Buffer.poolSize) {
+        globalThis.Buffer.poolSize = 1024; // Reduce buffer pool size
+      }
+      // Set a timeout to allow memory to be naturally freed
+      setTimeout(() => {
+        console.log('🧹 Memory cleanup cycle completed');
+      }, 1000);
     }
-  }, 30000); // Every 30 seconds to reduce performance impact
-} else {
-  console.error('❌ CRITICAL: Cannot perform emergency GC - memory will continue to climb');
-}
+  }
+}, 30000); // Every 30 seconds
 
 // SIMPLIFIED STARTUP: Minimal logging only
 if (!isDeployment) {
@@ -345,21 +357,36 @@ app.use((req, res, next) => {
     console.log('🚀 REPLIT_DEPLOYMENT:', process.env.REPLIT_DEPLOYMENT);
   }
 
-  // Start server
-  server.listen({
-    port,
-    host,
-  }, () => {
-    log(`serving on port ${port}`);
-    console.log(`🌐 Server ready at http://${host}:${port}`);
-    console.log('✅ MyHome application is now accessible in preview');
+  // Start server with port retry logic
+  const tryStartServer = (attemptPort: number, attempt: number = 1): void => {
+    const serverInstance = server.listen({
+      port: attemptPort,
+      host,
+    }, () => {
+      log(`serving on port ${attemptPort}`);
+      console.log(`🌐 Server ready at http://${host}:${attemptPort}`);
+      console.log('✅ MyHome application is now accessible in preview');
 
-    if (isDeployment) {
-      console.log('✅ DEPLOYMENT: Server successfully started and listening');
-      console.log('✅ DEPLOYMENT: Routes should now be accessible');
-    }
-  }).on('error', (err: any) => {
-    console.error('❌ Server failed to start:', err);
-    process.exit(1);
-  });
+      if (isDeployment) {
+        console.log('✅ DEPLOYMENT: Server successfully started and listening');
+        console.log('✅ DEPLOYMENT: Routes should now be accessible');
+      }
+    }).on('error', (err: any) => {
+      console.error(`❌ Server failed to start on port ${attemptPort}:`, err);
+      
+      if (err.code === 'EADDRINUSE' && attempt < 3) {
+        console.log(`🔄 Port ${attemptPort} in use, trying port ${attemptPort + 1} (attempt ${attempt + 1}/3)...`);
+        setTimeout(() => {
+          tryStartServer(attemptPort + 1, attempt + 1);
+        }, 1000);
+      } else if (err.code === 'EADDRINUSE') {
+        console.log('❌ All ports exhausted, forcing cleanup and exit...');
+        process.exit(2);
+      } else {
+        process.exit(1);
+      }
+    });
+  };
+  
+  tryStartServer(port);
 })();

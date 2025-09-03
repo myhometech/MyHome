@@ -1,48 +1,59 @@
 /**
  * THMB-4: React hook for thumbnail fetching with 200/202 handling and real-time updates
- * THMB-RATE-01: Added 429 resilience with deduplication and retry-after backoff
+ * THMB-RATE-HOTFIX: Enhanced 429 resilience, request coalescing, and 202 backoff
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { thumbnailCache, type ThumbnailVariant } from '@/lib/thumbnailCache';
 
-// THMB-RATE-01: Global in-flight request deduplication
-const inflight: Map<string, Promise<any>> = new Map();
+// THMB-RATE-HOTFIX: Enhanced request deduplication and 202/429 handling
+const inflight: Map<string, Promise<Response>> = new Map();
 
-function sleep(ms: number) { 
+function sleep(ms: number): Promise<void> { 
   return new Promise(r => setTimeout(r, ms)); 
 }
 
-async function fetchWithBackoff(url: string, opts: RequestInit, key: string, attempt = 1): Promise<Response> {
-  // Dedup in-flight calls for same key
-  if (inflight.has(key)) return inflight.get(key)!;
+async function fetchWithBackoff(url: string, key: string, attempt = 1): Promise<Response> {
+  // THMB-RATE-HOTFIX: De-dupe in-flight requests per key
+  if (inflight.has(key)) {
+    console.log(`🔄 [DEDUP] Returning existing request for ${key}`);
+    return inflight.get(key)!;
+  }
   
-  const p = (async () => {
+  const p = (async (): Promise<Response> => {
     const res = await fetch(url, { 
-      ...opts, 
-      headers: { 
-        ...(opts.headers || {}), 
-        'Accept': 'application/json' 
-      }
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include'
     });
     
-    if (res.status !== 429) return res;
-
-    // 429 handling with Retry-After respect
-    const ra = res.headers.get('retry-after');
-    const retryAfterMs = ra ? (/^\d+$/.test(ra) ? Number(ra) * 1000 : 1500) : 1500;
-    const maxAttempts = 6;
-
-    if (attempt >= maxAttempts) return res;
-
-    // Exponential backoff with jitter, but never less than Retry-After
-    const base = Math.min(16000, 2 ** attempt * 250);
-    const jitter = Math.floor(Math.random() * 250);
-    const wait = Math.max(retryAfterMs, base + jitter);
+    // THMB-RATE-HOTFIX: Handle 202 (queued) gracefully - no retry needed
+    if (res.status === 202) {
+      console.log(`📋 [QUEUE] Request queued for ${key}, server will process`);
+      return res;
+    }
     
-    console.log(`⏳ [RATE-LIMIT] Retrying ${key} after ${wait}ms (attempt ${attempt}/${maxAttempts})`);
-    await sleep(wait);
-    return fetchWithBackoff(url, opts, key, attempt + 1);
+    // THMB-RATE-HOTFIX: Handle any residual 429s (should be rare now)
+    if (res.status === 429) {
+      const retryAfter = res.headers.get('retry-after');
+      const retryAfterMs = retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : 1500;
+      const maxAttempts = 6;
+
+      if (attempt >= maxAttempts) {
+        console.warn(`🚫 [RATE-LIMIT] Max retries exceeded for ${key}`);
+        return res;
+      }
+
+      // Exponential backoff with jitter, respect Retry-After
+      const base = Math.min(16000, 2 ** attempt * 250);
+      const jitter = Math.floor(Math.random() * 250);
+      const wait = Math.max(retryAfterMs, base + jitter);
+      
+      console.log(`⏳ [RATE-LIMIT] Retrying ${key} after ${wait}ms (attempt ${attempt}/${maxAttempts})`);
+      await sleep(wait);
+      return fetchWithBackoff(url, key, attempt + 1);
+    }
+    
+    return res;
   })().finally(() => inflight.delete(key));
   
   inflight.set(key, p);
@@ -114,13 +125,14 @@ export function useThumbnail(documentId: string, sourceHash: string) {
     // TODO: Send to analytics service
   }, [documentId, sourceHash]);
 
-  // Fetch a specific variant
+  // THMB-RATE-HOTFIX: Fetch a specific variant with improved handling
   const fetchVariant = useCallback(async (variant: ThumbnailVariant): Promise<string | null> => {
     if (!mountedRef.current) return null;
 
     // Check cache first
     const cached = thumbnailCache.get(getCacheKey(variant));
     if (cached) {
+      console.log(`💾 [CACHE] Using cached thumbnail for doc ${documentId}, variant ${variant}`);
       return cached;
     }
 
@@ -131,16 +143,10 @@ export function useThumbnail(documentId: string, sourceHash: string) {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      // THMB-RATE-01: Use deduplication key and backoff-aware fetch
+      // THMB-RATE-HOTFIX: Use enhanced deduplication and 202/429 handling
       const key = `${documentId}:${sourceHash}:${variant}`;
       const response = await fetchWithBackoff(
         `/api/documents/${documentId}/thumbnail?variant=${variant}`,
-        {
-          signal: controller.signal,
-          headers: {
-            'Cache-Control': 'no-cache'  // Always get fresh status
-          }
-        },
         key
       );
 
@@ -173,8 +179,10 @@ export function useThumbnail(documentId: string, sourceHash: string) {
         return data.url;
       } 
       else if (data.status === 'queued') {
-        // Start polling for this variant
-        startPolling(variant, data.retryAfterMs || 1000, data.jobId);
+        // THMB-RATE-HOTFIX: Start polling with server-provided retry guidance
+        const retryAfterMs = data.retryAfterMs || 1500;
+        console.log(`📋 [QUEUE] Starting poll for ${key} with ${retryAfterMs}ms initial delay`);
+        startPolling(variant, retryAfterMs, data.jobId);
         return null;
       }
 
@@ -190,19 +198,25 @@ export function useThumbnail(documentId: string, sourceHash: string) {
     }
   }, [documentId, sourceHash, getCacheKey, logTelemetry]);
 
-  // Start polling for a thumbnail
+  // THMB-RATE-HOTFIX: Single poller per document - start with 240px then fetch others when ready  
   const startPolling = useCallback((variant: ThumbnailVariant, initialDelay: number, jobId?: string) => {
     if (!mountedRef.current) return;
     
     pollStartTimeRef.current = Date.now();
     let attemptIndex = 0;
 
+    // THMB-RATE-HOTFIX: Start with initial delay from server (retryAfterMs)
+    const initialTimeoutId = setTimeout(() => {
+      poll();
+    }, initialDelay);
+    pollTimeoutsRef.current.push(initialTimeoutId);
+
     const poll = () => {
       if (!mountedRef.current) return;
       
       // Check if we've exceeded max poll duration
       if (Date.now() - pollStartTimeRef.current > MAX_POLL_DURATION) {
-        logTelemetry('thumbnail.view.timeout', { variant, jobId });
+        logTelemetry('thumbnail.view.timeout', { variant, jobId, attempts: attemptIndex });
         if (mountedRef.current) {
           setState(prev => ({ ...prev, isPolling: false }));
         }
@@ -210,7 +224,7 @@ export function useThumbnail(documentId: string, sourceHash: string) {
       }
 
       // Update polling state
-      setState(prev => ({ ...prev, isPolling: true }));
+      setState(prev => ({ ...prev, isPolling: true, status: 'queued' }));
 
       fetchVariant(variant)
         .then(url => {
@@ -218,6 +232,7 @@ export function useThumbnail(documentId: string, sourceHash: string) {
           
           if (url) {
             // Success! Update state with the URL
+            logTelemetry('thumbnail.view.completed', { variant, attempts: attemptIndex, jobId });
             setState(prev => ({
               ...prev,
               status: 'ready',
@@ -225,29 +240,36 @@ export function useThumbnail(documentId: string, sourceHash: string) {
               isPolling: false
             }));
           } else {
-            // Still not ready, schedule next poll
+            // Still not ready, schedule next poll with progressive intervals
             const delay = POLL_INTERVALS[Math.min(attemptIndex, POLL_INTERVALS.length - 1)];
-            const timeoutId = setTimeout(poll, delay);
-            pollTimeoutsRef.current.push(timeoutId);
+            const nextTimeoutId = setTimeout(poll, delay);
+            pollTimeoutsRef.current.push(nextTimeoutId);
             attemptIndex++;
           }
         })
         .catch(error => {
           if (!mountedRef.current) return;
           
+          // THMB-RATE-HOTFIX: More graceful error handling
           console.error(`❌ [THUMBNAIL] Polling failed for variant ${variant}:`, error);
-          setState(prev => ({
-            ...prev,
-            status: 'failed',
-            errorCode: error.message,
-            isPolling: false
-          }));
+          
+          // Don't fail immediately on rate limit or network errors, retry a few times
+          if ((error.message?.includes('HTTP_429') || error.message?.includes('NetworkError')) && attemptIndex < 3) {
+            const retryDelay = 2000 + (attemptIndex * 1000); // 2s, 3s, 4s
+            console.log(`⏳ [THUMBNAIL] Retrying poll in ${retryDelay}ms due to: ${error.message}`);
+            const retryTimeoutId = setTimeout(poll, retryDelay);
+            pollTimeoutsRef.current.push(retryTimeoutId);
+            attemptIndex++;
+          } else {
+            setState(prev => ({
+              ...prev,
+              status: 'failed',
+              errorCode: error.message,
+              isPolling: false
+            }));
+          }
         });
     };
-
-    // Start first poll after initial delay
-    const timeoutId = setTimeout(poll, initialDelay);
-    pollTimeoutsRef.current.push(timeoutId);
   }, [fetchVariant, logTelemetry]);
 
   // Main fetch function

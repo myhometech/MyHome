@@ -101,12 +101,17 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
       });
     }
 
-    // Check if sourceHash exists
-    if (!document.sourceHash) {
-      return res.status(400).json({
-        errorCode: 'MISSING_SOURCE_HASH',
-        message: 'Document missing source hash - cannot generate thumbnails'
-      });
+    // HOTFIX: Generate fallback sourceHash if missing (critical outage fix)
+    let sourceHash = document.sourceHash;
+    if (!sourceHash) {
+      console.warn(`🚨 HOTFIX: Document ${documentId} missing sourceHash, generating fallback`);
+      // Use file path + updatedAt as surrogate hash for consistent key generation
+      const crypto = await import('crypto');
+      const fallbackInput = `${document.filePath}:${document.updatedAt || Date.now()}`;
+      sourceHash = crypto.createHash('md5').update(fallbackInput).digest('hex').substring(0, 12);
+      console.warn(`🚨 HOTFIX: Using fallback sourceHash: ${sourceHash} for doc ${documentId}`);
+      
+      // TODO: Async backfill real sourceHash in background
     }
 
     // THMB-RATE-01: Check user rate limit
@@ -117,7 +122,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
         documentId,
         variant,
         retryAfterMs: rateLimitResult.retryAfterMs,
-        sourceHash: document.sourceHash,
+        sourceHash: sourceHash,
         message: 'Request queued due to rate limiting'
       });
     }
@@ -126,7 +131,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
     const existenceResult = await checkThumbnailExists(
       documentId,
       variant,
-      document.sourceHash
+      sourceHash
     );
 
     if (existenceResult.exists && existenceResult.storagePath) {
@@ -146,7 +151,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
           variant,
           url: signedUrlResult.url,
           ttlSeconds: signedUrlResult.ttlSeconds,
-          sourceHash: document.sourceHash
+          sourceHash: sourceHash
         });
 
       } catch (urlError: any) {
@@ -175,7 +180,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
     }
 
     // THMB-5: On-access warming - check if any variants exist for this {docId, sourceHash}
-    const missingVariants = await getMissingThumbnails(documentId, document.sourceHash);
+    const missingVariants = await getMissingThumbnails(documentId, sourceHash);
     
     if (missingVariants.length > 0) {
       // THMB-RATE-01: Mark job as in progress before enqueueing
@@ -187,7 +192,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
       try {
         const jobResult = await thumbnailJobQueue.enqueueJob({
           documentId,
-          sourceHash: document.sourceHash,
+          sourceHash: sourceHash,
           variants: missingVariants, // Enqueue ALL missing variants at once
           mimeType: document.mimeType,
           userId,
@@ -203,7 +208,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
           variant,
           jobId: jobResult.jobId,
           retryAfterMs: jobResult.retryAfterMs,
-          sourceHash: document.sourceHash
+          sourceHash: sourceHash
         });
       } catch (enqueueError) {
         // Clean up on error
@@ -219,7 +224,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
         documentId,
         variant,
         retryAfterMs: 2000,
-        sourceHash: document.sourceHash
+        sourceHash: sourceHash
       });
     }
 
@@ -234,7 +239,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
         documentId,
         variant,
         retryAfterMs: 2000,
-        sourceHash: document?.sourceHash,
+        sourceHash: sourceHash,
         message: 'Service temporarily overloaded'
       });
     }

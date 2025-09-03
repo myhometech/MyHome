@@ -41,6 +41,8 @@ export interface IStorage {
   updateDocumentOCRAndSummary(id: number, ocrText: string, summary: string): Promise<Document | undefined>;
   updateDocumentSummary(id: number, userId: string, summary: string): Promise<Document | undefined>;
   updateDocumentOCR(id: number, ocrText: string): Promise<Document | undefined>;
+  updateDocumentSourceHash(id: number, sourceHash: string): Promise<Document | undefined>; // HOTFIX
+  getAllDocumentsWithoutSourceHash(): Promise<Document[]>; // HOTFIX
   deleteDocument(id: number, userId: string): Promise<void>;
 
   // SEARCH FUNCTIONALITY
@@ -365,6 +367,30 @@ export class PostgresStorage implements IStorage {
       .where(eq(documents.id, id))
       .returning();
     return updatedDoc;
+  }
+
+  // HOTFIX: Update document sourceHash for thumbnail outage fix
+  async updateDocumentSourceHash(id: number, sourceHash: string): Promise<Document | undefined> {
+    const [updatedDoc] = await this.db
+      .update(documents)
+      .set({ sourceHash })
+      .where(eq(documents.id, id))
+      .returning();
+    return updatedDoc;
+  }
+
+  // HOTFIX: Get all documents missing sourceHash
+  async getAllDocumentsWithoutSourceHash(): Promise<Document[]> {
+    return await this.db
+      .select()
+      .from(documents)
+      .where(
+        or(
+          eq(documents.sourceHash, ''),
+          sql`${documents.sourceHash} IS NULL`
+        )
+      )
+      .orderBy(desc(documents.id));
   }
 
   async deleteDocument(id: number, userId: string): Promise<void> {

@@ -247,6 +247,22 @@ app.use((req, res, next) => {
   // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
   const server = await registerRoutes(app);
   console.log('✅ API routes registered successfully');
+  
+  // EMAIL INGESTION FIX: Force override any route conflicts
+  console.log('🚑 [EMAIL-INGEST] Registering GET endpoint override...');
+  app.use('/api/email-ingest', (req: any, res, next) => {
+    if (req.method === 'GET') {
+      console.log('📞 [EMAIL-INGEST] GET endpoint accessed for webhook verification');
+      return res.status(200).json({ 
+        status: 'ok', 
+        service: 'email-ingest', 
+        method: 'GET',
+        message: 'Mailgun webhook endpoint is accessible',
+        timestamp: new Date().toISOString()
+      });
+    }
+    next();
+  });
 
   // THMB-UNBLOCK: Add thumbnail rate error handler after routes
   app.use(thumbnailRateErrorHandler);
@@ -323,6 +339,18 @@ app.use((req, res, next) => {
     throw err;
   });
 
+  // EMAIL INGESTION FIX: Register GET endpoint EARLY to prevent route conflicts
+  app.get('/api/email-ingest', (req: any, res) => {
+    console.log('📞 [EMAIL-INGEST] GET verification endpoint accessed');
+    res.status(200).json({ 
+      status: 'ok', 
+      service: 'email-ingest', 
+      method: 'GET',
+      message: 'Mailgun webhook endpoint is accessible',
+      timestamp: new Date().toISOString()
+    });
+  });
+  
   // Apply auth middleware
   setupSimpleAuth(app);
 

@@ -847,6 +847,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         categoryId: categoryId ? parseInt(categoryId) : null,
         name: req.body.name || req.file.originalname,
+
+
+  // DEBUG: Webhook troubleshooting endpoint
+  app.get('/api/email-ingest/debug', (req, res) => {
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV || 'undefined',
+      hasMailgunSigningKey: !!process.env.MAILGUN_WEBHOOK_SIGNING_KEY,
+      hasMailgunApiKey: !!process.env.MAILGUN_API_KEY,
+      serverIP: req.ip,
+      headers: {
+        userAgent: req.get('User-Agent'),
+        xForwardedFor: req.get('X-Forwarded-For'),
+        xRealIp: req.get('X-Real-IP'),
+        cfConnectingIp: req.get('CF-Connecting-IP')
+      },
+      mailgunIPRanges: [
+        '3.19.228.0/22',
+        '34.198.203.127/32', 
+        '34.198.178.64/26',
+        '52.35.106.123/32',
+        '69.72.32.0/21',
+        '173.45.18.0/26',
+        '173.45.19.0/26'
+      ]
+    };
+    
+    console.log('🔧 DEBUG: Webhook debug info requested:', debugInfo);
+    res.json(debugInfo);
+  });
+
         fileName: req.file.originalname,
         filePath: req.file.path,
         fileSize: req.file.size,
@@ -4550,10 +4581,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error('❌ Email ingest error:', error);
+      console.error('❌ CRITICAL: Email ingest processing failed');
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('❌ Request context:', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        contentType: req.get('Content-Type'),
+        contentLength: req.get('Content-Length'),
+        bodyKeys: Object.keys(req.body || {}),
+        hasFiles: !!(req.files && req.files.length > 0)
+      });
+      
       res.status(500).json({
         error: 'Email processing failed',
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+        requestId: Date.now().toString()
       });
     }
   });

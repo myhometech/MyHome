@@ -62,11 +62,27 @@ export function mailgunIPWhitelist(req: Request, res: Response, next: NextFuncti
     return next();
   }
 
-  // For production, temporarily disable strict IP validation due to proxy/CDN issues
-  // This should be re-enabled once proper IP detection is configured
-  console.log('⚠️ PRODUCTION: Temporarily allowing all IPs due to proxy detection issues');
-  console.log('🔧 TODO: Configure proper IP detection for Cloudflare/proxy setup');
-  return next();
+  // Check if request is from Mailgun IP ranges
+  if (!isMailgunIP(clientIP)) {
+    console.warn(`🚫 REJECTED: Non-Mailgun IP attempted webhook access: ${clientIP}`);
+    console.log(`🔒 SECURITY: Mailgun IP whitelist violation`, {
+      rejectedIP: clientIP,
+      userAgent: req.get('User-Agent'),
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+      forwardedFor: req.get('X-Forwarded-For'),
+      realIp: req.get('X-Real-IP'),
+      cfConnectingIp: req.get('CF-Connecting-IP')
+    });
+    
+    return res.status(403).json({ 
+      error: 'Access forbidden',
+      message: 'Requests only allowed from authorized Mailgun IP ranges',
+      clientIP: clientIP,
+      debug: 'If this is a legitimate Mailgun request, check proxy configuration'
+    });
+  }
   
   // Original IP validation code (disabled temporarily)
   /*
@@ -103,27 +119,29 @@ export function mailgunSignatureVerification(req: Request, res: Response, next: 
     console.log('🔍 Request body type:', typeof req.body);
     console.log('🔍 Request body keys:', Object.keys(req.body || {}));
     
-    // For development, skip signature verification temporarily
-    // Also skip if NODE_ENV is undefined (common in Replit development)
-    if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
-      console.log(`⚠️ DEVELOPMENT MODE (NODE_ENV=${process.env.NODE_ENV}): Skipping signature verification`);
+    // Only skip signature verification in explicit development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`⚠️ DEVELOPMENT MODE: Skipping signature verification`);
       return next();
     }
 
     const signingKey = process.env.MAILGUN_WEBHOOK_SIGNING_KEY || process.env.MAILGUN_SIGNING_KEY || process.env.MAILGUN_API_KEY;
     
-    console.log('🔍 Signing key source:', {
+    console.log('🔍 Signing key detection:', {
       hasWebhookSigningKey: !!process.env.MAILGUN_WEBHOOK_SIGNING_KEY,
       hasSigningKey: !!process.env.MAILGUN_SIGNING_KEY,
       hasApiKey: !!process.env.MAILGUN_API_KEY,
-      usingKey: signingKey ? 'configured' : 'missing'
+      usingKey: signingKey ? `configured (${signingKey.substring(0, 8)}...)` : 'missing',
+      nodeEnv: process.env.NODE_ENV || 'undefined'
     });
     
     if (!signingKey) {
-      console.error('❌ MAILGUN_SIGNING_KEY not configured');
+      console.error('❌ CRITICAL: No Mailgun signing key found in environment variables');
+      console.error('❌ Required: MAILGUN_WEBHOOK_SIGNING_KEY, MAILGUN_SIGNING_KEY, or MAILGUN_API_KEY');
       return res.status(500).json({ 
         error: 'Server configuration error',
-        message: 'Mailgun signing key not configured'
+        message: 'Mailgun signing key not configured. Check environment variables.',
+        requiredVars: ['MAILGUN_WEBHOOK_SIGNING_KEY', 'MAILGUN_SIGNING_KEY', 'MAILGUN_API_KEY']
       });
     }
 

@@ -1,9 +1,53 @@
 /**
  * THMB-4: React hook for thumbnail fetching with 200/202 handling and real-time updates
+ * THMB-RATE-01: Added 429 resilience with deduplication and retry-after backoff
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { thumbnailCache, type ThumbnailVariant } from '@/lib/thumbnailCache';
+
+// THMB-RATE-01: Global in-flight request deduplication
+const inflight: Map<string, Promise<any>> = new Map();
+
+function sleep(ms: number) { 
+  return new Promise(r => setTimeout(r, ms)); 
+}
+
+async function fetchWithBackoff(url: string, opts: RequestInit, key: string, attempt = 1): Promise<Response> {
+  // Dedup in-flight calls for same key
+  if (inflight.has(key)) return inflight.get(key)!;
+  
+  const p = (async () => {
+    const res = await fetch(url, { 
+      ...opts, 
+      headers: { 
+        ...(opts.headers || {}), 
+        'Accept': 'application/json' 
+      }
+    });
+    
+    if (res.status !== 429) return res;
+
+    // 429 handling with Retry-After respect
+    const ra = res.headers.get('retry-after');
+    const retryAfterMs = ra ? (/^\d+$/.test(ra) ? Number(ra) * 1000 : 1500) : 1500;
+    const maxAttempts = 6;
+
+    if (attempt >= maxAttempts) return res;
+
+    // Exponential backoff with jitter, but never less than Retry-After
+    const base = Math.min(16000, 2 ** attempt * 250);
+    const jitter = Math.floor(Math.random() * 250);
+    const wait = Math.max(retryAfterMs, base + jitter);
+    
+    console.log(`⏳ [RATE-LIMIT] Retrying ${key} after ${wait}ms (attempt ${attempt}/${maxAttempts})`);
+    await sleep(wait);
+    return fetchWithBackoff(url, opts, key, attempt + 1);
+  })().finally(() => inflight.delete(key));
+  
+  inflight.set(key, p);
+  return p;
+}
 
 export interface ThumbnailState {
   status: 'idle' | 'ready' | 'queued' | 'failed';
@@ -87,13 +131,18 @@ export function useThumbnail(documentId: string, sourceHash: string) {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      const response = await fetch(`/api/documents/${documentId}/thumbnail?variant=${variant}`, {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json', // THMB-API-STD: Explicit JSON-only contract
-          'Cache-Control': 'no-cache'  // Always get fresh status
-        }
-      });
+      // THMB-RATE-01: Use deduplication key and backoff-aware fetch
+      const key = `${documentId}:${sourceHash}:${variant}`;
+      const response = await fetchWithBackoff(
+        `/api/documents/${documentId}/thumbnail?variant=${variant}`,
+        {
+          signal: controller.signal,
+          headers: {
+            'Cache-Control': 'no-cache'  // Always get fresh status
+          }
+        },
+        key
+      );
 
       const latencyMs = Date.now() - startTime;
 

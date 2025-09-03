@@ -17,6 +17,43 @@ import { isSupportedVariant } from '../thumbnailHelpers';
 
 const router = Router();
 
+// THMB-RATE-01: In-progress job tracking to prevent thundering herd
+const inProgressJobs = new Set<string>();
+
+// THMB-RATE-01: Simple per-user rate limiting (token bucket)
+interface TokenBucket {
+  tokens: number;
+  lastRefill: number;
+}
+
+const userBuckets = new Map<string, TokenBucket>();
+
+function getUserBucket(userId: string): TokenBucket {
+  if (!userBuckets.has(userId)) {
+    userBuckets.set(userId, { tokens: 10, lastRefill: Date.now() });
+  }
+  return userBuckets.get(userId)!;
+}
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfterMs?: number } {
+  const bucket = getUserBucket(userId);
+  const now = Date.now();
+  const elapsed = now - bucket.lastRefill;
+  
+  // Refill tokens at 1 token per second, burst of 10
+  const tokensToAdd = Math.floor(elapsed / 1000);
+  bucket.tokens = Math.min(10, bucket.tokens + tokensToAdd);
+  bucket.lastRefill = now;
+  
+  if (bucket.tokens >= 1) {
+    bucket.tokens--;
+    return { allowed: true };
+  }
+  
+  // Rate limited - return 202 (not 429) with retry guidance
+  return { allowed: false, retryAfterMs: 1000 };
+}
+
 /**
  * THMB-API-STD: GET /api/documents/:id/thumbnail?variant=240
  * 
@@ -72,6 +109,19 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
       });
     }
 
+    // THMB-RATE-01: Check user rate limit
+    const rateLimitResult = checkRateLimit(userId);
+    if (!rateLimitResult.allowed) {
+      return res.status(202).json({
+        status: 'queued',
+        documentId,
+        variant,
+        retryAfterMs: rateLimitResult.retryAfterMs,
+        sourceHash: document.sourceHash,
+        message: 'Request queued due to rate limiting'
+      });
+    }
+
     // Check if thumbnail already exists
     const existenceResult = await checkThumbnailExists(
       documentId,
@@ -110,30 +160,56 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
 
     const userHousehold = await storage.getUserHousehold(userId);
     
-    // THMB-5: On-access warming - check if any variants exist for this {docId, sourceHash}
-    const missingVariants = await getMissingThumbnails(documentId, document.sourceHash);
-    
-    if (missingVariants.length > 0) {
-      // First time accessing this document+sourceHash - warm ALL variants
-      console.log(`🔥 [THMB-5] On-access warming: enqueueing ALL variants [${missingVariants.join(', ')}] for doc ${documentId}`);
-      
-      const jobResult = await thumbnailJobQueue.enqueueJob({
-        documentId,
-        sourceHash: document.sourceHash,
-        variants: missingVariants, // Enqueue ALL missing variants at once
-        mimeType: document.mimeType,
-        userId,
-        householdId: userHousehold?.id
-      });
-
+    // THMB-RATE-01: Check if job already in progress for this document+sourceHash
+    const jobKey = `${documentId}:${document.sourceHash}`;
+    if (inProgressJobs.has(jobKey)) {
+      console.log(`📋 [RATE-01] Job already in progress for ${jobKey}, returning 202`);
       return res.status(202).json({
         status: 'queued',
         documentId,
         variant,
-        jobId: jobResult.jobId,
-        retryAfterMs: jobResult.retryAfterMs,
-        sourceHash: document.sourceHash
+        retryAfterMs: 2000,
+        sourceHash: document.sourceHash,
+        message: 'Generation already in progress'
       });
+    }
+
+    // THMB-5: On-access warming - check if any variants exist for this {docId, sourceHash}
+    const missingVariants = await getMissingThumbnails(documentId, document.sourceHash);
+    
+    if (missingVariants.length > 0) {
+      // THMB-RATE-01: Mark job as in progress before enqueueing
+      inProgressJobs.add(jobKey);
+      
+      // First time accessing this document+sourceHash - warm ALL variants
+      console.log(`🔥 [THMB-5] On-access warming: enqueueing ALL variants [${missingVariants.join(', ')}] for doc ${documentId}`);
+      
+      try {
+        const jobResult = await thumbnailJobQueue.enqueueJob({
+          documentId,
+          sourceHash: document.sourceHash,
+          variants: missingVariants, // Enqueue ALL missing variants at once
+          mimeType: document.mimeType,
+          userId,
+          householdId: userHousehold?.id
+        });
+
+        // Clean up in-progress tracking after a delay (job should start processing)
+        setTimeout(() => inProgressJobs.delete(jobKey), 30000);
+
+        return res.status(202).json({
+          status: 'queued',
+          documentId,
+          variant,
+          jobId: jobResult.jobId,
+          retryAfterMs: jobResult.retryAfterMs,
+          sourceHash: document.sourceHash
+        });
+      } catch (enqueueError) {
+        // Clean up on error
+        inProgressJobs.delete(jobKey);
+        throw enqueueError;
+      }
     } else {
       // All variants already exist or being processed - this shouldn't happen
       console.log(`⚠️ [THMB-5] Unexpected state: thumbnail reported missing but no variants to warm for doc ${documentId}`);
@@ -149,6 +225,20 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
 
   } catch (error: any) {
     console.error('Error in GET /api/documents/:id/thumbnail:', error);
+    
+    // THMB-RATE-01: Handle potential rate limit errors gracefully
+    if (error.message?.includes('Rate limit') || error.status === 429) {
+      res.setHeader('Retry-After', '2');
+      return res.status(202).json({
+        status: 'queued',
+        documentId,
+        variant,
+        retryAfterMs: 2000,
+        sourceHash: document?.sourceHash,
+        message: 'Service temporarily overloaded'
+      });
+    }
+    
     res.status(500).json({ 
       errorCode: 'INTERNAL_ERROR',
       message: 'Internal server error'
@@ -163,9 +253,23 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
  * Always enqueues job and returns 202
  */
 router.post('/thumbnails', requireAuth, async (req: any, res: any) => {
+  // THMB-API-STD: Ensure JSON response headers
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  
   try {
     const { documentId, variants = [96, 240, 480] } = req.body;
     const userId = req.user.id;
+
+    // THMB-RATE-01: Check user rate limit for explicit requests too
+    const rateLimitResult = checkRateLimit(userId);
+    if (!rateLimitResult.allowed) {
+      return res.status(202).json({
+        status: 'queued',
+        documentId: parseInt(documentId),
+        retryAfterMs: rateLimitResult.retryAfterMs,
+        message: 'Request queued due to rate limiting'
+      });
+    }
 
     // Validate inputs
     if (!documentId || isNaN(parseInt(documentId))) {

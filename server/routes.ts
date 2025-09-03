@@ -165,14 +165,15 @@ const upload = multer({
   }
 });
 
-// Mailgun webhook-specific multer configuration
+// Configure multer for Mailgun webhook file handling with increased limits
 const mailgunUpload = multer({
   storage: multer.memoryStorage(), // Store in memory for webhook processing
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit per file (Mailgun standard)
-    files: 10, // Maximum 10 attachments (increased for multiple attachments)
-    fieldSize: 10 * 1024 * 1024, // Reduce from 50MB to 10MB to prevent memory issues
-    fields: 100 // Reduce from 1000 to 100 fields to speed up parsing
+    fileSize: 25 * 1024 * 1024, // 25MB per file (emails can have large attachments)
+    files: 20, // Max 20 attachments per email (emails can have large attachments)
+    fieldSize: 10 * 1024 * 1024, // 10MB per field (for large email bodies)
+    fieldNameSize: 1000, // Increased field name size
+    fields: 100, // More fields for complex email data
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
@@ -596,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cookieCount: Object.keys(req.cookies || {}).length,
         userAgent: req.get('User-Agent')?.substring(0, 50)
       };
-      
+
       console.log('Session debug requested:', sessionData);
       res.json(sessionData);
     } catch (error) {
@@ -1201,11 +1202,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Invalid JSON, assume not cloud storage
         }
       }
-      
+
       if (isCloudStorageDocument) {
         console.log(`📁 GCS PREVIEW: Loading document ${document.gcsPath} from cloud storage`);
         console.log(`📁 GCS PREVIEW: Proxying document content to maintain modal functionality`);
-        
+
         const storageService = storageProvider();
         try {
           // Fix: Use gcsPath if available, otherwise fall back to filePath for existing documents
@@ -2334,7 +2335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const metadata = JSON.parse(document.encryptionMetadata);
         if (metadata.storageType === 'cloud' && metadata.storageKey) {
           console.log(`📁 GCS DOWNLOAD: Downloading unencrypted document ${metadata.storageKey} from cloud storage`);
-          
+
           try {
             const storage = storageProvider();
             const fileBuffer = await storage.download(metadata.storageKey);
@@ -3926,7 +3927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse optional fields from request body
       const { fields } = req.body;
       const fieldsToBackfill = Array.isArray(fields) ? fields : ['totalAmount', 'dueDate', 'invoiceDate'];
-      
+
       console.log(`🔄 [FACTS-BACKFILL] API called for user ${userId}, tenant ${tenantId}, fields: ${fieldsToBackfill.join(', ')}`);
 
       const { factsFirstService } = await import('./services/factsFirstService.js');
@@ -3970,7 +3971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tenantId,
         userId,
       };
-      
+
       const validatedData = insertConversationSchema.parse(conversationData);
 
       const conversation = await storage.createConversation(validatedData);
@@ -4164,7 +4165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       userId = getUserId(req);
       conversationId = req.body.conversationId;
-      
+
       // Get user and determine tenantId
       const user = await storage.getUser(userId);
       if (!user) {
@@ -4201,7 +4202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const duration = Date.now() - startTime;
       console.log(`✅ [CHAT] Completed in ${duration}ms with ${response.sources?.length || 0} sources`);
-      
+
       // Log success metrics
       console.log(`📊 [CHAT] Success: {stage: 'complete', tenantId: ${tenantId}, userId: ${userId}, conversationId: ${conversationId}, duration: ${duration}ms}`);
 
@@ -4209,7 +4210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error: any) {
       const duration = Date.now() - startTime;
-      
+
       // Enhanced error handling with specific HTTP status codes
       if (error.name === 'ZodError') {
         console.log(`❌ [CHAT] Validation error: {stage: 'payload', errClass: 'ZodError', httpStatus: 400, tenantId: ${tenantId}, userId: ${userId}}`);
@@ -4268,7 +4269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { extractTextFromImage } = await import('./ocrService');
       const extractedText = await extractTextFromImage(document.filePath, document.mimeType);
-      
+
       if (extractedText) {
         await storage.updateDocumentOCR(documentId, extractedText);
         console.log(`✅ [TEMP-OCR] Document ${documentId} reprocessed successfully`);
@@ -4291,26 +4292,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // THMB-1: Register thumbnail routes
   registerThumbnailRoutes(app);
-  
+
   // THMB-2: Register async thumbnail routes
   app.use('/api', thumbnailRoutes);
-  
+
   // THMB-2: Initialize thumbnail job queue
   await thumbnailJobQueue.initialize();
 
   // THMB-EDGE-UNBLOCK: Edge proxy to convert upstream 429s to 202 responses
   app.get('/edge/thumbnail', async (req: any, res) => {
     const { id, variant = '240' } = req.query;
-    
+
     if (!id) {
       return res.status(400).json({ error: 'Missing document ID' });
     }
 
     const originUrl = `http://localhost:5000/api/documents/${id}/thumbnail?variant=${variant}`;
-    
+
     try {
       console.log(`🔄 [EDGE-PROXY] Forwarding thumbnail request for doc ${id}, variant ${variant}px`);
-      
+
       const proxyRes = await fetch(originUrl, {
         headers: {
           'Authorization': req.headers.authorization || '',
@@ -4324,9 +4325,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (proxyRes.status === 429) {
         const retryAfter = proxyRes.headers.get('retry-after');
         const retryAfterMs = retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : 2000;
-        
+
         console.log(`🚫 [EDGE-PROXY] Upstream 429 detected, converting to 202 with ${retryAfterMs}ms retry`);
-        
+
         return res.status(202).json({
           status: 'queued',
           documentId: Number(id),
@@ -4349,7 +4350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error(`❌ [EDGE-PROXY] Proxy error for doc ${id}:`, error);
-      
+
       // On fetch errors, return 202 to indicate queuing for retry
       return res.status(202).json({
         status: 'queued',
@@ -4380,7 +4381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'user-agent': req.get('User-Agent'),
       'x-forwarded-for': req.get('X-Forwarded-For')
     });
-    
+
     try {
       // Parse email data from Mailgun webhook
       const { parseMailgunWebhook } = await import('./mailgunService.js');
@@ -4394,7 +4395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract user ID from recipient email (e.g., u123-abc@uploads.myhome-tech.com)
       const { extractUserIdFromRecipient } = await import('./mailgunService.js');
       const userId = extractUserIdFromRecipient(message.recipient);
-      
+
       if (!userId) {
         console.error('❌ Cannot extract user ID from recipient:', message.recipient);
         return res.status(400).json({ error: 'Invalid recipient format' });
@@ -4419,10 +4420,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process attachments if any
       if (message.attachments && message.attachments.length > 0) {
         console.log(`📎 Processing ${message.attachments.length} attachments`);
-        
+
         const { AttachmentProcessor } = await import('./attachmentProcessor.js');
         const processor = new AttachmentProcessor();
-        
+
         const result = await processor.processEmailAttachments(
           message.attachments,
           userId,
@@ -4445,9 +4446,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // No attachments - create email body PDF if content exists
       if (message.bodyHtml || message.bodyPlain) {
         console.log('📧 Creating email body PDF (no attachments)');
-        
+
         const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
-        
+
         const emailBodyInput = {
           tenantId: userId,
           messageId: message.messageId || `msg_${Date.now()}`,
@@ -4460,9 +4461,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ingestGroupId: Date.now().toString(),
           tags: ['email']
         };
-        
+
         const result = await renderAndCreateEmailBodyPdf(emailBodyInput);
-        
+
         if (result.created) {
           console.log(`✅ Created email body PDF document: ${result.documentId}`);
           return res.status(200).json({

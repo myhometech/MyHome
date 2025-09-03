@@ -51,7 +51,7 @@ console.log('ℹ️  Simplified memory management enabled');
 setInterval(() => {
   const memUsage = process.memoryUsage();
   const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
-  
+
   // Only log severe memory pressure (95%+), don't try to fix it
   if (heapPercent > 95) {
     console.log(`⚠️ Memory critical: ${heapPercent}% (${Math.round(memUsage.heapUsed / 1024 / 1024)}MB)`);
@@ -83,18 +83,24 @@ const app = express();
 // AUTH-GOOG-01: Enable trust proxy for correct HTTPS detection behind proxies
 app.set('trust proxy', 1);
 
-// AUTH-GOOG-01: Setup CORS for cross-site authentication
+// Configure Express with increased limits for email processing
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow no origin (mobile apps, Postman, etc.) or any replit.dev subdomain
-    if (!origin || /\.replit\.dev$/.test(origin) || /localhost/.test(origin) || origin.includes('myhome')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://myhome-docs.com', 'https://www.myhome-docs.com']
+    : true,
   credentials: true,
   allowedHeaders: ['Authorization', 'Content-Type', 'x-correlation-id']
+}));
+
+// Increased limits for Mailgun email ingestion (emails can be large with attachments)
+app.use(express.json({ 
+  limit: '100mb',
+  parameterLimit: 50000 // Increased for complex email data
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '100mb',
+  parameterLimit: 50000 // Increased for complex email data
 }));
 
 // Add correlation ID middleware first
@@ -102,9 +108,6 @@ app.use(withCorrelationId as any);
 
 // THMB-UNBLOCK: Add thumbnail rate adapter before other middleware
 app.use(thumbnailRateAdapter);
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -168,10 +171,10 @@ app.use((req, res, next) => {
 
   // EMERGENCY FIX: Register bypass email handler before middleware
   const { storage } = await import('./storage');
-  
+
   // Configure multer for multipart form data (what Mailgun forwarding sends)
   const bypassUpload = multer({ dest: '/tmp/', limits: { fileSize: 10 * 1024 * 1024 } });
-  
+
   app.post('/api/email-ingest-bypass', bypassUpload.any(), async (req: any, res) => {
     try {
       console.log('🚀 BYPASS EMAIL INGEST: Request received');
@@ -258,7 +261,7 @@ app.use((req, res, next) => {
   // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
   const server = await registerRoutes(app);
   console.log('✅ API routes registered successfully');
-  
+
   // EMAIL INGESTION FIX: Force override any route conflicts
   console.log('🚑 [EMAIL-INGEST] Registering GET endpoint override...');
   app.use('/api/email-ingest', (req: any, res, next) => {
@@ -361,7 +364,7 @@ app.use((req, res, next) => {
       timestamp: new Date().toISOString()
     });
   });
-  
+
   // MAILGUN FORWARD TEST: Simple test endpoint for forwarding
   const forwardUpload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
   app.post('/api/mailgun-forward-test', forwardUpload.any(), (req: any, res) => {
@@ -370,7 +373,7 @@ app.use((req, res, next) => {
     console.log('📧 Body keys:', Object.keys(req.body || {}));
     console.log('📧 Body data:', req.body);
     console.log('📧 Files count:', req.files?.length || 0);
-    
+
     return res.status(200).json({
       success: true,
       received: {
@@ -382,7 +385,7 @@ app.use((req, res, next) => {
       message: 'Mailgun forwarding test successful'
     });
   });
-  
+
   // CRITICAL: Exclude email forwarding endpoints from authentication BEFORE auth setup
   const publicRoutes = ['/api/email-ingest', '/api/email-ingest-bypass', '/api/mailgun-forward-test'];
   app.use((req, res, next) => {
@@ -393,7 +396,7 @@ app.use((req, res, next) => {
     }
     next();
   });
-  
+
   // Apply auth middleware (after bypass check)
   setupSimpleAuth(app);
 
@@ -424,7 +427,7 @@ app.use((req, res, next) => {
   console.log('   GET /debug');
   console.log('   GET /api/email-ingest');
   console.log('   POST /api/email-ingest');
-  
+
   // EMAIL FORWARDING: Simple GET endpoint for Mailgun webhook verification
   app.get('/api/email-ingest', (req: any, res) => {
     console.log('📞 /api/email-ingest GET endpoint called for webhook verification');
@@ -461,7 +464,7 @@ app.use((req, res, next) => {
       }
     }).on('error', (err: any) => {
       console.error(`❌ Server failed to start on port ${attemptPort}:`, err);
-      
+
       if (err.code === 'EADDRINUSE' && attempt < 3) {
         console.log(`🔄 Port ${attemptPort} in use, trying port ${attemptPort + 1} (attempt ${attempt + 1}/3)...`);
         setTimeout(() => {
@@ -475,6 +478,6 @@ app.use((req, res, next) => {
       }
     });
   };
-  
+
   tryStartServer(port);
 })();

@@ -1,0 +1,272 @@
+<testsuites id="" name="" tests="65" failures="0" skipped="65" errors="0" time="0.2688520000000001">
+<testsuite name="manualEmailPdf.spec.ts" timestamp="2025-08-11T13:50:04.402Z" hostname="chromium" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should show &quot;Store email as PDF&quot; action for email documents when flag is ON" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide &quot;Store email as PDF&quot; action when flag is OFF" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide action for documents without email context" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should complete full email PDF creation flow with success toast" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should handle idempotent case with appropriate messaging" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should display user-friendly error messages" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should display References section with correct count and links" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle expand/collapse for &gt;5 references" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle empty references state" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle references loading error with retry" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should pass axe accessibility checks for all components" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should support keyboard navigation throughout the flow" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Performance › should meet performance gates for typical email processing" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="manualEmailPdf.spec.ts" timestamp="2025-08-11T13:50:04.402Z" hostname="firefox" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should show &quot;Store email as PDF&quot; action for email documents when flag is ON" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide &quot;Store email as PDF&quot; action when flag is OFF" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide action for documents without email context" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should complete full email PDF creation flow with success toast" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should handle idempotent case with appropriate messaging" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should display user-friendly error messages" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should display References section with correct count and links" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle expand/collapse for &gt;5 references" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle empty references state" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle references loading error with retry" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should pass axe accessibility checks for all components" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should support keyboard navigation throughout the flow" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Performance › should meet performance gates for typical email processing" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="manualEmailPdf.spec.ts" timestamp="2025-08-11T13:50:04.402Z" hostname="webkit" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should show &quot;Store email as PDF&quot; action for email documents when flag is ON" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide &quot;Store email as PDF&quot; action when flag is OFF" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide action for documents without email context" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should complete full email PDF creation flow with success toast" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should handle idempotent case with appropriate messaging" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should display user-friendly error messages" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should display References section with correct count and links" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle expand/collapse for &gt;5 references" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle empty references state" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle references loading error with retry" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should pass axe accessibility checks for all components" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should support keyboard navigation throughout the flow" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Performance › should meet performance gates for typical email processing" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="manualEmailPdf.spec.ts" timestamp="2025-08-11T13:50:04.402Z" hostname="Mobile Chrome" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should show &quot;Store email as PDF&quot; action for email documents when flag is ON" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide &quot;Store email as PDF&quot; action when flag is OFF" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide action for documents without email context" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should complete full email PDF creation flow with success toast" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should handle idempotent case with appropriate messaging" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should display user-friendly error messages" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should display References section with correct count and links" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle expand/collapse for &gt;5 references" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle empty references state" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle references loading error with retry" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should pass axe accessibility checks for all components" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should support keyboard navigation throughout the flow" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Performance › should meet performance gates for typical email processing" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="manualEmailPdf.spec.ts" timestamp="2025-08-11T13:50:04.402Z" hostname="Mobile Safari" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should show &quot;Store email as PDF&quot; action for email documents when flag is ON" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide &quot;Store email as PDF&quot; action when flag is OFF" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Kebab Action Visibility › should hide action for documents without email context" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should complete full email PDF creation flow with success toast" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should handle idempotent case with appropriate messaging" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Manual Action Flow › should display user-friendly error messages" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should display References section with correct count and links" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle expand/collapse for &gt;5 references" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle empty references state" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › References UI › should handle references loading error with retry" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should pass axe accessibility checks for all components" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Accessibility › should support keyboard navigation throughout the flow" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Manual Email PDF Flow › Performance › should meet performance gates for typical email processing" classname="manualEmailPdf.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+</testsuites>

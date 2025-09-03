@@ -73,6 +73,8 @@ function DocumentThumbnail({
     );
   }
 
+  console.log(`[THUMBNAIL] DocumentThumbnail rendering for ${documentId}, src: ${src}`);
+  
   return (
     <img 
       src={src}

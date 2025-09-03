@@ -171,17 +171,17 @@ export default function UnifiedDocumentCard({
     let currentBlobUrl: string | null = null;
 
     const fetchThumbnail = async (retryCount = 0) => {
-      const maxRetries = 2;
+      const maxRetries = 3; // Increased retries
       
       try {
         console.log(`[THUMBNAIL] Fetching thumbnail for document ${document.id} (attempt ${retryCount + 1})`);
-        const thumbnailUrl = `/api/documents/${document.id}/thumbnail?v=${Date.now()}`; // Add cache buster
+        const thumbnailUrl = `/api/documents/${document.id}/thumbnail?v=${Date.now()}&retry=${retryCount}`; // Add retry indicator
         const response = await fetch(thumbnailUrl, {
           credentials: 'include',
           headers: {
             'Accept': 'image/*,image/svg+xml'
           },
-          signal: AbortSignal.timeout(10000) // 10 second timeout
+          signal: AbortSignal.timeout(15000) // Increased timeout to 15 seconds
         });
         
         console.log(`[THUMBNAIL] Response status: ${response.status}, content-length: ${response.headers.get('content-length')}`);
@@ -206,6 +206,12 @@ export default function UnifiedDocumentCard({
               console.log(`[THUMBNAIL] Successfully set SVG data URL`);
             } else {
               console.warn(`[THUMBNAIL] Invalid SVG format`);
+              // If we get invalid SVG and have retries left, try again
+              if (retryCount < maxRetries) {
+                console.log(`[THUMBNAIL] Invalid SVG, retrying in 2 seconds...`);
+                setTimeout(() => fetchThumbnail(retryCount + 1), 2000);
+                return;
+              }
               setThumbnailError(true);
             }
           } else {
@@ -216,8 +222,8 @@ export default function UnifiedDocumentCard({
             if (blob.size === 0) {
               console.warn(`[THUMBNAIL] Received empty blob`);
               if (retryCount < maxRetries) {
-                console.log(`[THUMBNAIL] Retrying thumbnail fetch in 1 second...`);
-                setTimeout(() => fetchThumbnail(retryCount + 1), 1000);
+                console.log(`[THUMBNAIL] Empty blob, retrying in ${(retryCount + 1) * 2} seconds...`);
+                setTimeout(() => fetchThumbnail(retryCount + 1), (retryCount + 1) * 2000);
                 return;
               }
               setThumbnailError(true);
@@ -232,10 +238,11 @@ export default function UnifiedDocumentCard({
         } else {
           console.warn(`[THUMBNAIL] Request failed with status: ${response.status}`);
           
-          // Retry on 502/503/504 errors (server issues)
-          if ([502, 503, 504].includes(response.status) && retryCount < maxRetries) {
-            console.log(`[THUMBNAIL] Server error, retrying in ${(retryCount + 1) * 2} seconds...`);
-            setTimeout(() => fetchThumbnail(retryCount + 1), (retryCount + 1) * 2000);
+          // Retry on server errors and timeouts
+          if ([500, 502, 503, 504, 408].includes(response.status) && retryCount < maxRetries) {
+            const retryDelay = Math.min((retryCount + 1) * 3000, 10000); // Max 10 second delay
+            console.log(`[THUMBNAIL] Server error, retrying in ${retryDelay/1000} seconds...`);
+            setTimeout(() => fetchThumbnail(retryCount + 1), retryDelay);
             return;
           }
           
@@ -246,10 +253,11 @@ export default function UnifiedDocumentCard({
       } catch (error) {
         console.warn(`Failed to fetch thumbnail for document ${document.id} (attempt ${retryCount + 1}):`, error);
         
-        // Retry on network errors
+        // Retry on network errors with exponential backoff
         if (retryCount < maxRetries && isMounted) {
-          console.log(`[THUMBNAIL] Network error, retrying in ${(retryCount + 1) * 2} seconds...`);
-          setTimeout(() => fetchThumbnail(retryCount + 1), (retryCount + 1) * 2000);
+          const retryDelay = Math.min((retryCount + 1) * 3000, 10000);
+          console.log(`[THUMBNAIL] Network error, retrying in ${retryDelay/1000} seconds...`);
+          setTimeout(() => fetchThumbnail(retryCount + 1), retryDelay);
           return;
         }
         
@@ -259,8 +267,9 @@ export default function UnifiedDocumentCard({
       }
     };
 
-    // Initial fetch with small delay to let server stabilize
-    setTimeout(() => fetchThumbnail(), 100);
+    // Initial fetch with delay to let server stabilize
+    const initialDelay = Math.min(retryCount * 500 + 200, 2000); // Stagger requests
+    setTimeout(() => fetchThumbnail(), initialDelay);
 
     // Cleanup function
     return () => {

@@ -2,7 +2,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import type { Express, RequestHandler } from "express";
 import { AuthService } from "./authService";
-import MemoryStore from 'memorystore'(session);
+import createMemoryStore from 'memorystore';
 
 export function getSession() {
   const isProd = process.env.NODE_ENV === 'production';
@@ -39,7 +39,7 @@ export function setupSimpleAuth(app: Express) {
     secret: process.env.SESSION_SECRET || "dev-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
-    store: new MemoryStore({
+    store: new (createMemoryStore(session))({
       checkPeriod: 86400000 // 24 hours cleanup interval
     }),
     rolling: true, // Reset expiry on activity

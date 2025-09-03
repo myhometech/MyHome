@@ -8,6 +8,8 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { nanoid } from 'nanoid';
 import { logThumbnailRequested } from './auditLogger';
+import { ThumbnailRenderingService, ThumbnailJob, ThumbnailResult, ThumbnailError, ThumbnailErrorCode } from './thumbnailRenderingService';
+import { storage } from './storage';
 
 export interface ThumbnailJobPayload {
   jobId: string;
@@ -97,7 +99,7 @@ class InMemoryJobTracker {
     }
   }
 
-  // Simple processing simulation (actual processing will be in THMB-3)
+  // THMB-3: Actual thumbnail processing
   async processNextJob(): Promise<boolean> {
     if (this.processing || this.jobQueue.length === 0) {
       return false;
@@ -106,21 +108,56 @@ class InMemoryJobTracker {
     this.processing = true;
     const payload = this.jobQueue.shift()!;
     
-    console.log(`🔄 [IN-MEMORY] Processing job ${payload.jobId} (simulation)`);
+    console.log(`🔄 [IN-MEMORY] Processing job ${payload.jobId}`);
     
     // Mark all variants as processing
     payload.variants.forEach(variant => {
       this.updateJobStatus(payload.jobId, variant, 'processing');
     });
 
-    // Simulate processing delay
-    setTimeout(() => {
-      // For now, mark as queued since we don't have actual processing yet
+    try {
+      // Get document details from storage
+      const document = await storage.getDocument(payload.documentId, 'system');
+      if (!document) {
+        throw new Error(`Document ${payload.documentId} not found`);
+      }
+
+      // Build job data for rendering service
+      const thumbnailJob: ThumbnailJob = {
+        jobId: payload.jobId,
+        documentId: payload.documentId,
+        sourceHash: payload.sourceHash,
+        variants: payload.variants,
+        mimeType: payload.mimeType,
+        userId: payload.userId,
+        householdId: payload.householdId,
+        filePath: document.gcsPath || document.filePath
+      };
+
+      // Process with rendering service
+      const renderingService = new ThumbnailRenderingService();
+      const result = await renderingService.processJob(thumbnailJob);
+
+      // Mark all variants as success
       payload.variants.forEach(variant => {
-        this.updateJobStatus(payload.jobId, variant, 'queued');
+        this.updateJobStatus(payload.jobId, variant, 'success');
       });
+
+      console.log(`✅ [IN-MEMORY] Job ${payload.jobId} completed successfully`);
+
+    } catch (error: any) {
+      console.error(`❌ [IN-MEMORY] Job ${payload.jobId} failed:`, error);
+      
+      // Mark all variants as failed
+      payload.variants.forEach(variant => {
+        this.updateJobStatus(payload.jobId, variant, 'failed', error.message);
+      });
+    } finally {
       this.processing = false;
-    }, 100);
+      
+      // Process next job if available
+      setTimeout(() => this.processNextJob(), 100);
+    }
 
     return true;
   }
@@ -153,17 +190,113 @@ class RedisJobQueue {
       },
     });
 
-    // Initialize worker for job processing (actual processing in THMB-3)
+    // THMB-3: Initialize worker with actual thumbnail processing
     this.worker = new Worker<ThumbnailJobPayload>('thumbnail-generation', 
       async (job: Job<ThumbnailJobPayload>) => {
-        console.log(`🔄 [REDIS] Processing job ${job.data.jobId} (placeholder)`);
-        // Actual thumbnail generation will be implemented in THMB-3
-        return { success: true, message: 'Placeholder processing' };
+        return await this.processJob(job.data);
       }, 
-      { connection: redisConfig }
+      { 
+        connection: redisConfig,
+        concurrency: 2 // Process up to 2 jobs concurrently
+      }
     );
 
-    console.log('📋 [REDIS] BullMQ thumbnail job queue initialized');
+    console.log('📋 [REDIS] BullMQ thumbnail job queue initialized with rendering worker');
+  }
+
+  /**
+   * THMB-3: Process thumbnail generation job with rendering service
+   */
+  private async processJob(jobData: ThumbnailJobPayload): Promise<any> {
+    const correlationId = jobData.jobId;
+    console.log(`🎨 [REDIS] Starting thumbnail processing for job ${correlationId}`);
+
+    try {
+      // Get document details from storage
+      const document = await storage.getDocument(jobData.documentId, 'system');
+      if (!document) {
+        throw new ThumbnailError(
+          ThumbnailErrorCode.STORAGE_READ_FAILURE,
+          `Document ${jobData.documentId} not found`,
+          false
+        );
+      }
+
+      // Build job data for rendering service
+      const thumbnailJob: ThumbnailJob = {
+        jobId: jobData.jobId,
+        documentId: jobData.documentId,
+        sourceHash: jobData.sourceHash,
+        variants: jobData.variants,
+        mimeType: jobData.mimeType,
+        userId: jobData.userId,
+        householdId: jobData.householdId,
+        filePath: document.gcsPath || document.filePath
+      };
+
+      // Process with rendering service
+      const renderingService = new ThumbnailRenderingService();
+      const result = await renderingService.processJob(thumbnailJob);
+
+      // Emit success event
+      this.emitThumbnailCreated(result);
+
+      console.log(`✅ [REDIS] Job ${correlationId} completed successfully`);
+      return { 
+        success: true, 
+        documentId: result.documentId,
+        variantsGenerated: result.variants.length,
+        message: 'Thumbnail generation completed' 
+      };
+
+    } catch (error: any) {
+      console.error(`❌ [REDIS] Job ${correlationId} failed:`, error);
+
+      // Emit failure event
+      this.emitThumbnailFailed(jobData, error);
+
+      // Determine if job should be retried
+      if (error instanceof ThumbnailError) {
+        const shouldRetry = ThumbnailError.isRetryable(error.code);
+        if (!shouldRetry) {
+          console.log(`🚫 [REDIS] Job ${correlationId} marked as non-retryable: ${error.code}`);
+        }
+        throw error; // Let BullMQ handle retry logic
+      } else {
+        // Unknown errors are treated as retryable by default
+        throw new ThumbnailError(
+          ThumbnailErrorCode.TIMEOUT_ERROR,
+          `Unknown error: ${error.message}`,
+          true
+        );
+      }
+    }
+  }
+
+  /**
+   * Emit thumbnail.created event
+   */
+  private emitThumbnailCreated(result: ThumbnailResult): void {
+    try {
+      console.log(`📢 [EVENT] thumbnail.created for document ${result.documentId}`);
+      // This could be extended to emit to an event system
+      // For now, just log the successful creation
+    } catch (error) {
+      console.error('Failed to emit thumbnail.created event:', error);
+    }
+  }
+
+  /**
+   * Emit thumbnail.failed event
+   */
+  private emitThumbnailFailed(jobData: ThumbnailJobPayload, error: any): void {
+    try {
+      const errorCode = error instanceof ThumbnailError ? error.code : 'UNKNOWN_ERROR';
+      console.log(`📢 [EVENT] thumbnail.failed for document ${jobData.documentId}: ${errorCode}`);
+      // This could be extended to emit to an event system
+    } catch (emitError) {
+      console.error('Failed to emit thumbnail.failed event:', emitError);
+    }
   }
 
   async enqueue(payload: ThumbnailJobPayload): Promise<EnqueueResult> {

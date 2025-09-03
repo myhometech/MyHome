@@ -4,6 +4,8 @@
  * Implements async thumbnail generation with job-based processing:
  * - GET /api/documents/:id/thumbnail - Returns existing URL or enqueues job
  * - POST /api/thumbnails - Explicitly requests (re)generation
+ * 
+ * THMB-EMERGENCY-BYPASS: Includes inline fallback when worker is down
  */
 
 import { Router } from 'express';
@@ -14,6 +16,9 @@ import { thumbnailJobQueue } from '../thumbnailJobQueue';
 import { ThumbnailSignedUrlService } from '../thumbnailSignedUrlService';
 import { checkThumbnailExists, getMissingThumbnails } from '../thumbnailExistenceMiddleware';
 import { isSupportedVariant } from '../thumbnailHelpers';
+// THMB-EMERGENCY-BYPASS: Import emergency fallback system
+import { inlineFallbackRenderer } from '../thumbnail/inlineFallback';
+import { getJobStatusAgeMs, shouldUseInlineFallback } from '../thumbnail/jobHealthCheck';
 
 const router = Router();
 
@@ -185,11 +190,50 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
             householdId: userHousehold?.id
           });
 
+          // THMB-EMERGENCY-BYPASS: Check if worker is down and use inline fallback
+          if (variant === 240) { // Only for 240px variant
+            const jobAge = await getJobStatusAgeMs(jobResult.jobId).catch(() => null);
+            
+            if (shouldUseInlineFallback(jobAge)) {
+              console.log(`🚨 [EMERGENCY] Worker appears down (job age: ${jobAge}ms), attempting inline 240px generation for doc ${documentId}`);
+              
+              try {
+                const inlineResult = await inlineFallbackRenderer.generate240Now({
+                  documentId,
+                  sourceHash: sourceHash,
+                  mimeType: document.mimeType,
+                  storagePath: document.filePath,
+                  userId
+                });
+                
+                console.log(`✅ [EMERGENCY] Inline generation successful for doc ${documentId}: ${inlineResult.key}`);
+                
+                // Clean up coalescing mark immediately since we're returning ready
+                clearMark(coalescingKey);
+                
+                return res.status(200).json({
+                  status: 'ready',
+                  documentId,
+                  variant,
+                  url: inlineResult.url,
+                  ttlSeconds: 1800,
+                  sourceHash: sourceHash,
+                  bypass: true
+                });
+              } catch (bypassError: any) {
+                console.warn(`⚠️ [EMERGENCY] Inline fallback failed for doc ${documentId}:`, bypassError.message);
+                // Fall through to normal 202 queued response
+              }
+            }
+          }
+
           // Clean up coalescing mark when job completes (with timeout fallback)
           setTimeout(() => clearMark(coalescingKey), 60000); // 1 minute timeout
           
           // Also clear on job completion if we can track it
-          jobResult.promise?.finally(() => clearMark(coalescingKey)).catch(() => {});
+          if (jobResult.promise) {
+            jobResult.promise.finally(() => clearMark(coalescingKey)).catch(() => {});
+          }
 
           return res.status(202).json({
             status: 'queued',

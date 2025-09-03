@@ -453,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Support both GET and POST for logout (for convenience)
-  app.get('/api/logout', async (req: any, res) => {
+  app.get('/api/logout', async (req: any, res: any) => {
     try {
       req.session.destroy((err: any) => {
         if (err) {
@@ -467,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/auth/logout', async (req: any, res) => {
+  app.post('/api/auth/logout', async (req: any, res: any) => {
     try {
       req.session.destroy((err: any) => {
         if (err) {
@@ -533,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reset password with token route
-  app.post('/api/auth/reset-password', async (req: any, res) => {
+  app.post('/api/auth/reset-password', async (req: any, res: any) => {
     try {
       const { token, password } = req.body;
 
@@ -557,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ success: false, message: "Failed to reset password" });
     }
   });
-  app.get('/api/auth/user', requireAuth, async (req: any, res) => {
+  app.get('/api/auth/user', requireAuth, async (req: any, res: any) => {
     try {
       const user = req.user || req.session?.user;
 

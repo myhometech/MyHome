@@ -4379,9 +4379,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('📧 Email ingest webhook received');
     console.log('📧 Request headers:', {
       'content-type': req.get('Content-Type'),
+      'content-length': req.get('Content-Length'),
       'user-agent': req.get('User-Agent'),
       'x-forwarded-for': req.get('X-Forwarded-For')
     });
+    
+    // Log email body sizes for debugging
+    if (req.body) {
+      const bodyPlainSize = req.body['body-plain'] ? Buffer.byteLength(req.body['body-plain'], 'utf8') : 0;
+      const bodyHtmlSize = req.body['body-html'] ? Buffer.byteLength(req.body['body-html'], 'utf8') : 0;
+      const totalRequestSize = req.get('Content-Length') || 'unknown';
+      
+      console.log('📧 Email body sizes:', {
+        'body-plain': `${(bodyPlainSize / 1024).toFixed(1)}KB`,
+        'body-html': `${(bodyHtmlSize / 1024).toFixed(1)}KB`,
+        'total-request': `${totalRequestSize}B`,
+        'has-attachments': !!(req.body['attachment-count'] && parseInt(req.body['attachment-count']) > 0)
+      });
+    }
 
     try {
       // Parse email data from Mailgun webhook

@@ -6,56 +6,62 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { thumbnailCache, type ThumbnailVariant } from '@/lib/thumbnailCache';
 
-// THMB-RATE-HOTFIX: Enhanced request deduplication and 202/429 handling
-const inflight: Map<string, Promise<Response>> = new Map();
+// THMB-FE-READONCE: Enhanced request deduplication with JSON-only responses to prevent double parsing
+const inflight = new Map<string, Promise<any>>();
 
 function sleep(ms: number): Promise<void> { 
   return new Promise(r => setTimeout(r, ms)); 
 }
 
-async function fetchWithBackoff(url: string, key: string, attempt = 1): Promise<Response> {
-  // THMB-RATE-HOTFIX: De-dupe in-flight requests per key
+async function fetchJSONWithBackoff(url: string, key: string, attempt = 1): Promise<any> {
+  // THMB-FE-READONCE: De-dupe in-flight requests per key
   if (inflight.has(key)) {
     console.log(`🔄 [DEDUP] Returning existing request for ${key}`);
     return inflight.get(key)!;
   }
   
-  const p = (async (): Promise<Response> => {
+  const p = (async () => {
     const res = await fetch(url, { 
       headers: { 'Accept': 'application/json' },
       credentials: 'include'
     });
     
-    // THMB-RATE-HOTFIX: Handle 202 (queued) gracefully - no retry needed
-    if (res.status === 202) {
-      console.log(`📋 [QUEUE] Request queued for ${key}, server will process`);
-      return res;
-    }
-    
-    // THMB-RATE-HOTFIX: Handle any residual 429s (should be rare now)
-    if (res.status === 429) {
-      const retryAfter = res.headers.get('retry-after');
-      const retryAfterMs = retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : 1500;
-      const maxAttempts = 6;
+    // Happy path: JSON 200/202
+    const ctype = res.headers.get('content-type')?.toLowerCase() || '';
+    const isJson = ctype.includes('application/json');
 
-      if (attempt >= maxAttempts) {
-        console.warn(`🚫 [RATE-LIMIT] Max retries exceeded for ${key}`);
-        return res;
+    if (res.status === 200 || res.status === 202) {
+      if (!isJson) {
+        // Defensive: if server ever returns non-JSON here, try to decode once from a clone for diagnostics
+        const preview = await res.clone().text().catch(() => '');
+        throw new Error(`NON_JSON_${res.status}: ${ctype} ${preview.slice(0, 120)}`);
       }
-
-      // Exponential backoff with jitter, respect Retry-After
-      const base = Math.min(16000, 2 ** attempt * 250);
-      const jitter = Math.floor(Math.random() * 250);
-      const wait = Math.max(retryAfterMs, base + jitter);
-      
-      console.log(`⏳ [RATE-LIMIT] Retrying ${key} after ${wait}ms (attempt ${attempt}/${maxAttempts})`);
-      await sleep(wait);
-      return fetchWithBackoff(url, key, attempt + 1);
+      return res.json(); // parsed exactly once
     }
-    
-    return res;
+
+    // Residual 429 handling (should be rare after edge/proxy fixes)
+    if (res.status === 429) {
+      if (attempt >= 5) {
+        return { status: 'queued', retryAfterMs: 1500 }; // degrade gracefully as JSON
+      }
+      const ra = res.headers.get('retry-after');
+      const retryAfterMs = ra && /^\d+$/.test(ra) ? Number(ra) * 1000 : 1500;
+      const base = Math.min(8000, 2 ** attempt * 300) + Math.floor(Math.random() * 200);
+      await sleep(Math.max(retryAfterMs, base));
+      return fetchJSONWithBackoff(url, key, attempt + 1);
+    }
+
+    // Other errors: attempt to parse JSON once; if not JSON, read a clone for message
+    if (isJson) {
+      const err = await res.json().catch(() => ({}));
+      const code = err?.errorCode || `HTTP_${res.status}`;
+      throw new Error(code);
+    } else {
+      const preview = await res.clone().text().catch(() => '');
+      throw new Error(`HTTP_${res.status}_NON_JSON ${preview.slice(0, 120)}`);
+    }
   })().finally(() => inflight.delete(key));
-  
+
   inflight.set(key, p);
   return p;
 }
@@ -145,30 +151,12 @@ export function useThumbnail(documentId: string, sourceHash: string) {
 
       // THMB-EDGE-UNBLOCK: Use edge proxy to avoid upstream 429s
       const key = `${documentId}:${sourceHash}:${variant}`;
-      const response = await fetchWithBackoff(
+      const data = await fetchJSONWithBackoff(
         `/edge/thumbnail?id=${documentId}&variant=${variant}`,
         key
       );
 
       const latencyMs = Date.now() - startTime;
-
-      if (!response.ok) {
-        if (response.status === 403 || response.status === 404) {
-          const errorData: ThumbnailErrorResponse = await response.json().catch(() => ({}));
-          // THMB-API-STD: Use standardized errorCode field, fallback to legacy code
-          const errorCode = errorData.errorCode || errorData.code || `HTTP_${response.status}`;
-          logTelemetry('thumbnail.view.failed', { 
-            variant, 
-            status: response.status, 
-            errorCode,
-            latencyMs 
-          });
-          throw new Error(errorCode);
-        }
-        throw new Error(`HTTP_${response.status}`);
-      }
-
-      const data: ThumbnailResponse = await response.json();
 
       if (data.status === 'ready' && data.url) {
         // Cache the URL with provided TTL

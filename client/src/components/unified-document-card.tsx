@@ -615,6 +615,7 @@ export default function UnifiedDocumentCard({
             </div>
           )}
         </div>
+      </div>
         </CardContent>
       </Card>
 

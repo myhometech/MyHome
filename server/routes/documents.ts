@@ -46,7 +46,7 @@ function generateDocumentPlaceholder(mimeType: string, fileName: string): string
   let iconPath = 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8';
   let backgroundColor = '#8B5CF6'; // Purple
   let iconColor = '#FFFFFF';
-  
+
   if (mimeType?.includes('pdf')) {
     backgroundColor = '#8B5CF6'; // Purple for PDFs
     iconPath = 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8';
@@ -54,9 +54,9 @@ function generateDocumentPlaceholder(mimeType: string, fileName: string): string
     backgroundColor = '#8B5CF6'; // Purple for images
     iconPath = 'M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z M8.5 8.5l5.5 5.5 4-4';
   }
-  
+
   const fileExtension = path.extname(fileName).slice(1).toUpperCase() || 'DOC';
-  
+
   return `<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
     <rect width="200" height="200" fill="${backgroundColor}" rx="8"/>
     <svg x="50" y="40" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="1.5">
@@ -511,7 +511,7 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
     // Generate thumbnail on-demand
     try {
       console.log(`[THUMBNAIL] Generating thumbnail for document ${documentId}, gcsPath: ${document.gcsPath}, filePath: ${document.filePath}`);
-      
+
       let fileBuffer: Buffer | null = null;
       let sourceFilePath: string | null = null;
 
@@ -532,21 +532,21 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       } else if (document.filePath && fs.existsSync(document.filePath)) {
         sourceFilePath = document.filePath;
       }
-      
+
       // If we have no valid source, return placeholder immediately
       if (!sourceFilePath && !fileBuffer) {
         console.log(`[THUMBNAIL] No valid source file for document ${documentId}, returning placeholder`);
         const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
-        const dataUrl = `data:image/svg+xml;base64,${Buffer.from(placeholderSvg).toString('base64')}`;
-        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Type', 'image/svg+xml');
         res.setHeader('Cache-Control', 'public, max-age=3600');
-        return res.send(dataUrl);
+        res.send(placeholderSvg);
+        return;
       }
 
       // Check for existing thumbnail first
       if (sourceFilePath) {
         const thumbnailPath = imageProcessor.getThumbnailPath(sourceFilePath);
-        
+
         if (fs.existsSync(thumbnailPath)) {
           // Cleanup temp file if created
           if (document.gcsPath && sourceFilePath && fs.existsSync(sourceFilePath)) {
@@ -583,25 +583,23 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       // For PDFs and other documents, generate a placeholder thumbnail
       console.log(`[THUMBNAIL] Generating placeholder for document ${documentId}, mimeType: ${document.mimeType}`);
       const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
-      
+
       // Cleanup temp file if created
       if (sourceFilePath && fs.existsSync(sourceFilePath) && sourceFilePath.includes('/tmp/')) {
         fs.unlinkSync(sourceFilePath);
       }
-      
-      const dataUrl = `data:image/svg+xml;base64,${Buffer.from(placeholderSvg).toString('base64')}`;
-      res.setHeader('Content-Type', 'text/plain');
+
+      res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Cache-Control', 'public, max-age=3600');
-      res.send(dataUrl);
-      
+      res.send(placeholderSvg);
+
     } catch (error) {
       console.error(`Failed to generate thumbnail for document ${documentId}:`, error);
       // Return a generic placeholder
       const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
-      const dataUrl = `data:image/svg+xml;base64,${Buffer.from(placeholderSvg).toString('base64')}`;
-      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Type', 'image/svg+xml');
       res.setHeader('Cache-Control', 'public, max-age=3600');
-      res.send(dataUrl);
+      res.send(placeholderSvg);
     }
 
     // If no file found, return 404
@@ -808,7 +806,7 @@ router.post('/cleanup-orphaned-insights', requireAuth, async (req: any, res: any
 
       // Flag insights with invalid documentId values
       let hasValidId = false;
-      
+
       if (documentId !== null && documentId !== undefined) {
         if (typeof documentId === 'string') {
           const stringId = documentId as string;
@@ -817,7 +815,7 @@ router.post('/cleanup-orphaned-insights', requireAuth, async (req: any, res: any
           hasValidId = documentId > 0;
         }
       }
-      
+
       if (hasValidId) {
 
         const numericDocumentId = Number(documentId);

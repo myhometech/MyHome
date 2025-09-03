@@ -10,6 +10,7 @@ import { nanoid } from 'nanoid';
 import { logThumbnailRequested } from './auditLogger';
 import { ThumbnailRenderingService, ThumbnailJob, ThumbnailResult, ThumbnailError, ThumbnailErrorCode } from './thumbnailRenderingService';
 import { storage } from './storage';
+import { inlineWorker } from './start-inline-worker';
 
 export interface ThumbnailJobPayload {
   jobId: string;
@@ -63,6 +64,12 @@ class InMemoryJobTracker {
     });
 
     console.log(`📋 [IN-MEMORY] Enqueued thumbnail job ${payload.jobId} for document ${payload.documentId}`);
+    
+    // THMB-RECOVER: Kick off processing if not already running
+    if (!this.processing) {
+      setTimeout(() => this.processNextJob(), 100);
+    }
+    
     return {
       jobId: payload.jobId,
       status: 'queued',
@@ -76,7 +83,7 @@ class InMemoryJobTracker {
     }
     
     // Return first matching job status for any variant
-    for (const [key, status] of this.jobs.entries()) {
+    for (const [key, status] of Array.from(this.jobs.entries())) {
       if (status.jobId === jobId) {
         return status;
       }
@@ -177,15 +184,15 @@ class RedisJobQueue {
       maxRetriesPerRequest: 1,
     };
 
-    this.queue = new Queue<ThumbnailJobPayload>('thumbnail-generation', {
+    this.queue = new Queue('thumbnail-generation', {
       connection: redisConfig,
       defaultJobOptions: {
         removeOnComplete: 100, // Keep last 100 completed jobs
         removeOnFail: 50,      // Keep last 50 failed jobs
         attempts: 2,           // THMB-5: Max 2 retries for retryable codes
-        backoff: (attemptsMade: number) => {
-          // THMB-5: Custom backoff pattern (2s, 10s)
-          return attemptsMade === 1 ? 2000 : 10000;
+        backoff: {
+          type: 'custom',
+          delay: 2000,
         },
       },
     });
@@ -398,6 +405,16 @@ class ThumbnailJobQueueService {
     } catch (auditError) {
       console.error('Failed to log thumbnail requested audit event:', auditError);
       // Don't fail the job for audit logging issues
+    }
+
+    // THMB-RECOVER: Try inline worker first if enabled
+    if (inlineWorker.isEnabled()) {
+      console.log(`🚀 [INLINE-WORKER] Attempting immediate processing for job ${jobId}`);
+      
+      // Fire-and-forget inline processing (don't block the response)
+      inlineWorker.processJobImmediately(fullPayload).catch(error => {
+        console.error(`⚠️ [INLINE-WORKER] Failed for job ${jobId}:`, error.message);
+      });
     }
 
     if (this.useRedis && this.redisQueue) {

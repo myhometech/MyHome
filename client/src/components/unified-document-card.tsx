@@ -470,7 +470,7 @@ export default function UnifiedDocumentCard({
         onClick={handleCardClick}
         data-testid={`document-card-${document.id}`}
       >
-        <CardContent className="mobile-document-card-content p-0 h-full flex flex-col">
+        <CardContent className="mobile-document-card-content p-0 h-full flex flex-col relative">
           {/* Bulk Selection Checkbox - positioned absolutely */}
           {bulkMode && (
             <div className="absolute top-2 left-2 z-10 bg-white/90 rounded-full p-1 shadow-sm">
@@ -484,9 +484,9 @@ export default function UnifiedDocumentCard({
             </div>
           )}
 
-          {/* Thumbnail Section - 75% height */}
+          {/* Thumbnail Section - 75% height, full width */}
           <div 
-            className="relative bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
+            className="w-full bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
             style={{ height: '75%' }}
           >
             {thumbnailError || !thumbnailBlobUrl ? (
@@ -506,9 +506,9 @@ export default function UnifiedDocumentCard({
             )}
           </div>
 
-          {/* Bottom Section - 25% height with title and corner icons */}
+          {/* Bottom Section - 25% height with title only */}
           <div 
-            className="relative px-3 py-2 bg-white flex items-center justify-center"
+            className="px-3 py-2 bg-white flex items-center justify-center"
             style={{ height: '25%', minHeight: '48px' }}
           >
             {/* Title - Centered */}
@@ -545,15 +545,16 @@ export default function UnifiedDocumentCard({
 
           </div>
           
-          {/* Icons positioned at very bottom of card */}
+          
+          {/* Icons positioned at very bottom corners of entire card */}
           {/* Insights Indicator - Very Bottom Left */}
-          <div className="absolute bottom-2 left-2 z-10">
+          <div className="absolute bottom-2 left-2 z-20">
             {renderInsightsIndicator()}
           </div>
 
           {/* Overflow Menu - Very Bottom Right */}
           {!bulkMode && (
-            <div className="absolute bottom-2 right-2 z-10">
+            <div className="absolute bottom-2 right-2 z-20">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <Button 
@@ -565,37 +566,37 @@ export default function UnifiedDocumentCard({
                     <MoreHorizontal className="h-3 w-3 text-purple-600" />
                   </Button>
                 </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => {
-                      setModalInitialTab('properties');
-                      setShowModal(true);
-                    }}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      View
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      handleStartRename();
-                    }}>
-                      <Type className="h-4 w-4 mr-2" />
-                      Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDownload}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </DropdownMenuItem>
-                    <ShareDocumentDialog documentId={document.id} documentName={document.name} />
-                    <DropdownMenuItem 
-                      onClick={(e) => {
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => {
+                        setModalInitialTab('properties');
+                        setShowModal(true);
+                      }}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
                         e.stopPropagation();
-                        handleDelete(e);
-                      }}
-                      className="text-red-600 focus:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
+                        handleStartRename();
+                      }}>
+                        <Type className="h-4 w-4 mr-2" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDownload}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </DropdownMenuItem>
+                      <ShareDocumentDialog documentId={document.id} documentName={document.name} />
+                      <DropdownMenuItem 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(e);
+                        }}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
                 </DropdownMenu>
             </div>
           )}

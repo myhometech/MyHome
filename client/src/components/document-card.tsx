@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -100,6 +100,8 @@ export default function DocumentCard({
   const [editName, setEditName] = useState(document.name);
   const [renameName, setRenameName] = useState(document.name);
   const [editImportantDate, setEditImportantDate] = useState(document.expiryDate || "");
+  const [thumbnailError, setThumbnailError] = useState(false);
+  const [thumbnailBlobUrl, setThumbnailBlobUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
   const category = categories?.find(c => c.id === document.categoryId);
@@ -154,8 +156,54 @@ export default function DocumentCard({
     }
   };
 
-  // Get thumbnail URL for ALL documents (not just images)
-  const thumbnailUrl = `/api/documents/${document.id}/thumbnail`;
+  // Fetch thumbnail as blob with authentication
+  useEffect(() => {
+    // Guard against missing document ID
+    if (!document?.id) {
+      return;
+    }
+
+    const fetchThumbnail = async () => {
+      try {
+        console.log(`[THUMBNAIL] Fetching thumbnail for document ${document.id}`);
+        const thumbnailUrl = `/api/documents/${document.id}/thumbnail`;
+        const response = await fetch(thumbnailUrl, {
+          credentials: 'include',
+          headers: {
+            'Accept': 'image/*,image/svg+xml'
+          }
+        });
+        
+        console.log(`[THUMBNAIL] Response status: ${response.status}`);
+        if (response.ok) {
+          const contentType = response.headers.get('content-type') || '';
+          console.log(`[THUMBNAIL] Content-Type: ${contentType}`);
+          
+          // For binary image data, create blob URL
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          console.log(`[THUMBNAIL] Created blob URL: ${blobUrl}`);
+          setThumbnailBlobUrl(blobUrl);
+          setThumbnailError(false);
+        } else {
+          console.warn(`[THUMBNAIL] Request failed with status: ${response.status}`);
+          setThumbnailError(true);
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch thumbnail for document ${document.id}:`, error);
+        setThumbnailError(true);
+      }
+    };
+
+    fetchThumbnail();
+
+    // Cleanup blob URL on unmount
+    return () => {
+      if (thumbnailBlobUrl) {
+        URL.revokeObjectURL(thumbnailBlobUrl);
+      }
+    };
+  }, [document?.id]);
 
   const updateDocumentMutation = useMutation({
     mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {
@@ -579,9 +627,9 @@ export default function DocumentCard({
             style={{ height: '75%' }}
             onClick={(isEditing || isRenaming) ? undefined : () => setShowModal(true)}
           >
-            {thumbnailUrl ? (
+            {thumbnailBlobUrl && !thumbnailError ? (
               <DocumentThumbnail
-                src={thumbnailUrl}
+                src={thumbnailBlobUrl}
                 alt={document.name}
                 documentId={document.id}
                 fallbackIcon={getFileIcon()}

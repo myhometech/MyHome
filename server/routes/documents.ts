@@ -1077,6 +1077,16 @@ router.get('/:id/download', requireAuth, async (req: any, res: any) => {
       return res.status(404).json({ message: 'Document not found' });
     }
 
+    console.log(`[PDF-DOWNLOAD] Attempting to serve document ${documentId} for user ${userId}`);
+    console.log(`[PDF-DOWNLOAD] Document details:`, {
+      id: document.id,
+      fileName: document.fileName,
+      mimeType: document.mimeType,
+      gcsPath: document.gcsPath,
+      filePath: document.filePath,
+      isEncrypted: document.isEncrypted
+    });
+
     // Check if document is stored in GCS
     if (document.gcsPath) {
       try {
@@ -1084,26 +1094,31 @@ router.get('/:id/download', requireAuth, async (req: any, res: any) => {
         const fileBuffer = await storageService.download(document.gcsPath);
 
         if (fileBuffer) {
+          console.log(`[PDF-DOWNLOAD] Successfully downloaded from GCS: ${fileBuffer.length} bytes`);
           // Set appropriate headers for download
           res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
           res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
           res.setHeader('Content-Length', fileBuffer.length);
+          res.setHeader('Cache-Control', 'public, max-age=3600');
           res.send(fileBuffer);
           return;
         }
       } catch (gcsError) {
-        console.warn(`Failed to download from GCS for document ${documentId}:`, gcsError);
+        console.error(`[PDF-DOWNLOAD] GCS download failed for document ${documentId}:`, gcsError);
         // Fall through to local file check
       }
     }
 
     // Check if original file exists locally
     if (document.filePath && fs.existsSync(document.filePath)) {
+      console.log(`[PDF-DOWNLOAD] Serving from local path: ${document.filePath}`);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
       res.download(path.resolve(document.filePath), document.fileName);
       return;
     }
 
     // If no file found, return 404
+    console.error(`[PDF-DOWNLOAD] Document file not found for ${documentId}`);
     res.status(404).json({
       message: 'Document file not found',
       documentId,
@@ -1112,9 +1127,83 @@ router.get('/:id/download', requireAuth, async (req: any, res: any) => {
     });
 
   } catch (error: any) {
-    console.error('Failed to download document:', error);
+    console.error(`[PDF-DOWNLOAD] Error serving document ${req.params.id}:`, error);
     res.status(500).json({
       message: 'Failed to download document',
+      error: error.message,
+    });
+  }
+});
+
+// PDF preview endpoint for direct access
+router.get('/:id/preview', requireAuth, async (req: any, res: any) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  try {
+    const documentId = parseInt(req.params.id);
+    const userId = req.user.id;
+
+    if (isNaN(documentId)) {
+      return res.status(400).json({ message: 'Invalid document ID' });
+    }
+
+    const document = await storage.getDocument(documentId, userId);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    console.log(`[PDF-PREVIEW] Serving preview for document ${documentId}`);
+
+    // Only serve PDFs for preview
+    if (document.mimeType !== 'application/pdf') {
+      return res.status(400).json({ message: 'Preview only available for PDF documents' });
+    }
+
+    // Check if document is stored in GCS
+    if (document.gcsPath) {
+      try {
+        const storageService = StorageService.initialize();
+        const fileBuffer = await storageService.download(document.gcsPath);
+
+        if (fileBuffer) {
+          console.log(`[PDF-PREVIEW] Successfully serving from GCS: ${fileBuffer.length} bytes`);
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', 'inline');
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          res.send(fileBuffer);
+          return;
+        }
+      } catch (gcsError) {
+        console.error(`[PDF-PREVIEW] GCS access failed for document ${documentId}:`, gcsError);
+        // Fall through to local file check
+      }
+    }
+
+    // Check if original file exists locally
+    if (document.filePath && fs.existsSync(document.filePath)) {
+      console.log(`[PDF-PREVIEW] Serving from local path: ${document.filePath}`);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.sendFile(path.resolve(document.filePath));
+      return;
+    }
+
+    // If no file found, return 404
+    console.error(`[PDF-PREVIEW] PDF file not found for document ${documentId}`);
+    res.status(404).json({
+      message: 'PDF file not found',
+      documentId,
+      filePath: document.filePath,
+      gcsPath: document.gcsPath
+    });
+
+  } catch (error: any) {
+    console.error(`[PDF-PREVIEW] Error serving PDF preview ${req.params.id}:`, error);
+    res.status(500).json({
+      message: 'Failed to serve PDF preview',
       error: error.message,
     });
   }

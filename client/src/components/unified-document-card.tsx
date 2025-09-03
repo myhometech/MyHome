@@ -605,6 +605,7 @@ export default function UnifiedDocumentCard({
                 </DropdownMenu>
             </div>
           )}
+        </div>
         </CardContent>
       </Card>
 

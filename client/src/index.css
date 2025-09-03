@@ -1,544 +1,439 @@
-@import "tailwindcss";
-/* your other styles below *//* Font Awesome removed - using Lucide React icons instead */
-
-/* Import Inter font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
-
-/* Import mobile viewer styles */
-@import './styles/mobile-viewer.css';
-
-/* Suppress cross-origin stylesheet warnings */
-@media print {
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-}
-
-/* Suppress cross-origin CSS access errors */
-* {
-  -webkit-font-feature-settings: normal;
-  font-feature-settings: normal;
-}
-
-@layer utilities {
-  .line-clamp-2 {
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
-  .line-clamp-3 {
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-  }
-
-  /* Mobile-optimized insight cards */
-  .mobile-insight-grid {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-2 lg:gap-2;
-  }
-
-  /* Enhanced touch targets for mobile */
-  .mobile-touch-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  /* Mobile-specific typography optimizations */
-  .mobile-card-title {
-    @apply text-sm sm:text-xs line-clamp-2 sm:line-clamp-1 leading-tight font-medium;
-  }
-
-  .mobile-card-content {
-    @apply text-sm sm:text-xs text-gray-600 line-clamp-3 sm:line-clamp-2 leading-tight;
-  }
-
-  /* Mobile insights optimizations */
-  .mobile-insight-card {
-    @apply transform-gpu; /* Enable hardware acceleration */
-  }
-
-  /* Compact insight card styling */
-  .compact-insight-card {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease-in-out;
-  }
-
-  .compact-insight-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transform: translateY(-1px);
-  }
-
-  /* Enhanced Document Viewer Mobile Optimizations */
-  @media (max-width: 767px) {
-    /* Fix tab content width consistency - minimal approach */
-    [data-state="active"][role="tabpanel"] {
-      overflow-x: hidden;
-    }
-
-    /* Prevent horizontal scrolling */
-    .mobile-document-viewer {
-      overflow-x: hidden;
-    }
-  }
-
-
-  /* Mobile document card styling */
-  .mobile-document-card {
-    transition: all 0.2s ease-in-out;
-  }
-
-  .mobile-document-card-content {
-    /* Ensure text doesn't get too small on mobile */
-    font-size: 0.75rem;
-  }
-
-  /* Force 2-column square grid on mobile - ONLY for document cards */
-  @media (max-width: 640px) {
-    .grid:has(.mobile-document-card) {
-      display: grid !important;
-      grid-template-columns: 1fr 1fr !important;
-      gap: 0.5rem !important;
-    }
-
-    .mobile-document-card {
-      aspect-ratio: 1 !important;
-      height: auto !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      min-height: 150px !important;
-      max-height: 150px !important;
-      overflow: hidden !important;
-      flex: none !important;
-      box-sizing: border-box !important;
-    }
-
-    /* Optimized card content with less white space */
-    .mobile-document-card-content {
-      padding: 0.75rem !important;
-      height: 100% !important;
-      display: flex !important;
-      flex-direction: column !important;
-      box-sizing: border-box !important;
-      gap: 0.25rem !important;
-    }
-
-    /* Readable title for square format */
-    .mobile-document-card h3 {
-      font-size: 0.875rem !important;
-      line-height: 1.2 !important;
-      margin: 0 !important;
-      font-weight: 500 !important;
-      color: #111827 !important;
-      display: -webkit-box !important;
-      -webkit-line-clamp: 3 !important;
-      -webkit-box-orient: vertical !important;
-      overflow: hidden !important;
-    }
-
-    .mobile-document-card .text-xs {
-      font-size: 0.625rem !important;
-      line-height: 1.0 !important;
-    }
-
-    /* Tiny badges for square cards */
-    .mobile-document-card .badge {
-      padding: 0.125rem 0.25rem !important;
-      font-size: 0.5rem !important;
-      line-height: 1.0 !important;
-    }
-
-    /* Hide less important elements on very small cards */
-    .mobile-document-card .hidden-on-mobile {
-      display: none !important;
-    }
-  }
-
-  /* Line clamp utility for better text handling */
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  @media (min-width: 640px) {
-    .mobile-document-card-content {
-      font-size: inherit;
-    }
-  }
-
-  /* Touch feedback for mobile insights */
-  @media (max-width: 768px) {
-    .insight-content:active {
-      transform: scale(0.98);
-      transition: transform 0.1s ease-out;
-    }
-
-    /* Optimize animations for mobile */
-    .insight-content {
-      will-change: transform;
-    }
-
-    /* Reduce motion for battery optimization */
-    @media (prefers-reduced-motion: reduce) {
-      .insight-content {
-        animation: none;
-        transition: none;
-      }
-    }
-
-    /* Ensure all interactive elements meet touch target requirements */
-    .touch-target,
-    button,
-    [role="button"],
-    .mobile-insight-button {
-      min-height: 44px;
-      min-width: 44px;
-      padding: 12px;
-    }
-
-    /* Navigation improvements */
-    .mobile-nav-item {
-      min-height: 64px;
-      min-width: 64px;
-    }
-  }
-
-  .mobile-card-metadata {
-    @apply text-sm sm:text-xs text-gray-500;
-  }
-}
-
-/* iOS Mobile Scrolling Comprehensive Fixes */
-.ios-scroll {
-  -webkit-overflow-scrolling: touch;
-  overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  scroll-behavior: smooth;
-}
-
-/* Mobile-responsive heights using dvh for iOS Safari support */
-.mobile-modal-height {
-  height: calc(100dvh - 8rem);
-  max-height: calc(100dvh - 8rem);
-}
-
-@supports not (height: 100dvh) {
-  .mobile-modal-height {
-    height: calc(100vh - 8rem);
-    max-height: calc(100vh - 8rem);
-  }
-}
-
-/* Safe area support for devices with notches */
-.safe-area-padding {
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-}
-
-/* iOS mobile button improvements - prevent overlapping touch targets */
-@media (max-width: 768px) {
-  /* Modal header button spacing on mobile */
-  .modal-header-close-btn {
-    min-width: 44px !important;
-    min-height: 44px !important;
-    padding: 8px !important;
-    margin-left: 12px !important;
-  }
-
-  /* Download button in preview header */
-  .preview-download-btn {
-    min-width: 88px !important;
-    min-height: 36px !important;
-    padding: 8px 12px !important;
-    margin-right: 8px !important;
-  }
-
-  /* Ensure proper spacing between modal elements */
-  .modal-header-title {
-    padding-right: 16px !important;
-    margin-right: 8px !important;
-  }
-}
-
-/* iOS Safari specific fixes */
-@supports (-webkit-touch-callout: none) {
-  .modal-header-close-btn {
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  .preview-download-btn {
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-}
-
-/* Enhanced insights scrolling container */
-.insights-scroll-container {
-  -webkit-overflow-scrolling: touch;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scroll-padding-top: 1rem;
-  touch-action: pan-y;
-}
-
-/* Smooth insight card animations */
-.insight-card-enter {
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.insight-card-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Mobile Dialog Improvements */
-@media (max-width: 640px) {
-  /* Ensure dialogs are properly centered and sized on mobile */
-  .dialog-content {
-    margin: 1rem !important;
-    width: calc(100vw - 2rem) !important;
-    max-width: calc(100vw - 2rem) !important;
-    max-height: 90vh !important;
-    left: 50% !important;
-    top: 50% !important;
-    transform: translate(-50%, -50%) !important;
-  }
-
-  /* Mobile-friendly form inputs */
-  .mobile-form input,
-  .mobile-form select,
-  .mobile-form textarea {
-    font-size: 16px !important; /* Prevent zoom on iOS */
-    min-height: 44px !important; /* Apple touch target size */
-  }
-
-  /* Ensure buttons are touch-friendly */
-  .mobile-form button {
-    min-height: 44px !important;
-    min-width: 44px !important;
-  }
-
-  /* File upload zone improvements */
-  .upload-zone {
-    padding: 1rem !important;
-    margin: 0.5rem 0 !important;
-  }
-
-  /* Category selection improvements */
-  .category-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 0.5rem !important;
-  }
-
-  .color-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 0.5rem !important;
-  }
-}
-
-/* Prevent horizontal scrolling on mobile */
-@media (max-width: 640px) {
-  .modal-container {
-    overflow-x: hidden !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  .modal-container * {
-    box-sizing: border-box !important;
-  }
-}
-
-
-/* Text wrapping and spacing improvements */
-.insight-content {
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  hyphens: auto;
-  line-height: 1.5;
-}
-
-/* Back to top button */
-.back-to-top-button {
-  position: fixed;
-  bottom: calc(2rem + env(safe-area-inset-bottom));
-  right: 1rem;
-  z-index: 50;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.back-to-top-button.hidden {
-  opacity: 0;
-  transform: translateY(10px);
-  pointer-events: none;
-}
-
-/* PDF Viewer Styles */
-.pdf-page canvas {
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.react-pdf__Document {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.react-pdf__Page {
-  margin: 10px 0;
-}
-
-.react-pdf__Page__textContent {
-  user-select: text;
-}
-
-.react-pdf__Page__annotations.annotationLayer {
-  z-index: 1;
-}
-
-:root {
-  --background: #FEFCFF; /* Very light purple tint instead of warm ivory */
-  --foreground: hsl(220, 14.3%, 4.1%);
-  --muted: hsl(220, 4.8%, 95.9%);
-  --muted-foreground: hsl(220, 5.3%, 44.7%);
-  --popover: #FEFCFF; /* Very light purple tint for popovers */
-  --popover-foreground: hsl(220, 14.3%, 4.1%);
-  --card: #FEFCFF; /* Very light purple tint for cards */
-  --card-foreground: hsl(220, 14.3%, 4.1%);
-  --border: hsl(220, 5.9%, 90%);
-  --input: hsl(220, 5.9%, 90%);
-  --primary: hsl(207, 90%, 54%); /* Primary Blue maintained */
-  --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(220, 4.8%, 95.9%);
-  --secondary-foreground: hsl(220, 9.8%, 10%);
-  --accent: hsl(220, 4.8%, 95.9%);
-  --accent-foreground: hsl(220, 9.8%, 10%);
-  --destructive: hsl(0, 84.2%, 60.2%);
-  --destructive-foreground: hsl(220, 9.1%, 97.8%);
-  --ring: hsl(220, 14.3%, 4.1%);
-  --radius: 0.5rem;
-
-  /* Custom colors for purple theme */
-  --surface: hsl(270, 25%, 98%); /* Light purple-tinted surfaces */
-  --text-secondary: hsl(215, 13.8%, 34.1%);
-  --border-light: hsl(215, 20%, 89%);
-
-  /* New warm color palette */
-  --warm-background: #FAF4EF; /* Linen/warm ivory */
-  --trust-base: #2B2F40; /* Slate Blue for sidebars, headers */
-  --sage-green: #A5C9A1; /* Secondary actions, confirmations */
-  --dusty-lavender: #A1A4D6; /* Icon accents, tags */
-  --soft-coral: #E28F83; /* Warm highlights, mild attention */
-
-  /* Document type colors (warmer tones) */
-  --doc-emerald: hsl(158, 64%, 52%); /* Images - emerald green */
-  --doc-red: #E74C3C; /* PDFs - calm red */
-  --doc-blue: hsl(207, 90%, 54%); /* Documents - primary blue */
-
-  /* Purple theme color definitions - #5A189A as primary */
-  --accent-purple-50: #E0AAFF;   /* Lightest purple */
-  --accent-purple-100: #C77DFF;  /* Light purple */
-  --accent-purple-200: #9D4EDD;  /* Medium light purple */
-  --accent-purple-300: #7B2CBF;  /* Medium purple */
-  --accent-purple-400: #5A189A;  /* PRIMARY COLOR */
-  --accent-purple-500: #5A189A;  /* PRIMARY COLOR */
-  --accent-purple-600: #5A189A;  /* PRIMARY COLOR */
-  --accent-purple-700: #5A189A;  /* PRIMARY COLOR */
-  --accent-purple-800: #5A189A;  /* PRIMARY COLOR */
-  --accent-purple-900: #5A189A;  /* PRIMARY COLOR */
-
-  /* Additional shades for better gradients */
-  --accent-purple-light: #E0AAFF; /* Alias for lightest */
-  --accent-purple-dark: #5A189A;  /* Alias for primary */
-}
-
-/* Mobile Insights Drawer - Safe Area Support */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .mobile-insights-safe-area {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .mobile-insights-trigger-safe {
-    bottom: max(24px, calc(24px + env(safe-area-inset-bottom)));
-  }
-}
-
-/* Custom scrollbar for mobile insights */
-.mobile-insights-scroll::-webkit-scrollbar {
-  width: 3px;
-}
-
-.mobile-insights-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.mobile-insights-scroll::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
-  opacity: 0.3;
-  border-radius: 2px;
-}
-
-.mobile-insights-scroll::-webkit-scrollbar-thumb:hover {
-  opacity: 0.5;
-}
-
-/* Touch improvements for mobile insights - ENHANCED FOR SCROLLING */
-@media (max-width: 640px) {
-  .mobile-insights-drawer {
-    touch-action: pan-y;
-    -webkit-overflow-scrolling: touch;
-    overflow-scrolling: touch;
-    height: auto !important;
-    max-height: none !important;
-    min-height: 0 !important;
-  }
-
-  .mobile-insights-trigger {
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-  }
-
-  /* Ensure insights content can scroll */
-  .mobile-insights-scroll {
-    height: auto !important;
-    max-height: calc(80vh - 120px) !important;
-    min-height: 200px !important;
-    overflow-y: auto !important;
-    overscroll-behavior: contain !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-}
-
-/* Responsive breakpoints for insights drawer */
-@media (max-width: 375px) {
-  /* iPhone SE and small screens */
-  .mobile-insights-small {
-    font-size: 0.875rem;
-    padding: 0.75rem;
-  }
-}
-
-@media (min-width: 640px) and (max-width: 768px) {
-  /* Large mobile / small tablet */
-  .mobile-insights-large-mobile {
-    max-width: 28rem;
-    margin: 0 auto;
-  }
-}
-
-.dark {
-  --background: hsl(220, 10%, 3.9%);
-  --foreground: hsl(0, 0
+                    @import "tailwindcss";
+                    /* Font Awesome removed - using Lucide React icons instead */
+
+                    /* Import Inter font */
+                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+                    /* Import mobile viewer styles */
+                    @import './styles/mobile-viewer.css';
+
+                    /* Suppress cross-origin stylesheet warnings */
+                    @media print {
+                      * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                      }
+                    }
+
+                    /* Suppress cross-origin CSS access errors */
+                    * {
+                      -webkit-font-feature-settings: normal;
+                      font-feature-settings: normal;
+                    }
+
+                    @layer utilities {
+                      .line-clamp-2 {
+                        overflow: hidden;
+                        display: -webkit-box;
+                        -webkit-box-orient: vertical;
+                        -webkit-line-clamp: 2;
+                      }
+
+                      .line-clamp-3 {
+                        overflow: hidden;
+                        display: -webkit-box;
+                        -webkit-box-orient: vertical;
+                        -webkit-line-clamp: 3;
+                      }
+
+                      /* Mobile-optimized insight cards */
+                      .mobile-insight-grid {
+                        @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-2 lg:gap-2;
+                      }
+
+                      /* Enhanced touch targets for mobile */
+                      .mobile-touch-target {
+                        min-height: 44px;
+                        min-width: 44px;
+                      }
+
+                      /* Mobile-specific typography optimizations */
+                      .mobile-card-title {
+                        @apply text-sm sm:text-xs line-clamp-2 sm:line-clamp-1 leading-tight font-medium;
+                      }
+
+                      .mobile-card-content {
+                        @apply text-sm sm:text-xs text-gray-600 line-clamp-3 sm:line-clamp-2 leading-tight;
+                      }
+
+                      /* Mobile insights optimizations */
+                      .mobile-insight-card {
+                        @apply transform-gpu; /* Enable hardware acceleration */
+                      }
+
+                      /* Compact insight card styling */
+                      .compact-insight-card {
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                        transition: all 0.2s ease-in-out;
+                      }
+
+                      .compact-insight-card:hover {
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                        transform: translateY(-1px);
+                      }
+
+                      /* Enhanced Document Viewer Mobile Optimizations */
+                      @media (max-width: 767px) {
+                        [data-state="active"][role="tabpanel"] {
+                          overflow-x: hidden;
+                        }
+
+                        .mobile-document-viewer {
+                          overflow-x: hidden;
+                        }
+                      }
+
+                      .mobile-document-card {
+                        transition: all 0.2s ease-in-out;
+                      }
+
+                      .mobile-document-card-content {
+                        font-size: 0.75rem;
+                      }
+
+                      @media (max-width: 640px) {
+                        .grid:has(.mobile-document-card) {
+                          display: grid !important;
+                          grid-template-columns: 1fr 1fr !important;
+                          gap: 0.5rem !important;
+                        }
+
+                        .mobile-document-card {
+                          aspect-ratio: 1 !important;
+                          height: auto !important;
+                          width: 100% !important;
+                          min-height: 150px !important;
+                          max-height: 150px !important;
+                          overflow: hidden !important;
+                          flex: none !important;
+                          box-sizing: border-box !important;
+                        }
+
+                        .mobile-document-card-content {
+                          padding: 0.75rem !important;
+                          height: 100% !important;
+                          display: flex !important;
+                          flex-direction: column !important;
+                          gap: 0.25rem !important;
+                        }
+
+                        .mobile-document-card h3 {
+                          font-size: 0.875rem !important;
+                          line-height: 1.2 !important;
+                          margin: 0 !important;
+                          font-weight: 500 !important;
+                          color: #111827 !important;
+                          display: -webkit-box !important;
+                          -webkit-line-clamp: 3 !important;
+                          -webkit-box-orient: vertical !important;
+                          overflow: hidden !important;
+                        }
+
+                        .mobile-document-card .text-xs {
+                          font-size: 0.625rem !important;
+                          line-height: 1.0 !important;
+                        }
+
+                        .mobile-document-card .badge {
+                          padding: 0.125rem 0.25rem !important;
+                          font-size: 0.5rem !important;
+                          line-height: 1.0 !important;
+                        }
+
+                        .mobile-document-card .hidden-on-mobile {
+                          display: none !important;
+                        }
+                      }
+
+                      .line-clamp-2 {
+                        display: -webkit-box;
+                        -webkit-line-clamp: 2;
+                        -webkit-box-orient: vertical;
+                        overflow: hidden;
+                      }
+
+                      @media (min-width: 640px) {
+                        .mobile-document-card-content {
+                          font-size: inherit;
+                        }
+                      }
+
+                      @media (max-width: 768px) {
+                        .insight-content:active {
+                          transform: scale(0.98);
+                          transition: transform 0.1s ease-out;
+                        }
+
+                        .insight-content {
+                          will-change: transform;
+                        }
+
+                        @media (prefers-reduced-motion: reduce) {
+                          .insight-content {
+                            animation: none;
+                            transition: none;
+                          }
+                        }
+
+                        .touch-target,
+                        button,
+                        [role="button"],
+                        .mobile-insight-button {
+                          min-height: 44px;
+                          min-width: 44px;
+                          padding: 12px;
+                        }
+
+                        .mobile-nav-item {
+                          min-height: 64px;
+                          min-width: 64px;
+                        }
+                      }
+
+                      .mobile-card-metadata {
+                        @apply text-sm sm:text-xs text-gray-500;
+                      }
+                    }
+
+                    /* iOS scrolling fixes */
+                    .ios-scroll {
+                      -webkit-overflow-scrolling: touch;
+                      overscroll-behavior: contain;
+                      touch-action: pan-y;
+                      scroll-behavior: smooth;
+                    }
+
+                    /* Mobile-responsive heights */
+                    .mobile-modal-height {
+                      height: calc(100dvh - 8rem);
+                      max-height: calc(100dvh - 8rem);
+                    }
+
+                    @supports not (height: 100dvh) {
+                      .mobile-modal-height {
+                        height: calc(100vh - 8rem);
+                        max-height: calc(100vh - 8rem);
+                      }
+                    }
+
+                    .safe-area-padding {
+                      padding-bottom: env(safe-area-inset-bottom);
+                      padding-left: env(safe-area-inset-left);
+                      padding-right: env(safe-area-inset-right);
+                    }
+
+                    /* iOS mobile button fixes */
+                    @media (max-width: 768px) {
+                      .modal-header-close-btn {
+                        min-width: 44px !important;
+                        min-height: 44px !important;
+                        padding: 8px !important;
+                        margin-left: 12px !important;
+                      }
+
+                      .preview-download-btn {
+                        min-width: 88px !important;
+                        min-height: 36px !important;
+                        padding: 8px 12px !important;
+                        margin-right: 8px !important;
+                      }
+
+                      .modal-header-title {
+                        padding-right: 16px !important;
+                        margin-right: 8px !important;
+                      }
+                    }
+
+                    @supports (-webkit-touch-callout: none) {
+                      .modal-header-close-btn,
+                      .preview-download-btn {
+                        -webkit-touch-callout: none;
+                        -webkit-user-select: none;
+                        user-select: none;
+                      }
+                    }
+
+                    /* insights scroll container */
+                    .insights-scroll-container {
+                      -webkit-overflow-scrolling: touch;
+                      overflow-y: auto;
+                      overscroll-behavior-y: contain;
+                      scroll-padding-top: 1rem;
+                      touch-action: pan-y;
+                    }
+
+                    /* smooth insight animations */
+                    .insight-card-enter {
+                      opacity: 0;
+                      transform: translateY(10px);
+                      transition: opacity 0.3s ease, transform 0.3s ease;
+                    }
+                    .insight-card-enter-active {
+                      opacity: 1;
+                      transform: translateY(0);
+                    }
+
+                    /* mobile dialogs */
+                    @media (max-width: 640px) {
+                      .dialog-content {
+                        margin: 1rem !important;
+                        width: calc(100vw - 2rem) !important;
+                        max-width: calc(100vw - 2rem) !important;
+                        max-height: 90vh !important;
+                        left: 50% !important;
+                        top: 50% !important;
+                        transform: translate(-50%, -50%) !important;
+                      }
+
+                      .mobile-form input,
+                      .mobile-form select,
+                      .mobile-form textarea {
+                        font-size: 16px !important;
+                        min-height: 44px !important;
+                      }
+
+                      .mobile-form button {
+                        min-height: 44px !important;
+                        min-width: 44px !important;
+                      }
+
+                      .upload-zone {
+                        padding: 1rem !important;
+                        margin: 0.5rem 0 !important;
+                      }
+
+                      .category-grid,
+                      .color-grid {
+                        grid-template-columns: repeat(3, 1fr) !important;
+                        gap: 0.5rem !important;
+                      }
+                    }
+
+                    @media (max-width: 640px) {
+                      .modal-container {
+                        overflow-x: hidden !important;
+                        width: 100% !important;
+                        box-sizing: border-box !important;
+                      }
+
+                      .modal-container * {
+                        box-sizing: border-box !important;
+                      }
+                    }
+
+                    /* general text tweaks */
+                    .insight-content {
+                      word-wrap: break-word;
+                      overflow-wrap: break-word;
+                      hyphens: auto;
+                      line-height: 1.5;
+                    }
+
+                    /* back-to-top button */
+                    .back-to-top-button {
+                      position: fixed;
+                      bottom: calc(2rem + env(safe-area-inset-bottom));
+                      right: 1rem;
+                      z-index: 50;
+                      transition: opacity 0.3s ease, transform 0.3s ease;
+                    }
+                    .back-to-top-button.hidden {
+                      opacity: 0;
+                      transform: translateY(10px);
+                      pointer-events: none;
+                    }
+
+                    /* PDF viewer */
+                    .pdf-page canvas {
+                      border-radius: 4px;
+                      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                    }
+                    .react-pdf__Document {
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                    }
+                    .react-pdf__Page {
+                      margin: 10px 0;
+                    }
+                    .react-pdf__Page__textContent {
+                      user-select: text;
+                    }
+                    .react-pdf__Page__annotations.annotationLayer {
+                      z-index: 1;
+                    }
+
+                    :root {
+                      --background: #FEFCFF;
+                      --foreground: hsl(220, 14.3%, 4.1%);
+                      --muted: hsl(220, 4.8%, 95.9%);
+                      --muted-foreground: hsl(220, 5.3%, 44.7%);
+                      --popover: #FEFCFF;
+                      --popover-foreground: hsl(220, 14.3%, 4.1%);
+                      --card: #FEFCFF;
+                      --card-foreground: hsl(220, 14.3%, 4.1%);
+                      --border: hsl(220, 5.9%, 90%);
+                      --input: hsl(220, 5.9%, 90%);
+                      --primary: hsl(207, 90%, 54%);
+                      --primary-foreground: hsl(211, 100%, 99%);
+                      --secondary: hsl(220, 4.8%, 95.9%);
+                      --secondary-foreground: hsl(220, 9.8%, 10%);
+                      --accent: hsl(220, 4.8%, 95.9%);
+                      --accent-foreground: hsl(220, 9.8%, 10%);
+                      --destructive: hsl(0, 84.2%, 60.2%);
+                      --destructive-foreground: hsl(220, 9.1%, 97.8%);
+                      --ring: hsl(220, 14.3%, 4.1%);
+                      --radius: 0.5rem;
+                      --surface: hsl(270, 25%, 98%);
+                      --text-secondary: hsl(215, 13.8%, 34.1%);
+                      --border-light: hsl(215, 20%, 89%);
+                      --warm-background: #FAF4EF;
+                      --trust-base: #2B2F40;
+                      --sage-green: #A5C9A1;
+                      --dusty-lavender: #A1A4D6;
+                      --soft-coral: #E28F83;
+                      --doc-emerald: hsl(158, 64%, 52%);
+                      --doc-red: #E74C3C;
+                      --doc-blue: hsl(207, 90%, 54%);
+                      --accent-purple-50: #E0AAFF;
+                      --accent-purple-100: #C77DFF;
+                      --accent-purple-200: #9D4EDD;
+                      --accent-purple-300: #7B2CBF;
+                      --accent-purple-400: #5A189A;
+                      --accent-purple-500: #5A189A;
+                      --accent-purple-600: #5A189A;
+                      --accent-purple-700: #5A189A;
+                      --accent-purple-800: #5A189A;
+                      --accent-purple-900: #5A189A;
+                      --accent-purple-light: #E0AAFF;
+                      --accent-purple-dark: #5A189A;
+                    }
+
+                    .dark {
+                      --background: hsl(220, 10%, 3.9%);
+                      --foreground: hsl(0, 0%, 98%);
+                      --muted: hsl(220, 3.7%, 15.9%);
+                      --muted-foreground: hsl(220, 5%, 64.9%);
+                      --popover: hsl(220, 10%, 3.9%);
+                      --popover-foreground: hsl(0, 0%, 98%);
+                      --card: hsl(220, 10%, 3.9%);
+                      --card-foreground: hsl(0, 0%, 98%);
+                      --border: hsl(220, 3.7%, 15.9%);
+                      --input: hsl(220, 3.7%, 15.9%);
+                      --primary: hsl(207, 90%, 54%);
+                      --primary-foreground: hsl(211, 100%, 99%);
+                      --secondary: hsl(220, 3.7%, 15.9%);
+                      --secondary-foreground: hsl(0, 0%, 98%);
+                      --accent: hsl(220, 3.7%, 15.9%);
+                      --accent-foreground: hsl(0, 0%, 98%);
+                      --destructive: hsl(0, 62.8%, 30.6%);
+                      --destructive-foreground: hsl(0, 0%, 98%);
+                      --ring: hsl(220, 4.9%, 83.9%);
+                      --radius: 0.5rem;
+                      --surface: hsl(220, 13%, 8%);
+                      --text-secondary: hsl(220, 9%, 64%);
+                      --accent-green: hsl(158, 64%, 52%);
+                      --border-light: hsl(220, 13%, 18%);
+                      --accent-purple: hsl(239, 100%, 56%);
+                      --accent-cyan: hsl(180, 100%, 56%);
+                    }

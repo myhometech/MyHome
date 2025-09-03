@@ -490,8 +490,14 @@ router.get('/:id', requireAuth, async (req: any, res: any) => {
 });
 
 // Get document thumbnail  
-router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
-  console.log(`[THUMBNAIL-DEBUG] ===== THUMBNAIL ROUTE ACCESSED for document ${req.params.id} =====`);
+router.get('/:id/thumbnail', (req: any, res: any, next: any) => {
+  console.log(`🎯 [THUMBNAIL-PRE-AUTH] ===== THUMBNAIL REQUEST for document ${req.params.id} =====`);
+  console.log(`🎯 [THUMBNAIL-PRE-AUTH] User-Agent: ${req.get('User-Agent')}`);
+  console.log(`🎯 [THUMBNAIL-PRE-AUTH] Session ID: ${req.sessionID}`);
+  console.log(`🎯 [THUMBNAIL-PRE-AUTH] Has req.user: ${!!req.user}`);
+  next();
+}, requireAuth, async (req: any, res: any) => {
+  console.log(`[THUMBNAIL-DEBUG] ===== AUTHENTICATED THUMBNAIL ROUTE for document ${req.params.id} =====`);
   console.log(`[THUMBNAIL-DEBUG] User: ${req.user?.id || 'NONE'}`);
   console.log(`[THUMBNAIL-DEBUG] Session: ${!!req.session}`);
   

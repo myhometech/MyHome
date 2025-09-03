@@ -489,12 +489,14 @@ router.get('/:id', requireAuth, async (req: any, res: any) => {
   }
 });
 
-// Get document thumbnail
+// Get document thumbnail  
 router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
-  console.log(`[THUMBNAIL-DEBUG] Thumbnail route accessed for document ${req.params.id}`);
+  console.log(`[THUMBNAIL-DEBUG] ===== THUMBNAIL ROUTE ACCESSED for document ${req.params.id} =====`);
+  console.log(`[THUMBNAIL-DEBUG] User: ${req.user?.id || 'NONE'}`);
+  console.log(`[THUMBNAIL-DEBUG] Session: ${!!req.session}`);
   
   if (!req.user) {
-    console.log(`[THUMBNAIL-DEBUG] No user found, returning 401`);
+    console.log(`[THUMBNAIL-DEBUG] ❌ No user found, returning 401`);
     return res.status(401).json({ message: 'Authentication required' });
   }
 

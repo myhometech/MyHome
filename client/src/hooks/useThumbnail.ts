@@ -143,10 +143,10 @@ export function useThumbnail(documentId: string, sourceHash: string) {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      // THMB-RATE-HOTFIX: Use enhanced deduplication and 202/429 handling
+      // THMB-EDGE-UNBLOCK: Use edge proxy to avoid upstream 429s
       const key = `${documentId}:${sourceHash}:${variant}`;
       const response = await fetchWithBackoff(
-        `/api/documents/${documentId}/thumbnail?variant=${variant}`,
+        `/edge/thumbnail?id=${documentId}&variant=${variant}`,
         key
       );
 

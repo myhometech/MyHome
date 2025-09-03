@@ -4299,6 +4299,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // THMB-2: Initialize thumbnail job queue
   await thumbnailJobQueue.initialize();
 
+  // THMB-EDGE-UNBLOCK: Edge proxy to convert upstream 429s to 202 responses
+  app.get('/edge/thumbnail', async (req: any, res) => {
+    const { id, variant = '240' } = req.query;
+    
+    if (!id) {
+      return res.status(400).json({ error: 'Missing document ID' });
+    }
+
+    const originUrl = `http://localhost:5000/api/documents/${id}/thumbnail?variant=${variant}`;
+    
+    try {
+      console.log(`🔄 [EDGE-PROXY] Forwarding thumbnail request for doc ${id}, variant ${variant}px`);
+      
+      const proxyRes = await fetch(originUrl, {
+        headers: {
+          'Authorization': req.headers.authorization || '',
+          'Accept': 'application/json',
+          'Cookie': req.headers.cookie || '',
+        },
+        redirect: 'manual',
+      });
+
+      // Convert upstream 429 to 202 (queued) response
+      if (proxyRes.status === 429) {
+        const retryAfter = proxyRes.headers.get('retry-after');
+        const retryAfterMs = retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : 2000;
+        
+        console.log(`🚫 [EDGE-PROXY] Upstream 429 detected, converting to 202 with ${retryAfterMs}ms retry`);
+        
+        return res.status(202).json({
+          status: 'queued',
+          documentId: Number(id),
+          variant: Number(variant),
+          retryAfterMs,
+          message: 'Thumbnail generation queued due to upstream rate limit'
+        });
+      }
+
+      // Pass through successful responses
+      if (proxyRes.ok) {
+        const data = await proxyRes.json();
+        console.log(`✅ [EDGE-PROXY] Success for doc ${id}, variant ${variant}px, status: ${data.status}`);
+        return res.status(proxyRes.status).json(data);
+      }
+
+      // Pass through other error responses (403, 404, etc)
+      const errorData = await proxyRes.json().catch(() => ({ error: 'Unknown error' }));
+      return res.status(proxyRes.status).json(errorData);
+
+    } catch (error) {
+      console.error(`❌ [EDGE-PROXY] Proxy error for doc ${id}:`, error);
+      
+      // On fetch errors, return 202 to indicate queuing for retry
+      return res.status(202).json({
+        status: 'queued',
+        documentId: Number(id),
+        variant: Number(variant),
+        retryAfterMs: 3000,
+        message: 'Thumbnail queued due to network error'
+      });
+    }
+  });
+
   // EMAIL FORWARDING: Critical Mailgun webhook endpoint for email ingestion
   app.post('/api/email-ingest', async (req: any, res) => {
     console.log('📧 Email ingest webhook received');

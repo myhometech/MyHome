@@ -4299,6 +4299,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // THMB-2: Initialize thumbnail job queue
   await thumbnailJobQueue.initialize();
 
+  // EMAIL FORWARDING: Critical Mailgun webhook endpoint for email ingestion
+  app.post('/api/email-ingest', async (req: any, res) => {
+    console.log('📧 Email ingest webhook received');
+    console.log('📧 Request headers:', {
+      'content-type': req.get('Content-Type'),
+      'user-agent': req.get('User-Agent'),
+      'x-forwarded-for': req.get('X-Forwarded-For')
+    });
+    
+    try {
+      // Parse email data from Mailgun webhook
+      const { parseMailgunWebhook } = await import('./mailgunService.js');
+      const { message, isValid, error } = parseMailgunWebhook(req);
+
+      if (!isValid) {
+        console.error('❌ Invalid Mailgun webhook data:', error);
+        return res.status(400).json({ error: 'Invalid webhook data', details: error });
+      }
+
+      // Extract user ID from recipient email (e.g., u123-abc@uploads.myhome-tech.com)
+      const { extractUserIdFromRecipient } = await import('./mailgunService.js');
+      const userId = extractUserIdFromRecipient(message.recipient);
+      
+      if (!userId) {
+        console.error('❌ Cannot extract user ID from recipient:', message.recipient);
+        return res.status(400).json({ error: 'Invalid recipient format' });
+      }
+
+      // Verify user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        console.error('❌ User not found for ID:', userId);
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      console.log(`✅ Processing email for user: ${user.email} (${userId})`);
+      console.log(`📧 Email details:`, {
+        from: message.sender,
+        subject: message.subject,
+        attachments: message.attachments.length,
+        hasBodyHtml: !!message.bodyHtml,
+        hasBodyPlain: !!message.bodyPlain
+      });
+
+      // Process attachments if any
+      if (message.attachments && message.attachments.length > 0) {
+        console.log(`📎 Processing ${message.attachments.length} attachments`);
+        
+        const { AttachmentProcessor } = await import('./attachmentProcessor.js');
+        const processor = new AttachmentProcessor();
+        
+        const result = await processor.processEmailAttachments(
+          message.attachments,
+          userId,
+          {
+            from: message.sender,
+            subject: message.subject,
+            requestId: message.messageId || Date.now().toString()
+          }
+        );
+
+        return res.status(200).json({
+          success: true,
+          message: 'Email processed with attachments',
+          documentsCreated: result.totalProcessed,
+          totalAttachments: message.attachments.length,
+          failedAttachments: result.totalFailed
+        });
+      }
+
+      // No attachments - create email body PDF if content exists
+      if (message.bodyHtml || message.bodyPlain) {
+        console.log('📧 Creating email body PDF (no attachments)');
+        
+        const { renderAndCreateEmailBodyPdf } = await import('./emailBodyPdfService.js');
+        
+        const emailBodyInput = {
+          tenantId: userId,
+          messageId: message.messageId || `msg_${Date.now()}`,
+          subject: message.subject,
+          from: message.sender,
+          to: [message.recipient],
+          receivedAt: new Date().toISOString(),
+          html: message.bodyHtml,
+          text: message.bodyPlain,
+          ingestGroupId: Date.now().toString(),
+          tags: ['email']
+        };
+        
+        const result = await renderAndCreateEmailBodyPdf(emailBodyInput);
+        
+        if (result.created) {
+          console.log(`✅ Created email body PDF document: ${result.documentId}`);
+          return res.status(200).json({
+            success: true,
+            message: 'Email body converted to PDF',
+            documentId: result.documentId,
+            documentsCreated: 1
+          });
+        }
+      }
+
+      // No content to process
+      return res.status(200).json({
+        success: true,
+        message: 'Email received but no processable content found',
+        documentsCreated: 0
+      });
+
+    } catch (error) {
+      console.error('❌ Email ingest error:', error);
+      res.status(500).json({
+        error: 'Email processing failed',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Register test routes
   if (process.env.NODE_ENV === 'development') {
     app.use('/api/test', requireAuth, testRouter);

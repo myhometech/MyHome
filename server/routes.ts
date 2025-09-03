@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupSimpleAuth } from "./simpleAuth";
 import { AuthService } from "./authService";
-import { requireAuth } from "./middleware/auth";
+import { requireAuth, AuthenticatedRequest } from "./middleware/auth";
 import { loadHouseholdRole, requireRole, requireDocumentAccess, getRoleDisplayName, getRolePermissions, hasRole } from "./middleware/roleBasedAccess";
 import { AuditLogger } from "./auditLogger";
 import multer from "multer";
@@ -767,7 +767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/documents', requireAuth, upload.single('file'), async (req: any, res) => {
+  app.post('/api/documents', requireAuth, upload.single('file'), async (req: AuthenticatedRequest, res) => {
     let tempFilePath = null;
     let convertedFilePath = null;
 

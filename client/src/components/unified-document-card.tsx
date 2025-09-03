@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { ShareDocumentDialog } from "./share-document-dialog";
 import { EnhancedDocumentViewer } from "./enhanced-document-viewer";
+import { ThumbnailImage } from "./ThumbnailImage";
 import { format } from "date-fns";
 
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -60,6 +61,7 @@ interface Document {
   expiryDate: string | null;
   status?: string | null;
   uploadSource?: string | null;
+  sourceHash?: string | null; // SHA-256 hash for thumbnail generation
 }
 
 interface Category {
@@ -157,128 +159,7 @@ export default function UnifiedDocumentCard({
   const [renameName, setRenameName] = useState(document.name);
   const [editImportantDate, setEditImportantDate] = useState(document.expiryDate || "");
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [thumbnailError, setThumbnailError] = useState(false);
-  const [thumbnailBlobUrl, setThumbnailBlobUrl] = useState<string | null>(null);
 
-  // Fetch thumbnail as blob with authentication and retry logic
-  useEffect(() => {
-    // Guard against missing document ID
-    if (!document?.id) {
-      return;
-    }
-
-    let isMounted = true;
-    let currentBlobUrl: string | null = null;
-
-    const fetchThumbnail = async (retryCount = 0) => {
-      const maxRetries = 3; // Increased retries
-      
-      try {
-        console.log(`[THUMBNAIL] Fetching thumbnail for document ${document.id} (attempt ${retryCount + 1})`);
-        const thumbnailUrl = `/api/documents/${document.id}/thumbnail?v=${Date.now()}&retry=${retryCount}`; // Add retry indicator
-        const response = await fetch(thumbnailUrl, {
-          credentials: 'include',
-          headers: {
-            'Accept': 'image/*,image/svg+xml'
-          },
-          signal: AbortSignal.timeout(15000) // Increased timeout to 15 seconds
-        });
-        
-        console.log(`[THUMBNAIL] Response status: ${response.status}, content-length: ${response.headers.get('content-length')}`);
-        if (!isMounted) return; // Component unmounted, abort
-        
-        if (response.ok) {
-          const contentType = response.headers.get('content-type') || '';
-          console.log(`[THUMBNAIL] Content-Type: ${contentType}`);
-          
-          // Handle SVG responses (including placeholders)
-          if (contentType.includes('image/svg+xml') || contentType.includes('text/plain')) {
-            const svgText = await response.text();
-            console.log(`[THUMBNAIL] Got SVG text: ${svgText.substring(0, 100)}...`);
-            
-            if (!isMounted) return;
-            
-            if (svgText.includes('<svg')) {
-              // Create data URL for SVG
-              const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
-              setThumbnailBlobUrl(dataUrl);
-              setThumbnailError(false);
-              console.log(`[THUMBNAIL] Successfully set SVG data URL`);
-            } else {
-              console.warn(`[THUMBNAIL] Invalid SVG format`);
-              // If we get invalid SVG and have retries left, try again
-              if (retryCount < maxRetries) {
-                console.log(`[THUMBNAIL] Invalid SVG, retrying in 2 seconds...`);
-                setTimeout(() => fetchThumbnail(retryCount + 1), 2000);
-                return;
-              }
-              setThumbnailError(true);
-            }
-          } else {
-            // For binary image data, create blob URL
-            const blob = await response.blob();
-            if (!isMounted) return;
-            
-            if (blob.size === 0) {
-              console.warn(`[THUMBNAIL] Received empty blob`);
-              if (retryCount < maxRetries) {
-                console.log(`[THUMBNAIL] Empty blob, retrying in ${(retryCount + 1) * 2} seconds...`);
-                setTimeout(() => fetchThumbnail(retryCount + 1), (retryCount + 1) * 2000);
-                return;
-              }
-              setThumbnailError(true);
-              return;
-            }
-            
-            currentBlobUrl = URL.createObjectURL(blob);
-            console.log(`[THUMBNAIL] Created blob URL: ${currentBlobUrl}, blob size: ${blob.size}`);
-            setThumbnailBlobUrl(currentBlobUrl);
-            setThumbnailError(false);
-          }
-        } else {
-          console.warn(`[THUMBNAIL] Request failed with status: ${response.status}`);
-          
-          // Retry on server errors and timeouts
-          if ([500, 502, 503, 504, 408].includes(response.status) && retryCount < maxRetries) {
-            const retryDelay = Math.min((retryCount + 1) * 3000, 10000); // Max 10 second delay
-            console.log(`[THUMBNAIL] Server error, retrying in ${retryDelay/1000} seconds...`);
-            setTimeout(() => fetchThumbnail(retryCount + 1), retryDelay);
-            return;
-          }
-          
-          if (isMounted) {
-            setThumbnailError(true);
-          }
-        }
-      } catch (error) {
-        console.warn(`Failed to fetch thumbnail for document ${document.id} (attempt ${retryCount + 1}):`, error);
-        
-        // Retry on network errors with exponential backoff
-        if (retryCount < maxRetries && isMounted) {
-          const retryDelay = Math.min((retryCount + 1) * 3000, 10000);
-          console.log(`[THUMBNAIL] Network error, retrying in ${retryDelay/1000} seconds...`);
-          setTimeout(() => fetchThumbnail(retryCount + 1), retryDelay);
-          return;
-        }
-        
-        if (isMounted) {
-          setThumbnailError(true);
-        }
-      }
-    };
-
-    // Initial fetch with delay to let server stabilize
-    const initialDelay = Math.min(retryCount * 500 + 200, 2000); // Stagger requests
-    setTimeout(() => fetchThumbnail(), initialDelay);
-
-    // Cleanup function
-    return () => {
-      isMounted = false;
-      if (currentBlobUrl) {
-        URL.revokeObjectURL(currentBlobUrl);
-      }
-    };
-  }, [document?.id]);
   const { toast } = useToast();
 
   const category = categories?.find(c => c.id === document.categoryId);
@@ -551,24 +432,21 @@ export default function UnifiedDocumentCard({
 
           {/* Thumbnail Section - full width and height */}
           <div 
-            className="w-full bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
+            className="w-full overflow-hidden rounded-t-lg"
             style={{ height: '70%' }}
           >
-            {thumbnailError || !thumbnailBlobUrl ? (
-              <div className={`w-full h-full flex items-center justify-center ${getFileTypeIconColor()}`}>
-                <div className="w-16 h-16 rounded-lg flex items-center justify-center bg-white/80">
-                  {getFileIcon()}
-                </div>
-              </div>
-            ) : (
-              <img 
-                src={thumbnailBlobUrl}
-                alt={document.name}
-                className="w-full h-full object-cover rounded-t-lg"
-                onError={() => setThumbnailError(true)}
-                data-testid={`document-thumbnail-${document.id}`}
-              />
-            )}
+            <ThumbnailImage
+              documentId={document.id.toString()}
+              sourceHash={document.sourceHash || 'missing'}
+              documentName={document.name}
+              mimeType={document.mimeType}
+              className="w-full h-full"
+              aspectRatio="auto"
+              size="lg"
+              fallbackIcon="auto"
+              showSpinner={true}
+              priority={false}
+            />
           </div>
 
           {/* Bottom Section - title area with proper spacing */}

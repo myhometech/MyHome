@@ -514,13 +514,13 @@ export default function UnifiedDocumentCard({
             )}
           </div>
 
-          {/* Bottom Section - title area with more space */}
+          {/* Bottom Section - title area with proper spacing */}
           <div 
-            className="px-3 pt-2 pb-6 bg-white flex items-start justify-center relative"
+            className="px-3 py-3 bg-white flex flex-col justify-between relative"
             style={{ height: '30%', minHeight: '48px' }}
           >
-            {/* Title - Centered and higher up */}
-            <div className="flex-1 min-w-0 text-center">
+            {/* Title - Top of bottom section with proper spacing */}
+            <div className="flex-1 min-w-0 text-center mb-1">
               {isRenaming ? (
                 <div className="space-y-1">
                   <Input
@@ -542,35 +542,44 @@ export default function UnifiedDocumentCard({
                 </div>
               ) : (
                 <h3 
-                  className="font-medium text-sm text-gray-900 truncate leading-tight mt-1"
+                  className="font-medium text-sm text-gray-900 leading-tight line-clamp-2 break-words px-1"
                   title={document.name}
                   data-testid={`document-title-${document.id}`}
+                  style={{ 
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    wordBreak: 'break-word',
+                    hyphens: 'auto'
+                  }}
                 >
                   {document.name}
                 </h3>
               )}
             </div>
 
-            {/* Icons positioned at bottom corners of the bottom section */}
-            {/* Insights Indicator - Bottom Left */}
-            <div className="absolute bottom-2 left-2 z-20">
-              {renderInsightsIndicator()}
-            </div>
+            {/* Icons row at bottom with proper spacing */}
+            <div className="flex items-center justify-between px-1">
+              {/* Insights Indicator - Bottom Left */}
+              <div className="flex-shrink-0">
+                {renderInsightsIndicator()}
+              </div>
 
-            {/* Overflow Menu - Bottom Right */}
-            {!bulkMode && (
-              <div className="absolute bottom-2 right-2 z-20">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-4 w-4 p-0 rounded-full hover:bg-purple-100 opacity-70 hover:opacity-100 transition-opacity bg-white/90 border border-purple-200"
-                      data-testid={`document-menu-${document.id}`}
-                    >
-                      <MoreHorizontal className="h-2 w-2 text-purple-600" />
-                    </Button>
-                  </DropdownMenuTrigger>
+              {/* Overflow Menu - Bottom Right */}
+              {!bulkMode && (
+                <div className="flex-shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 p-0 rounded-full hover:bg-purple-100 opacity-70 hover:opacity-100 transition-opacity bg-white/90 border border-purple-200"
+                        data-testid={`document-menu-${document.id}`}
+                      >
+                        <MoreHorizontal className="h-3 w-3 text-purple-600" />
+                      </Button>
+                    </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => {
                         setModalInitialTab('properties');

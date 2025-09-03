@@ -160,6 +160,14 @@
     }
   }
 
+  /* Line clamp utility for better text handling */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   @media (min-width: 640px) {
     .mobile-document-card-content {
       font-size: inherit;

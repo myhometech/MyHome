@@ -154,3 +154,16 @@ node_modules/
 dist/
 build/
 *.log
+# Large browser/runtime binaries & caches
+chrome/
+**/chrome-linux64/**
+**/chrome-win/**
+**/chrome-mac/**
+.playwright/
+.puppeteer/
+**/.cache/**
+# Node/Vite artifacts
+node_modules/
+dist/
+build/
+*.log

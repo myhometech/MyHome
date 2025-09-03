@@ -117,7 +117,7 @@ export interface IStorage {
   logDocumentEvent(event: InsertDocumentEvent): Promise<DocumentEvent>;
   getDocumentEvents(documentId: number): Promise<DocumentEvent[]>;
   getUserDocumentEvents(userId: string, limit?: number): Promise<DocumentEvent[]>;
-  
+
   // Email body document operations
   createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document>;
 
@@ -556,7 +556,7 @@ export class PostgresStorage implements IStorage {
       flagged, 
       updatedAt: new Date() 
     };
-    
+
     if (flagged && reason) {
       updateData.flaggedReason = reason;
       updateData.flaggedAt = new Date();
@@ -912,7 +912,7 @@ export class PostgresStorage implements IStorage {
       .select()
       .from(userHouseholdMembership)
       .where(eq(userHouseholdMembership.userId, userId));
-    
+
     if (!membership) return null;
 
     // Get household details
@@ -920,7 +920,7 @@ export class PostgresStorage implements IStorage {
       .select()
       .from(households)
       .where(eq(households.id, membership.householdId));
-    
+
     return household ? { ...household, role: membership.role } : null;
   }
 
@@ -1053,22 +1053,22 @@ export class PostgresStorage implements IStorage {
   // Email body document operations
   async createEmailBodyDocument(userId: string, emailData: any, pdfBuffer: Buffer): Promise<Document> {
     console.log('📧 Creating email body document with GCS storage');
-    
+
     // Import storage provider and generate unique key
     const { storageProvider } = await import('./storage/StorageService');
     const { nanoid } = await import('nanoid');
-    
+
     const documentId = nanoid();
     const fileName = `Email_${emailData.subject || 'No_Subject'}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '_');
     const gcsKey = `${userId}/${documentId}/${fileName}`;
-    
+
     try {
       // Upload PDF buffer to GCS
       console.log(`📧 Uploading email PDF to GCS: ${gcsKey}`);
       const storage = storageProvider();
       await storage.upload(pdfBuffer, gcsKey, 'application/pdf');
       console.log(`✅ Email PDF uploaded successfully: ${gcsKey}`);
-      
+
       // Create document record with GCS path
       const document = await this.createDocument({
         name: `Email: ${emailData.subject || 'No Subject'}`,
@@ -1082,10 +1082,10 @@ export class PostgresStorage implements IStorage {
         tags: emailData.tags || ['email', 'email-body'],
         emailContext: emailData
       });
-      
+
       console.log(`✅ Email document created: ID ${document.id}, GCS path: ${gcsKey}`);
       return document;
-      
+
     } catch (error) {
       console.error('❌ Failed to upload email PDF to GCS:', error);
       throw new Error(`Failed to create email document: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1210,7 +1210,7 @@ export class PostgresStorage implements IStorage {
         console.log(`🔄 [SEARCH] Provider fallback: Retrying without provider filter`);
         const fallbackFilters = { ...filters };
         delete fallbackFilters.provider;
-        
+
         searchResults = await this.performDocumentSearch(
           enhancedQuery,
           tenantId,
@@ -1253,7 +1253,7 @@ export class PostgresStorage implements IStorage {
   ): Promise<SearchSnippetsResponse> {
     // Build the full-text search query
     const searchQuery = sql`plainto_tsquery('english', ${query})`;
-      
+
     // Base query with full-text search
     let dbQuery = this.db
       .select({
@@ -1298,15 +1298,15 @@ export class PostgresStorage implements IStorage {
     if (filters.dateFrom || filters.dateTo) {
       // Filter by expiry date (invoice date) or upload date as fallback
       const dateConditions: any[] = [];
-      
+
       if (filters.dateFrom) {
         dateConditions.push(sql`COALESCE(${documents.expiryDate}, ${documents.uploadedAt}) >= ${filters.dateFrom}`);
       }
-      
+
       if (filters.dateTo) {
         dateConditions.push(sql`COALESCE(${documents.expiryDate}, ${documents.uploadedAt}) <= ${filters.dateTo}`);
       }
-      
+
       conditions.push(and(...dateConditions));
     }
 
@@ -1326,7 +1326,7 @@ export class PostgresStorage implements IStorage {
 
     // Generate snippets for each result
     const results: SearchResult[] = [];
-    
+
     for (const result of searchResults) {
       const snippets = this.extractSnippets(
         result.text,
@@ -1364,7 +1364,7 @@ export class PostgresStorage implements IStorage {
    */
   private enhanceQueryWithSynonyms(query: string): string {
     let enhanced = query.toLowerCase();
-    
+
     // Month normalization
     const monthMappings: Record<string, string> = {
       'jan': 'january', 'feb': 'february', 'mar': 'march', 'apr': 'april',
@@ -1372,12 +1372,12 @@ export class PostgresStorage implements IStorage {
       'sep': 'september', 'sept': 'september', 'oct': 'october', 
       'nov': 'november', 'dec': 'december'
     };
-    
+
     // Replace month abbreviations with full names
     for (const [abbr, full] of Object.entries(monthMappings)) {
       enhanced = enhanced.replace(new RegExp(`\\b${abbr}\\b`, 'gi'), full);
     }
-    
+
     // Add synonyms
     const synonymMappings: Record<string, string[]> = {
       'phone': ['phone', 'mobile', 'cell', 'cellular'],
@@ -1387,18 +1387,18 @@ export class PostgresStorage implements IStorage {
       'invoice': ['bill', 'invoice', 'statement'],
       'statement': ['bill', 'invoice', 'statement']
     };
-    
+
     // Expand with synonyms
     const words = enhanced.split(/\s+/);
     const expandedWords = new Set<string>();
-    
+
     for (const word of words) {
       expandedWords.add(word);
       if (synonymMappings[word]) {
         synonymMappings[word].forEach(synonym => expandedWords.add(synonym));
       }
     }
-    
+
     return Array.from(expandedWords).join(' ');
   }
 
@@ -1415,7 +1415,7 @@ export class PostgresStorage implements IStorage {
 
     // Find all match positions
     const matches: { start: number; end: number }[] = [];
-    
+
     for (const word of queryWords) {
       let index = 0;
       while (index < textLower.length) {
@@ -1431,12 +1431,12 @@ export class PostgresStorage implements IStorage {
 
     // Create snippets around matches
     const usedRanges = new Set<string>();
-    
+
     for (const match of matches.slice(0, snippetLimit)) {
       const center = Math.floor((match.start + match.end) / 2);
       const snippetStart = Math.max(0, center - Math.floor(snippetCharWindow / 2));
       const snippetEnd = Math.min(text.length, snippetStart + snippetCharWindow);
-      
+
       // Avoid overlapping snippets
       const rangeKey = `${snippetStart}-${snippetEnd}`;
       if (usedRanges.has(rangeKey)) continue;
@@ -1444,7 +1444,7 @@ export class PostgresStorage implements IStorage {
 
       // Find page number using pageBreaks
       const page = this.findPageNumber(snippetStart, pageBreaks);
-      
+
       // Extract snippet text and clean it up
       let snippetText = text.slice(snippetStart, snippetEnd);
       if (snippetStart > 0) snippetText = '...' + snippetText;
@@ -1465,13 +1465,13 @@ export class PostgresStorage implements IStorage {
 
   private findPageNumber(charOffset: number, pageBreaks: number[]): number {
     if (!pageBreaks.length) return 1;
-    
+
     for (let i = 0; i < pageBreaks.length; i++) {
       if (charOffset < pageBreaks[i]) {
         return Math.max(1, i); // Pages are 1-indexed
       }
     }
-    
+
     return pageBreaks.length; // Last page
   }
 
@@ -1480,7 +1480,7 @@ export class PostgresStorage implements IStorage {
     if (emailContext?.from) {
       const fromField = emailContext.from.toLowerCase();
       const commonProviders = ['o2', 'vodafone', 'ee', 'three', 'bt', 'virgin', 'sky', 'council', 'hmrc', 'dvla'];
-      
+
       for (const provider of commonProviders) {
         if (fromField.includes(provider)) {
           return provider.toUpperCase();

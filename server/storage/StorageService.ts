@@ -4,7 +4,7 @@ import { LocalStorage } from './LocalStorage';
 
 /**
  * Storage Service Factory
- * 
+ *
  * Provides a centralized way to configure and access storage providers.
  * Handles environment-based configuration and fallback strategies.
  */
@@ -31,7 +31,7 @@ export class StorageService {
           console.log('🔧 Attempting GCS storage initialization...');
           StorageService.instance = StorageService.createGCSStorage();
           console.log('✅ GCS Storage initialized successfully');
-          
+
           // Test the storage connection
           try {
             // Basic connectivity test - this will throw if credentials are invalid
@@ -59,7 +59,7 @@ export class StorageService {
           StorageService.instance = StorageService.createLocalStorage();
         }
         break;
-      
+
       case 'local':
       default:
         console.warn('Using local storage - not recommended for production');
@@ -103,13 +103,13 @@ export class StorageService {
   private static createGCSStorage(): StorageProvider {
     // GCS memory leak has been fixed with explicit authentication
     // Re-enable GCS in production
-    
+
     // GCS now properly configured with explicit authentication
-    
+
     const bucketName = process.env.GCS_BUCKET_NAME || 'myhometech-eu';
     let projectId = process.env.GCS_PROJECT_ID;
     let keyFilename = process.env.GCS_KEY_FILENAME;
-    
+
     // Support for service account credentials from environment
     // Priority: NEW_GOOGLE_APPLICATION_CREDENTIALS > GOOGLE_APPLICATION_CREDENTIALS > GCS_CREDENTIALS
     let credentials;
@@ -117,7 +117,7 @@ export class StorageService {
       try {
         // Fix: Check if env contains JSON or file path
         const credentialsStr = process.env.NEW_GOOGLE_APPLICATION_CREDENTIALS.trim();
-        
+
         // If it starts with '{', it's JSON content - but we want to use file path instead
         if (credentialsStr.startsWith('{')) {
           console.log('🔧 NEW_GOOGLE_APPLICATION_CREDENTIALS contains JSON, using service account file instead');

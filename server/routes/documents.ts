@@ -187,7 +187,7 @@ router.post('/', upload.fields([
       throw new Error('Missing required file data for document creation');
     }
 
-    console.log('📝 Creating document record:', {
+    console.log('📝 Uploading to GCS and creating document record:', {
       name: path.parse(uploadedFile.originalname).name,
       fileName: uploadedFile.originalname,
       filePath: finalFilePath,
@@ -198,16 +198,40 @@ router.post('/', upload.fields([
       categorizationSource
     });
 
-    // Create document record with DOC-303 categorization tracking
+    // Upload file to GCS first
+    let gcsPath: string | null = null;
+    try {
+      const storageService = StorageService.initialize();
+      
+      // Read the processed file into a buffer
+      const fileBuffer = await fs.promises.readFile(finalFilePath);
+      
+      // Generate a unique GCS key
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substr(2, 15);
+      const gcsKey = `users/${userId}/documents/${timestamp}_${randomId}/${uploadedFile.originalname}`;
+      
+      // Upload to GCS
+      gcsPath = await storageService.upload(fileBuffer, gcsKey, uploadedFile.mimetype);
+      console.log(`✅ File uploaded to GCS: ${gcsPath}`);
+      
+    } catch (gcsError) {
+      console.error('❌ GCS upload failed:', gcsError);
+      // Continue with local storage as fallback
+      console.log('📁 Falling back to local storage');
+    }
+
+    // Create document record with GCS path or local fallback
     const document = await storage.createDocument({
       name: path.parse(uploadedFile.originalname).name,
       fileName: uploadedFile.originalname,
-      filePath: finalFilePath,
+      filePath: gcsPath || finalFilePath, // Use GCS path if available, fallback to local
       mimeType: uploadedFile.mimetype,
       fileSize: uploadedFile.size,
       userId,
       categoryId,
       categorizationSource, // DOC-303: Track categorization method
+      gcsPath, // Store GCS path separately
     });
 
     console.log('✅ Document created successfully:', document.id);

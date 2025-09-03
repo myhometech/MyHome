@@ -389,7 +389,7 @@ router.get('/:id', requireAuth, async (req: any, res: any) => {
 
     if (isNaN(documentId) || documentId <= 0) {
       console.log(`[DOCUMENT-ROUTE] Invalid document ID: ${req.params.id}`);
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Invalid document ID',
         error: 'INVALID_DOCUMENT_ID',
         providedId: req.params.id
@@ -489,7 +489,7 @@ router.get('/:id', requireAuth, async (req: any, res: any) => {
   }
 });
 
-// Get document thumbnail  
+// Get document thumbnail
 router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
@@ -561,12 +561,12 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       }
     }
 
-    // Generate thumbnail for images  
+    // Generate thumbnail for images
     if (document.mimeType?.startsWith('image/') && sourceFilePath) {
       try {
         const thumbnailOutputPath = path.join('/tmp', `thumb_${documentId}_${Date.now()}.jpg`);
         console.log(`[THUMBNAIL] Generating image thumbnail: ${thumbnailOutputPath}`);
-        
+
         const result = await imageProcessor.processImage(sourceFilePath, thumbnailOutputPath, {
           maxWidth: 300,
           maxHeight: 300,
@@ -595,7 +595,7 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       try {
         console.log(`[THUMBNAIL] Generating PDF thumbnail for document ${documentId}`);
         const pdfPoppler = await import('pdf-poppler') as any;
-        
+
         const options = {
           format: 'jpeg',
           out_dir: '/tmp',
@@ -606,16 +606,16 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
 
         // Convert PDF first page to image
         const results = await pdfPoppler.convert(sourceFilePath, options);
-        
+
         if (results && results.length > 0) {
           const thumbnailPath = results[0];
           console.log(`[THUMBNAIL] Successfully generated PDF thumbnail: ${thumbnailPath}`);
-          
+
           // Cleanup temp PDF file if created from GCS
           if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
             try { fs.unlinkSync(sourceFilePath); } catch {}
           }
-          
+
           if (fs.existsSync(thumbnailPath)) {
             res.setHeader('Content-Type', 'image/jpeg');
             res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -630,7 +630,7 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       } catch (pdfError) {
         console.error(`[THUMBNAIL] Error generating PDF thumbnail for document ${documentId}:`, pdfError);
       }
-      
+
       // Cleanup temp file if created from GCS
       if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
         try { fs.unlinkSync(sourceFilePath); } catch {}
@@ -651,21 +651,21 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       try {
         console.log(`[THUMBNAIL] Generating Office document thumbnail for document ${documentId}`);
         const { execSync } = await import('child_process');
-        
+
         // Convert to PDF using LibreOffice headless
         const tempPdfPath = path.join('/tmp', `office_converted_${documentId}_${Date.now()}.pdf`);
         const libreOfficeCmd = `libreoffice --headless --convert-to pdf --outdir /tmp "${sourceFilePath}"`;
-        
+
         execSync(libreOfficeCmd, { timeout: 30000 }); // 30 second timeout
-        
+
         // Find the generated PDF file (LibreOffice creates it with original name + .pdf)
         const baseName = path.basename(sourceFilePath, path.extname(sourceFilePath));
         const generatedPdfPath = path.join('/tmp', `${baseName}.pdf`);
-        
+
         if (fs.existsSync(generatedPdfPath)) {
           // Now generate thumbnail from the PDF
           const pdfPoppler = await import('pdf-poppler') as any;
-          
+
           const options = {
             format: 'jpeg',
             out_dir: '/tmp',
@@ -675,17 +675,17 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
           };
 
           const results = await pdfPoppler.convert(generatedPdfPath, options);
-          
+
           if (results && results.length > 0) {
             const thumbnailPath = results[0];
             console.log(`[THUMBNAIL] Successfully generated Office document thumbnail: ${thumbnailPath}`);
-            
+
             // Cleanup temp files
             try { fs.unlinkSync(generatedPdfPath); } catch {}
             if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
               try { fs.unlinkSync(sourceFilePath); } catch {}
             }
-            
+
             if (fs.existsSync(thumbnailPath)) {
               res.setHeader('Content-Type', 'image/jpeg');
               res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -697,14 +697,14 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
               });
             }
           }
-          
+
           // Cleanup PDF if thumbnail generation failed
           try { fs.unlinkSync(generatedPdfPath); } catch {}
         }
       } catch (officeError) {
         console.error(`[THUMBNAIL] Error generating Office document thumbnail for document ${documentId}:`, officeError);
       }
-      
+
       // Cleanup temp file if created from GCS
       if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
         try { fs.unlinkSync(sourceFilePath); } catch {}
@@ -713,7 +713,7 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
 
     // For all other cases (unknown types), return placeholder
     console.log(`[THUMBNAIL] Returning placeholder for document ${documentId}, mimeType: ${document.mimeType}`);
-    
+
     // Cleanup temp file if created
     if (sourceFilePath && sourceFilePath.includes('/tmp/') && fs.existsSync(sourceFilePath)) {
       fs.unlinkSync(sourceFilePath);
@@ -726,7 +726,7 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
 
   } catch (error: any) {
     console.error(`[THUMBNAIL] Error generating thumbnail for document ${req.params.id}:`, error);
-    
+
     // Always return a placeholder on error
     try {
       const placeholderSvg = generateDocumentPlaceholder('application/octet-stream', 'Document');
@@ -870,9 +870,9 @@ router.get('/auto-cleanup-insights', requireAuth, async (req: any, res: any) => 
 
     // Find and delete orphaned insights
     for (const insight of allInsights) {
-      if (insight.documentId && 
-          typeof insight.documentId === 'number' && 
-          insight.documentId > 0 && 
+      if (insight.documentId &&
+          typeof insight.documentId === 'number' &&
+          insight.documentId > 0 &&
           !documentIds.has(insight.documentId)) {
 
         try {
@@ -1320,7 +1320,7 @@ router.get('/:id/preview', requireAuth, async (req: any, res: any) => {
     // If no file found anywhere, return 500 (not 404, to trigger fallback handling in frontend)
     console.error(`[PDF-PREVIEW] PDF file not accessible for document ${documentId}`);
     console.error(`[PDF-PREVIEW] Checked paths - GCS: ${document.gcsPath}, Local: ${document.filePath}`);
-    
+
     res.status(500).json({
       message: 'PDF file not accessible',
       error: 'FILE_NOT_FOUND',

@@ -140,4 +140,17 @@ replit.nix
 # Test automation files
 test-*.html
 test-*.js
-*test-*.ts
+*test-*.ts# Large browser/runtime binaries & caches
+chrome/
+**/chrome-linux64/**
+**/chrome-win/**
+**/chrome-mac/**
+.playwright/
+.playwright-cache/
+.puppeteer/
+**/.cache/**
+# Usual Node/Vite artifacts
+node_modules/
+dist/
+build/
+*.log

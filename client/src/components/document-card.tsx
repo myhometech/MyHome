@@ -75,12 +75,16 @@ function DocumentThumbnail({
 
   console.log(`[THUMBNAIL] DocumentThumbnail rendering for ${documentId}, src: ${src}`);
   
+  // Force fresh requests by disabling cache
+  const [imgSrc, setImgSrc] = useState(src + '&bust=' + Math.random());
+  
   return (
     <img 
-      src={src}
+      src={imgSrc}
       alt={alt}
       className="w-full h-full object-cover"
       onError={() => setHasError(true)}
+      onLoad={() => console.log(`[THUMBNAIL] Image loaded for ${documentId}: ${imgSrc}`)}
       data-testid={`document-thumbnail-${documentId}`}
     />
   );
@@ -156,8 +160,8 @@ export default function DocumentCard({
     }
   };
 
-  // Get thumbnail URL for ALL documents (not just images)
-  const thumbnailUrl = `/api/documents/${document.id}/thumbnail`;
+  // Get thumbnail URL for ALL documents (not just images) with cache-busting
+  const thumbnailUrl = `/api/documents/${document.id}/thumbnail?t=${Date.now()}`;
 
   const updateDocumentMutation = useMutation({
     mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {

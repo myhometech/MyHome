@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 /* your other styles below *//* Font Awesome removed - using Lucide React icons instead */
 
 /* Import Inter font */

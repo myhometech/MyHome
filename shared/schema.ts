@@ -1027,5 +1027,100 @@ export const selectDocumentFactSchema = documentFacts.$inferSelect;
 export type InsertDocumentFact = typeof documentFacts.$inferInsert;
 export type SelectDocumentFact = typeof documentFacts.$inferSelect;
 
+// Thumbnail generation system tables
+export const thumbnailJobs = pgTable("thumbnail_jobs", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 20 }).default("queued").notNull(), // 'queued', 'processing', 'completed', 'failed'
+  contentHash: text("content_hash").notNull(), // SHA-256 hash of source document content
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  variants: text("variants").array().notNull(), // ['96', '240', '480']
+  processingStartedAt: timestamp("processing_started_at"),
+  completedAt: timestamp("completed_at"),
+  failedAt: timestamp("failed_at"),
+  errorMessage: text("error_message"),
+  retryCount: integer("retry_count").default(0).notNull(),
+  processingTimeMs: integer("processing_time_ms"), // For performance monitoring
+  jobIdempotencyKey: text("job_idempotency_key").notNull(), // {documentId}:{contentHash}
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_thumbnail_jobs_document").on(table.documentId),
+  index("idx_thumbnail_jobs_user").on(table.userId),
+  index("idx_thumbnail_jobs_status").on(table.status),
+  index("idx_thumbnail_jobs_content_hash").on(table.contentHash),
+  index("idx_thumbnail_jobs_idempotency").on(table.jobIdempotencyKey),
+  unique("thumbnail_job_idempotency_unique").on(table.jobIdempotencyKey),
+]);
+
+export const thumbnails = pgTable("thumbnails", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  jobId: integer("job_id").notNull().references(() => thumbnailJobs.id, { onDelete: "cascade" }),
+  variant: varchar("variant", { length: 10 }).notNull(), // '96', '240', '480'
+  contentHash: text("content_hash").notNull(), // SHA-256 hash of source document content
+  gcsPath: text("gcs_path").notNull(), // /thumbnails/{docId}/{variant}/v{contentHash}.jpg
+  format: varchar("format", { length: 10 }).notNull(), // 'jpeg', 'png'
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  fileSize: integer("file_size").notNull(), // In bytes for monitoring
+  quality: integer("quality").default(80), // JPEG quality used
+  generationTimeMs: integer("generation_time_ms"), // Time to generate this variant
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_thumbnails_document").on(table.documentId),
+  index("idx_thumbnails_user").on(table.userId),
+  index("idx_thumbnails_job").on(table.jobId),
+  index("idx_thumbnails_content_hash").on(table.contentHash),
+  index("idx_thumbnails_variant").on(table.variant),
+  index("idx_thumbnails_gcs_path").on(table.gcsPath),
+  // Unique constraint: one thumbnail per document/variant/content hash
+  unique("thumbnail_unique_variant").on(table.documentId, table.variant, table.contentHash),
+]);
+
+// Thumbnail system schemas
+export const insertThumbnailJobSchema = createInsertSchema(thumbnailJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertThumbnailSchema = createInsertSchema(thumbnails).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const thumbnailVariantResponseSchema = z.object({
+  variant: z.string(),
+  url: z.string(),
+  width: z.number(),
+  height: z.number(),
+  fileSize: z.number(),
+  format: z.string(),
+});
+
+export const thumbnailResponseSchema = z.object({
+  documentId: z.number(),
+  variants: z.record(thumbnailVariantResponseSchema),
+  generatedAt: z.string(),
+  jobId: z.number(),
+});
+
+export const createThumbnailJobSchema = z.object({
+  documentId: z.number(),
+  variants: z.array(z.enum(["96", "240", "480"])).default(["96", "240", "480"]),
+});
+
+// Type exports for thumbnail system
+export type InsertThumbnailJob = typeof thumbnailJobs.$inferInsert;
+export type SelectThumbnailJob = typeof thumbnailJobs.$inferSelect;
+export type InsertThumbnail = typeof thumbnails.$inferInsert;
+export type SelectThumbnail = typeof thumbnails.$inferSelect;
+export type ThumbnailVariantResponse = z.infer<typeof thumbnailVariantResponseSchema>;
+export type ThumbnailResponse = z.infer<typeof thumbnailResponseSchema>;
+export type CreateThumbnailJob = z.infer<typeof createThumbnailJobSchema>;
+
 // Re-export feature flag schemas
 export * from "./featureFlagSchema";

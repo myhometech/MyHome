@@ -25,6 +25,19 @@ router.get("/google",
 
 router.get("/google/callback",
   (req, res, next) => {
+    // AUTH-GOOG-01: Enhanced error logging for OAuth debugging
+    const { error, error_description } = req.query as any;
+    if (error) {
+      console.error('[GOOGLE_OAUTH_ERROR]', { 
+        error, 
+        error_description, 
+        state: req.query.state,
+        code: req.query.code,
+        userAgent: req.get('User-Agent')
+      });
+      return res.redirect('/login?error=' + encodeURIComponent(error) + '&description=' + encodeURIComponent(error_description || ''));
+    }
+
     // Verify OAuth state parameter for CSRF protection
     const expectedState = (req.session as any).oauthState;
     const receivedState = typeof req.query.state === 'string' ? req.query.state : undefined;

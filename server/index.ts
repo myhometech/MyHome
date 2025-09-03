@@ -41,6 +41,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { withCorrelationId } from "./middleware/correlationId.js";
 import { setupSimpleAuth } from "./simpleAuth.js";
 import { thumbnailRateAdapter, thumbnailRateErrorHandler } from "./middleware/thumbnailRateAdapter";
+import cors from "cors";
 
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
 console.log('ℹ️  Simplified memory management enabled');
@@ -77,6 +78,23 @@ import { emailRenderWorker } from './emailRenderWorker';
 import { initializeWorkerHealthChecker } from './workerHealthCheck';
 
 const app = express();
+
+// AUTH-GOOG-01: Enable trust proxy for correct HTTPS detection behind proxies
+app.set('trust proxy', 1);
+
+// AUTH-GOOG-01: Setup CORS for cross-site authentication
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow no origin (mobile apps, Postman, etc.) or any replit.dev subdomain
+    if (!origin || /\.replit\.dev$/.test(origin) || /localhost/.test(origin) || origin.includes('myhome')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  allowedHeaders: ['Authorization', 'Content-Type', 'x-correlation-id']
+}));
 
 // Add correlation ID middleware first
 app.use(withCorrelationId as any);

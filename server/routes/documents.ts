@@ -514,11 +514,12 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
     let sourceFilePath: string | null = null;
     let fileAccessible = false;
 
-    // Try to access file from GCS first
-    if (document.gcsPath && document.gcsPath.trim()) {
+    // Try to access file from GCS first (use gcsPath or fall back to filePath)
+    const storagePath = document.gcsPath || document.filePath;
+    if (storagePath && storagePath.trim()) {
       try {
         const storageService = StorageService.initialize();
-        fileBuffer = await storageService.download(document.gcsPath);
+        fileBuffer = await storageService.download(storagePath);
         if (fileBuffer && fileBuffer.length > 0) {
           // Create temporary file for thumbnail generation
           sourceFilePath = path.join('/tmp', `temp_${documentId}_${Date.now()}${path.extname(document.fileName)}`);

@@ -441,7 +441,7 @@ export default function UnifiedDocumentCard({
       const displayCount = insightsCount > 99 ? '99+' : insightsCount.toString();
       return (
         <div 
-          className="flex items-center justify-center w-6 h-6 bg-purple-600 text-white text-xs font-semibold rounded-full"
+          className="flex items-center justify-center w-5 h-5 bg-purple-600 text-white text-xs font-semibold rounded-full"
           data-testid={`insights-badge-${document.id}`}
         >
           {displayCount}
@@ -451,7 +451,7 @@ export default function UnifiedDocumentCard({
       // Show brain icon
       return (
         <Brain 
-          className="h-5 w-5 text-purple-400" 
+          className="h-4 w-4 text-purple-400" 
           data-testid={`insights-brain-${document.id}`}
         />
       );
@@ -516,7 +516,7 @@ export default function UnifiedDocumentCard({
 
           {/* Bottom Section - 25% height with title only */}
           <div 
-            className="px-3 py-2 bg-white flex items-center justify-center"
+            className="px-3 pt-3 pb-1 bg-white flex items-start justify-center"
             style={{ height: '35%', minHeight: '64px' }}
           >
             {/* Title - Centered */}
@@ -556,22 +556,22 @@ export default function UnifiedDocumentCard({
           
           {/* Icons positioned at very bottom corners of entire card */}
           {/* Insights Indicator - Very Bottom Left */}
-          <div className="absolute bottom-3 left-3 z-20">
+          <div className="absolute bottom-2 left-2 z-20">
             {renderInsightsIndicator()}
           </div>
 
           {/* Overflow Menu - Very Bottom Right */}
           {!bulkMode && (
-            <div className="absolute bottom-3 right-3 z-20">
+            <div className="absolute bottom-2 right-2 z-20">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <Button 
                     variant="ghost" 
-                    size="sm" 
-                    className="h-6 w-6 p-0 rounded-full hover:bg-purple-100 opacity-70 hover:opacity-100 transition-opacity bg-white/90 border border-purple-200"
+                    size="icon" 
+                    className="h-5 w-5 p-0 rounded-full hover:bg-purple-100 opacity-70 hover:opacity-100 transition-opacity bg-white/90 border border-purple-200"
                     data-testid={`document-menu-${document.id}`}
                   >
-                    <MoreHorizontal className="h-3 w-3 text-purple-600" />
+                    <MoreHorizontal className="h-2.5 w-2.5 text-purple-600" />
                   </Button>
                 </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

@@ -27,7 +27,7 @@ interface InlineFallbackResult {
 }
 
 export class InlineFallbackRenderer {
-  private readonly storageService: StorageService;
+  private readonly storageProvider = StorageService.getProvider();
   private readonly maxFileSize = 10 * 1024 * 1024; // 10MB limit
   private readonly timeouts = {
     download: 5000,
@@ -37,7 +37,7 @@ export class InlineFallbackRenderer {
   };
 
   constructor() {
-    this.storageService = StorageService.initialize();
+    // Use storage provider instance
   }
 
   /**
@@ -90,7 +90,7 @@ export class InlineFallbackRenderer {
       const uploadStart = Date.now();
       const key = `thumbnails/${documentId}/240/v${sourceHash}.${format}`;
       
-      await this.storageService.upload(
+      await this.storageProvider.upload(
         thumbnailBuffer, 
         key, 
         hasTransparency ? 'image/png' : 'image/jpeg'
@@ -99,7 +99,7 @@ export class InlineFallbackRenderer {
       console.log(`⬆️ [${correlationId}] Uploaded in ${Date.now() - uploadStart}ms`);
 
       // 7. Generate signed URL
-      const url = await this.storageService.getSignedUrl(key, 1800);
+      const url = await this.storageProvider.getSignedUrl(key, 1800);
 
       console.log(`✅ [${correlationId}] EMERGENCY thumbnail complete: ${key}`);
 
@@ -117,8 +117,8 @@ export class InlineFallbackRenderer {
         reject(new Error(`Download timeout after ${timeoutMs}ms`));
       }, timeoutMs);
 
-      this.storageService.download(storagePath)
-        .then(buffer => require('fs').promises.writeFile(localPath, buffer))
+      this.storageProvider.download(storagePath)
+        .then((buffer: Buffer) => require('fs').promises.writeFile(localPath, buffer))
         .then(() => {
           clearTimeout(timeout);
           resolve();

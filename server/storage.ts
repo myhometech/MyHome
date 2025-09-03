@@ -287,8 +287,7 @@ export class PostgresStorage implements IStorage {
       .where(
         and(
           or(
-            sql`${documents.createdAt} >= ${cutoffDate}`,
-            sql`${documents.updatedAt} >= ${cutoffDate}`
+            sql`${documents.uploadedAt} >= ${cutoffDate}`
           ),
           // Only process documents with valid source paths
           sql`${documents.gcsPath} IS NOT NULL OR ${documents.filePath} IS NOT NULL`,
@@ -298,7 +297,7 @@ export class PostgresStorage implements IStorage {
           sql`${documents.isEncrypted} IS FALSE OR ${documents.isEncrypted} IS NULL`
         )
       )
-      .orderBy(desc(documents.createdAt))
+      .orderBy(desc(documents.uploadedAt))
       .limit(limit);
   }
 

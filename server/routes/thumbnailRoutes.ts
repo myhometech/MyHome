@@ -20,6 +20,21 @@ import { isSupportedVariant } from '../thumbnailHelpers';
 import { inlineFallbackRenderer } from '../thumbnail/inlineFallback';
 import { getJobStatusAgeMs, shouldUseInlineFallback } from '../thumbnail/jobHealthCheck';
 
+// REDIS-DOWN-FIX: Add Redis connection check
+async function isRedisAvailable(): Promise<boolean> {
+  try {
+    // Try a simple Redis operation to test connectivity
+    await thumbnailJobQueue.getJobStatus('test-connection', 240);
+    return true;
+  } catch (error: any) {
+    // Redis connection failed
+    if (error.message?.includes('ECONNREFUSED') || error.code === 'ECONNREFUSED') {
+      return false;
+    }
+    return true; // Other errors might not be Redis connection issues
+  }
+}
+
 const router = Router();
 
 // THMB-RATE-HOTFIX: Replaced with proper coalescing system
@@ -68,7 +83,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
     }
 
     // RBAC check
-    const canAccess = await canAccessDocument(req.user, documentId, storage);
+    const canAccess = await canAccessDocument(req.user, documentId, 'read');
     if (!canAccess) {
       return res.status(403).json({ 
         errorCode: 'ACCESS_DENIED',
@@ -80,9 +95,9 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
     let sourceHash = document.sourceHash;
     if (!sourceHash) {
       console.warn(`🚨 HOTFIX: Document ${documentId} missing sourceHash, generating fallback`);
-      // Use file path + updatedAt as surrogate hash for consistent key generation
+      // Use file path + modificationDate as surrogate hash for consistent key generation
       const crypto = await import('crypto');
-      const fallbackInput = `${document.filePath}:${document.updatedAt || Date.now()}`;
+      const fallbackInput = `${document.filePath}:${document.uploadedAt || Date.now()}`;
       sourceHash = crypto.createHash('md5').update(fallbackInput).digest('hex').substring(0, 12);
       console.warn(`🚨 HOTFIX: Using fallback sourceHash: ${sourceHash} for doc ${documentId}`);
       
@@ -151,6 +166,50 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
       }
     }
 
+    // REDIS-DOWN-FIX: Check if Redis is available before attempting job queue
+    const redisAvailable = await isRedisAvailable();
+    
+    if (!redisAvailable) {
+      console.log(`🚨 [REDIS-DOWN] Redis unavailable, using emergency inline fallback for doc ${documentId}, variant ${variant}`);
+      
+      // Force inline generation when Redis is down
+      if (variant === 240) {
+        try {
+          const inlineResult = await inlineFallbackRenderer.generate240Now({
+            documentId,
+            sourceHash: sourceHash,
+            mimeType: document.mimeType,
+            storagePath: document.filePath,
+            userId
+          });
+          
+          console.log(`✅ [REDIS-DOWN] Emergency inline generation successful for doc ${documentId}: ${inlineResult.key}`);
+          
+          return res.status(200).json({
+            status: 'ready',
+            documentId,
+            variant,
+            url: inlineResult.url,
+            ttlSeconds: 1800,
+            sourceHash: sourceHash,
+            emergency: true
+          });
+        } catch (emergencyError: any) {
+          console.error(`❌ [REDIS-DOWN] Emergency inline generation failed for doc ${documentId}:`, emergencyError.message);
+          return res.status(503).json({
+            errorCode: 'SERVICE_UNAVAILABLE',
+            message: 'Thumbnail service temporarily unavailable'
+          });
+        }
+      } else {
+        // For non-240px variants, return service unavailable when Redis is down
+        return res.status(503).json({
+          errorCode: 'SERVICE_UNAVAILABLE', 
+          message: 'Thumbnail service temporarily unavailable'
+        });
+      }
+    }
+
     // Thumbnail doesn't exist - implement THMB-5 on-access warming
     console.log(`📋 [THMB-5] Thumbnail missing for doc ${documentId}, variant ${variant} - implementing on-access warming`);
 
@@ -171,7 +230,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
     }
 
     // THMB-5: On-access warming - check if any variants exist for this {docId, sourceHash}
-    const missingVariants = await getMissingThumbnails(documentId, sourceHash);
+    const missingVariants = await getMissingThumbnails(documentId);
     
     if (missingVariants.length > 0) {
       // THMB-RATE-HOTFIX: Only enqueue if not already in progress (coalescing)
@@ -230,10 +289,7 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
           // Clean up coalescing mark when job completes (with timeout fallback)
           setTimeout(() => clearMark(coalescingKey), 60000); // 1 minute timeout
           
-          // Also clear on job completion if we can track it
-          if (jobResult.promise) {
-            jobResult.promise.finally(() => clearMark(coalescingKey)).catch(() => {});
-          }
+          // Note: jobResult may not have promise property in all implementations
 
           return res.status(202).json({
             status: 'queued',
@@ -270,10 +326,10 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
       res.setHeader('Retry-After', '2');
       return res.status(202).json({
         status: 'queued',
-        documentId,
-        variant,
+        documentId: parseInt(req.params.id),
+        variant: parseInt(req.query.variant || '240'),
         retryAfterMs: 1500,
-        sourceHash: sourceHash,
+        sourceHash: req.params.sourceHash || 'unknown',
         message: 'Service temporarily overloaded'
       });
     }
@@ -300,12 +356,11 @@ router.post('/thumbnails', requireAuth, async (req: any, res: any) => {
     const userId = req.user.id;
 
     // THMB-RATE-01: Check user rate limit for explicit requests too
-    const rateLimitResult = checkRateLimit(userId);
-    if (!rateLimitResult.allowed) {
+    if (!userRateLimitAllow(userId)) {
       return res.status(202).json({
         status: 'queued',
         documentId: parseInt(documentId),
-        retryAfterMs: rateLimitResult.retryAfterMs,
+        retryAfterMs: 1500,
         message: 'Request queued due to rate limiting'
       });
     }
@@ -346,7 +401,7 @@ router.post('/thumbnails', requireAuth, async (req: any, res: any) => {
     }
 
     // RBAC check
-    const canAccess = await canAccessDocument(req.user, docId, storage);
+    const canAccess = await canAccessDocument(req.user, docId, 'read');
     if (!canAccess) {
       return res.status(403).json({ 
         errorCode: 'ACCESS_DENIED',

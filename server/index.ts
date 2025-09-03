@@ -94,12 +94,12 @@ app.use(cors({
 
 // Increased limits for Mailgun email ingestion (emails can be large with attachments)
 app.use(express.json({ 
-  limit: '100mb',
+  limit: '50mb',
   parameterLimit: 50000 // Increased for complex email data
 }));
 app.use(express.urlencoded({ 
   extended: true, 
-  limit: '100mb',
+  limit: '50mb',
   parameterLimit: 50000 // Increased for complex email data
 }));
 

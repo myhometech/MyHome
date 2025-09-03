@@ -171,9 +171,10 @@ const mailgunUpload = multer({
   limits: {
     fileSize: 25 * 1024 * 1024, // 25MB per file (emails can have large attachments)
     files: 20, // Max 20 attachments per email (emails can have large attachments)
-    fieldSize: 10 * 1024 * 1024, // 10MB per field (for large email bodies)
-    fieldNameSize: 1000, // Increased field name size
-    fields: 100, // More fields for complex email data
+    fieldSize: 20 * 1024 * 1024, // 20MB per field (for very large email bodies with images)
+    fieldNameSize: 2000, // Increased field name size for complex email headers
+    fields: 200, // More fields for complex email data with many headers
+    fieldsSize: 50 * 1024 * 1024, // 50MB total for all fields combined
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [

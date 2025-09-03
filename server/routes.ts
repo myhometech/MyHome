@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupSimpleAuth, requireAuth } from "./simpleAuth";
+import { setupSimpleAuth } from "./simpleAuth";
 import { AuthService } from "./authService";
+import { requireAuth } from "./middleware/auth";
 import { loadHouseholdRole, requireRole, requireDocumentAccess, getRoleDisplayName, getRolePermissions, hasRole } from "./middleware/roleBasedAccess";
 import { AuditLogger } from "./auditLogger";
 import multer from "multer";
@@ -1383,7 +1384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update document details (name and expiry date)
-  app.patch('/api/documents/:id', requireAuth, requireDocumentAccess('write'), async (req: any, res) => {
+  app.patch('/api/documents/:id', requireAuth, requireDocumentAccess('write'), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -2167,7 +2168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/documents/:id', requireAuth, requireDocumentAccess('delete'), async (req: any, res) => {
+  app.delete('/api/documents/:id', requireAuth, requireDocumentAccess('delete'), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);

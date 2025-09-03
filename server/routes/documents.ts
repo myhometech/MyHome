@@ -510,6 +510,8 @@ router.get('/:id/thumbnail', (req: any, res: any, next: any) => {
     const documentId = parseInt(req.params.id);
     const userId = req.user.id;
 
+    console.log(`🔥 [THUMBNAIL-SUCCESS] ===== AUTHENTICATED THUMBNAIL PROCESSING =====`);
+    console.log(`🔥 [THUMBNAIL-SUCCESS] Document ID: ${documentId}, User: ${userId}`);
     console.log(`[THUMBNAIL-DEBUG] Processing thumbnail for document ${documentId}, user ${userId}`);
 
     if (isNaN(documentId)) {

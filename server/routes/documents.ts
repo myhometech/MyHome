@@ -508,114 +508,111 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    // Generate thumbnail on-demand
-    try {
-      console.log(`[THUMBNAIL] Generating thumbnail for document ${documentId}, gcsPath: ${document.gcsPath}, filePath: ${document.filePath}`);
+    console.log(`[THUMBNAIL] Generating thumbnail for document ${documentId}, gcsPath: ${document.gcsPath}, filePath: ${document.filePath}`);
 
-      let fileBuffer: Buffer | null = null;
-      let sourceFilePath: string | null = null;
+    let fileBuffer: Buffer | null = null;
+    let sourceFilePath: string | null = null;
+    let fileAccessible = false;
 
-      // Get file buffer from GCS or local storage
-      if (document.gcsPath && document.gcsPath.trim()) {
-        try {
-          const storageService = StorageService.initialize();
-          fileBuffer = await storageService.download(document.gcsPath);
-          if (fileBuffer) {
-            // Create temporary file for thumbnail generation
-            sourceFilePath = path.join('/tmp', `temp_${documentId}_${Date.now()}${path.extname(document.fileName)}`);
-            fs.writeFileSync(sourceFilePath, fileBuffer);
-          }
-        } catch (gcsError) {
-          console.warn(`[THUMBNAIL] Failed to fetch from GCS for document ${documentId}:`, gcsError);
-          // Don't return error, fall through to placeholder
+    // Try to access file from GCS first
+    if (document.gcsPath && document.gcsPath.trim()) {
+      try {
+        const storageService = StorageService.initialize();
+        fileBuffer = await storageService.download(document.gcsPath);
+        if (fileBuffer && fileBuffer.length > 0) {
+          // Create temporary file for thumbnail generation
+          sourceFilePath = path.join('/tmp', `temp_${documentId}_${Date.now()}${path.extname(document.fileName)}`);
+          fs.writeFileSync(sourceFilePath, fileBuffer);
+          fileAccessible = true;
+          console.log(`[THUMBNAIL] Successfully downloaded from GCS: ${fileBuffer.length} bytes`);
         }
-      } else if (document.filePath && fs.existsSync(document.filePath)) {
-        sourceFilePath = document.filePath;
+      } catch (gcsError) {
+        console.warn(`[THUMBNAIL] Failed to fetch from GCS for document ${documentId}:`, gcsError);
       }
-
-      // If we have no valid source, return placeholder immediately
-      if (!sourceFilePath && !fileBuffer) {
-        console.log(`[THUMBNAIL] No valid source file for document ${documentId}, returning placeholder`);
-        const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
-        res.setHeader('Content-Type', 'image/svg+xml');
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-        res.send(placeholderSvg);
-        return;
-      }
-
-      // Check for existing thumbnail first
-      if (sourceFilePath) {
-        const thumbnailPath = imageProcessor.getThumbnailPath(sourceFilePath);
-
-        if (fs.existsSync(thumbnailPath)) {
-          // Cleanup temp file if created
-          if (document.gcsPath && sourceFilePath && fs.existsSync(sourceFilePath)) {
-            fs.unlinkSync(sourceFilePath);
-          }
-          res.setHeader('Content-Type', 'image/jpeg');
-          res.sendFile(path.resolve(thumbnailPath));
-          return;
-        }
-      }
-
-      // Generate thumbnail for images  
-      if (document.mimeType?.startsWith('image/') && sourceFilePath) {
-        try {
-          // Use imageProcessor to generate thumbnail
-          const thumbnailOutputPath = path.join('/tmp', `thumb_${documentId}_${Date.now()}.jpg`);
-          const result = await imageProcessor.processImage(sourceFilePath, thumbnailOutputPath);
-
-          // Cleanup temp file if created
-          if (document.gcsPath && fs.existsSync(sourceFilePath)) {
-            fs.unlinkSync(sourceFilePath);
-          }
-
-          if (fs.existsSync(thumbnailOutputPath)) {
-            res.setHeader('Content-Type', 'image/jpeg');
-            res.sendFile(path.resolve(thumbnailOutputPath));
-            return;
-          }
-        } catch (thumbnailError) {
-          console.warn(`Failed to generate thumbnail for document ${documentId}:`, thumbnailError);
-        }
-      }
-
-      // For PDFs and other documents, generate a placeholder thumbnail
-      console.log(`[THUMBNAIL] Generating placeholder for document ${documentId}, mimeType: ${document.mimeType}`);
-      const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
-
-      // Cleanup temp file if created
-      if (sourceFilePath && fs.existsSync(sourceFilePath) && sourceFilePath.includes('/tmp/')) {
-        fs.unlinkSync(sourceFilePath);
-      }
-
-      res.setHeader('Content-Type', 'image/svg+xml');
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-      res.send(placeholderSvg);
-
-    } catch (error) {
-      console.error(`Failed to generate thumbnail for document ${documentId}:`, error);
-      // Return a generic placeholder
-      const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.name);
-      res.setHeader('Content-Type', 'image/svg+xml');
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-      res.send(placeholderSvg);
     }
 
-    // If no file found, return 404
-    res.status(404).json({
-      message: 'Document file not found',
-      documentId,
-      filePath: document.filePath,
-      gcsPath: document.gcsPath
-    });
+    // Try local file as fallback
+    if (!fileAccessible && document.filePath && fs.existsSync(document.filePath)) {
+      sourceFilePath = document.filePath;
+      fileAccessible = true;
+      console.log(`[THUMBNAIL] Using local file: ${document.filePath}`);
+    }
+
+    // If no file accessible, return placeholder immediately
+    if (!fileAccessible) {
+      console.log(`[THUMBNAIL] No accessible file for document ${documentId}, returning placeholder`);
+      const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.fileName);
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.send(placeholderSvg);
+    }
+
+    // Check for existing thumbnail first
+    if (sourceFilePath && !sourceFilePath.includes('/tmp/')) {
+      const thumbnailPath = imageProcessor.getThumbnailPath(sourceFilePath);
+      if (fs.existsSync(thumbnailPath)) {
+        console.log(`[THUMBNAIL] Found existing thumbnail: ${thumbnailPath}`);
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.sendFile(path.resolve(thumbnailPath));
+      }
+    }
+
+    // Generate thumbnail for images  
+    if (document.mimeType?.startsWith('image/') && sourceFilePath) {
+      try {
+        const thumbnailOutputPath = path.join('/tmp', `thumb_${documentId}_${Date.now()}.jpg`);
+        console.log(`[THUMBNAIL] Generating image thumbnail: ${thumbnailOutputPath}`);
+        
+        const result = await imageProcessor.processImage(sourceFilePath, thumbnailOutputPath, {
+          maxWidth: 300,
+          maxHeight: 300,
+          quality: 80,
+          generateThumbnail: true
+        });
+
+        // Cleanup temp file if created from GCS
+        if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
+          fs.unlinkSync(sourceFilePath);
+        }
+
+        if (result.thumbnailPath && fs.existsSync(result.thumbnailPath)) {
+          console.log(`[THUMBNAIL] Successfully generated image thumbnail`);
+          res.setHeader('Content-Type', 'image/jpeg');
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          return res.sendFile(path.resolve(result.thumbnailPath));
+        }
+      } catch (thumbnailError) {
+        console.warn(`[THUMBNAIL] Failed to generate image thumbnail for document ${documentId}:`, thumbnailError);
+      }
+    }
+
+    // For all other cases (PDFs, unknown types), return placeholder
+    console.log(`[THUMBNAIL] Returning placeholder for document ${documentId}, mimeType: ${document.mimeType}`);
+    
+    // Cleanup temp file if created
+    if (sourceFilePath && sourceFilePath.includes('/tmp/') && fs.existsSync(sourceFilePath)) {
+      fs.unlinkSync(sourceFilePath);
+    }
+
+    const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.fileName);
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(placeholderSvg);
 
   } catch (error: any) {
-    console.error('Failed to serve thumbnail:', error);
-    res.status(500).json({
-      message: 'Failed to serve thumbnail',
-      error: error.message,
-    });
+    console.error(`[THUMBNAIL] Error generating thumbnail for document ${req.params.id}:`, error);
+    
+    // Always return a placeholder on error
+    try {
+      const placeholderSvg = generateDocumentPlaceholder('application/octet-stream', 'Document');
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=300'); // Shorter cache for errors
+      res.send(placeholderSvg);
+    } catch (placeholderError) {
+      console.error(`[THUMBNAIL] Failed to generate placeholder:`, placeholderError);
+      res.status(500).json({ message: 'Failed to generate thumbnail' });
+    }
   }
 });
 
@@ -1152,20 +1149,22 @@ router.get('/:id/preview', requireAuth, async (req: any, res: any) => {
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    console.log(`[PDF-PREVIEW] Serving preview for document ${documentId}`);
+    console.log(`[PDF-PREVIEW] Serving preview for document ${documentId}, gcsPath: ${document.gcsPath}, filePath: ${document.filePath}`);
 
     // Only serve PDFs for preview
     if (document.mimeType !== 'application/pdf') {
       return res.status(400).json({ message: 'Preview only available for PDF documents' });
     }
 
+    let fileFound = false;
+
     // Check if document is stored in GCS
-    if (document.gcsPath) {
+    if (document.gcsPath && document.gcsPath.trim()) {
       try {
         const storageService = StorageService.initialize();
         const fileBuffer = await storageService.download(document.gcsPath);
 
-        if (fileBuffer) {
+        if (fileBuffer && fileBuffer.length > 0) {
           console.log(`[PDF-PREVIEW] Successfully serving from GCS: ${fileBuffer.length} bytes`);
           res.setHeader('Content-Type', 'application/pdf');
           res.setHeader('Content-Disposition', 'inline');
@@ -1174,35 +1173,45 @@ router.get('/:id/preview', requireAuth, async (req: any, res: any) => {
           return;
         }
       } catch (gcsError) {
-        console.error(`[PDF-PREVIEW] GCS access failed for document ${documentId}:`, gcsError);
-        // Fall through to local file check
+        console.warn(`[PDF-PREVIEW] GCS access failed for document ${documentId}:`, gcsError);
+        // Continue to check local file
       }
     }
 
     // Check if original file exists locally
     if (document.filePath && fs.existsSync(document.filePath)) {
-      console.log(`[PDF-PREVIEW] Serving from local path: ${document.filePath}`);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'inline');
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-      res.sendFile(path.resolve(document.filePath));
-      return;
+      try {
+        console.log(`[PDF-PREVIEW] Serving from local path: ${document.filePath}`);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.sendFile(path.resolve(document.filePath));
+        fileFound = true;
+        return;
+      } catch (localError) {
+        console.warn(`[PDF-PREVIEW] Failed to serve local file for document ${documentId}:`, localError);
+      }
     }
 
-    // If no file found, return 404
-    console.error(`[PDF-PREVIEW] PDF file not found for document ${documentId}`);
-    res.status(404).json({
-      message: 'PDF file not found',
+    // If no file found anywhere, return 500 (not 404, to trigger fallback handling in frontend)
+    console.error(`[PDF-PREVIEW] PDF file not accessible for document ${documentId}`);
+    console.error(`[PDF-PREVIEW] Checked paths - GCS: ${document.gcsPath}, Local: ${document.filePath}`);
+    
+    res.status(500).json({
+      message: 'PDF file not accessible',
+      error: 'FILE_NOT_FOUND',
       documentId,
       filePath: document.filePath,
-      gcsPath: document.gcsPath
+      gcsPath: document.gcsPath,
+      suggestion: 'Document may need to be re-uploaded'
     });
 
   } catch (error: any) {
-    console.error(`[PDF-PREVIEW] Error serving PDF preview ${req.params.id}:`, error);
+    console.error(`[PDF-PREVIEW] Unexpected error serving PDF preview ${req.params.id}:`, error);
     res.status(500).json({
       message: 'Failed to serve PDF preview',
       error: error.message,
+      documentId: req.params.id
     });
   }
 });

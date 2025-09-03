@@ -592,7 +592,44 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
 
     // Generate thumbnail for PDFs
     if (document.mimeType === 'application/pdf' && sourceFilePath) {
-      console.log(`[THUMBNAIL] PDF detected for document ${documentId}, will return enhanced placeholder`);
+      try {
+        console.log(`[THUMBNAIL] Generating PDF thumbnail for document ${documentId}`);
+        const pdfPoppler = await import('pdf-poppler') as any;
+        
+        const options = {
+          format: 'jpeg',
+          out_dir: '/tmp',
+          out_prefix: `pdf_thumb_${documentId}_${Date.now()}`,
+          page: 1, // Only convert first page
+          scale: 1024 // High quality for thumbnails
+        };
+
+        // Convert PDF first page to image
+        const results = await pdfPoppler.convert(sourceFilePath, options);
+        
+        if (results && results.length > 0) {
+          const thumbnailPath = results[0];
+          console.log(`[THUMBNAIL] Successfully generated PDF thumbnail: ${thumbnailPath}`);
+          
+          // Cleanup temp PDF file if created from GCS
+          if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
+            try { fs.unlinkSync(sourceFilePath); } catch {}
+          }
+          
+          if (fs.existsSync(thumbnailPath)) {
+            res.setHeader('Content-Type', 'image/jpeg');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            return res.sendFile(path.resolve(thumbnailPath), (err: any) => {
+              // Cleanup generated thumbnail after sending
+              if (!err) {
+                try { fs.unlinkSync(thumbnailPath); } catch {}
+              }
+            });
+          }
+        }
+      } catch (pdfError) {
+        console.error(`[THUMBNAIL] Error generating PDF thumbnail for document ${documentId}:`, pdfError);
+      }
       
       // Cleanup temp file if created from GCS
       if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
@@ -600,7 +637,81 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       }
     }
 
-    // For all other cases (PDFs, unknown types), return placeholder
+    // Generate thumbnail for Office documents (Word, Excel, PowerPoint)
+    const officeTypes = [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+      'application/msword', // .doc
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.ms-powerpoint' // .ppt
+    ];
+
+    if (officeTypes.includes(document.mimeType || '') && sourceFilePath) {
+      try {
+        console.log(`[THUMBNAIL] Generating Office document thumbnail for document ${documentId}`);
+        const { execSync } = await import('child_process');
+        
+        // Convert to PDF using LibreOffice headless
+        const tempPdfPath = path.join('/tmp', `office_converted_${documentId}_${Date.now()}.pdf`);
+        const libreOfficeCmd = `libreoffice --headless --convert-to pdf --outdir /tmp "${sourceFilePath}"`;
+        
+        execSync(libreOfficeCmd, { timeout: 30000 }); // 30 second timeout
+        
+        // Find the generated PDF file (LibreOffice creates it with original name + .pdf)
+        const baseName = path.basename(sourceFilePath, path.extname(sourceFilePath));
+        const generatedPdfPath = path.join('/tmp', `${baseName}.pdf`);
+        
+        if (fs.existsSync(generatedPdfPath)) {
+          // Now generate thumbnail from the PDF
+          const pdfPoppler = await import('pdf-poppler') as any;
+          
+          const options = {
+            format: 'jpeg',
+            out_dir: '/tmp',
+            out_prefix: `office_thumb_${documentId}_${Date.now()}`,
+            page: 1,
+            scale: 1024
+          };
+
+          const results = await pdfPoppler.convert(generatedPdfPath, options);
+          
+          if (results && results.length > 0) {
+            const thumbnailPath = results[0];
+            console.log(`[THUMBNAIL] Successfully generated Office document thumbnail: ${thumbnailPath}`);
+            
+            // Cleanup temp files
+            try { fs.unlinkSync(generatedPdfPath); } catch {}
+            if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
+              try { fs.unlinkSync(sourceFilePath); } catch {}
+            }
+            
+            if (fs.existsSync(thumbnailPath)) {
+              res.setHeader('Content-Type', 'image/jpeg');
+              res.setHeader('Cache-Control', 'public, max-age=3600');
+              return res.sendFile(path.resolve(thumbnailPath), (err: any) => {
+                // Cleanup generated thumbnail after sending
+                if (!err) {
+                  try { fs.unlinkSync(thumbnailPath); } catch {}
+                }
+              });
+            }
+          }
+          
+          // Cleanup PDF if thumbnail generation failed
+          try { fs.unlinkSync(generatedPdfPath); } catch {}
+        }
+      } catch (officeError) {
+        console.error(`[THUMBNAIL] Error generating Office document thumbnail for document ${documentId}:`, officeError);
+      }
+      
+      // Cleanup temp file if created from GCS
+      if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
+        try { fs.unlinkSync(sourceFilePath); } catch {}
+      }
+    }
+
+    // For all other cases (unknown types), return placeholder
     console.log(`[THUMBNAIL] Returning placeholder for document ${documentId}, mimeType: ${document.mimeType}`);
     
     // Cleanup temp file if created

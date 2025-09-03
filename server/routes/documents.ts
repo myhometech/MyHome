@@ -490,29 +490,14 @@ router.get('/:id', requireAuth, async (req: any, res: any) => {
 });
 
 // Get document thumbnail  
-router.get('/:id/thumbnail', (req: any, res: any, next: any) => {
-  console.log(`🎯 [THUMBNAIL-PRE-AUTH] ===== THUMBNAIL REQUEST for document ${req.params.id} =====`);
-  console.log(`🎯 [THUMBNAIL-PRE-AUTH] User-Agent: ${req.get('User-Agent')}`);
-  console.log(`🎯 [THUMBNAIL-PRE-AUTH] Session ID: ${req.sessionID}`);
-  console.log(`🎯 [THUMBNAIL-PRE-AUTH] Has req.user: ${!!req.user}`);
-  next();
-}, requireAuth, async (req: any, res: any) => {
-  console.log(`[THUMBNAIL-DEBUG] ===== AUTHENTICATED THUMBNAIL ROUTE for document ${req.params.id} =====`);
-  console.log(`[THUMBNAIL-DEBUG] User: ${req.user?.id || 'NONE'}`);
-  console.log(`[THUMBNAIL-DEBUG] Session: ${!!req.session}`);
-  
+router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
   if (!req.user) {
-    console.log(`[THUMBNAIL-DEBUG] ❌ No user found, returning 401`);
     return res.status(401).json({ message: 'Authentication required' });
   }
 
   try {
     const documentId = parseInt(req.params.id);
     const userId = req.user.id;
-
-    console.log(`🔥 [THUMBNAIL-SUCCESS] ===== AUTHENTICATED THUMBNAIL PROCESSING =====`);
-    console.log(`🔥 [THUMBNAIL-SUCCESS] Document ID: ${documentId}, User: ${userId}`);
-    console.log(`[THUMBNAIL-DEBUG] Processing thumbnail for document ${documentId}, user ${userId}`);
 
     if (isNaN(documentId)) {
       console.log(`[THUMBNAIL-DEBUG] Invalid document ID: ${req.params.id}`);
@@ -595,13 +580,23 @@ router.get('/:id/thumbnail', (req: any, res: any, next: any) => {
         }
 
         if (result.thumbnailPath && fs.existsSync(result.thumbnailPath)) {
-          console.log(`[THUMBNAIL] Successfully generated image thumbnail`);
+          console.log(`[THUMBNAIL] Successfully generated image thumbnail: ${result.thumbnailPath}`);
           res.setHeader('Content-Type', 'image/jpeg');
           res.setHeader('Cache-Control', 'public, max-age=3600');
           return res.sendFile(path.resolve(result.thumbnailPath));
         }
-      } catch (thumbnailError) {
-        console.warn(`[THUMBNAIL] Failed to generate image thumbnail for document ${documentId}:`, thumbnailError);
+      } catch (error) {
+        console.error(`[THUMBNAIL] Error generating image thumbnail for document ${documentId}:`, error);
+      }
+    }
+
+    // Generate thumbnail for PDFs
+    if (document.mimeType === 'application/pdf' && sourceFilePath) {
+      console.log(`[THUMBNAIL] PDF detected for document ${documentId}, will return enhanced placeholder`);
+      
+      // Cleanup temp file if created from GCS
+      if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
+        try { fs.unlinkSync(sourceFilePath); } catch {}
       }
     }
 

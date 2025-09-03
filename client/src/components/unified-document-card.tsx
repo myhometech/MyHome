@@ -441,7 +441,7 @@ export default function UnifiedDocumentCard({
       const displayCount = insightsCount > 99 ? '99+' : insightsCount.toString();
       return (
         <div 
-          className="flex items-center justify-center w-5 h-5 bg-purple-600 text-white text-xs font-semibold rounded-full"
+          className="flex items-center justify-center w-4 h-4 bg-purple-600 text-white text-xs font-semibold rounded-full"
           data-testid={`insights-badge-${document.id}`}
         >
           {displayCount}
@@ -451,7 +451,7 @@ export default function UnifiedDocumentCard({
       // Show brain icon
       return (
         <Brain 
-          className="h-4 w-4 text-purple-400" 
+          className="h-3 w-3 text-purple-400" 
           data-testid={`insights-brain-${document.id}`}
         />
       );
@@ -492,10 +492,10 @@ export default function UnifiedDocumentCard({
             </div>
           )}
 
-          {/* Thumbnail Section - 75% height, full width */}
+          {/* Thumbnail Section - full width and height */}
           <div 
             className="w-full bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
-            style={{ height: '65%' }}
+            style={{ height: '70%' }}
           >
             {thumbnailError || !thumbnailBlobUrl ? (
               <div className={`w-full h-full flex items-center justify-center ${getFileTypeIconColor()}`}>
@@ -507,19 +507,19 @@ export default function UnifiedDocumentCard({
               <img 
                 src={thumbnailBlobUrl}
                 alt={document.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover rounded-t-lg"
                 onError={() => setThumbnailError(true)}
                 data-testid={`document-thumbnail-${document.id}`}
               />
             )}
           </div>
 
-          {/* Bottom Section - 25% height with title only */}
+          {/* Bottom Section - title area with more space */}
           <div 
-            className="px-3 pt-3 pb-1 bg-white flex items-start justify-center"
-            style={{ height: '35%', minHeight: '64px' }}
+            className="px-3 pt-2 pb-6 bg-white flex items-start justify-center relative"
+            style={{ height: '30%', minHeight: '48px' }}
           >
-            {/* Title - Centered */}
+            {/* Title - Centered and higher up */}
             <div className="flex-1 min-w-0 text-center">
               {isRenaming ? (
                 <div className="space-y-1">
@@ -542,7 +542,7 @@ export default function UnifiedDocumentCard({
                 </div>
               ) : (
                 <h3 
-                  className="font-medium text-sm text-gray-900 truncate leading-tight"
+                  className="font-medium text-sm text-gray-900 truncate leading-tight mt-1"
                   title={document.name}
                   data-testid={`document-title-${document.id}`}
                 >
@@ -551,29 +551,26 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-          </div>
-          
-          
-          {/* Icons positioned at very bottom corners of entire card */}
-          {/* Insights Indicator - Very Bottom Left */}
-          <div className="absolute bottom-2 left-2 z-20">
-            {renderInsightsIndicator()}
-          </div>
+            {/* Icons positioned at bottom corners of the bottom section */}
+            {/* Insights Indicator - Bottom Left */}
+            <div className="absolute bottom-2 left-2 z-20">
+              {renderInsightsIndicator()}
+            </div>
 
-          {/* Overflow Menu - Very Bottom Right */}
-          {!bulkMode && (
-            <div className="absolute bottom-2 right-2 z-20">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-5 w-5 p-0 rounded-full hover:bg-purple-100 opacity-70 hover:opacity-100 transition-opacity bg-white/90 border border-purple-200"
-                    data-testid={`document-menu-${document.id}`}
-                  >
-                    <MoreHorizontal className="h-2.5 w-2.5 text-purple-600" />
-                  </Button>
-                </DropdownMenuTrigger>
+            {/* Overflow Menu - Bottom Right */}
+            {!bulkMode && (
+              <div className="absolute bottom-2 right-2 z-20">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-4 w-4 p-0 rounded-full hover:bg-purple-100 opacity-70 hover:opacity-100 transition-opacity bg-white/90 border border-purple-200"
+                      data-testid={`document-menu-${document.id}`}
+                    >
+                      <MoreHorizontal className="h-2 w-2 text-purple-600" />
+                    </Button>
+                  </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => {
                         setModalInitialTab('properties');

@@ -9,6 +9,7 @@ import { storage } from '../storage';
 import { StorageService } from '../storage/StorageService';
 import type { AuthenticatedRequest } from '../middleware/auth';
 import { requireAuth } from '../simpleAuth';
+import { HashingService } from '../hashingService';
 
 const router = Router();
 
@@ -200,11 +201,16 @@ router.post('/', upload.fields([
 
     // Upload file to GCS first
     let gcsPath: string | null = null;
+    let sourceHash: string | null = null;
     try {
       const storageService = StorageService.initialize();
       
       // Read the processed file into a buffer
       const fileBuffer = await fs.promises.readFile(finalFilePath);
+      
+      // THMB-1: Compute source hash from the exact stored binary content
+      sourceHash = HashingService.computeSourceHash(fileBuffer);
+      console.log(`🔐 Computed sourceHash: ${sourceHash} for file: ${uploadedFile.originalname}`);
       
       // Generate a unique GCS key
       const timestamp = Date.now();
@@ -219,6 +225,17 @@ router.post('/', upload.fields([
       console.error('❌ GCS upload failed:', gcsError);
       // Continue with local storage as fallback
       console.log('📁 Falling back to local storage');
+      
+      // If GCS upload failed but we still have the file buffer, compute hash from local file
+      if (!sourceHash) {
+        try {
+          const fileBuffer = await fs.promises.readFile(finalFilePath);
+          sourceHash = HashingService.computeSourceHash(fileBuffer);
+          console.log(`🔐 Computed sourceHash from local file: ${sourceHash}`);
+        } catch (hashError) {
+          console.error('❌ Failed to compute sourceHash:', hashError);
+        }
+      }
     }
 
     // Create document record with GCS path or local fallback
@@ -232,6 +249,7 @@ router.post('/', upload.fields([
       categoryId,
       categorizationSource, // DOC-303: Track categorization method
       gcsPath, // Store GCS path separately
+      sourceHash, // THMB-1: Store source content hash for thumbnail generation
     });
 
     console.log('✅ Document created successfully:', document.id);

@@ -119,6 +119,9 @@ export const documents = pgTable("documents", {
   conversionReason: varchar("conversion_reason", { length: 30 }), // 'ok' | 'skipped_unsupported' | 'skipped_too_large' | 'skipped_password_protected' | 'error'
   derivedFromDocumentId: integer("derived_from_document_id"), // For converted docs, reference to original
   source: varchar("source", { length: 20 }).default("manual"), // 'manual', 'email', 'api' (replacing uploadSource for consistency)
+  
+  // THMB-1: Source content hashing for thumbnail generation
+  sourceHash: text("source_hash"), // SHA-256 hash of the exact stored binary content
 }, (table) => [
   // Primary user-based indexes for common queries
   index("idx_documents_user_id").on(table.userId),

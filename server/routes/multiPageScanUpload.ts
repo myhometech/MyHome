@@ -8,6 +8,7 @@ import { PDFConversionService } from '../pdfConversionService';
 import { StorageService, storageProvider } from '../storage/StorageService';
 import { EncryptionService } from '../encryptionService';
 import { ocrQueue } from '../ocrQueue';
+import { HashingService } from '../hashingService';
 
 function getUserId(req: any): string {
   return req.user?.id || req.session?.user?.id;
@@ -102,18 +103,24 @@ export function setupMultiPageScanUpload(app: Express) {
 
       // Upload to cloud storage with proper streaming
       let cloudStorageKey = '';
+      let sourceHash: string | null = null;
       try {
         const storage = storageProvider();
-        const fileStream = fs.createReadStream(pdfConversionResult.pdfPath);
+        
+        // THMB-1: Compute source hash from the final PDF buffer
+        const fileBuffer = await fs.promises.readFile(pdfConversionResult.pdfPath);
+        sourceHash = HashingService.computeSourceHash(fileBuffer);
+        console.log(`🔐 Computed sourceHash: ${sourceHash} for multi-page scan: ${documentName}`);
         
         if (typeof storage.uploadStream === 'function') {
+          const fileStream = fs.createReadStream(pdfConversionResult.pdfPath);
           cloudStorageKey = await storage.uploadStream(
             fileStream, 
             StorageService.generateFileKey(userId, `temp_${Date.now()}`, pdfFileName),
             documentData.mimeType
           );
+          fileStream.destroy();
         } else {
-          const fileBuffer = await fs.promises.readFile(pdfConversionResult.pdfPath);
           cloudStorageKey = await storage.upload(
             fileBuffer, 
             StorageService.generateFileKey(userId, `temp_${Date.now()}`, pdfFileName),
@@ -121,7 +128,6 @@ export function setupMultiPageScanUpload(app: Express) {
           );
         }
         
-        fileStream.destroy();
         console.log(`✅ Multi-page PDF uploaded to cloud storage: ${cloudStorageKey}`);
 
       } catch (uploadError) {
@@ -172,6 +178,7 @@ export function setupMultiPageScanUpload(app: Express) {
         gcsPath: cloudStorageKey,
         encryptedDocumentKey,
         encryptionMetadata,
+        sourceHash, // THMB-1: Store source content hash for thumbnail generation
       };
 
       const document = await storage.createDocument(cloudDocumentData);

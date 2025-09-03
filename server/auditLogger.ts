@@ -94,6 +94,55 @@ export class AuditLogger {
   }
 
   /**
+   * THMB-1: Log thumbnail access requested event
+   * Emitted when signed URL is issued for thumbnail access
+   */
+  static async logThumbnailAccessRequested(
+    documentId: number, 
+    userId: string, 
+    householdId?: string | null, 
+    metadata?: { 
+      variant?: number; 
+      sourceHash?: string; 
+      storagePath?: string; 
+      actor?: 'system' | 'user';
+      ttlSeconds?: number;
+    }
+  ): Promise<void> {
+    const auditMetadata = {
+      ...metadata,
+      actor: metadata?.actor || 'user',
+      ts: new Date().toISOString(),
+    };
+    await this.logDocumentEvent('thumbnail.access.requested', documentId, userId, householdId, auditMetadata);
+  }
+
+  /**
+   * THMB-1: Log thumbnail write completed event
+   * Stub for later tickets - used when thumbnail generation completes
+   */
+  static async logThumbnailWriteCompleted(
+    documentId: number, 
+    userId: string, 
+    householdId?: string | null, 
+    metadata?: { 
+      variant?: number; 
+      sourceHash?: string; 
+      storagePath?: string; 
+      actor?: 'system' | 'user';
+      generationTimeMs?: number;
+      fileSize?: number;
+    }
+  ): Promise<void> {
+    const auditMetadata = {
+      ...metadata,
+      actor: metadata?.actor || 'system',
+      ts: new Date().toISOString(),
+    };
+    await this.logDocumentEvent('thumbnail.write.completed', documentId, userId, householdId, auditMetadata);
+  }
+
+  /**
    * Get audit trail for a specific document
    */
   static async getDocumentAuditTrail(documentId: number): Promise<any[]> {
@@ -135,6 +184,8 @@ export const {
   logDownload,
   logView,
   logUpdate,
+  logThumbnailAccessRequested,
+  logThumbnailWriteCompleted,
   getDocumentAuditTrail,
   getUserAuditTrail,
 } = AuditLogger;

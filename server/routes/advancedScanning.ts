@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { storage } from '../storage.js';
 import { nanoid } from 'nanoid';
 import path from 'path';
+import { HashingService } from '../hashingService';
 
 const router = express.Router();
 
@@ -82,6 +83,10 @@ router.post('/process-pages',
         `${validatedData.documentName}.pdf`
       );
 
+      // THMB-1: Compute source hash from the generated PDF buffer
+      const sourceHash = HashingService.computeSourceHash(pdfBuffer);
+      console.log(`🔐 Computed sourceHash: ${sourceHash} for advanced scan: ${validatedData.documentName}`);
+
       // Generate unique file name and path
       const fileId = nanoid();
       const fileName = `${validatedData.documentName}-${fileId}.pdf`;
@@ -114,6 +119,7 @@ router.post('/process-pages',
         confidence: averageConfidence / 100, // Convert to 0-1 scale
         categoryId: validatedData.categoryId,
         tags: validatedData.tags ? [validatedData.tags] : [],
+        sourceHash, // THMB-1: Store source content hash for thumbnail generation
         metadata: {
           scanType: 'advanced_multi_page',
           pageCount: processedPages.length,

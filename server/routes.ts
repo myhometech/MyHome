@@ -47,6 +47,7 @@ import { renderAndCreateEmailBodyPdf } from './emailBodyPdfService';
 import { emailRenderWorker } from './emailRenderWorker';
 import { workerHealthChecker } from './workerHealthCheck';
 import { setupMultiPageScanUpload } from './routes/multiPageScanUpload';
+import { registerThumbnailRoutes } from './routes/thumbnails';
 import { chatOrchestrationService } from './chatOrchestrationService';
 import { 
   mailgunIPWhitelist, 
@@ -4286,6 +4287,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register document routes
   app.use('/api/documents', documentsRouter);
+
+  // THMB-1: Register thumbnail routes
+  registerThumbnailRoutes(app);
 
   // Register test routes
   if (process.env.NODE_ENV === 'development') {

@@ -363,12 +363,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
-      // Store user in session compatible with simpleAuth
-      (req.session as any).user = user;
+      // Store complete user data in session compatible with simpleAuth
+      (req.session as any).user = {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      };
       (req.session as any).userId = user.id;
+      (req.session as any).email = user.email;
+      (req.session as any).firstName = user.firstName;
+      (req.session as any).lastName = user.lastName;
+      (req.session as any).role = user.role;
       (req.session as any).authProvider = "email";
 
-      console.log(`Email login successful for user: ${user.id}`);
+      console.log(`Email login successful for user: ${user.id}`, {
+        sessionUser: !!(req.session as any).user,
+        sessionUserId: !!(req.session as any).userId
+      });
 
       // Force session save
       req.session.save((err: any) => {
@@ -427,8 +440,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Store user in session
-      req.session.user = user;
+      // Store complete user data in session
+      (req.session as any).user = {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      };
+      (req.session as any).userId = user.id;
+      (req.session as any).email = user.email;
+      (req.session as any).firstName = user.firstName;
+      (req.session as any).lastName = user.lastName;
+      (req.session as any).role = user.role;
+      (req.session as any).authProvider = "email";
 
       const { passwordHash, ...safeUser } = user;
       res.status(201).json({ 
@@ -557,12 +582,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ success: false, message: "Failed to reset password" });
     }
   });
+  // Add session validation endpoint for debugging
+  app.get('/api/auth/session-debug', async (req: any, res: any) => {
+    try {
+      const sessionData = {
+        hasSession: !!req.session,
+        sessionId: req.session?.id?.substring(0, 8) + '...',
+        hasSessionUser: !!req.session?.user,
+        hasReqUser: !!req.user,
+        sessionUserId: req.session?.userId,
+        cookieCount: Object.keys(req.cookies || {}).length,
+        userAgent: req.get('User-Agent')?.substring(0, 50)
+      };
+      
+      console.log('Session debug requested:', sessionData);
+      res.json(sessionData);
+    } catch (error) {
+      console.error('Session debug error:', error);
+      res.status(500).json({ error: 'Failed to get session debug info' });
+    }
+  });
+
   app.get('/api/auth/user', requireAuth as any, async (req: any, res: any) => {
     try {
       const user = req.user || req.session?.user;
 
       if (!user) {
         console.log("No user found in req.user or req.session.user");
+        console.log("Session debug:", {
+          hasSession: !!req.session,
+          sessionKeys: req.session ? Object.keys(req.session) : [],
+          sessionUserId: req.session?.userId
+        });
         return res.status(401).json({ message: "User not authenticated" });
       }
 

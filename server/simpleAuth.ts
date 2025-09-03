@@ -2,6 +2,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import type { Express, RequestHandler } from "express";
 import { AuthService } from "./authService";
+import MemoryStore from 'memorystore'(session);
 
 export function getSession() {
   const isProd = process.env.NODE_ENV === 'production';
@@ -33,10 +34,52 @@ export function getSession() {
 }
 
 export function setupSimpleAuth(app: Express) {
-  app.set("trust proxy", 1);
-  app.use(getSession());
+  // Session middleware
+  app.use(session({
+    secret: process.env.SESSION_SECRET || "dev-secret-key-change-in-production",
+    resave: false,
+    saveUninitialized: false,
+    store: new MemoryStore({
+      checkPeriod: 86400000 // 24 hours cleanup interval
+    }),
+    rolling: true, // Reset expiry on activity
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax"
+    }
+  }));
 
-  // Remove debug middleware
+  // Enhanced middleware to attach user from session to request with better persistence
+  app.use((req: any, res, next) => {
+    if (req.session && req.session.user && !req.user) {
+      req.user = req.session.user;
+
+      // Ensure session data consistency
+      if (!req.session.userId && req.session.user.id) {
+        req.session.userId = req.session.user.id;
+      }
+      if (!req.session.email && req.session.user.email) {
+        req.session.email = req.session.user.email;
+      }
+    }
+
+    // If session exists but user is missing, try to restore from session properties
+    if (req.session && !req.session.user && req.session.userId) {
+      req.session.user = {
+        id: req.session.userId,
+        email: req.session.email,
+        firstName: req.session.firstName,
+        lastName: req.session.lastName,
+        role: req.session.role,
+        household: req.session.household
+      };
+      req.user = req.session.user;
+    }
+
+    next();
+  });
 }
 
 export const requireAuth: RequestHandler = (req: any, res: any, next: any) => {
@@ -59,8 +102,8 @@ export const requireAuth: RequestHandler = (req: any, res: any, next: any) => {
       cookies: Object.keys(req.cookies || {}),
       userAgent: req.get('User-Agent')?.substring(0, 50)
     });
-    
-    return res.status(401).json({ 
+
+    return res.status(401).json({
       message: "Authentication required",
       debug: process.env.NODE_ENV === 'development' ? {
         sessionExists: !!req.session,

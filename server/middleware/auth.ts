@@ -55,13 +55,35 @@ export function requireAuth(req: AuthenticatedRequest & { cid?: string }, res: R
   });
 
   // Check both req.user and session.user (for different auth methods)
-  const user = req.user || sessionUser;
+  let user = req.user || sessionUser;
+
+  // Additional session validation for persistent authentication
+  if (!user && hasSession) {
+    // Try to restore user from session data if session exists but user is missing
+    const session = (req as any).session;
+    if (session.userId) {
+      // Reconstruct user object from session data
+      user = {
+        id: session.userId,
+        email: session.email || sessionUser?.email,
+        firstName: session.firstName || sessionUser?.firstName,
+        lastName: session.lastName || sessionUser?.lastName,
+        role: session.role || sessionUser?.role,
+        household: session.household || sessionUser?.household
+      };
+      console.log(`[${req.cid || 'no-cid'}] auth_restored_user_from_session:`, {
+        userId: user.id,
+        email: user.email
+      });
+    }
+  }
 
   if (!user) {
     console.warn(`[${req.cid || 'no-cid'}] auth_missing_user - session details:`, {
       sessionExists: hasSession,
       sessionUser: sessionUser ? 'present' : 'missing',
-      cookieCount: Object.keys(req.cookies || {}).length
+      cookieCount: Object.keys(req.cookies || {}).length,
+      sessionUserId: (req as any).session?.userId
     });
     
     return res.status(401).json({ 
@@ -70,7 +92,8 @@ export function requireAuth(req: AuthenticatedRequest & { cid?: string }, res: R
       cid: req.cid,
       debug: process.env.NODE_ENV === 'development' ? {
         sessionExists: hasSession,
-        sessionUser: !!sessionUser
+        sessionUser: !!sessionUser,
+        sessionUserId: !!(req as any).session?.userId
       } : undefined
     });
   }

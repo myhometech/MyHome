@@ -179,20 +179,29 @@ export default function UnifiedDocumentCard({
         
         if (response.ok) {
           const contentType = response.headers.get('content-type') || '';
+          console.log(`[THUMBNAIL] Doc ${document.id}: contentType="${contentType}"`);
           
           // If response is a data URL (text/plain), use it directly
           if (contentType.includes('text/plain')) {
             const dataUrl = await response.text();
-            setThumbnailBlobUrl(dataUrl);
-            setThumbnailError(false);
+            console.log(`[THUMBNAIL] Doc ${document.id}: Got data URL (${dataUrl.length} chars)`);
+            if (dataUrl.startsWith('data:image/svg+xml')) {
+              setThumbnailBlobUrl(dataUrl);
+              setThumbnailError(false);
+            } else {
+              console.warn(`[THUMBNAIL] Doc ${document.id}: Invalid data URL format`);
+              setThumbnailError(true);
+            }
           } else {
             // For binary image data, create blob URL
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
+            console.log(`[THUMBNAIL] Doc ${document.id}: Created blob URL (${blob.size} bytes)`);
             setThumbnailBlobUrl(blobUrl);
             setThumbnailError(false);
           }
         } else {
+          console.warn(`[THUMBNAIL] Doc ${document.id}: Response failed ${response.status}`);
           setThumbnailError(true);
         }
       } catch (error) {
@@ -500,13 +509,13 @@ export default function UnifiedDocumentCard({
             )}
           </div>
 
-          {/* Bottom Section - 25% height with 2 rows */}
+          {/* Bottom Section - 25% height with title and corner icons */}
           <div 
-            className="px-3 py-1 bg-white flex flex-col justify-between"
+            className="relative px-3 py-2 bg-white flex items-center justify-center"
             style={{ height: '25%', minHeight: '48px' }}
           >
-            {/* Title Row */}
-            <div className="flex-1 min-w-0">
+            {/* Title - Centered */}
+            <div className="flex-1 min-w-0 text-center">
               {isRenaming ? (
                 <div className="space-y-1">
                   <Input
@@ -517,7 +526,7 @@ export default function UnifiedDocumentCard({
                     autoFocus
                     placeholder="Enter new document name"
                   />
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 justify-center">
                     <Button size="sm" variant="ghost" onClick={handleSaveRename} disabled={updateDocumentMutation.isPending} className="h-5 w-5 p-0">
                       <Check className="h-3 w-3" />
                     </Button>
@@ -528,7 +537,7 @@ export default function UnifiedDocumentCard({
                 </div>
               ) : (
                 <h3 
-                  className="font-medium text-xs text-gray-900 truncate leading-tight"
+                  className="font-medium text-sm text-gray-900 truncate leading-tight"
                   title={document.name}
                   data-testid={`document-title-${document.id}`}
                 >
@@ -537,27 +546,25 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-            {/* Icons Row */}
-            <div className="flex items-center justify-between">
-              {/* Insights Indicator - Left */}
-              <div className="flex-shrink-0">
-                {renderInsightsIndicator()}
-              </div>
+            {/* Insights Indicator - Bottom Left Corner */}
+            <div className="absolute bottom-2 left-2">
+              {renderInsightsIndicator()}
+            </div>
 
-              {/* Overflow Menu - Right */}
-              {!bulkMode && (
-                <div className="flex-shrink-0">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 w-6 p-0 rounded-full hover:bg-purple-100"
-                        data-testid={`document-menu-${document.id}`}
-                      >
-                        <MoreHorizontal className="h-3 w-3 text-purple-600" />
-                      </Button>
-                    </DropdownMenuTrigger>
+            {/* Overflow Menu - Bottom Right Corner */}
+            {!bulkMode && (
+              <div className="absolute bottom-2 right-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 rounded-full hover:bg-purple-100 opacity-70 hover:opacity-100 transition-opacity"
+                      data-testid={`document-menu-${document.id}`}
+                    >
+                      <MoreHorizontal className="h-3 w-3 text-purple-600" />
+                    </Button>
+                  </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => {
                       setModalInitialTab('properties');
@@ -590,9 +597,8 @@ export default function UnifiedDocumentCard({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

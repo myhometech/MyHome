@@ -4384,18 +4384,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'x-forwarded-for': req.get('X-Forwarded-For')
     });
     
-    // Log email body sizes for debugging
+    // Enhanced email size debugging for 44KB issue
     if (req.body) {
       const bodyPlainSize = req.body['body-plain'] ? Buffer.byteLength(req.body['body-plain'], 'utf8') : 0;
       const bodyHtmlSize = req.body['body-html'] ? Buffer.byteLength(req.body['body-html'], 'utf8') : 0;
       const totalRequestSize = req.get('Content-Length') || 'unknown';
       
-      console.log('📧 Email body sizes:', {
+      // Calculate all form fields size
+      let totalFormFieldsSize = 0;
+      const fieldSizes: Record<string, string> = {};
+      
+      Object.keys(req.body).forEach(key => {
+        const fieldSize = req.body[key] ? Buffer.byteLength(String(req.body[key]), 'utf8') : 0;
+        totalFormFieldsSize += fieldSize;
+        if (fieldSize > 1024) { // Only log fields larger than 1KB
+          fieldSizes[key] = `${(fieldSize / 1024).toFixed(1)}KB`;
+        }
+      });
+      
+      console.log('📧 DETAILED EMAIL SIZE ANALYSIS:', {
+        'content-length-header': totalRequestSize,
         'body-plain': `${(bodyPlainSize / 1024).toFixed(1)}KB`,
         'body-html': `${(bodyHtmlSize / 1024).toFixed(1)}KB`,
-        'total-request': `${totalRequestSize}B`,
-        'has-attachments': !!(req.body['attachment-count'] && parseInt(req.body['attachment-count']) > 0)
+        'total-form-fields': `${(totalFormFieldsSize / 1024).toFixed(1)}KB`,
+        'large-fields': fieldSizes,
+        'field-count': Object.keys(req.body).length,
+        'has-attachments': !!(req.body['attachment-count'] && parseInt(req.body['attachment-count']) > 0),
+        'replit-size-limit': '32MiB (33,554,432 bytes)',
+        'current-vs-limit': totalRequestSize !== 'unknown' ? 
+          `${((parseInt(totalRequestSize) / 33554432) * 100).toFixed(2)}% of Replit limit` : 'unknown'
       });
+      
+      // Check if we're approaching Replit's 32MiB limit
+      if (totalRequestSize !== 'unknown' && parseInt(totalRequestSize) > 30 * 1024 * 1024) {
+        console.warn('⚠️ EMAIL SIZE WARNING: Approaching Replit 32MiB deployment limit');
+      }
     }
 
     try {

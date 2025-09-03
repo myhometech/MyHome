@@ -169,12 +169,12 @@ const upload = multer({
 const mailgunUpload = multer({
   storage: multer.memoryStorage(), // Store in memory for webhook processing
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB per file (emails can have large attachments)
-    files: 30, // Max 30 attachments per email (emails can have large attachments)
-    fieldSize: 50 * 1024 * 1024, // 50MB per field (for very large email bodies with images)
-    fieldNameSize: 5000, // Increased field name size for complex email headers
-    fields: 500, // More fields for complex email data with many headers
-    fieldsSize: 100 * 1024 * 1024, // 100MB total for all fields combined
+    fileSize: 25 * 1024 * 1024, // 25MB per file (within Replit limits)
+    files: 20, // Reduced attachment count for memory efficiency
+    fieldSize: 10 * 1024 * 1024, // 10MB per field (reduced for Replit constraints)
+    fieldNameSize: 2000, // Reduced field name size
+    fields: 200, // Reduced field count for memory efficiency
+    fieldsSize: 30 * 1024 * 1024, // 30MB total - safely under Replit's 32MiB limit
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
@@ -4375,7 +4375,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // EMAIL FORWARDING: Critical Mailgun webhook endpoint for email ingestion
-  app.post('/api/email-ingest', async (req: any, res) => {
+  app.post('/api/email-ingest', 
+    mailgunIPWhitelist,
+    mailgunWebhookRateLimit,
+    mailgunWebhookLogger,
+    validateMailgunContentType,
+    mailgunUpload.any(),
+    mailgunSignatureVerification,
+    async (req: any, res) => {
     console.log('📧 Email ingest webhook received');
     console.log('📧 Request headers:', {
       'content-type': req.get('Content-Type'),
@@ -4416,8 +4423,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Check if we're approaching Replit's 32MiB limit
-      if (totalRequestSize !== 'unknown' && parseInt(totalRequestSize) > 30 * 1024 * 1024) {
-        console.warn('⚠️ EMAIL SIZE WARNING: Approaching Replit 32MiB deployment limit');
+      if (totalRequestSize !== 'unknown') {
+        const requestSizeBytes = parseInt(totalRequestSize);
+        const replicationLimit = 33554432; // 32MiB in bytes
+        const percentageUsed = (requestSizeBytes / replicationLimit) * 100;
+        
+        console.log(`📊 EMAIL SIZE: ${requestSizeBytes} bytes (${percentageUsed.toFixed(1)}% of Replit limit)`);
+        
+        if (requestSizeBytes > 30 * 1024 * 1024) {
+          console.warn('⚠️ EMAIL SIZE WARNING: Approaching Replit 32MiB deployment limit');
+          
+          // If over 31MB, reject the request to prevent deployment errors
+          if (requestSizeBytes > 31 * 1024 * 1024) {
+            console.error('🚫 EMAIL TOO LARGE: Rejecting request to prevent deployment failure');
+            return res.status(413).json({
+              error: 'Email too large',
+              message: `Email size ${(requestSizeBytes / 1024 / 1024).toFixed(1)}MB exceeds platform limits`,
+              maxSize: '31MB',
+              suggestion: 'Please reduce email content or attachment sizes'
+            });
+          }
+        }
       }
     }
 
@@ -4433,12 +4459,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Extract user ID from recipient email (e.g., u123-abc@uploads.myhome-tech.com)
       const { extractUserIdFromRecipient } = await import('./mailgunService.js');
-      const userId = extractUserIdFromRecipient(message.recipient);
+      const extractionResult = extractUserIdFromRecipient(message.recipient);
 
-      if (!userId) {
-        console.error('❌ Cannot extract user ID from recipient:', message.recipient);
-        return res.status(400).json({ error: 'Invalid recipient format' });
+      if (!extractionResult.userId) {
+        console.error('❌ Cannot extract user ID from recipient:', message.recipient, 'Error:', extractionResult.error);
+        return res.status(400).json({ error: extractionResult.error || 'Invalid recipient format' });
       }
+
+      const userId = extractionResult.userId;
 
       // Verify user exists
       const user = await storage.getUser(userId);

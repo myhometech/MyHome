@@ -94,13 +94,13 @@ app.use(cors({
 
 // Increased limits for Mailgun email ingestion (emails can be large with attachments)
 app.use(express.json({ 
-  limit: '100mb',
-  parameterLimit: 100000 // Increased for complex email data
+  limit: '30mb', // Below Replit's 32MiB limit
+  parameterLimit: 50000
 }));
 app.use(express.urlencoded({ 
-  extended: true, 
-  limit: '100mb',
-  parameterLimit: 100000 // Increased for complex email data
+  extended: true,
+  limit: '30mb', // Below Replit's 32MiB limit
+  parameterLimit: 50000
 }));
 
 // Add correlation ID middleware first

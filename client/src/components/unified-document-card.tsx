@@ -167,6 +167,9 @@ export default function UnifiedDocumentCard({
       return;
     }
 
+    let isMounted = true;
+    let currentBlobUrl: string | null = null;
+
     const fetchThumbnail = async () => {
       try {
         console.log(`[THUMBNAIL] Fetching thumbnail for document ${document.id}`);
@@ -179,46 +182,60 @@ export default function UnifiedDocumentCard({
         });
         
         console.log(`[THUMBNAIL] Response status: ${response.status}`);
+        if (!isMounted) return; // Component unmounted, abort
+        
         if (response.ok) {
           const contentType = response.headers.get('content-type') || '';
           console.log(`[THUMBNAIL] Content-Type: ${contentType}`);
           
-          // If response is a data URL (text/plain), use it directly
-          if (contentType.includes('text/plain')) {
-            const dataUrl = await response.text();
-            console.log(`[THUMBNAIL] Got data URL: ${dataUrl.substring(0, 100)}...`);
-            if (dataUrl.startsWith('data:image/svg+xml')) {
+          // Handle SVG responses (including placeholders)
+          if (contentType.includes('image/svg+xml') || contentType.includes('text/plain')) {
+            const svgText = await response.text();
+            console.log(`[THUMBNAIL] Got SVG text: ${svgText.substring(0, 100)}...`);
+            
+            if (!isMounted) return;
+            
+            if (svgText.includes('<svg')) {
+              // Create data URL for SVG
+              const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
               setThumbnailBlobUrl(dataUrl);
               setThumbnailError(false);
               console.log(`[THUMBNAIL] Successfully set SVG data URL`);
             } else {
-              console.warn(`[THUMBNAIL] Invalid data URL format`);
+              console.warn(`[THUMBNAIL] Invalid SVG format`);
               setThumbnailError(true);
             }
           } else {
             // For binary image data, create blob URL
             const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            console.log(`[THUMBNAIL] Created blob URL: ${blobUrl}`);
-            setThumbnailBlobUrl(blobUrl);
+            if (!isMounted) return;
+            
+            currentBlobUrl = URL.createObjectURL(blob);
+            console.log(`[THUMBNAIL] Created blob URL: ${currentBlobUrl}`);
+            setThumbnailBlobUrl(currentBlobUrl);
             setThumbnailError(false);
           }
         } else {
           console.warn(`[THUMBNAIL] Request failed with status: ${response.status}`);
-          setThumbnailError(true);
+          if (isMounted) {
+            setThumbnailError(true);
+          }
         }
       } catch (error) {
         console.warn(`Failed to fetch thumbnail for document ${document.id}:`, error);
-        setThumbnailError(true);
+        if (isMounted) {
+          setThumbnailError(true);
+        }
       }
     };
 
     fetchThumbnail();
 
-    // Cleanup blob URL on unmount
+    // Cleanup function
     return () => {
-      if (thumbnailBlobUrl) {
-        URL.revokeObjectURL(thumbnailBlobUrl);
+      isMounted = false;
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
       }
     };
   }, [document?.id]);

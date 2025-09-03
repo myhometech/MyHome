@@ -67,8 +67,8 @@ import type { AuthenticatedRequest } from "./middleware/auth";
 import 'express-session';
 
 // Helper function to ensure user has correct shape
-function asAuthenticatedRequest(req: Request): any {
-  return req as any;
+function asAuthenticatedRequest(req: Request): AuthenticatedRequest {
+  return req as AuthenticatedRequest;
 }
 
 // Session type augmentation

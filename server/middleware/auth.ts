@@ -54,7 +54,10 @@ export function requireAuth(req: AuthenticatedRequest & { cid?: string }, res: R
     path: req.path
   });
 
-  if (!req.user) {
+  // Check both req.user and session.user (for different auth methods)
+  const user = req.user || sessionUser;
+
+  if (!user) {
     console.warn(`[${req.cid || 'no-cid'}] auth_missing_user - session details:`, {
       sessionExists: hasSession,
       sessionUser: sessionUser ? 'present' : 'missing',
@@ -72,5 +75,7 @@ export function requireAuth(req: AuthenticatedRequest & { cid?: string }, res: R
     });
   }
 
+  // Ensure req.user is set for downstream middleware
+  req.user = user;
   next();
 }

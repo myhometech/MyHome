@@ -42,6 +42,7 @@ import { withCorrelationId } from "./middleware/correlationId.js";
 import { setupSimpleAuth } from "./simpleAuth.js";
 import { thumbnailRateAdapter, thumbnailRateErrorHandler } from "./middleware/thumbnailRateAdapter";
 import cors from "cors";
+import multer from "multer";
 
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
 console.log('ℹ️  Simplified memory management enabled');
@@ -167,15 +168,25 @@ app.use((req, res, next) => {
 
   // EMERGENCY FIX: Register bypass email handler before middleware
   const { storage } = await import('./storage');
-  app.use('/api/email-ingest-bypass', express.urlencoded({ extended: true, limit: '10mb' }));
-  app.post('/api/email-ingest-bypass', async (req: any, res) => {
+  
+  // Configure multer for multipart form data (what Mailgun forwarding sends)
+  const bypassUpload = multer({ dest: '/tmp/', limits: { fileSize: 10 * 1024 * 1024 } });
+  
+  app.post('/api/email-ingest-bypass', bypassUpload.any(), async (req: any, res) => {
     try {
       console.log('🚀 BYPASS EMAIL INGEST: Request received');
-      console.log('📧 Body data:', Object.keys(req.body || {}));
+      console.log('📧 Raw body keys:', Object.keys(req.body || {}));
+      console.log('📧 Raw body values:', req.body);
+      console.log('📧 Files received:', req.files?.length || 0);
+      if (req.files && req.files.length > 0) {
+        console.log('📧 File details:', req.files.map(f => ({ fieldname: f.fieldname, originalname: f.originalname, size: f.size })));
+      }
 
       const { recipient, sender, subject, 'body-plain': bodyPlain, 'body-html': bodyHtml } = req.body;
+      console.log('📧 Extracted fields:', { recipient, sender, subject, bodyPlain: !!bodyPlain, bodyHtml: !!bodyHtml });
 
       if (!recipient || !sender || !subject) {
+        console.log('⚠️ Missing fields check:', { hasRecipient: !!recipient, hasSender: !!sender, hasSubject: !!subject });
         return res.status(400).json({ error: 'Missing required email fields' });
       }
 
@@ -351,7 +362,39 @@ app.use((req, res, next) => {
     });
   });
   
-  // Apply auth middleware
+  // MAILGUN FORWARD TEST: Simple test endpoint for forwarding
+  const forwardUpload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
+  app.post('/api/mailgun-forward-test', forwardUpload.any(), (req: any, res) => {
+    console.log('🚑 MAILGUN FORWARD TEST: Request received');
+    console.log('📧 Headers:', Object.keys(req.headers));
+    console.log('📧 Body keys:', Object.keys(req.body || {}));
+    console.log('📧 Body data:', req.body);
+    console.log('📧 Files count:', req.files?.length || 0);
+    
+    return res.status(200).json({
+      success: true,
+      received: {
+        bodyKeys: Object.keys(req.body || {}),
+        body: req.body,
+        filesCount: req.files?.length || 0,
+        contentType: req.headers['content-type']
+      },
+      message: 'Mailgun forwarding test successful'
+    });
+  });
+  
+  // CRITICAL: Exclude email forwarding endpoints from authentication BEFORE auth setup
+  const publicRoutes = ['/api/email-ingest', '/api/email-ingest-bypass', '/api/mailgun-forward-test'];
+  app.use((req, res, next) => {
+    if (publicRoutes.includes(req.path)) {
+      console.log(`🔓 [AUTH-BYPASS] Allowing unauthenticated access to ${req.path}`);
+      // Skip to route handlers, bypass auth middleware entirely
+      return next();
+    }
+    next();
+  });
+  
+  // Apply auth middleware (after bypass check)
   setupSimpleAuth(app);
 
   // Debug middleware order

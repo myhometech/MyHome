@@ -154,10 +154,8 @@ export default function DocumentCard({
     }
   };
 
-  // Get thumbnail URL for the document
-  const thumbnailUrl = document.mimeType.startsWith('image/') 
-    ? `/api/documents/${document.id}/thumbnail`
-    : null;
+  // Get thumbnail URL for ALL documents (not just images)
+  const thumbnailUrl = `/api/documents/${document.id}/thumbnail`;
 
   const updateDocumentMutation = useMutation({
     mutationFn: async ({ id, name, expiryDate }: { id: number; name: string; expiryDate: string | null }) => {

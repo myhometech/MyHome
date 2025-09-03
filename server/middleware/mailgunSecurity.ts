@@ -84,29 +84,8 @@ export function mailgunIPWhitelist(req: Request, res: Response, next: NextFuncti
     });
   }
   
-  // Original IP validation code (disabled temporarily)
-  /*
-  if (!isMailgunIP(clientIP)) {
-    console.warn(`🚫 REJECTED: Non-Mailgun IP attempted webhook access: ${clientIP}`);
-    
-    // Enhanced logging for security monitoring
-    console.log(`🔒 SECURITY: Mailgun IP whitelist violation`, {
-      rejectedIP: clientIP,
-      userAgent: req.get('User-Agent'),
-      timestamp: new Date().toISOString(),
-      path: req.path,
-      method: req.method
-    });
-    
-    return res.status(403).json({ 
-      error: 'Access forbidden',
-      message: 'Requests only allowed from authorized Mailgun IP ranges'
-    });
-  }
-  
   console.log(`✅ IP validation passed: ${clientIP} is from Mailgun`);
   next();
-  */
 }
 
 /**

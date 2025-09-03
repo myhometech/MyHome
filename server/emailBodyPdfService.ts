@@ -220,19 +220,19 @@ async function renderHtmlToPdf(
     ` : html;
 
     // TICKET: Use enhanced CloudConvert job creation and error handling
-    const { createJobHtml, waitAndDownloadFirstPdf, withRetry, isRetryableError } = await import('./cloudConvertService.js');
+    const { createCcHtmlJob, waitAndDownloadFirstPdf, withRetry, isRetryableError } = await import('./cloudConvertService.js');
     
     // Create job with retry logic for 429/5xx errors
-    const job = await withRetry(
-      () => createJobHtml(htmlContent),
+    const jobResult = await withRetry(
+      () => createCcHtmlJob(htmlContent),
       isRetryableError,
       3
     );
     
-    console.log(`CloudConvert job created for HTML conversion: ${job.id}`);
+    console.log(`CloudConvert job created for HTML conversion: ${jobResult.jobId}`);
     
     // Wait for completion and download PDF
-    const pdfBuffer = await waitAndDownloadFirstPdf(job.id);
+    const pdfBuffer = await waitAndDownloadFirstPdf(null, jobResult.jobId);
     
     console.log(`PDF generated via CloudConvert (${attempt} attempt): ${pdfBuffer.length} bytes`);
 

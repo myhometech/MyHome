@@ -7,7 +7,7 @@ import { AuditLogger } from "./auditLogger";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema, createVehicleSchema, updateVehicleUserFieldsSchema, searchSnippetsRequestSchema, chatRequestSchema, ChatRequest } from "@shared/schema";
+import { insertDocumentSchema, insertCategorySchema, insertExpiryReminderSchema, insertDocumentInsightSchema, insertBlogPostSchema, loginSchema, registerSchema, insertUserAssetSchema, insertManualTrackedEventSchema, createVehicleSchema, updateVehicleUserFieldsSchema, searchSnippetsRequestSchema, chatRequestSchema, ChatRequest, ChatResponse } from "@shared/schema";
 import { EmailUploadLogger } from './emailUploadLogger';
 import { dvlaLookupService } from './dvlaLookupService';
 import { vehicleInsightService } from './vehicleInsightService';
@@ -1153,6 +1153,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const storageService = storageProvider();
         try {
+          if (!document.gcsPath) {
+            throw new Error('GCS path is missing');
+          }
           const fileBuffer = await storageService.download(document.gcsPath);
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -3795,7 +3798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { featureName } = req.params;
       const context = {
         userId,
-        userTier: user.subscriptionTier as 'free' | 'duo' | 'beginner' | 'pro',
+        userTier: (user.subscriptionTier === 'free' ? 'free' : 'premium') as 'free' | 'premium',
         sessionId: req.sessionID,
         userAgent: req.get('User-Agent'),
         ipAddress: req.ip,
@@ -4224,6 +4227,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+
+  // Register document routes
+  app.use('/api/documents', documentsRouter);
 
   // Register test routes
   if (process.env.NODE_ENV === 'development') {

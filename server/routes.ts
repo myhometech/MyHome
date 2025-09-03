@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return next();
     }
 
-    return requireAuth(req, res, () => loadHouseholdRole(req as any, res, next));
+    return requireAuth(req as any, res, () => loadHouseholdRole(req as any, res, next));
   });
 
   // Support both GET and POST for logout (for convenience)
@@ -557,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ success: false, message: "Failed to reset password" });
     }
   });
-  app.get('/api/auth/user', requireAuth, async (req: any, res: any) => {
+  app.get('/api/auth/user', requireAuth as any, async (req: any, res: any) => {
     try {
       const user = req.user || req.session?.user;
 
@@ -621,7 +621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Categories routes
-  app.get('/api/categories', requireAuth, async (req: any, res) => {
+  app.get('/api/categories', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const categories = await storage.getCategories(userId);
@@ -632,7 +632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/categories', requireAuth, async (req: any, res) => {
+  app.post('/api/categories', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const categoryData = insertCategorySchema.parse(req.body);
@@ -645,7 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/categories/:id', requireAuth, async (req: any, res) => {
+  app.patch('/api/categories/:id', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const categoryId = parseInt(req.params.id);
@@ -667,7 +667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/categories/:id', requireAuth, async (req: any, res) => {
+  app.delete('/api/categories/:id', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const categoryId = parseInt(req.params.id);
@@ -684,7 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Smart search endpoint for real-time search
-  app.get('/api/documents/search', requireAuth, async (req: any, res) => {
+  app.get('/api/documents/search', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
@@ -723,7 +723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Documents routes
-  app.get('/api/documents', requireAuth, async (req: any, res) => {
+  app.get('/api/documents', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
@@ -1068,7 +1068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document verification endpoint for insights
-  app.get('/api/documents/:id', requireAuth, async (req: any, res) => {
+  app.get('/api/documents/:id', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -1102,7 +1102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get count of recently imported documents via email  
-  app.get('/api/documents/imported-count', requireAuth, async (req: any, res) => {
+  app.get('/api/documents/imported-count', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documents = await storage.getDocuments(userId);
@@ -1123,7 +1123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document preview endpoint - optimized for fast PDF loading
-  app.get('/api/documents/:id/preview', requireAuth, async (req: any, res) => {
+  app.get('/api/documents/:id/preview', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -1445,7 +1445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Trigger OCR processing for a document
-  app.post('/api/documents/:id/ocr', requireAuth, async (req: any, res) => {
+  app.post('/api/documents/:id/ocr', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -1483,7 +1483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reprocess document with enhanced OCR and text extraction
-  app.post('/api/documents/:id/reprocess', requireAuth, async (req: any, res) => {
+  app.post('/api/documents/:id/reprocess', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -1517,7 +1517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // INSIGHT-102: Get existing insights for a document with tier filtering
-  app.get('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
+  app.get('/api/documents/:id/insights', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const documentId = parseInt(req.params.id);
@@ -1559,7 +1559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // DOC-501: Generate AI insights for a document
-  app.post('/api/documents/:id/insights', requireAuth, async (req: any, res) => {
+  app.post('/api/documents/:id/insights', requireAuth as any, async (req: any, res) => {
     const startTime = Date.now();
     let documentId: number;
 
@@ -1800,7 +1800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // INSIGHT-102: Get insights with optional filters and tier support
-  app.get('/api/insights', requireAuth, async (req: any, res) => {
+  app.get('/api/insights', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const {
@@ -1858,7 +1858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // TICKET 19: Get insight metrics for dashboard
-  app.get('/api/insights/metrics', requireAuth, async (req: any, res) => {
+  app.get('/api/insights/metrics', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
 
@@ -1931,7 +1931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // TICKET 8: Get critical insights for homepage dashboard
-  app.get('/api/insights/critical', requireAuth, async (req: any, res) => {
+  app.get('/api/insights/critical', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
 
@@ -1949,7 +1949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // TICKET 8: Update insight (simplified endpoint)
-  app.patch('/api/insights/:id', requireAuth, async (req: any, res) => {
+  app.patch('/api/insights/:id', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const insightId = req.params.id;
@@ -3767,7 +3767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enhanced useFeatures hook endpoint - returns batch evaluation results
-  app.get("/api/feature-flags/batch-evaluation", requireAuth, async (req, res) => {
+  app.get("/api/feature-flags/batch-evaluation", requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
@@ -3792,7 +3792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Individual feature check endpoint
-  app.get("/api/feature-flags/:featureName/check", requireAuth, async (req, res) => {
+  app.get("/api/feature-flags/:featureName/check", requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);
@@ -3818,7 +3818,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chat configuration endpoint
-  app.get('/api/config', requireAuth, async (req, res) => {
+  app.get('/api/config', requireAuth as any, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       const user = await storage.getUser(userId);

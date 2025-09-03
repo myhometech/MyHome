@@ -13,6 +13,32 @@ function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms)); 
 }
 
+// THMB-AUTH-HOTFIX: Session refresh helper (using auth/user endpoint)
+async function refreshAuthIfNeeded(): Promise<boolean> {
+  try {
+    console.log('🔄 [AUTH] Attempting session refresh via /api/auth/user');
+    const response = await fetch('/api/auth/user', {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (response.ok) {
+      console.log('✅ [AUTH] Session refresh successful');
+      return true;
+    } else {
+      console.warn('⚠️ [AUTH] Session refresh failed with status:', response.status);
+      return false;
+    }
+  } catch (error) {
+    console.warn('⚠️ [AUTH] Session refresh failed:', error);
+    return false;
+  }
+}
+
 async function fetchJSONWithBackoff(url: string, key: string, attempt = 1): Promise<any> {
   // THMB-FE-READONCE: De-dupe in-flight requests per key
   if (inflight.has(key)) {
@@ -39,6 +65,19 @@ async function fetchJSONWithBackoff(url: string, key: string, attempt = 1): Prom
       return res.json(); // parsed exactly once
     }
 
+    // THMB-AUTH-HOTFIX: Handle 401 with token refresh (single retry)
+    if (res.status === 401 && attempt === 1) {
+      console.log(`🔄 [AUTH] 401 detected, attempting refresh for ${key}`);
+      const refreshed = await refreshAuthIfNeeded();
+      if (refreshed) {
+        console.log(`✅ [AUTH] Refresh successful, retrying ${key}`);
+        return fetchJSONWithBackoff(url, key, attempt + 1);
+      } else {
+        console.warn(`❌ [AUTH] Refresh failed for ${key}`);
+        throw new Error('NOT_AUTHENTICATED');
+      }
+    }
+
     // Residual 429 handling (should be rare after edge/proxy fixes)
     if (res.status === 429) {
       if (attempt >= 5) {
@@ -49,6 +88,11 @@ async function fetchJSONWithBackoff(url: string, key: string, attempt = 1): Prom
       const base = Math.min(8000, 2 ** attempt * 300) + Math.floor(Math.random() * 200);
       await sleep(Math.max(retryAfterMs, base));
       return fetchJSONWithBackoff(url, key, attempt + 1);
+    }
+
+    // Handle 401 on retry attempt (auth refresh failed or still unauthorized)
+    if (res.status === 401) {
+      throw new Error('NOT_AUTHENTICATED');
     }
 
     // Other errors: attempt to parse JSON once; if not JSON, read a clone for message

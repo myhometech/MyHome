@@ -23,9 +23,9 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true, // AUTH-GOOG-01: Always use secure cookies for OAuth
-      sameSite: 'none', // AUTH-GOOG-01: Required for cross-site OAuth on Replit
-      domain: undefined, // AUTH-GOOG-01: Don't force domain on Replit subdomains
+      secure: isProd, // true behind HTTPS
+      sameSite: isProd ? 'none' : 'lax', // 'none' if frontend & API are cross-site
+      domain: isProd ? '.myhome-docs.com' : undefined,
       path: '/',
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     },
@@ -44,10 +44,10 @@ export function setupSimpleAuth(app: Express) {
     }),
     rolling: true, // Reset expiry on activity
     cookie: {
-      secure: true, // AUTH-GOOG-01: Always secure for OAuth
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: "none" // AUTH-GOOG-01: Cross-site for Replit OAuth
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax"
     }
   }));
 

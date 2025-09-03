@@ -973,6 +973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cloudDocumentData = {
         ...finalDocumentData,
         filePath: cloudStorageKey,
+        gcsPath: cloudStorageKey, // Fix: Set gcsPath for GCS preview
         encryptedDocumentKey,
         encryptionMetadata,
         isEncrypted: true
@@ -1154,10 +1155,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const storageService = storageProvider();
         try {
-          if (!document.gcsPath) {
-            throw new Error('GCS path is missing');
+          // Fix: Use gcsPath if available, otherwise fall back to filePath for existing documents
+          const storagePath = document.gcsPath || document.filePath;
+          if (!storagePath) {
+            throw new Error('Storage path is missing');
           }
-          const fileBuffer = await storageService.download(document.gcsPath);
+          const fileBuffer = await storageService.download(storagePath);
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Cache-Control', 'public, max-age=3600');
           res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
@@ -1183,13 +1186,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
       // Handle cloud storage documents (new system) - both encrypted and unencrypted
-      if (document.gcsPath && document.isEncrypted && !document.encryptionMetadata) {
+      const storagePath = document.gcsPath || document.filePath;
+      if (storagePath && document.isEncrypted && !document.encryptionMetadata) {
         // Handle cloud storage documents without encryption metadata (direct GCS storage)
-        console.log(`📁 GCS PREVIEW: Loading unencrypted document from ${document.gcsPath}`);
+        console.log(`📁 GCS PREVIEW: Loading unencrypted document from ${storagePath}`);
 
         const storageService = storageProvider();
         try {
-          const fileBuffer = await storageService.download(document.gcsPath);
+          const fileBuffer = await storageService.download(storagePath);
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Cache-Control', 'public, max-age=3600');
           res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');

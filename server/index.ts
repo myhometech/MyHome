@@ -353,6 +353,17 @@ app.use((req, res, next) => {
   console.log('   GET /debug');
   console.log('   GET /api/email-ingest');
   console.log('   POST /api/email-ingest');
+  
+  // EMAIL FORWARDING: Simple GET endpoint for Mailgun webhook verification
+  app.get('/api/email-ingest', (req: any, res) => {
+    console.log('📞 /api/email-ingest GET endpoint called for webhook verification');
+    res.status(200).json({ 
+      status: 'ok', 
+      service: 'email-ingest', 
+      method: 'GET',
+      message: 'Mailgun webhook endpoint is accessible' 
+    });
+  });
   console.log(`🚀 Starting server on port ${port} with NODE_ENV=${process.env.NODE_ENV}`);
 
   // DEPLOYMENT FIX: Add deployment environment detection (already declared above)

@@ -66,7 +66,6 @@ import { eq, desc, ilike, and, inArray, isNotNull, gte, lte, sql, or } from "dri
 
 // Import proper types
 import type { Request, Response, NextFunction } from "express";
-import type { AuthenticatedRequest } from "./middleware/auth";
 import 'express-session';
 
 // Helper function to ensure user has correct shape
@@ -4360,6 +4359,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: 'Thumbnail queued due to network error'
       });
     }
+  });
+
+  // EMAIL FORWARDING: GET endpoint for Mailgun webhook verification
+  app.get('/api/email-ingest', (req, res) => {
+    console.log('📞 /api/email-ingest GET endpoint called - webhook verification');
+    res.status(200).json({ 
+      status: 'ok', 
+      service: 'email-ingest', 
+      method: 'GET',
+      message: 'Mailgun webhook endpoint is accessible' 
+    });
   });
 
   // EMAIL FORWARDING: Critical Mailgun webhook endpoint for email ingestion

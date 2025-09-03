@@ -169,6 +169,7 @@ export default function UnifiedDocumentCard({
 
     const fetchThumbnail = async () => {
       try {
+        console.log(`[THUMBNAIL] Fetching thumbnail for document ${document.id}`);
         const thumbnailUrl = `/api/documents/${document.id}/thumbnail`;
         const response = await fetch(thumbnailUrl, {
           credentials: 'include',
@@ -177,26 +178,33 @@ export default function UnifiedDocumentCard({
           }
         });
         
+        console.log(`[THUMBNAIL] Response status: ${response.status}`);
         if (response.ok) {
           const contentType = response.headers.get('content-type') || '';
+          console.log(`[THUMBNAIL] Content-Type: ${contentType}`);
           
           // If response is a data URL (text/plain), use it directly
           if (contentType.includes('text/plain')) {
             const dataUrl = await response.text();
+            console.log(`[THUMBNAIL] Got data URL: ${dataUrl.substring(0, 100)}...`);
             if (dataUrl.startsWith('data:image/svg+xml')) {
               setThumbnailBlobUrl(dataUrl);
               setThumbnailError(false);
+              console.log(`[THUMBNAIL] Successfully set SVG data URL`);
             } else {
+              console.warn(`[THUMBNAIL] Invalid data URL format`);
               setThumbnailError(true);
             }
           } else {
             // For binary image data, create blob URL
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
+            console.log(`[THUMBNAIL] Created blob URL: ${blobUrl}`);
             setThumbnailBlobUrl(blobUrl);
             setThumbnailError(false);
           }
         } else {
+          console.warn(`[THUMBNAIL] Request failed with status: ${response.status}`);
           setThumbnailError(true);
         }
       } catch (error) {
@@ -487,7 +495,7 @@ export default function UnifiedDocumentCard({
           {/* Thumbnail Section - 75% height, full width */}
           <div 
             className="w-full bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
-            style={{ height: '75%' }}
+            style={{ height: '70%' }}
           >
             {thumbnailError || !thumbnailBlobUrl ? (
               <div className={`w-full h-full flex items-center justify-center ${getFileTypeIconColor()}`}>
@@ -509,7 +517,7 @@ export default function UnifiedDocumentCard({
           {/* Bottom Section - 25% height with title only */}
           <div 
             className="px-3 py-2 bg-white flex items-center justify-center"
-            style={{ height: '25%', minHeight: '48px' }}
+            style={{ height: '30%', minHeight: '56px' }}
           >
             {/* Title - Centered */}
             <div className="flex-1 min-w-0 text-center">
@@ -548,13 +556,13 @@ export default function UnifiedDocumentCard({
           
           {/* Icons positioned at very bottom corners of entire card */}
           {/* Insights Indicator - Very Bottom Left */}
-          <div className="absolute bottom-2 left-2 z-20">
+          <div className="absolute bottom-1 left-1 z-20">
             {renderInsightsIndicator()}
           </div>
 
           {/* Overflow Menu - Very Bottom Right */}
           {!bulkMode && (
-            <div className="absolute bottom-2 right-2 z-20">
+            <div className="absolute bottom-1 right-1 z-20">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <Button 

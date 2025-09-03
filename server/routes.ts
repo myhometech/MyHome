@@ -48,6 +48,8 @@ import { emailRenderWorker } from './emailRenderWorker';
 import { workerHealthChecker } from './workerHealthCheck';
 import { setupMultiPageScanUpload } from './routes/multiPageScanUpload';
 import { registerThumbnailRoutes } from './routes/thumbnails';
+import thumbnailRoutes from './routes/thumbnailRoutes';
+import { thumbnailJobQueue } from './thumbnailJobQueue';
 import { chatOrchestrationService } from './chatOrchestrationService';
 import { 
   mailgunIPWhitelist, 
@@ -4290,6 +4292,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // THMB-1: Register thumbnail routes
   registerThumbnailRoutes(app);
+  
+  // THMB-2: Register async thumbnail routes
+  app.use('/api', thumbnailRoutes);
+  
+  // THMB-2: Initialize thumbnail job queue
+  await thumbnailJobQueue.initialize();
 
   // Register test routes
   if (process.env.NODE_ENV === 'development') {

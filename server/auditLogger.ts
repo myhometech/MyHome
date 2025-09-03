@@ -143,6 +143,28 @@ export class AuditLogger {
   }
 
   /**
+   * THMB-2: Log thumbnail generation request (when job is enqueued)
+   */
+  static async logThumbnailRequested(
+    documentId: number, 
+    userId: string, 
+    householdId?: string | null, 
+    metadata?: { 
+      variants?: number[]; 
+      jobId?: string; 
+      sourceHash?: string; 
+      actor?: 'system' | 'user';
+    }
+  ): Promise<void> {
+    const auditMetadata = {
+      ...metadata,
+      actor: metadata?.actor || 'user',
+      requestedAt: new Date().toISOString(),
+    };
+    await this.logDocumentEvent('thumbnail.requested', documentId, userId, householdId, auditMetadata);
+  }
+
+  /**
    * Get audit trail for a specific document
    */
   static async getDocumentAuditTrail(documentId: number): Promise<any[]> {
@@ -186,6 +208,7 @@ export const {
   logUpdate,
   logThumbnailAccessRequested,
   logThumbnailWriteCompleted,
+  logThumbnailRequested,
   getDocumentAuditTrail,
   getUserAuditTrail,
 } = AuditLogger;

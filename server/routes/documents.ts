@@ -531,12 +531,12 @@ router.get('/:id', requireAuth, async (req: any, res: any) => {
   }
 });
 
-// Get document thumbnail
+// THMB-API-STD: Legacy thumbnail route - now ALWAYS returns JSON (never binary)
 router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
-  // THMB-5: Legacy removal - redirect to async thumbnail system
-  // This endpoint now only serves existing thumbnails or enqueues generation
+  // THMB-API-STD: Ensure JSON response headers for all paths
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   
-  console.log(`📋 [THMB-5] Redirecting legacy thumbnail request for document ${req.params.id} to async system`);
+  console.log(`📋 [THMB-API-STD] Legacy thumbnail request for document ${req.params.id} - forwarding to standardized JSON-only API`);
   
   // Extract query parameters for the async API
   const variant = req.query.variant || '240'; // Default to 240px
@@ -545,54 +545,32 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
   const asyncThumbnailUrl = `/api/documents/${req.params.id}/thumbnail?variant=${variant}`;
   
   try {
-    // Forward the request to our async thumbnail system
-    const asyncReq = {
-      ...req,
-      url: asyncThumbnailUrl,
-      path: asyncThumbnailUrl,
-      params: { id: req.params.id },
-      query: { variant }
-    };
-    
-    // Import and use the async thumbnail handler
-    const thumbnailRoutes = await import('./thumbnailRoutes');
-    
     // Since we can't directly call the router, make an internal HTTP request
     const response = await fetch(`http://localhost:${process.env.PORT || 5000}${asyncThumbnailUrl}`, {
       method: 'GET',
       headers: {
         'Authorization': req.headers.authorization || '',
-        'Cookie': req.headers.cookie || ''
+        'Cookie': req.headers.cookie || '',
+        'Accept': 'application/json' // THMB-API-STD: Ensure JSON response
       }
     });
     
-    if (response.ok) {
-      const contentType = response.headers.get('content-type');
-      if (contentType?.includes('application/json')) {
-        // JSON response (202 with job details)
-        const jsonData = await response.json();
-        res.status(response.status).json(jsonData);
-      } else {
-        // Binary response (200 with actual thumbnail)
-        const buffer = await response.arrayBuffer();
-        res.setHeader('Content-Type', contentType || 'image/jpeg');
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-        res.send(Buffer.from(buffer));
-      }
-    } else {
-      // Forward error response
-      const errorData = await response.json().catch(() => ({ message: 'Thumbnail service error' }));
-      res.status(response.status).json(errorData);
-    }
+    // THMB-API-STD: Always forward JSON response, never binary
+    const jsonData = await response.json().catch(() => ({ 
+      errorCode: 'INTERNAL_ERROR', 
+      message: 'Failed to parse thumbnail service response' 
+    }));
+    
+    res.status(response.status).json(jsonData);
     
   } catch (error: any) {
-    console.error(`❌ [THMB-5] Error in legacy thumbnail redirect:`, error);
+    console.error(`❌ [THMB-API-STD] Error in legacy thumbnail route:`, error);
     
-    // Fallback to placeholder for any errors
-    const placeholderSvg = generateDocumentPlaceholder('application/octet-stream', 'Document');
-    res.setHeader('Content-Type', 'image/svg+xml');
-    res.setHeader('Cache-Control', 'public, max-age=300');
-    res.send(placeholderSvg);
+    // THMB-API-STD: Return JSON error (never SVG placeholder)
+    res.status(500).json({
+      errorCode: 'INTERNAL_ERROR',
+      message: 'Thumbnail service unavailable'
+    });
   }
 });
 

@@ -18,11 +18,14 @@ import { isSupportedVariant } from '../thumbnailHelpers';
 const router = Router();
 
 /**
- * GET /api/documents/:id/thumbnail?variant=240
+ * THMB-API-STD: GET /api/documents/:id/thumbnail?variant=240
  * 
- * Returns existing signed URL (200) or enqueues generation job (202)
+ * Always returns JSON (never binary). Returns existing signed URL (200) or enqueues generation job (202)
  */
 router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) => {
+  // THMB-API-STD: Ensure JSON response headers for all paths
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  
   try {
     const documentId = parseInt(req.params.id);
     const variant = parseInt(req.query.variant || '240'); // Default to 240px
@@ -31,15 +34,15 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
     // Validate inputs
     if (isNaN(documentId)) {
       return res.status(400).json({ 
-        message: 'Invalid document ID',
-        code: 'INVALID_DOCUMENT_ID' 
+        errorCode: 'INVALID_DOCUMENT_ID',
+        message: 'Invalid document ID'
       });
     }
 
     if (!isSupportedVariant(variant)) {
       return res.status(400).json({ 
-        message: `Unsupported thumbnail variant: ${variant}. Supported variants: 96, 240, 480`,
-        code: 'INVALID_VARIANT' 
+        errorCode: 'INVALID_VARIANT',
+        message: `Unsupported thumbnail variant: ${variant}. Supported variants: 96, 240, 480`
       });
     }
 
@@ -47,8 +50,8 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
     const document = await storage.getDocument(documentId, userId);
     if (!document) {
       return res.status(404).json({ 
-        message: 'Document not found',
-        code: 'DOCUMENT_NOT_FOUND' 
+        errorCode: 'DOCUMENT_NOT_FOUND',
+        message: 'Document not found'
       });
     }
 
@@ -56,16 +59,16 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
     const canAccess = await canAccessDocument(req.user, documentId, storage);
     if (!canAccess) {
       return res.status(403).json({ 
-        message: 'Access denied',
-        code: 'ACCESS_DENIED' 
+        errorCode: 'ACCESS_DENIED',
+        message: 'Access denied'
       });
     }
 
     // Check if sourceHash exists
     if (!document.sourceHash) {
       return res.status(400).json({
-        message: 'Document missing source hash - cannot generate thumbnails',
-        code: 'MISSING_SOURCE_HASH'
+        errorCode: 'MISSING_SOURCE_HASH',
+        message: 'Document missing source hash - cannot generate thumbnails'
       });
     }
 
@@ -92,7 +95,8 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
           documentId,
           variant,
           url: signedUrlResult.url,
-          ttlSeconds: signedUrlResult.ttlSeconds
+          ttlSeconds: signedUrlResult.ttlSeconds,
+          sourceHash: document.sourceHash
         });
 
       } catch (urlError: any) {
@@ -128,25 +132,26 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
         variant,
         jobId: jobResult.jobId,
         retryAfterMs: jobResult.retryAfterMs,
-        warming: `Enqueued ${missingVariants.length} variants: ${missingVariants.join(', ')}px`
+        sourceHash: document.sourceHash
       });
     } else {
       // All variants already exist or being processed - this shouldn't happen
       console.log(`⚠️ [THMB-5] Unexpected state: thumbnail reported missing but no variants to warm for doc ${documentId}`);
       
       return res.status(202).json({
-        status: 'processing',
+        status: 'queued',
         documentId,
         variant,
-        retryAfterMs: 2000
+        retryAfterMs: 2000,
+        sourceHash: document.sourceHash
       });
     }
 
   } catch (error: any) {
     console.error('Error in GET /api/documents/:id/thumbnail:', error);
     res.status(500).json({ 
-      message: 'Internal server error',
-      code: 'INTERNAL_ERROR' 
+      errorCode: 'INTERNAL_ERROR',
+      message: 'Internal server error'
     });
   }
 });
@@ -165,15 +170,15 @@ router.post('/thumbnails', requireAuth, async (req: any, res: any) => {
     // Validate inputs
     if (!documentId || isNaN(parseInt(documentId))) {
       return res.status(400).json({ 
-        message: 'Invalid or missing documentId',
-        code: 'INVALID_DOCUMENT_ID' 
+        errorCode: 'INVALID_DOCUMENT_ID',
+        message: 'Invalid or missing documentId'
       });
     }
 
     if (!Array.isArray(variants) || variants.length === 0) {
       return res.status(400).json({ 
-        message: 'Variants must be a non-empty array',
-        code: 'INVALID_VARIANTS' 
+        errorCode: 'INVALID_VARIANTS',
+        message: 'Variants must be a non-empty array'
       });
     }
 
@@ -181,8 +186,8 @@ router.post('/thumbnails', requireAuth, async (req: any, res: any) => {
     const invalidVariants = variants.filter(v => !isSupportedVariant(v));
     if (invalidVariants.length > 0) {
       return res.status(400).json({ 
-        message: `Unsupported variants: ${invalidVariants.join(', ')}. Supported variants: 96, 240, 480`,
-        code: 'INVALID_VARIANTS' 
+        errorCode: 'INVALID_VARIANTS',
+        message: `Unsupported variants: ${invalidVariants.join(', ')}. Supported variants: 96, 240, 480`
       });
     }
 
@@ -192,8 +197,8 @@ router.post('/thumbnails', requireAuth, async (req: any, res: any) => {
     const document = await storage.getDocument(docId, userId);
     if (!document) {
       return res.status(404).json({ 
-        message: 'Document not found',
-        code: 'DOCUMENT_NOT_FOUND' 
+        errorCode: 'DOCUMENT_NOT_FOUND',
+        message: 'Document not found'
       });
     }
 
@@ -201,16 +206,16 @@ router.post('/thumbnails', requireAuth, async (req: any, res: any) => {
     const canAccess = await canAccessDocument(req.user, docId, storage);
     if (!canAccess) {
       return res.status(403).json({ 
-        message: 'Access denied',
-        code: 'ACCESS_DENIED' 
+        errorCode: 'ACCESS_DENIED',
+        message: 'Access denied'
       });
     }
 
     // Check if sourceHash exists
     if (!document.sourceHash) {
       return res.status(400).json({
-        message: 'Document missing source hash - cannot generate thumbnails',
-        code: 'MISSING_SOURCE_HASH'
+        errorCode: 'MISSING_SOURCE_HASH',
+        message: 'Document missing source hash - cannot generate thumbnails'
       });
     }
 

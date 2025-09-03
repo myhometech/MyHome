@@ -23,9 +23,9 @@ interface ThumbnailResponse {
 }
 
 interface ThumbnailErrorResponse {
-  code: string;
+  errorCode: string; // THMB-API-STD: Standardized error field
   message: string;
-  errorCode?: string;
+  code?: string; // Legacy fallback
 }
 
 const POLL_INTERVALS = [1000, 2000, 4000, 8000]; // 1s → 2s → 4s → 8s
@@ -90,7 +90,8 @@ export function useThumbnail(documentId: string, sourceHash: string) {
       const response = await fetch(`/api/documents/${documentId}/thumbnail?variant=${variant}`, {
         signal: controller.signal,
         headers: {
-          'Cache-Control': 'no-cache' // Always get fresh status
+          'Accept': 'application/json', // THMB-API-STD: Explicit JSON-only contract
+          'Cache-Control': 'no-cache'  // Always get fresh status
         }
       });
 
@@ -99,13 +100,15 @@ export function useThumbnail(documentId: string, sourceHash: string) {
       if (!response.ok) {
         if (response.status === 403 || response.status === 404) {
           const errorData: ThumbnailErrorResponse = await response.json().catch(() => ({}));
+          // THMB-API-STD: Use standardized errorCode field, fallback to legacy code
+          const errorCode = errorData.errorCode || errorData.code || `HTTP_${response.status}`;
           logTelemetry('thumbnail.view.failed', { 
             variant, 
             status: response.status, 
-            errorCode: errorData.errorCode || `HTTP_${response.status}`,
+            errorCode,
             latencyMs 
           });
-          throw new Error(errorData.errorCode || `HTTP_${response.status}`);
+          throw new Error(errorCode);
         }
         throw new Error(`HTTP_${response.status}`);
       }

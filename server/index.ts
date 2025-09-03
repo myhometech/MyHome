@@ -44,35 +44,16 @@ import { setupSimpleAuth } from "./simpleAuth.js";
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
 console.log('ℹ️  Simplified memory management enabled');
 
-// Memory monitoring with graceful degradation
+// Simplified memory monitoring - only log, don't intervene
 setInterval(() => {
   const memUsage = process.memoryUsage();
   const heapPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
   
-  // Monitor memory usage
-  if (heapPercent > 85) {
-    console.log(`⚠️ Memory usage high: ${heapPercent}% (${Math.round(memUsage.heapUsed / 1024 / 1024)}MB)`);
-    
-    // Try GC if available, otherwise clear module cache and force cleanup
-    if (global.gc) {
-      const before = memUsage.heapUsed / 1024 / 1024;
-      global.gc();
-      const after = process.memoryUsage().heapUsed / 1024 / 1024;
-      console.log(`🚨 EMERGENCY GC: ${heapPercent}% → ${Math.round((after / (memUsage.heapTotal / 1024 / 1024)) * 100)}% (freed ${(before - after).toFixed(1)}MB)`);
-    } else {
-      // Alternative cleanup without GC - force minimal cleanup
-      console.log('🧹 Memory pressure detected - performing safe cleanup');
-      // Force some array/object cleanup that might help
-      if (globalThis.Buffer && globalThis.Buffer.poolSize) {
-        globalThis.Buffer.poolSize = 1024; // Reduce buffer pool size
-      }
-      // Set a timeout to allow memory to be naturally freed
-      setTimeout(() => {
-        console.log('🧹 Memory cleanup cycle completed');
-      }, 1000);
-    }
+  // Only log severe memory pressure (95%+), don't try to fix it
+  if (heapPercent > 95) {
+    console.log(`⚠️ Memory critical: ${heapPercent}% (${Math.round(memUsage.heapUsed / 1024 / 1024)}MB)`);
   }
-}, 30000); // Every 30 seconds
+}, 60000); // Every 60 seconds, less frequent
 
 // SIMPLIFIED STARTUP: Minimal logging only
 if (!isDeployment) {

@@ -179,29 +179,24 @@ export default function UnifiedDocumentCard({
         
         if (response.ok) {
           const contentType = response.headers.get('content-type') || '';
-          console.log(`[THUMBNAIL] Doc ${document.id}: contentType="${contentType}"`);
           
           // If response is a data URL (text/plain), use it directly
           if (contentType.includes('text/plain')) {
             const dataUrl = await response.text();
-            console.log(`[THUMBNAIL] Doc ${document.id}: Got data URL (${dataUrl.length} chars)`);
             if (dataUrl.startsWith('data:image/svg+xml')) {
               setThumbnailBlobUrl(dataUrl);
               setThumbnailError(false);
             } else {
-              console.warn(`[THUMBNAIL] Doc ${document.id}: Invalid data URL format`);
               setThumbnailError(true);
             }
           } else {
             // For binary image data, create blob URL
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
-            console.log(`[THUMBNAIL] Doc ${document.id}: Created blob URL (${blob.size} bytes)`);
             setThumbnailBlobUrl(blobUrl);
             setThumbnailError(false);
           }
         } else {
-          console.warn(`[THUMBNAIL] Doc ${document.id}: Response failed ${response.status}`);
           setThumbnailError(true);
         }
       } catch (error) {
@@ -491,12 +486,14 @@ export default function UnifiedDocumentCard({
 
           {/* Thumbnail Section - 75% height */}
           <div 
-            className="relative flex-1 bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
+            className="relative bg-gray-50 flex items-center justify-center overflow-hidden rounded-t-lg"
             style={{ height: '75%' }}
           >
             {thumbnailError || !thumbnailBlobUrl ? (
-              <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${getFileTypeIconColor()}`}>
-                {getFileIcon()}
+              <div className={`w-full h-full flex items-center justify-center ${getFileTypeIconColor()}`}>
+                <div className="w-16 h-16 rounded-lg flex items-center justify-center bg-white/80">
+                  {getFileIcon()}
+                </div>
               </div>
             ) : (
               <img 
@@ -546,25 +543,28 @@ export default function UnifiedDocumentCard({
               )}
             </div>
 
-            {/* Insights Indicator - Bottom Left Corner */}
-            <div className="absolute bottom-2 left-2">
-              {renderInsightsIndicator()}
-            </div>
+          </div>
+          
+          {/* Icons positioned at very bottom of card */}
+          {/* Insights Indicator - Very Bottom Left */}
+          <div className="absolute bottom-2 left-2 z-10">
+            {renderInsightsIndicator()}
+          </div>
 
-            {/* Overflow Menu - Bottom Right Corner */}
-            {!bulkMode && (
-              <div className="absolute bottom-2 right-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-6 w-6 p-0 rounded-full hover:bg-purple-100 opacity-70 hover:opacity-100 transition-opacity"
-                      data-testid={`document-menu-${document.id}`}
-                    >
-                      <MoreHorizontal className="h-3 w-3 text-purple-600" />
-                    </Button>
-                  </DropdownMenuTrigger>
+          {/* Overflow Menu - Very Bottom Right */}
+          {!bulkMode && (
+            <div className="absolute bottom-2 right-2 z-10">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 w-6 p-0 rounded-full hover:bg-purple-100 opacity-70 hover:opacity-100 transition-opacity bg-white/90 border border-purple-200"
+                    data-testid={`document-menu-${document.id}`}
+                  >
+                    <MoreHorizontal className="h-3 w-3 text-purple-600" />
+                  </Button>
+                </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => {
                       setModalInitialTab('properties');
@@ -597,9 +597,8 @@ export default function UnifiedDocumentCard({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

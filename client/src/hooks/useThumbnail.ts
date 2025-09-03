@@ -13,6 +13,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms)); 
 }
 
+// THMB-AUTH-HOTFIX: Centralized auth headers helper
+function getAuthHeaders(): Record<string, string> {
+  // For session-based auth, we rely on cookies, but ensure proper headers
+  return {
+    'Accept': 'application/json',
+    'Cache-Control': 'no-cache'
+  };
+}
+
 // THMB-AUTH-HOTFIX: Session refresh helper (using auth/user endpoint)
 async function refreshAuthIfNeeded(): Promise<boolean> {
   try {
@@ -20,10 +29,7 @@ async function refreshAuthIfNeeded(): Promise<boolean> {
     const response = await fetch('/api/auth/user', {
       method: 'GET',
       credentials: 'include',
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      }
+      headers: getAuthHeaders()
     });
     
     if (response.ok) {
@@ -47,10 +53,20 @@ async function fetchJSONWithBackoff(url: string, key: string, attempt = 1): Prom
   }
   
   const p = (async () => {
+    // THMB-AUTH-HOTFIX: Enhanced auth debugging
+    const headers = getAuthHeaders();
+    console.log(`🔒 [AUTH] Sending request to ${url} with headers:`, Object.keys(headers));
+    
     const res = await fetch(url, { 
-      headers: { 'Accept': 'application/json' },
+      headers,
       credentials: 'include'
     });
+    
+    // Log response details for debugging
+    console.log(`📡 [FETCH] ${url} → ${res.status} ${res.statusText}`);
+    if (res.status === 401) {
+      console.warn(`🚫 [AUTH] 401 detected on ${url} - checking auth state`);
+    }
     
     // Happy path: JSON 200/202
     const ctype = res.headers.get('content-type')?.toLowerCase() || '';

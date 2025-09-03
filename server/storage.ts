@@ -34,6 +34,7 @@ export interface IStorage {
   getDocuments(userId: string, categoryId?: number, search?: string, expiryFilter?: string, filters?: any, sort?: string): Promise<Document[]>;
   getDocument(id: number, userId: string): Promise<Document | undefined>;
   getDocumentById(id: number): Promise<Document | undefined>;
+  getDocumentsForBackfill(cutoffDate: Date, limit: number): Promise<Document[]>; // THMB-5: Backfill support
   updateDocument(id: number, userId: string, updates: any): Promise<Document | undefined>;
   updateDocumentName(id: number, userId: string, newName: string): Promise<Document | undefined>;
   updateDocumentTags(id: number, userId: string, tags: string[]): Promise<Document | undefined>;
@@ -274,6 +275,29 @@ export class PostgresStorage implements IStorage {
       .from(documents)
       .where(eq(documents.id, id));
     return document;
+  }
+
+  async getDocumentsForBackfill(cutoffDate: Date, limit: number): Promise<Document[]> {
+    // THMB-5: Get documents created/updated since cutoffDate for backfill processing
+    return await this.db
+      .select()
+      .from(documents)
+      .where(
+        and(
+          or(
+            sql`${documents.createdAt} >= ${cutoffDate}`,
+            sql`${documents.updatedAt} >= ${cutoffDate}`
+          ),
+          // Only process documents with valid source paths
+          sql`${documents.gcsPath} IS NOT NULL OR ${documents.filePath} IS NOT NULL`,
+          // Only process documents with mime types (needed for thumbnail generation)
+          sql`${documents.mimeType} IS NOT NULL`,
+          // Only process non-encrypted documents
+          sql`${documents.isEncrypted} IS FALSE OR ${documents.isEncrypted} IS NULL`
+        )
+      )
+      .orderBy(desc(documents.createdAt))
+      .limit(limit);
   }
 
   async updateDocument(id: number, userId: string, updates: any): Promise<Document | undefined> {

@@ -101,26 +101,46 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
       }
     }
 
-    // Thumbnail doesn't exist - enqueue generation job
-    console.log(`📋 [THMB-2] Enqueueing thumbnail generation for doc ${documentId}, variant ${variant}`);
+    // Thumbnail doesn't exist - implement THMB-5 on-access warming
+    console.log(`📋 [THMB-5] Thumbnail missing for doc ${documentId}, variant ${variant} - implementing on-access warming`);
 
     const userHousehold = await storage.getUserHousehold(userId);
-    const jobResult = await thumbnailJobQueue.enqueueJob({
-      documentId,
-      sourceHash: document.sourceHash,
-      variants: [variant],
-      mimeType: document.mimeType,
-      userId,
-      householdId: userHousehold?.id
-    });
+    
+    // THMB-5: On-access warming - check if any variants exist for this {docId, sourceHash}
+    const missingVariants = await getMissingThumbnails(documentId, document.sourceHash);
+    
+    if (missingVariants.length > 0) {
+      // First time accessing this document+sourceHash - warm ALL variants
+      console.log(`🔥 [THMB-5] On-access warming: enqueueing ALL variants [${missingVariants.join(', ')}] for doc ${documentId}`);
+      
+      const jobResult = await thumbnailJobQueue.enqueueJob({
+        documentId,
+        sourceHash: document.sourceHash,
+        variants: missingVariants, // Enqueue ALL missing variants at once
+        mimeType: document.mimeType,
+        userId,
+        householdId: userHousehold?.id
+      });
 
-    return res.status(202).json({
-      status: 'queued',
-      documentId,
-      variant,
-      jobId: jobResult.jobId,
-      retryAfterMs: jobResult.retryAfterMs
-    });
+      return res.status(202).json({
+        status: 'queued',
+        documentId,
+        variant,
+        jobId: jobResult.jobId,
+        retryAfterMs: jobResult.retryAfterMs,
+        warming: `Enqueued ${missingVariants.length} variants: ${missingVariants.join(', ')}px`
+      });
+    } else {
+      // All variants already exist or being processed - this shouldn't happen
+      console.log(`⚠️ [THMB-5] Unexpected state: thumbnail reported missing but no variants to warm for doc ${documentId}`);
+      
+      return res.status(202).json({
+        status: 'processing',
+        documentId,
+        variant,
+        retryAfterMs: 2000
+      });
+    }
 
   } catch (error: any) {
     console.error('Error in GET /api/documents/:id/thumbnail:', error);

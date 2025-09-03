@@ -533,340 +533,66 @@ router.get('/:id', requireAuth, async (req: any, res: any) => {
 
 // Get document thumbnail
 router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
-  if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
-  }
-
+  // THMB-5: Legacy removal - redirect to async thumbnail system
+  // This endpoint now only serves existing thumbnails or enqueues generation
+  
+  console.log(`📋 [THMB-5] Redirecting legacy thumbnail request for document ${req.params.id} to async system`);
+  
+  // Extract query parameters for the async API
+  const variant = req.query.variant || '240'; // Default to 240px
+  
+  // Redirect to our async thumbnail API with proper parameters
+  const asyncThumbnailUrl = `/api/documents/${req.params.id}/thumbnail?variant=${variant}`;
+  
   try {
-    const documentId = parseInt(req.params.id);
-    const userId = req.user.id;
-
-    if (isNaN(documentId)) {
-      console.log(`[THUMBNAIL-DEBUG] Invalid document ID: ${req.params.id}`);
-      return res.status(400).json({ message: 'Invalid document ID' });
-    }
-
-    const document = await storage.getDocument(documentId, userId);
-    if (!document) {
-      console.log(`[THUMBNAIL-DEBUG] Document ${documentId} not found for user ${userId}`);
-      return res.status(404).json({ message: 'Document not found' });
-    }
-
-    console.log(`[THUMBNAIL] Generating thumbnail for document ${documentId}, gcsPath: ${document.gcsPath}, filePath: ${document.filePath}`);
-
-    let fileBuffer: Buffer | null = null;
-    let sourceFilePath: string | null = null;
-    let fileAccessible = false;
-
-    // Try to access file from GCS first (use gcsPath or fall back to filePath)
-    const storagePath = document.gcsPath || document.filePath;
-    if (storagePath && storagePath.trim()) {
-      try {
-        const storageService = StorageService.initialize();
-        fileBuffer = await storageService.download(storagePath);
-        if (fileBuffer && fileBuffer.length > 0) {
-          // Create temporary file for thumbnail generation
-          sourceFilePath = path.join('/tmp', `temp_${documentId}_${Date.now()}${path.extname(document.fileName)}`);
-          fs.writeFileSync(sourceFilePath, fileBuffer);
-          fileAccessible = true;
-          console.log(`[THUMBNAIL] Successfully downloaded from GCS: ${fileBuffer.length} bytes`);
-        }
-      } catch (gcsError) {
-        console.warn(`[THUMBNAIL] Failed to fetch from GCS for document ${documentId}:`, gcsError);
+    // Forward the request to our async thumbnail system
+    const asyncReq = {
+      ...req,
+      url: asyncThumbnailUrl,
+      path: asyncThumbnailUrl,
+      params: { id: req.params.id },
+      query: { variant }
+    };
+    
+    // Import and use the async thumbnail handler
+    const thumbnailRoutes = await import('./thumbnailRoutes');
+    
+    // Since we can't directly call the router, make an internal HTTP request
+    const response = await fetch(`http://localhost:${process.env.PORT || 5000}${asyncThumbnailUrl}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': req.headers.authorization || '',
+        'Cookie': req.headers.cookie || ''
       }
-    }
-
-    // Try local file as fallback
-    if (!fileAccessible && document.filePath && fs.existsSync(document.filePath)) {
-      sourceFilePath = document.filePath;
-      fileAccessible = true;
-      console.log(`[THUMBNAIL] Using local file: ${document.filePath}`);
-    }
-
-    // If no file accessible, return placeholder immediately
-    if (!fileAccessible) {
-      console.log(`[THUMBNAIL] No accessible file for document ${documentId}, returning placeholder`);
-      const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.fileName);
-      res.setHeader('Content-Type', 'image/svg+xml');
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-      return res.send(placeholderSvg);
-    }
-
-    // Check for existing thumbnail first
-    if (sourceFilePath && !sourceFilePath.includes('/tmp/')) {
-      const thumbnailPath = imageProcessor.getThumbnailPath(sourceFilePath);
-      if (fs.existsSync(thumbnailPath)) {
-        console.log(`[THUMBNAIL] Found existing thumbnail: ${thumbnailPath}`);
-        res.setHeader('Content-Type', 'image/jpeg');
+    });
+    
+    if (response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        // JSON response (202 with job details)
+        const jsonData = await response.json();
+        res.status(response.status).json(jsonData);
+      } else {
+        // Binary response (200 with actual thumbnail)
+        const buffer = await response.arrayBuffer();
+        res.setHeader('Content-Type', contentType || 'image/jpeg');
         res.setHeader('Cache-Control', 'public, max-age=3600');
-        return res.sendFile(path.resolve(thumbnailPath));
+        res.send(Buffer.from(buffer));
       }
+    } else {
+      // Forward error response
+      const errorData = await response.json().catch(() => ({ message: 'Thumbnail service error' }));
+      res.status(response.status).json(errorData);
     }
-
-    // Generate thumbnail for images
-    if (document.mimeType?.startsWith('image/') && sourceFilePath) {
-      try {
-        console.log(`[THUMBNAIL] Generating image thumbnail for document ${documentId}`);
-
-        // Use Sharp directly for more reliable image processing
-        const sharp = (await import('sharp')).default;
-        const thumbnailBuffer = await sharp(sourceFilePath)
-          .resize(300, 400, {
-            fit: 'inside',
-            withoutEnlargement: true,
-          })
-          .jpeg({ quality: 80 })
-          .toBuffer();
-
-        console.log(`[THUMBNAIL] Successfully generated image thumbnail: ${thumbnailBuffer.length} bytes`);
-
-        // Cleanup temp file if created from GCS
-        if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
-          try { fs.unlinkSync(sourceFilePath); } catch {}
-        }
-
-        res.setHeader('Content-Type', 'image/jpeg');
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-        return res.send(thumbnailBuffer);
-      } catch (error) {
-        console.error(`[THUMBNAIL] Error generating image thumbnail for document ${documentId}:`, error);
-        
-        // Cleanup temp file if created from GCS
-        if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
-          try { fs.unlinkSync(sourceFilePath); } catch {}
-        }
-      }
-    }
-
-    // Generate thumbnail for PDFs using multiple strategies
-    if (document.mimeType === 'application/pdf' && sourceFilePath) {
-      try {
-        console.log(`[THUMBNAIL] Generating PDF thumbnail for document ${documentId}`);
-        
-        // Strategy 1: Try pdftoppm from poppler-utils (most reliable)
-        try {
-          const { execSync } = await import('child_process');
-          const thumbnailOutputPath = path.join('/tmp', `pdf_thumb_${documentId}_${Date.now()}.jpg`);
-          
-          // Use pdftoppm to convert first page to PPM, then convert to JPEG
-          const ppmOutputPath = path.join('/tmp', `pdf_ppm_${documentId}_${Date.now()}.ppm`);
-          
-          // Convert PDF to PPM (more reliable than direct JPEG)
-          execSync(`pdftoppm -f 1 -l 1 -jpeg -r 150 "${sourceFilePath}" "${ppmOutputPath.replace('.ppm', '')}"`, { timeout: 15000 });
-          
-          // Find the generated file (pdftoppm adds page numbers)
-          const generatedFile = `${ppmOutputPath.replace('.ppm', '')}-1.jpg`;
-          
-          if (fs.existsSync(generatedFile)) {
-            // Use Sharp to resize and optimize
-            const sharp = (await import('sharp')).default;
-            const thumbnailBuffer = await sharp(generatedFile)
-              .resize(300, 400, {
-                fit: 'inside',
-                withoutEnlargement: true,
-              })
-              .jpeg({ quality: 80 })
-              .toBuffer();
-
-            console.log(`[THUMBNAIL] Successfully generated PDF thumbnail using pdftoppm: ${thumbnailBuffer.length} bytes`);
-
-            // Cleanup temp files
-            try { fs.unlinkSync(generatedFile); } catch {}
-            if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
-              try { fs.unlinkSync(sourceFilePath); } catch {}
-            }
-
-            res.setHeader('Content-Type', 'image/jpeg');
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-            return res.send(thumbnailBuffer);
-          }
-        } catch (pdftoppmError) {
-          console.warn(`[THUMBNAIL] pdftoppm failed, trying pdf2pic: ${pdftoppmError}`);
-          
-          // Strategy 2: Try pdf2pic
-          try {
-            const pdf2pic = await import('pdf2pic') as any;
-            
-            const convert = pdf2pic.fromPath(sourceFilePath, {
-              density: 150,
-              saveFilename: `pdf_thumb_${documentId}_${Date.now()}`,
-              savePath: '/tmp',
-              format: 'jpeg',
-              width: 300,
-              height: 400
-            });
-
-            const result = await convert(1, { responseType: 'buffer' });
-            
-            if (result && result.buffer) {
-              const sharp = (await import('sharp')).default;
-              const thumbnailBuffer = await sharp(result.buffer)
-                .resize(300, 400, {
-                  fit: 'inside',
-                  withoutEnlargement: true,
-                })
-                .jpeg({ quality: 80 })
-                .toBuffer();
-
-              console.log(`[THUMBNAIL] Successfully generated PDF thumbnail using pdf2pic: ${thumbnailBuffer.length} bytes`);
-
-              if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
-                try { fs.unlinkSync(sourceFilePath); } catch {}
-              }
-
-              res.setHeader('Content-Type', 'image/jpeg');
-              res.setHeader('Cache-Control', 'public, max-age=3600');
-              return res.send(thumbnailBuffer);
-            }
-          } catch (pdf2picError) {
-            console.warn(`[THUMBNAIL] pdf2pic failed, trying ImageMagick: ${pdf2picError}`);
-            
-            // Strategy 3: ImageMagick with better error handling
-            try {
-              const { execSync } = await import('child_process');
-              const thumbnailOutputPath = path.join('/tmp', `pdf_thumb_${documentId}_${Date.now()}.jpg`);
-
-              // Check if Ghostscript is available
-              try {
-                execSync('which gs', { timeout: 5000 });
-              } catch {
-                console.warn(`[THUMBNAIL] Ghostscript not found, ImageMagick will likely fail`);
-                throw new Error('Ghostscript dependency missing');
-              }
-
-              const convertCmd = `convert "${sourceFilePath}[0]" -resize 300x400 -quality 80 "${thumbnailOutputPath}"`;
-              execSync(convertCmd, { timeout: 15000 });
-
-              if (fs.existsSync(thumbnailOutputPath)) {
-                console.log(`[THUMBNAIL] Successfully generated PDF thumbnail using ImageMagick: ${thumbnailOutputPath}`);
-
-                if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
-                  try { fs.unlinkSync(sourceFilePath); } catch {}
-                }
-
-                res.setHeader('Content-Type', 'image/jpeg');
-                res.setHeader('Cache-Control', 'public, max-age=3600');
-                return res.sendFile(path.resolve(thumbnailOutputPath), (err: any) => {
-                  if (!err) {
-                    try { fs.unlinkSync(thumbnailOutputPath); } catch {}
-                  }
-                });
-              }
-            } catch (imageMagickError) {
-              console.error(`[THUMBNAIL] ImageMagick failed: ${imageMagickError}`);
-            }
-          }
-        }
-      } catch (pdfError) {
-        console.error(`[THUMBNAIL] Error generating PDF thumbnail for document ${documentId}:`, pdfError);
-      }
-
-      // Cleanup temp file if created from GCS
-      if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
-        try { fs.unlinkSync(sourceFilePath); } catch {}
-      }
-    }
-
-    // Generate thumbnail for Office documents (Word, Excel, PowerPoint)
-    const officeTypes = [
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
-      'application/msword', // .doc
-      'application/vnd.ms-excel', // .xls
-      'application/vnd.ms-powerpoint' // .ppt
-    ];
-
-    if (officeTypes.includes(document.mimeType || '') && sourceFilePath) {
-      try {
-        console.log(`[THUMBNAIL] Generating Office document thumbnail for document ${documentId}`);
-        const { execSync } = await import('child_process');
-
-        // Convert to PDF using LibreOffice headless with proper configuration
-        const baseName = path.basename(sourceFilePath, path.extname(sourceFilePath));
-        const tempPdfPath = path.join('/tmp', `${baseName}.pdf`);
-        
-        // Enhanced LibreOffice command with better compatibility
-        const libreOfficeCmd = `timeout 45s libreoffice --headless --invisible --nodefault --nolockcheck --nologo --norestore --convert-to pdf:writer_pdf_Export --outdir /tmp "${sourceFilePath}"`;
-
-        console.log(`[THUMBNAIL] Running LibreOffice conversion: ${libreOfficeCmd}`);
-        execSync(libreOfficeCmd, { timeout: 45000 }); // 45 second timeout
-
-        if (fs.existsSync(tempPdfPath)) {
-          console.log(`[THUMBNAIL] LibreOffice conversion successful, converting PDF to thumbnail`);
-
-          // Use ImageMagick to convert PDF to thumbnail (more reliable than pdf-poppler)
-          const thumbnailOutputPath = path.join('/tmp', `office_thumb_${documentId}_${Date.now()}.jpg`);
-          const convertCmd = `convert "${tempPdfPath}[0]" -resize 300x400 -quality 80 "${thumbnailOutputPath}"`;
-          
-          execSync(convertCmd, { timeout: 15000 });
-
-          if (fs.existsSync(thumbnailOutputPath)) {
-            console.log(`[THUMBNAIL] Successfully generated Office document thumbnail: ${thumbnailOutputPath}`);
-
-            // Cleanup temp files
-            try { fs.unlinkSync(tempPdfPath); } catch {}
-            if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
-              try { fs.unlinkSync(sourceFilePath); } catch {}
-            }
-
-            res.setHeader('Content-Type', 'image/jpeg');
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-            return res.sendFile(path.resolve(thumbnailOutputPath), (err: any) => {
-              // Cleanup generated thumbnail after sending
-              if (!err) {
-                try { fs.unlinkSync(thumbnailOutputPath); } catch {}
-              }
-            });
-          }
-
-          // Cleanup PDF if thumbnail generation failed
-          try { fs.unlinkSync(tempPdfPath); } catch {}
-        } else {
-          console.error(`[THUMBNAIL] LibreOffice failed to generate PDF from ${sourceFilePath}`);
-        }
-      } catch (officeError) {
-        console.error(`[THUMBNAIL] Error generating Office document thumbnail for document ${documentId}:`, officeError);
-        console.error(`[THUMBNAIL] Office error details:`, {
-          error: officeError.message,
-          stack: officeError.stack,
-          sourceFile: sourceFilePath,
-          mimeType: document.mimeType
-        });
-      }
-
-      // Cleanup temp file if created from GCS
-      if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
-        try { fs.unlinkSync(sourceFilePath); } catch {}
-      }
-    }
-
-    // For all other cases (unknown types), return placeholder
-    console.log(`[THUMBNAIL] Returning placeholder for document ${documentId}, mimeType: ${document.mimeType}`);
-
-    // Cleanup temp file if created
-    if (sourceFilePath && sourceFilePath.includes('/tmp/') && fs.existsSync(sourceFilePath)) {
-      fs.unlinkSync(sourceFilePath);
-    }
-
-    const placeholderSvg = generateDocumentPlaceholder(document.mimeType, document.fileName);
-    res.setHeader('Content-Type', 'image/svg+xml');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.send(placeholderSvg);
-
+    
   } catch (error: any) {
-    console.error(`[THUMBNAIL] Error generating thumbnail for document ${req.params.id}:`, error);
-
-    // Always return a placeholder on error
-    try {
-      const placeholderSvg = generateDocumentPlaceholder('application/octet-stream', 'Document');
-      res.setHeader('Content-Type', 'image/svg+xml');
-      res.setHeader('Cache-Control', 'public, max-age=300'); // Shorter cache for errors
-      res.send(placeholderSvg);
-    } catch (placeholderError) {
-      console.error(`[THUMBNAIL] Failed to generate placeholder:`, placeholderError);
-      res.status(500).json({ message: 'Failed to generate thumbnail' });
-    }
+    console.error(`❌ [THMB-5] Error in legacy thumbnail redirect:`, error);
+    
+    // Fallback to placeholder for any errors
+    const placeholderSvg = generateDocumentPlaceholder('application/octet-stream', 'Document');
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.send(placeholderSvg);
   }
 });
 

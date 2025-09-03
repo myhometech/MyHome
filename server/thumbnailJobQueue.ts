@@ -182,10 +182,10 @@ class RedisJobQueue {
       defaultJobOptions: {
         removeOnComplete: 100, // Keep last 100 completed jobs
         removeOnFail: 50,      // Keep last 50 failed jobs
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
+        attempts: 2,           // THMB-5: Max 2 retries for retryable codes
+        backoff: (attemptsMade: number) => {
+          // THMB-5: Custom backoff pattern (2s, 10s)
+          return attemptsMade === 1 ? 2000 : 10000;
         },
       },
     });

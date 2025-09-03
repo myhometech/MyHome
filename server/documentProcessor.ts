@@ -96,10 +96,10 @@ export class DocumentProcessor {
       // Extract expiry dates
       let expiryDate: string | null = null;
       try {
-        const extractedDates = extractExpiryDatesFromText(extractedText);
+        const extractedDates = await extractExpiryDatesFromText(fileName, extractedText);
         if (extractedDates.length > 0) {
           // Use the first detected date as the primary expiry date
-          expiryDate = extractedDates[0].date;
+          expiryDate = extractedDates[0].date.toISOString();
         }
       } catch (dateError) {
         console.warn('Date extraction failed:', dateError);

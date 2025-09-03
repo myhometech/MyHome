@@ -1,6 +1,9 @@
 import fs from "fs";
 import { createWorker } from 'tesseract.js';
 import { extractExpiryDatesFromText, type ExtractedDate } from "./dateExtractionService";
+
+// Re-export extractExpiryDatesFromText for use by documentProcessor
+export { extractExpiryDatesFromText };
 import { aiDateExtractionService, type ExtractedDate as AIExtractedDate } from "./aiDateExtractionService";
 import { reminderSuggestionService } from "./reminderSuggestionService";
 import { PDFDocument } from "pdf-lib";
@@ -24,7 +27,7 @@ async function extractTextFromImageBasedPDF(filePathOrGCSKey: string): Promise<s
 }
 
 // MEMORY OPTIMIZED: Extract text from PDF using GCS streaming or local path
-async function extractTextFromPDF(filePathOrGCSKey: string): Promise<string> {
+export async function extractTextFromPDF(filePathOrGCSKey: string): Promise<string> {
   console.log(`Starting PDF text extraction for: ${filePathOrGCSKey}`);
   
   try {

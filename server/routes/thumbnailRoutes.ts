@@ -22,6 +22,7 @@ const router = Router();
 // THMB-RATE-HOTFIX: Import improved rate limiting and coalescing
 import { markIfFree, clearMark, isInProgress } from '../thumbnailCoalesce';
 import { allow as userRateLimitAllow } from '../thumbnailBucket';
+import { getCached, setCached } from '../thumbnailReadCache';
 
 /**
  * THMB-API-STD: GET /api/documents/:id/thumbnail?variant=240
@@ -95,6 +96,20 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
       });
     }
 
+    // THMB-UNBLOCK: Check server-side cache first
+    const cached = getCached(documentId.toString(), sourceHash, variant);
+    if (cached) {
+      console.log(`💾 [CACHE] Serving cached URL for doc ${documentId}, variant ${variant}`);
+      return res.status(200).json({
+        status: 'ready',
+        documentId,
+        variant,
+        url: cached.url,
+        ttlSeconds: cached.ttlSeconds,
+        sourceHash: sourceHash
+      });
+    }
+
     // Check if thumbnail already exists
     const existenceResult = await checkThumbnailExists(
       documentId,
@@ -112,6 +127,9 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
           documentId,
           variant
         );
+
+        // THMB-UNBLOCK: Cache the signed URL for future requests
+        setCached(documentId.toString(), sourceHash, variant, signedUrlResult.url, signedUrlResult.ttlSeconds);
 
         return res.status(200).json({
           status: 'ready',
@@ -153,14 +171,15 @@ router.get('/documents/:id/thumbnail', requireAuth, async (req: any, res: any) =
     if (missingVariants.length > 0) {
       // THMB-RATE-HOTFIX: Only enqueue if not already in progress (coalescing)
       if (markIfFree(coalescingKey)) {
-        // First time accessing this document+sourceHash - warm ALL variants
-        console.log(`🔥 [THMB-5] On-access warming: enqueueing ALL variants [${missingVariants.join(', ')}] for doc ${documentId}`);
+        // THMB-UNBLOCK: Focus on 240px first for stability
+        const priorityVariants = missingVariants.includes(240) ? [240] : missingVariants.slice(0, 1);
+        console.log(`🔥 [THMB-UNBLOCK] On-access warming: enqueueing priority variants [${priorityVariants.join(', ')}] for doc ${documentId}`);
         
         try {
           const jobResult = await thumbnailJobQueue.enqueueJob({
             documentId,
             sourceHash: sourceHash,
-            variants: missingVariants, // Enqueue ALL missing variants at once
+            variants: priorityVariants, // THMB-UNBLOCK: Focus on 240px first
             mimeType: document.mimeType,
             userId,
             householdId: userHousehold?.id

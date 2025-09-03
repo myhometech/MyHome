@@ -3,7 +3,7 @@
 ## Overview
 MyHome is a comprehensive document management application for homeowners, designed to organize property-related documents. It features a web application (React + Node.js) and a native iOS app, both syncing through a shared backend API with a PostgreSQL database and authentication. The project aims to provide an intuitive platform for document digitization via camera scanning, with future integrations planned for cloud storage services like Google Drive. The business vision is to provide an intuitive platform for document digitization, offering a solution for homeowners to manage property-related information efficiently and securely.
 
-## Recent Major Changes (August 2025)
+## Recent Major Changes (August-September 2025)
 - **Multi-Tier Subscription System**: Implemented comprehensive three-tier pricing (Beginner £2.99, Pro £7.99, Duo £9.99) with individual and shared household plans
 - **Flexible Stripe Pricing Integration**: Created dynamic pricing system that fetches real Stripe prices via API while maintaining default fallbacks for development
 - **Dynamic SubscriptionTier Architecture**: Refactored from hardcoded enum to dynamic string type, enabling new tier addition through environment configuration only (no code deployments required)
@@ -17,6 +17,7 @@ MyHome is a comprehensive document management application for homeowners, design
 - **TICKET 5 Complete**: Frontend invite accept flow with /invite/accept route, welcome screen for valid invitations, error handling for invalid/expired tokens, and seamless household joining UX
 - **Mobile Header Optimization**: Fixed horizontal scrolling issues on mobile by hiding search bar, removing redundant icons (settings/profile available in hamburger menu), implementing icon-only buttons, and responsive spacing
 - **AI Insights Mobile Optimization**: Comprehensive mobile redesign of insights dashboard with compact cards (reduced padding from p-4 to p-2), responsive grid layout (2 columns on mobile, 4 on desktop), smaller icons (h-5 instead of h-8), condensed text with mobile-specific breakpoints, and improved readability on small screens
+- **THMB-UNBLOCK Complete (September 2025)**: Comprehensive thumbnail system overhaul implementing zero-429 architecture with server-side LRU cache (15-min TTL), request coalescing, route-level rate limit exemption (429→202 conversion), per-user token bucket limiting, client deduplication, and 240px-priority thumbnail generation. System now handles burst loads gracefully without rate limit cascades.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

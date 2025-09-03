@@ -40,6 +40,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { withCorrelationId } from "./middleware/correlationId.js";
 import { setupSimpleAuth } from "./simpleAuth.js";
+import { thumbnailRateAdapter, thumbnailRateErrorHandler } from "./middleware/thumbnailRateAdapter";
 
 // TEMPORARILY DISABLE AGGRESSIVE MEMORY MANAGEMENT
 console.log('ℹ️  Simplified memory management enabled');
@@ -79,6 +80,9 @@ const app = express();
 
 // Add correlation ID middleware first
 app.use(withCorrelationId as any);
+
+// THMB-UNBLOCK: Add thumbnail rate adapter before other middleware
+app.use(thumbnailRateAdapter);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -225,6 +229,9 @@ app.use((req, res, next) => {
   // CRITICAL FIX: Register routes BEFORE static file serving to prevent interception
   const server = await registerRoutes(app);
   console.log('✅ API routes registered successfully');
+
+  // THMB-UNBLOCK: Add thumbnail rate error handler after routes
+  app.use(thumbnailRateErrorHandler);
 
   // Initialize manual event notification service (TICKET B2)
   try {

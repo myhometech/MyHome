@@ -491,7 +491,10 @@ router.get('/:id', requireAuth, async (req: any, res: any) => {
 
 // Get document thumbnail
 router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
+  console.log(`[THUMBNAIL-DEBUG] Thumbnail route accessed for document ${req.params.id}`);
+  
   if (!req.user) {
+    console.log(`[THUMBNAIL-DEBUG] No user found, returning 401`);
     return res.status(401).json({ message: 'Authentication required' });
   }
 
@@ -499,12 +502,16 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
     const documentId = parseInt(req.params.id);
     const userId = req.user.id;
 
+    console.log(`[THUMBNAIL-DEBUG] Processing thumbnail for document ${documentId}, user ${userId}`);
+
     if (isNaN(documentId)) {
+      console.log(`[THUMBNAIL-DEBUG] Invalid document ID: ${req.params.id}`);
       return res.status(400).json({ message: 'Invalid document ID' });
     }
 
     const document = await storage.getDocument(documentId, userId);
     if (!document) {
+      console.log(`[THUMBNAIL-DEBUG] Document ${documentId} not found for user ${userId}`);
       return res.status(404).json({ message: 'Document not found' });
     }
 

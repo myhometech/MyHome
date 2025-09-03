@@ -160,7 +160,7 @@ export default function UnifiedDocumentCard({
   const [thumbnailError, setThumbnailError] = useState(false);
   const [thumbnailBlobUrl, setThumbnailBlobUrl] = useState<string | null>(null);
 
-  // Fetch thumbnail as blob with authentication
+  // Fetch thumbnail as blob with authentication and retry logic
   useEffect(() => {
     // Guard against missing document ID
     if (!document?.id) {
@@ -170,18 +170,21 @@ export default function UnifiedDocumentCard({
     let isMounted = true;
     let currentBlobUrl: string | null = null;
 
-    const fetchThumbnail = async () => {
+    const fetchThumbnail = async (retryCount = 0) => {
+      const maxRetries = 2;
+      
       try {
-        console.log(`[THUMBNAIL] Fetching thumbnail for document ${document.id}`);
-        const thumbnailUrl = `/api/documents/${document.id}/thumbnail`;
+        console.log(`[THUMBNAIL] Fetching thumbnail for document ${document.id} (attempt ${retryCount + 1})`);
+        const thumbnailUrl = `/api/documents/${document.id}/thumbnail?v=${Date.now()}`; // Add cache buster
         const response = await fetch(thumbnailUrl, {
           credentials: 'include',
           headers: {
             'Accept': 'image/*,image/svg+xml'
-          }
+          },
+          signal: AbortSignal.timeout(10000) // 10 second timeout
         });
         
-        console.log(`[THUMBNAIL] Response status: ${response.status}`);
+        console.log(`[THUMBNAIL] Response status: ${response.status}, content-length: ${response.headers.get('content-length')}`);
         if (!isMounted) return; // Component unmounted, abort
         
         if (response.ok) {
@@ -210,26 +213,54 @@ export default function UnifiedDocumentCard({
             const blob = await response.blob();
             if (!isMounted) return;
             
+            if (blob.size === 0) {
+              console.warn(`[THUMBNAIL] Received empty blob`);
+              if (retryCount < maxRetries) {
+                console.log(`[THUMBNAIL] Retrying thumbnail fetch in 1 second...`);
+                setTimeout(() => fetchThumbnail(retryCount + 1), 1000);
+                return;
+              }
+              setThumbnailError(true);
+              return;
+            }
+            
             currentBlobUrl = URL.createObjectURL(blob);
-            console.log(`[THUMBNAIL] Created blob URL: ${currentBlobUrl}`);
+            console.log(`[THUMBNAIL] Created blob URL: ${currentBlobUrl}, blob size: ${blob.size}`);
             setThumbnailBlobUrl(currentBlobUrl);
             setThumbnailError(false);
           }
         } else {
           console.warn(`[THUMBNAIL] Request failed with status: ${response.status}`);
+          
+          // Retry on 502/503/504 errors (server issues)
+          if ([502, 503, 504].includes(response.status) && retryCount < maxRetries) {
+            console.log(`[THUMBNAIL] Server error, retrying in ${(retryCount + 1) * 2} seconds...`);
+            setTimeout(() => fetchThumbnail(retryCount + 1), (retryCount + 1) * 2000);
+            return;
+          }
+          
           if (isMounted) {
             setThumbnailError(true);
           }
         }
       } catch (error) {
-        console.warn(`Failed to fetch thumbnail for document ${document.id}:`, error);
+        console.warn(`Failed to fetch thumbnail for document ${document.id} (attempt ${retryCount + 1}):`, error);
+        
+        // Retry on network errors
+        if (retryCount < maxRetries && isMounted) {
+          console.log(`[THUMBNAIL] Network error, retrying in ${(retryCount + 1) * 2} seconds...`);
+          setTimeout(() => fetchThumbnail(retryCount + 1), (retryCount + 1) * 2000);
+          return;
+        }
+        
         if (isMounted) {
           setThumbnailError(true);
         }
       }
     };
 
-    fetchThumbnail();
+    // Initial fetch with small delay to let server stabilize
+    setTimeout(() => fetchThumbnail(), 100);
 
     // Cleanup function
     return () => {

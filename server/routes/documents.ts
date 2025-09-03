@@ -590,41 +590,79 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
       }
     }
 
-    // Generate thumbnail for PDFs
+    // Generate thumbnail for PDFs using Sharp for PDF conversion
     if (document.mimeType === 'application/pdf' && sourceFilePath) {
       try {
         console.log(`[THUMBNAIL] Generating PDF thumbnail for document ${documentId}`);
-        const pdfPoppler = await import('pdf-poppler') as any;
+        
+        // Try to use pdf2pic for better Linux support
+        try {
+          const pdf2pic = await import('pdf2pic') as any;
+          
+          const convert = pdf2pic.fromPath(sourceFilePath, {
+            density: 150,           // Output DPI
+            saveFilename: `pdf_thumb_${documentId}_${Date.now()}`,
+            savePath: '/tmp',
+            format: 'jpeg',
+            width: 300,
+            height: 400
+          });
 
-        const options = {
-          format: 'jpeg',
-          out_dir: '/tmp',
-          out_prefix: `pdf_thumb_${documentId}_${Date.now()}`,
-          page: 1, // Only convert first page
-          scale: 1024 // High quality for thumbnails
-        };
+          const result = await convert(1, { responseType: 'buffer' }); // Convert first page
+          
+          if (result && result.buffer) {
+            // Use Sharp to process the buffer into a proper thumbnail
+            const sharp = (await import('sharp')).default;
+            const thumbnailBuffer = await sharp(result.buffer)
+              .resize(300, 400, {
+                fit: 'inside',
+                withoutEnlargement: true,
+              })
+              .jpeg({ quality: 80 })
+              .toBuffer();
 
-        // Convert PDF first page to image
-        const results = await pdfPoppler.convert(sourceFilePath, options);
+            console.log(`[THUMBNAIL] Successfully generated PDF thumbnail using pdf2pic: ${thumbnailBuffer.length} bytes`);
 
-        if (results && results.length > 0) {
-          const thumbnailPath = results[0];
-          console.log(`[THUMBNAIL] Successfully generated PDF thumbnail: ${thumbnailPath}`);
+            // Cleanup temp PDF file if created from GCS
+            if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
+              try { fs.unlinkSync(sourceFilePath); } catch {}
+            }
 
-          // Cleanup temp PDF file if created from GCS
-          if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
-            try { fs.unlinkSync(sourceFilePath); } catch {}
-          }
-
-          if (fs.existsSync(thumbnailPath)) {
             res.setHeader('Content-Type', 'image/jpeg');
             res.setHeader('Cache-Control', 'public, max-age=3600');
-            return res.sendFile(path.resolve(thumbnailPath), (err: any) => {
-              // Cleanup generated thumbnail after sending
-              if (!err) {
-                try { fs.unlinkSync(thumbnailPath); } catch {}
+            return res.send(thumbnailBuffer);
+          }
+        } catch (pdf2picError) {
+          console.warn(`[THUMBNAIL] pdf2pic failed, trying ImageMagick: ${pdf2picError}`);
+          
+          // Fallback to ImageMagick convert command
+          const { execSync } = await import('child_process');
+          const thumbnailOutputPath = path.join('/tmp', `pdf_thumb_${documentId}_${Date.now()}.jpg`);
+
+          try {
+            // Use ImageMagick to convert first page of PDF to JPEG
+            const convertCmd = `convert "${sourceFilePath}[0]" -resize 300x400 -quality 80 "${thumbnailOutputPath}"`;
+            execSync(convertCmd, { timeout: 15000 }); // 15 second timeout
+
+            if (fs.existsSync(thumbnailOutputPath)) {
+              console.log(`[THUMBNAIL] Successfully generated PDF thumbnail using ImageMagick: ${thumbnailOutputPath}`);
+
+              // Cleanup temp PDF file if created from GCS
+              if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
+                try { fs.unlinkSync(sourceFilePath); } catch {}
               }
-            });
+
+              res.setHeader('Content-Type', 'image/jpeg');
+              res.setHeader('Cache-Control', 'public, max-age=3600');
+              return res.sendFile(path.resolve(thumbnailOutputPath), (err: any) => {
+                // Cleanup generated thumbnail after sending
+                if (!err) {
+                  try { fs.unlinkSync(thumbnailOutputPath); } catch {}
+                }
+              });
+            }
+          } catch (imageMagickError) {
+            console.error(`[THUMBNAIL] ImageMagick failed: ${imageMagickError}`);
           }
         }
       } catch (pdfError) {
@@ -652,57 +690,57 @@ router.get('/:id/thumbnail', requireAuth, async (req: any, res: any) => {
         console.log(`[THUMBNAIL] Generating Office document thumbnail for document ${documentId}`);
         const { execSync } = await import('child_process');
 
-        // Convert to PDF using LibreOffice headless
-        const tempPdfPath = path.join('/tmp', `office_converted_${documentId}_${Date.now()}.pdf`);
-        const libreOfficeCmd = `libreoffice --headless --convert-to pdf --outdir /tmp "${sourceFilePath}"`;
-
-        execSync(libreOfficeCmd, { timeout: 30000 }); // 30 second timeout
-
-        // Find the generated PDF file (LibreOffice creates it with original name + .pdf)
+        // Convert to PDF using LibreOffice headless with proper configuration
         const baseName = path.basename(sourceFilePath, path.extname(sourceFilePath));
-        const generatedPdfPath = path.join('/tmp', `${baseName}.pdf`);
+        const tempPdfPath = path.join('/tmp', `${baseName}.pdf`);
+        
+        // Enhanced LibreOffice command with better compatibility
+        const libreOfficeCmd = `timeout 45s libreoffice --headless --invisible --nodefault --nolockcheck --nologo --norestore --convert-to pdf:writer_pdf_Export --outdir /tmp "${sourceFilePath}"`;
 
-        if (fs.existsSync(generatedPdfPath)) {
-          // Now generate thumbnail from the PDF
-          const pdfPoppler = await import('pdf-poppler') as any;
+        console.log(`[THUMBNAIL] Running LibreOffice conversion: ${libreOfficeCmd}`);
+        execSync(libreOfficeCmd, { timeout: 45000 }); // 45 second timeout
 
-          const options = {
-            format: 'jpeg',
-            out_dir: '/tmp',
-            out_prefix: `office_thumb_${documentId}_${Date.now()}`,
-            page: 1,
-            scale: 1024
-          };
+        if (fs.existsSync(tempPdfPath)) {
+          console.log(`[THUMBNAIL] LibreOffice conversion successful, converting PDF to thumbnail`);
 
-          const results = await pdfPoppler.convert(generatedPdfPath, options);
+          // Use ImageMagick to convert PDF to thumbnail (more reliable than pdf-poppler)
+          const thumbnailOutputPath = path.join('/tmp', `office_thumb_${documentId}_${Date.now()}.jpg`);
+          const convertCmd = `convert "${tempPdfPath}[0]" -resize 300x400 -quality 80 "${thumbnailOutputPath}"`;
+          
+          execSync(convertCmd, { timeout: 15000 });
 
-          if (results && results.length > 0) {
-            const thumbnailPath = results[0];
-            console.log(`[THUMBNAIL] Successfully generated Office document thumbnail: ${thumbnailPath}`);
+          if (fs.existsSync(thumbnailOutputPath)) {
+            console.log(`[THUMBNAIL] Successfully generated Office document thumbnail: ${thumbnailOutputPath}`);
 
             // Cleanup temp files
-            try { fs.unlinkSync(generatedPdfPath); } catch {}
+            try { fs.unlinkSync(tempPdfPath); } catch {}
             if (document.gcsPath && sourceFilePath.includes('/tmp/')) {
               try { fs.unlinkSync(sourceFilePath); } catch {}
             }
 
-            if (fs.existsSync(thumbnailPath)) {
-              res.setHeader('Content-Type', 'image/jpeg');
-              res.setHeader('Cache-Control', 'public, max-age=3600');
-              return res.sendFile(path.resolve(thumbnailPath), (err: any) => {
-                // Cleanup generated thumbnail after sending
-                if (!err) {
-                  try { fs.unlinkSync(thumbnailPath); } catch {}
-                }
-              });
-            }
+            res.setHeader('Content-Type', 'image/jpeg');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            return res.sendFile(path.resolve(thumbnailOutputPath), (err: any) => {
+              // Cleanup generated thumbnail after sending
+              if (!err) {
+                try { fs.unlinkSync(thumbnailOutputPath); } catch {}
+              }
+            });
           }
 
           // Cleanup PDF if thumbnail generation failed
-          try { fs.unlinkSync(generatedPdfPath); } catch {}
+          try { fs.unlinkSync(tempPdfPath); } catch {}
+        } else {
+          console.error(`[THUMBNAIL] LibreOffice failed to generate PDF from ${sourceFilePath}`);
         }
       } catch (officeError) {
         console.error(`[THUMBNAIL] Error generating Office document thumbnail for document ${documentId}:`, officeError);
+        console.error(`[THUMBNAIL] Office error details:`, {
+          error: officeError.message,
+          stack: officeError.stack,
+          sourceFile: sourceFilePath,
+          mimeType: document.mimeType
+        });
       }
 
       // Cleanup temp file if created from GCS

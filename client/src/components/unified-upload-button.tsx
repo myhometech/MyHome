@@ -366,23 +366,40 @@ export default function UnifiedUploadButton({
 
   const getSuggestion = async (file: File) => {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
+      // DOC-SUG-01: Send JSON instead of FormData to match server expectations
       const response = await fetch('/api/documents/suggest-category', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          size: file.size,
+          ocrText: undefined // Optional OCR text if available
+        }),
         credentials: 'include'
       });
 
       if (response.ok) {
         const suggestion = await response.json();
         setCategorySuggestion({
-          suggested: suggestion.suggested_category,
-          confidence: suggestion.confidence,
-          reason: suggestion.reason,
+          suggested: suggestion.suggested?.category || suggestion.suggested_category,
+          confidence: suggestion.suggested?.confidence || suggestion.confidence,
+          reason: suggestion.suggested?.reason || suggestion.reason,
           isVisible: true
         });
+      } else {
+        // DOC-SUG-01: Parse error details for better debugging
+        let errorMessage = `HTTP_${response.status}`;
+        try {
+          const err = await response.json();
+          if (err?.errorCode || err?.message) {
+            errorMessage = `${err.errorCode ?? ''} ${err.message ?? ''}`.trim();
+          }
+        } catch { /* ignore JSON parse errors */ }
+        console.warn('Category suggestion failed:', errorMessage);
       }
     } catch (error) {
       console.log('Category suggestion failed:', error);

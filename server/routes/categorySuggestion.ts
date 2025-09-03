@@ -10,7 +10,9 @@ import { llmClient } from "../services/llmClient.js";
 interface SuggestionRequest {
   fileName: string;
   fileType: string;
+  size: number;
   ocrText?: string;
+  documentId?: string; // Optional for existing documents
 }
 
 interface CategorySuggestion {
@@ -37,34 +39,71 @@ interface MistralSuggestionResponse {
 }
 
 /**
- * Analyze document and suggest category using AI
+ * DOC-SUG-01: Analyze document and suggest category using AI with proper validation
  */
 export async function suggestDocumentCategory(req: Request, res: Response) {
+  // DOC-SUG-01: Set JSON headers for consistent responses
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  
   try {
-    const { fileName, fileType, ocrText } = req.body as SuggestionRequest;
+    const { fileName, fileType, size, ocrText, documentId } = req.body as SuggestionRequest;
     
-    if (!fileName || !fileType) {
+    // DOC-SUG-01: Comprehensive validation with specific error codes
+    const validationErrors: string[] = [];
+    
+    if (!fileName || typeof fileName !== 'string') {
+      validationErrors.push('fileName is required and must be a string');
+    } else if (fileName.length > 255) {
+      validationErrors.push('fileName must be 255 characters or less');
+    }
+    
+    if (!fileType || typeof fileType !== 'string') {
+      validationErrors.push('fileType is required and must be a string');
+    } else if (!/^[a-z-]+\/[a-z0-9\-\.+]+$/i.test(fileType)) {
+      validationErrors.push('fileType must be a valid MIME type');
+    }
+    
+    if (typeof size !== 'number' || size <= 0) {
+      validationErrors.push('size is required and must be a positive number');
+    } else if (size > 10_000_000) {
+      validationErrors.push('size cannot exceed 10MB (10,000,000 bytes)');
+    }
+    
+    if (ocrText !== undefined && typeof ocrText !== 'string') {
+      validationErrors.push('ocrText must be a string if provided');
+    }
+    
+    if (validationErrors.length > 0) {
       return res.status(400).json({ 
-        message: "fileName and fileType are required" 
+        errorCode: 'VALIDATION_ERROR',
+        message: 'Request validation failed',
+        details: validationErrors
       });
     }
 
     // TICKET 5: Use Mistral to analyze document content and suggest category
     const suggestion = await analyzeDocumentWithMistral(fileName, fileType, ocrText);
     
-    res.json(suggestion);
+    // DOC-SUG-01: Return consistent response format
+    res.status(200).json({
+      ...suggestion,
+      modelVersion: 'mistral-v1.0'
+    });
   } catch (error) {
     console.error("Category suggestion error:", error);
     
     // Always return a fallback suggestion instead of crashing
     try {
-      const fallback = getFallbackSuggestion(req.body.fileName || 'unknown', req.body.fileType || 'unknown');
-      res.json(fallback);
+      const fallback = getFallbackSuggestion(fileName || 'unknown', fileType || 'unknown');
+      res.status(200).json({
+        ...fallback,
+        modelVersion: 'fallback-v1.0'
+      });
     } catch (fallbackError) {
       console.error("Fallback suggestion also failed:", fallbackError);
       
-      // Last resort: return a generic suggestion
-      res.json({
+      // DOC-SUG-01: Last resort with proper error structure
+      res.status(200).json({
         suggested: {
           category: 'Other',
           confidence: 0.5,
@@ -72,7 +111,8 @@ export async function suggestDocumentCategory(req: Request, res: Response) {
         },
         alternatives: [
           { category: 'Personal', confidence: 0.3, reason: 'Alternative generic category' }
-        ]
+        ],
+        modelVersion: 'default-v1.0'
       });
     }
   }

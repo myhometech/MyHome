@@ -27,7 +27,7 @@ externalPort = 3000
 PORT = "5000"
 
 [workflows]
-runButton = "Production Server (Memory Optimized)"
+runButton = "Stable Server"
 
 [[workflows.workflow]]
 name = "Project"
@@ -189,5 +189,34 @@ args = "npm run build"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "NODE_ENV=production NODE_OPTIONS=\"--expose-gc --max-old-space-size=768\" node --expose-gc --trace-gc dist/index.js"
+
+[[workflows.workflow]]
+name = "Stable Server"
+author = 45314489
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"vite\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"tsx\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f \"node.*dist\" || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "sleep 3"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run build"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "NODE_ENV=production NODE_OPTIONS=\"--expose-gc --max-old-space-size=768\" node --expose-gc dist/index.js"
 
 [agent]

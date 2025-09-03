@@ -7,7 +7,7 @@ import UnifiedUploadButton from "@/components/unified-upload-button";
 import UnifiedDocumentCard from "@/components/unified-document-card";
 import AddDropdownMenu from "@/components/add-dropdown-menu";
 import { UnifiedInsightsDashboard } from "@/components/unified-insights-dashboard";
-import { TestDataReset } from "@/components/test-data-reset"; // Import TestDataReset
+import TestDataReset from '../components/test-data-reset';
 
 import { useFeatures } from "@/hooks/useFeatures";
 import { 

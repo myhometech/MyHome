@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { requireAuth } from '../simpleAuth.js';
+import { AuthenticatedRequest } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -8,9 +9,9 @@ const router = Router();
  * Generate JWT-signed token for Canny SSO
  * POST /api/canny-token
  */
-router.post('/canny-token', requireAuth, async (req: Request, res: Response) => {
+router.post('/canny-token', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const user = (req as any).user;
+    const user = req.user;
     
     if (!user) {
       return res.status(401).json({ error: 'User not authenticated' });
@@ -65,9 +66,9 @@ router.post('/canny-token', requireAuth, async (req: Request, res: Response) => 
  * Verify Canny JWT token (for debugging/testing)
  * POST /api/canny-token/verify
  */
-router.post('/canny-token/verify', requireAuth, async (req: Request, res: Response) => {
+router.post('/canny-token/verify', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { token } = req.body;
+    const { token } = req.body as { token?: string };
     
     if (!token) {
       return res.status(400).json({ error: 'Token required' });

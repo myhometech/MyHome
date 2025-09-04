@@ -3,6 +3,7 @@ import connectPg from "connect-pg-simple";
 import type { Express, RequestHandler } from "express";
 import { AuthService } from "./authService";
 import createMemoryStore from 'memorystore';
+import { AuthenticatedRequest } from './middleware/auth.js';
 
 export function getSession() {
   const isProd = process.env.NODE_ENV === 'production';
@@ -52,7 +53,7 @@ export function setupSimpleAuth(app: Express) {
   }));
 
   // Enhanced middleware to attach user from session to request with better persistence
-  app.use((req: any, res, next) => {
+  app.use((req: AuthenticatedRequest, res, next) => {
     if (req.session && req.session.user && !req.user) {
       req.user = req.session.user;
 
@@ -68,7 +69,7 @@ export function setupSimpleAuth(app: Express) {
     // If session exists but user is missing, try to restore from session properties
     if (req.session && !req.session.user && req.session.userId) {
       req.session.user = {
-        id: req.session.userId,
+        id: req.session.userId!,
         email: req.session.email,
         firstName: req.session.firstName,
         lastName: req.session.lastName,
@@ -82,7 +83,7 @@ export function setupSimpleAuth(app: Express) {
   });
 }
 
-export const requireAuth: RequestHandler = (req: any, res: any, next: any) => {
+export const requireAuth: RequestHandler = (req: AuthenticatedRequest, res, next) => {
   // Check both session and req.user (for different auth methods)
   const user = req.user || req.session?.user;
 

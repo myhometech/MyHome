@@ -3,12 +3,41 @@
  * Provides admin-only route protection for backup management
  */
 
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import type { Session } from 'express-session';
 
-export interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Omit<Request, 'user'> {
   user?: {
     id: string;
-    email: string;
+    email: string | null;
+    role?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    createdAt?: Date | null;
+    authProvider?: string | null;
+    household?: {
+      id: string;
+      role: string;
+      name?: string;
+    };
+  };
+  session: Session & {
+    user?: {
+      id: string;
+      email: string;
+      role?: string;
+      firstName?: string;
+      lastName?: string;
+      household?: {
+        id: string;
+        role: string;
+        name?: string;
+      };
+    };
+    userId?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
     role?: string;
     household?: {
       id: string;
@@ -16,6 +45,7 @@ export interface AuthenticatedRequest extends Request {
       name?: string;
     };
   };
+  cid?: string;
 }
 
 /**
@@ -38,11 +68,11 @@ export function requireAdmin(req: AuthenticatedRequest, res: Response, next: Nex
 /**
  * Basic authentication check with correlation ID support
  */
-export function requireAuth(req: AuthenticatedRequest & { cid?: string }, res: Response, next: NextFunction) {
+export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   // Enhanced debugging for auth failures
-  const sessionUser = (req as any).session?.user;
-  const hasSession = !!(req as any).session;
-  const sessionId = (req as any).session?.id;
+  const sessionUser = req.session?.user;
+  const hasSession = !!req.session;
+  const sessionId = req.session?.id;
   
   console.log(`[${req.cid || 'no-cid'}] auth_check:`, {
     hasUser: !!req.user,

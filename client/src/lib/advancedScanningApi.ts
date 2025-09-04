@@ -3,6 +3,8 @@
  * Provides frontend interface for advanced document scanning features
  */
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 interface ProcessPagesRequest {
   pages: {
     fileName: string;
@@ -80,7 +82,7 @@ interface ScanningHealthResponse {
 }
 
 class AdvancedScanningAPI {
-  private baseUrl = '/api/scanning';
+  private baseUrl = `${API_BASE_URL}/api/scanning`;
 
   /**
    * Process multiple scanned pages and generate searchable PDF

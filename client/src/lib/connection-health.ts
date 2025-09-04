@@ -1,4 +1,6 @@
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export interface ConnectionHealth {
   isOnline: boolean;
   serverReachable: boolean;
@@ -30,7 +32,7 @@ export class ConnectionHealthService {
     if (isOnline) {
       // Test server connectivity
       try {
-        const healthResponse = await fetch('/api/health', {
+        const healthResponse = await fetch(`${API_BASE_URL}/api/health`, {
           method: 'GET',
           credentials: 'include',
           cache: 'no-cache'
@@ -43,7 +45,7 @@ export class ConnectionHealthService {
 
       // Test documents API specifically
       try {
-        const documentsResponse = await fetch('/api/documents?limit=1', {
+        const documentsResponse = await fetch(`${API_BASE_URL}/api/documents?limit=1`, {
           method: 'GET',
           credentials: 'include',
           cache: 'no-cache'

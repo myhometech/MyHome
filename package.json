@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite dev --host",
-    "build": "npm run build:api",
+    "build": "tsc -p tsconfig.server.json",
     "start": "node dist/server/index.js",
     "build:api": "tsc server/index.ts --outDir dist --module commonjs --target ES2020 --esModuleInterop --resolveJsonModule"
   },
@@ -98,7 +98,7 @@
     "date-fns": "^3.6.0",
     "dompurify": "^3.2.6",
     "dotenv": "^17.2.0",
-    "drizzle-orm": "^0.39.1",
+    "drizzle-orm": "^0.44.5",
     "drizzle-zod": "^0.7.0",
     "embla-carousel-react": "^8.6.0",
     "express": "^4.21.2",
@@ -173,7 +173,7 @@
     "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "4.17.21",
     "@types/express-session": "^1.18.0",
-    "@types/node": "^20.16.11",
+    "@types/node": "^20.19.13",
     "@types/passport": "^1.0.17",
     "@types/passport-local": "^1.0.38",
     "@types/react": "^18.3.11",
@@ -186,7 +186,7 @@
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.3",
+    "typescript": "5.5",
     "vite": "^5.4.19"
   },
   "optionalDependencies": {

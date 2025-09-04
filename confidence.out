@@ -1,0 +1,191 @@
+== Clean build (server only) ==
+
+> rest-express@1.0.0 build
+> tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json
+
+server/adminKeyManagement.ts(99,41): error TS2339: Property 'getDocumentsWithEncryptionKeys' does not exist on type 'PostgresStorage'.
+server/adminKeyManagement.ts(124,23): error TS2339: Property 'updateDocumentEncryptionKey' does not exist on type 'PostgresStorage'.
+server/advancedOCRService.ts(34,30): error TS2304: Cannot find name 'WeakRef'.
+server/advancedOCRService.ts(258,27): error TS2339: Property 'words' does not exist on type 'Page'.
+server/backgroundJobService.ts(223,94): error TS2554: Expected 3 arguments, but got 4.
+server/chatOrchestrationService.ts(263,60): error TS2345: Argument of type '{ docId?: string; page?: number; }[]' is not assignable to parameter of type '{ docId: string; page?: number; title?: string; }[]'.
+  Type '{ docId?: string; page?: number; }' is not assignable to type '{ docId: string; page?: number; title?: string; }'.
+    Property 'docId' is optional in type '{ docId?: string; page?: number; }' but required in type '{ docId: string; page?: number; title?: string; }'.
+server/emailFeatureFlags.ts(21,81): error TS2345: Argument of type '{ userId: string; userTier: string; sessionId: any; userAgent: any; ipAddress: any; }' is not assignable to parameter of type 'FeatureFlagContext'.
+  Types of property 'userTier' are incompatible.
+    Type 'string' is not assignable to type '"free" | "premium"'.
+server/emailFeatureFlags.ts(37,94): error TS2345: Argument of type '{ userId: string; userTier: string; sessionId: any; userAgent: any; ipAddress: any; }' is not assignable to parameter of type 'FeatureFlagContext'.
+  Types of property 'userTier' are incompatible.
+    Type 'string' is not assignable to type '"free" | "premium"'.
+server/emailFeatureFlags.ts(53,96): error TS2345: Argument of type '{ userId: string; userTier: string; sessionId: any; userAgent: any; ipAddress: any; }' is not assignable to parameter of type 'FeatureFlagContext'.
+  Types of property 'userTier' are incompatible.
+    Type 'string' is not assignable to type '"free" | "premium"'.
+server/emailFeatureFlags.ts(65,30): error TS2339: Property 'evaluateEmailPdfFlags' does not exist on type 'EmailFeatureFlagService'.
+server/emailFeatureFlags.ts(81,55): error TS2339: Property 'isEnabled' does not exist on type 'FeatureFlagService'.
+server/emailFeatureFlags.ts(84,59): error TS2339: Property 'getFlagValue' does not exist on type 'FeatureFlagService'.
+server/emailFeatureFlags.ts(96,30): error TS2339: Property 'evaluateEmailPdfFlags' does not exist on type 'EmailFeatureFlagService'.
+server/enhancedAttachmentProcessor.ts(200,13): error TS2345: Argument of type '{ success: boolean; pdfBuffer?: Buffer; filename?: string; jobId?: string; metadata?: any; error?: string; }' is not assignable to parameter of type '{ pdfBuffer: Buffer; filename: string; jobId?: string; metadata?: any; }'.
+  Property 'pdfBuffer' is optional in type '{ success: boolean; pdfBuffer?: Buffer; filename?: string; jobId?: string; metadata?: any; error?: string; }' but required in type '{ pdfBuffer: Buffer; filename: string; jobId?: string; metadata?: any; }'.
+server/enhancedAttachmentProcessor.ts(291,7): error TS2322: Type '{ id: number; name: string; userId: string; status: string; householdId: string; categoryId: number; fileName: string; filePath: string; fileSize: number; mimeType: string; tags: string[]; expiryDate: Date; ... 24 more ...; sourceHash: string; }' is not assignable to type 'number'.
+server/enhancedAttachmentProcessor.ts(338,51): error TS2304: Cannot find name 'decodedContent'.
+server/enhancedAttachmentProcessor.ts(353,7): error TS2322: Type '{ id: number; name: string; userId: string; status: string; householdId: string; categoryId: number; fileName: string; filePath: string; fileSize: number; mimeType: string; tags: string[]; expiryDate: Date; ... 24 more ...; sourceHash: string; }' is not assignable to type 'number'.
+server/featureFlagService.ts(291,49): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(value: { userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }): PgInsertBase<...>', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type '{ userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }'.
+      Type '{}' is missing the following properties from type '{ userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }': userId, featureFlagName, wasEnabled, evaluationReason, userTier
+  Overload 2 of 2, '(values: { userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }[]): PgInsertBase<...>', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type '{ userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }[]'.
+      Type '{}' is missing the following properties from type '{ userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }[]': length, pop, push, concat, and 29 more.
+server/featureFlagService.ts(317,49): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(value: { userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }): PgInsertBase<...>', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type '{ userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }'.
+  Overload 2 of 2, '(values: { userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }[]): PgInsertBase<...>', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type '{ userId: string | SQL<unknown> | Placeholder<string, any>; featureFlagName: string | SQL<unknown> | Placeholder<string, any>; wasEnabled: boolean | SQL<...> | Placeholder<...>; ... 6 more ...; timestamp?: SQL<...> | ... 1 more ... | Placeholder<...>; }[]'.
+server/llmUsageLogger.ts(52,37): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(value: { status: "error" | SQL<unknown> | "success" | Placeholder<string, any>; requestId: string | SQL<unknown> | Placeholder<string, any>; provider: string | SQL<...> | Placeholder<...>; ... 7 more ...; route?: string | ... 1 more ... | Placeholder<...>; }): PgInsertBase<...>', gave the following error.
+    Argument of type '{}[]' is not assignable to parameter of type '{ status: "error" | SQL<unknown> | "success" | Placeholder<string, any>; requestId: string | SQL<unknown> | Placeholder<string, any>; provider: string | SQL<...> | Placeholder<...>; ... 7 more ...; route?: string | ... 1 more ... | Placeholder<...>; }'.
+      Type '{}[]' is missing the following properties from type '{ status: "error" | SQL<unknown> | "success" | Placeholder<string, any>; requestId: string | SQL<unknown> | Placeholder<string, any>; provider: string | SQL<...> | Placeholder<...>; ... 7 more ...; route?: string | ... 1 more ... | Placeholder<...>; }': status, requestId, provider, model, tokensUsed
+  Overload 2 of 2, '(values: { status: "error" | SQL<unknown> | "success" | Placeholder<string, any>; requestId: string | SQL<unknown> | Placeholder<string, any>; provider: string | SQL<...> | Placeholder<...>; ... 7 more ...; route?: string | ... 1 more ... | Placeholder<...>; }[]): PgInsertBase<...>', gave the following error.
+    Type '{}' is missing the following properties from type '{ status: "error" | SQL<unknown> | "success" | Placeholder<string, any>; requestId: string | SQL<unknown> | Placeholder<string, any>; provider: string | SQL<...> | Placeholder<...>; ... 7 more ...; route?: string | ... 1 more ... | Placeholder<...>; }': status, requestId, provider, model, tokensUsed
+server/performanceMonitoringService.ts(58,52): error TS2304: Cannot find name 'metric'.
+server/performanceMonitoringService.ts(61,16): error TS2304: Cannot find name 'metric'.
+server/performanceMonitoringService.ts(68,18): error TS2304: Cannot find name 'metric'.
+server/performanceMonitoringService.ts(71,16): error TS2304: Cannot find name 'metric'.
+server/routes.ts(177,5): error TS2561: Object literal may only specify known properties, but 'fieldsSize' does not exist in type '{ fieldNameSize?: number; fieldSize?: number; fields?: number; fileSize?: number; files?: number; parts?: number; headerPairs?: number; }'. Did you mean to write 'fieldSize'?
+server/routes.ts(4524,11): error TS2345: Argument of type '{ filename: string; contentType: string; size: number; buffer: Buffer; }[]' is not assignable to parameter of type 'AttachmentData[]'.
+  Property 'content' is missing in type '{ filename: string; contentType: string; size: number; buffer: Buffer; }' but required in type 'AttachmentData'.
+server/routes/advancedScanning.ts(96,21): error TS2339: Property 'saveFile' does not exist on type 'PostgresStorage'.
+server/routes/categorySuggestion.ts(97,46): error TS2304: Cannot find name 'fileName'.
+server/routes/categorySuggestion.ts(97,69): error TS2304: Cannot find name 'fileType'.
+server/routes/ocrErrorRoutes.ts(32,9): error TS2353: Object literal may only specify known properties, and 'tags' does not exist in type '{ userId?: string; route?: string; operation?: string; metadata?: Record<string, any>; }'.
+server/routes/testRoutes.ts(83,27): error TS2554: Expected 2 arguments, but got 1.
+server/routes/thumbnailRoutes.ts(233,56): error TS2345: Argument of type 'number' is not assignable to parameter of type 'ThumbnailExistenceResult[]'.
+server/services/factExtractionService.ts(52,9): error TS2353: Object literal may only specify known properties, and 'householdId' does not exist in type 'LlmUsageContext'.
+server/services/insightRecoveryService.ts(72,45): error TS2551: Property 'getDocumentsByUserId' does not exist on type 'PostgresStorage'. Did you mean 'getDocumentById'?
+server/services/modelEscalationAuditor.ts(59,51): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(value: { userId: string | SQL<unknown> | Placeholder<string, any>; messageId: string | SQL<unknown> | Placeholder<string, any>; conversationId: string | SQL<...> | Placeholder<...>; ... 14 more ...; escalated?: boolean | ... 1 more ... | Placeholder<...>; }): PgInsertBase<...>', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type '{ userId: string | SQL<unknown> | Placeholder<string, any>; messageId: string | SQL<unknown> | Placeholder<string, any>; conversationId: string | SQL<unknown> | Placeholder<...>; ... 14 more ...; escalated?: boolean | ... 1 more ... | Placeholder<...>; }'.
+      Type '{}' is missing the following properties from type '{ userId: string | SQL<unknown> | Placeholder<string, any>; messageId: string | SQL<unknown> | Placeholder<string, any>; conversationId: string | SQL<unknown> | Placeholder<...>; ... 14 more ...; escalated?: boolean | ... 1 more ... | Placeholder<...>; }': userId, messageId, conversationId, tenantId, and 6 more.
+  Overload 2 of 2, '(values: { userId: string | SQL<unknown> | Placeholder<string, any>; messageId: string | SQL<unknown> | Placeholder<string, any>; conversationId: string | SQL<...> | Placeholder<...>; ... 14 more ...; escalated?: boolean | ... 1 more ... | Placeholder<...>; }[]): PgInsertBase<...>', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type '{ userId: string | SQL<unknown> | Placeholder<string, any>; messageId: string | SQL<unknown> | Placeholder<string, any>; conversationId: string | SQL<unknown> | Placeholder<...>; ... 14 more ...; escalated?: boolean | ... 1 more ... | Placeholder<...>; }[]'.
+      Type '{}' is missing the following properties from type '{ userId: string | SQL<unknown> | Placeholder<string, any>; messageId: string | SQL<unknown> | Placeholder<string, any>; conversationId: string | SQL<unknown> | Placeholder<...>; ... 14 more ...; escalated?: boolean | ... 1 more ... | Placeholder<...>; }[]': length, pop, push, concat, and 29 more.
+server/storage.ts(220,43): error TS2339: Property 'tags' does not exist on type '{}'.
+server/storage.ts(220,84): error TS2339: Property 'tags' does not exist on type '{}'.
+server/stripeRoutes.ts(183,39): error TS2339: Property 'current_period_end' does not exist on type 'Response<Subscription>'.
+server/stripeService.ts(230,35): error TS2339: Property 'name' does not exist on type 'Product | DeletedProduct'.
+  Property 'name' does not exist on type 'DeletedProduct'.
+server/stripeService.ts(231,42): error TS2339: Property 'description' does not exist on type 'Product | DeletedProduct'.
+  Property 'description' does not exist on type 'DeletedProduct'.
+server/stripeService.ts(395,43): error TS2339: Property 'getStripeWebhookByEventId' does not exist on type 'PostgresStorage'.
+server/stripeService.ts(407,19): error TS2339: Property 'createStripeWebhook' does not exist on type 'PostgresStorage'.
+server/stripeService.ts(492,32): error TS2339: Property 'getUserByStripeCustomerId' does not exist on type 'PostgresStorage'.
+server/stripeService.ts(512,32): error TS2339: Property 'getUserByStripeCustomerId' does not exist on type 'PostgresStorage'.
+server/stripeService.ts(532,32): error TS2339: Property 'getUserByStripeCustomerId' does not exist on type 'PostgresStorage'.
+server/stripeService.ts(561,32): error TS2339: Property 'getUserByStripeCustomerId' does not exist on type 'PostgresStorage'.
+server/tagSuggestionService.ts(195,30): error TS2304: Cannot find name 'existingTags'.
+server/tagSuggestionService.ts(197,9): error TS2552: Cannot find name 'aiResponse'. Did you mean 'Response'?
+server/tagSuggestionService.ts(198,7): error TS2552: Cannot find name 'aiResponse'. Did you mean 'Response'?
+server/tagSuggestionService.ts(209,22): error TS2552: Cannot find name 'aiResponse'. Did you mean 'Response'?
+server/tagSuggestionService.ts(210,7): error TS2353: Object literal may only specify known properties, and 'combinedTags' does not exist in type 'TagSuggestionResponse'.
+server/tagSuggestionService.ts(211,19): error TS2552: Cannot find name 'aiResponse'. Did you mean 'Response'?
+server/tagSuggestionService.ts(212,18): error TS2552: Cannot find name 'aiResponse'. Did you mean 'Response'?
+server/test-classification-only.ts(60,59): error TS2339: Property 'needsConversion' does not exist on type 'AttachmentClassification'.
+  Property 'needsConversion' does not exist on type '{ type: "pdf"; action: "store_only"; }'.
+server/test-classification-only.ts(61,53): error TS2339: Property 'sizeValid' does not exist on type 'AttachmentClassification'.
+  Property 'sizeValid' does not exist on type '{ type: "pdf"; action: "store_only"; }'.
+server/test-classification-only.ts(62,52): error TS2339: Property 'supported' does not exist on type 'AttachmentClassification'.
+  Property 'supported' does not exist on type '{ type: "pdf"; action: "store_only"; }'.
+server/test-classification-only.ts(63,49): error TS2339: Property 'engine' does not exist on type 'AttachmentClassification'.
+  Property 'engine' does not exist on type '{ type: "pdf"; action: "store_only"; }'.
+server/test-enhanced-attachment.ts(62,59): error TS2339: Property 'needsConversion' does not exist on type 'AttachmentClassification'.
+  Property 'needsConversion' does not exist on type '{ type: "pdf"; action: "store_only"; }'.
+server/test-enhanced-attachment.ts(63,53): error TS2339: Property 'sizeValid' does not exist on type 'AttachmentClassification'.
+  Property 'sizeValid' does not exist on type '{ type: "pdf"; action: "store_only"; }'.
+server/test-enhanced-attachment.ts(64,52): error TS2339: Property 'supported' does not exist on type 'AttachmentClassification'.
+  Property 'supported' does not exist on type '{ type: "pdf"; action: "store_only"; }'.
+server/test-enhanced-attachment.ts(86,7): error TS2345: Argument of type '{ from: string; subject: string; messageId: string; timestamp: string; }' is not assignable to parameter of type 'EmailMetadata'.
+  Property 'requestId' is missing in type '{ from: string; subject: string; messageId: string; timestamp: string; }' but required in type 'EmailMetadata'.
+server/test-enhanced-attachment.ts(90,47): error TS2339: Property 'length' does not exist on type '{ processedAttachments: EnhancedProcessedAttachment[]; totalProcessed: number; totalFailed: number; originalCount: number; convertedCount: number; }'.
+server/test-enhanced-attachment.ts(91,13): error TS2339: Property 'forEach' does not exist on type '{ processedAttachments: EnhancedProcessedAttachment[]; totalProcessed: number; totalFailed: number; originalCount: number; convertedCount: number; }'.
+server/thumbnailExistenceMiddleware.ts(42,25): error TS2554: Expected 4 arguments, but got 3.
+server/thumbnailExistenceMiddleware.ts(47,41): error TS2339: Property 'objectExists' does not exist on type 'StorageProvider'.
+server/thumbnailGenerationService.ts(7,10): error TS2305: Module '"./storage"' has no exported member 'StorageService'.
+server/thumbnailRenderingService.ts(215,50): error TS2339: Property 'downloadBuffer' does not exist on type 'StorageService'.
+server/thumbnailRenderingService.ts(472,50): error TS2339: Property 'objectExists' does not exist on type 'StorageService'.
+server/thumbnailRenderingService.ts(522,56): error TS2339: Property 'upload' does not exist on type 'StorageService'.
+server/vehicleInsightService.ts(204,48): error TS2339: Property 'getInsightsByUser' does not exist on type 'PostgresStorage'.
+server/vehicleInsightService.ts(225,11): error TS2322: Type 'number' is not assignable to type 'string'.
+server/vite.ts(49,9): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', or 'nodenext'.
+server/workerHealthCheck.ts(84,40): error TS2551: Property 'getQueueStats' does not exist on type 'EmailRenderWorker'. Did you mean 'getQueueStatus'?
+shared/featureFlagSchema.ts(55,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/featureFlagSchema.ts(56,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/featureFlagSchema.ts(57,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/featureFlagSchema.ts(63,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/featureFlagSchema.ts(64,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/featureFlagSchema.ts(65,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/featureFlagSchema.ts(72,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/featureFlagSchema.ts(73,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(262,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(263,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(264,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(268,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(269,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(270,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(271,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(306,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(310,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(311,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(315,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(316,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(320,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(321,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(359,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(360,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(378,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(379,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(380,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(385,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(386,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(442,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(443,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(447,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(448,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(481,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(482,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(566,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(567,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(568,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(575,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(576,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(577,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(578,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(622,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(623,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(624,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(656,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(657,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(658,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(659,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(702,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(703,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(704,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(705,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(840,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(841,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(842,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(843,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(844,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(866,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(867,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(892,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(893,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(1088,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(1089,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(1090,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(1094,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+shared/schema.ts(1095,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
+vite.config.ts(21,25): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', or 'nodenext'.
+vite.config.ts(22,31): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', or 'nodenext'.
+vite.config.ts(23,31): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', or 'nodenext'.
+vite.config.ts(26,22): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', or 'nodenext'.
+vite.config.ts(28,26): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', or 'nodenext'.

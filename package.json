@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite dev --host",
-    "build": "tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json",
+    "build": "esbuild server/index.ts --bundle --platform=node --format=cjs --outfile=dist/server/index.js --tsconfig=tsconfig.server.json --packages=external --sourcemap",
     "start": "node dist/server/index.js",
     "build:api": "tsc server/index.ts --outDir dist --module commonjs --target ES2020 --esModuleInterop --resolveJsonModule"
   },
@@ -182,7 +182,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.30.4",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.25.9",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsc-alias": "^1.8.16",

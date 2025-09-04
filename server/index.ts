@@ -37,7 +37,8 @@ const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_E
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic } from "./staticFiles";
+const log = console.log;
 import { withCorrelationId } from "./middleware/correlationId.js";
 import { setupSimpleAuth } from "./simpleAuth.js";
 import { thumbnailRateAdapter, thumbnailRateErrorHandler } from "./middleware/thumbnailRateAdapter";
@@ -331,10 +332,7 @@ app.use((req, res, next) => {
   console.log('🚨 Production detection:', { NODE_ENV: process.env.NODE_ENV, isDeployment });
   console.log(`🔧 Environment check: NODE_ENV=${nodeEnv}, app.env=${appEnv}, isDeployment=${isDeployment}`);
 
-  if (nodeEnv === "development" && !isDeployment) {
-    console.log('🔧 Setting up Vite development server');
-    await setupVite(app, server);
-  } else {
+  if (false) { console.log("Dev Vite disabled in server build"); } else {
     console.log('🔧 PRODUCTION MODE: Setting up static file serving for deployment');
     console.log('🔧 Static files will be served from dist/public directory');
     console.log('⚠️ IMPORTANT: Static file serving configured AFTER API routes to prevent route interception');

@@ -7,7 +7,7 @@ import { Buffer } from 'buffer';
 import { nanoid } from 'nanoid';
 import { writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import type { InsertDocument } from '@shared/schema';
+import type { InsertDocument } from '../shared/schema';
 import { storage } from './storage.js';
 import { 
   attachmentClassificationService, 

@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { storage } from './storage';
-import type { ManualTrackedEvent, User, UserAsset } from '@shared/schema';
+import type { ManualTrackedEvent, User, UserAsset } from '../shared/schema';
 
 interface NotificationPayload {
   type: "manual_event";

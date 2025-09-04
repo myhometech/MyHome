@@ -80,6 +80,11 @@ import { initializeWorkerHealthChecker } from './workerHealthCheck';
 
 const app = express();
 
+// Health check for Render (fast: no DB/Redis touches)
+app.get("/api/health", (_req, res) => {
+  res.status(200).send("ok");
+});
+
 // AUTH-GOOG-01: Enable trust proxy for correct HTTPS detection behind proxies
 app.set('trust proxy', 1);
 

@@ -55,7 +55,7 @@ class PerformanceMonitoringService {
     }
 
     // Log slow queries
-    if (executionTime > this.slowQueryThreshold) {
+    if (executionTime > this.slowQueryThreshold && metric) {
       console.warn(`🐌 Slow query detected (${executionTime}ms):`, {
         endpoint,
         query: metric.query,
@@ -65,7 +65,7 @@ class PerformanceMonitoringService {
     }
 
     // Log failed queries
-    if (error) {
+    if (error && metric) {
       console.error(`❌ Query failed (${executionTime}ms):`, {
         endpoint,
         query: metric.query,

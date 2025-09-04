@@ -273,7 +273,7 @@ class InsightJobQueue {
           type: insight.type,
           title: insight.title,
           content: insight.content,
-          confidence: insight.confidence,
+          confidence: String(insight.confidence),
           priority: insight.priority,
           dueDate: null,
           actionUrl: `/document/${job.documentId}`,

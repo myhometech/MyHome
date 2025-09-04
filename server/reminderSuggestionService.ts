@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { documents, expiryReminders } from "../shared/schema";
-import { eq, and, gte, lte, isNull, or } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, isNotNull, or } from "drizzle-orm";
 
 // DOC-305: AI-Enhanced Reminder Suggestion Service
 export interface ReminderSuggestion {
@@ -154,7 +154,7 @@ export class ReminderSuggestionService {
         .where(
           and(
             eq(documents.userId, userId),
-            isNull(documents.expiryDate) === false
+            isNotNull(documents.expiryDate)
           )
         );
 
@@ -207,7 +207,7 @@ export class ReminderSuggestionService {
           and(
             eq(expiryReminders.userId, userId),
             eq(expiryReminders.status, 'pending'),
-            isNull(expiryReminders.documentId) === false // Only document-linked reminders
+            isNotNull(expiryReminders.documentId) // Only document-linked reminders
           )
         )
         .orderBy(expiryReminders.reminderDate);

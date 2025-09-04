@@ -118,7 +118,7 @@ export class ManualEventNotificationService {
       if (event.linkedAssetId) {
         try {
           const assets = await storage.getUserAssets(user.id);
-          const asset = assets.find(a => a.id === parseInt(event.linkedAssetId));
+          const asset = assets.find(a => a.id === event.linkedAssetId);
           assetName = asset?.address || asset?.name;
         } catch (error) {
           console.warn(`Could not fetch asset for event ${event.id}:`, error);

@@ -49,7 +49,7 @@ export class LlmUsageLogger {
         route: context.route || null,
       };
 
-      await db.insert(llmUsageLogs).values(logEntry);
+      await db.insert(llmUsageLogs).values([logEntry]);
       
       console.log(`[LLM Usage] ${context.provider}/${context.model}: ${metrics.tokensUsed} tokens, ${metrics.durationMs}ms, ${metrics.status}`);
     } catch (error) {

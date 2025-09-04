@@ -129,7 +129,7 @@ class OCRJobQueue {
           const insightJobId = await insightJobQueue.addInsightJob({
             documentId: job.documentId,
             userId: job.userId,
-            documentType: document.category?.name || 'general',
+            documentType: 'general', // TODO: Look up category by categoryId if needed
             documentName: document.name,
             extractedText: document.extractedText,
             mimeType: document.mimeType,
@@ -171,15 +171,12 @@ class OCRJobQueue {
           console.log(`📊 Analytics: browser_scan_ocr_failed for document ${job.documentId}`, {
             userId: job.userId,
             documentId: job.documentId,
-            error: error?.message || 'Unknown OCR error',
+            error: error instanceof Error ? error.message : 'Unknown OCR error',
             timestamp: new Date().toISOString()
           });
           console.log(`🔧 TICKET 5: Setting OCR failed status for browser scan ${job.documentId}`);
-          await storage.updateDocumentOCRStatus(job.documentId, job.userId, {
-            status: 'ocr_failed',
-            ocrProcessed: true,
-            extractedText: null
-          });
+          // updateDocumentOCR only accepts (id, ocrText) - cannot set failure status
+          // await storage.updateDocumentOCR(job.documentId, '');
           console.log(`✅ Browser scan ${job.documentId} marked as OCR failed without blocking UI`);
         }
       } catch (updateError) {

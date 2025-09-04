@@ -135,3 +135,5 @@ chrome/
 # ========================
 .replit
 replit.nix
+
+!client/vercel.json

@@ -91,7 +91,7 @@ async function testLLMClient() {
 }
 
 // Run tests if script is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (__filename === `file://${process.argv[1]}`) {
   testLLMClient().catch(console.error);
 }
 

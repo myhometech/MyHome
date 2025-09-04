@@ -112,7 +112,7 @@ async function runTests() {
 }
 
 // Run tests if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (__filename === `file://${process.argv[1]}`) {
   runTests().catch(console.error);
 }
 

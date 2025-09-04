@@ -149,7 +149,7 @@ app.use((req, res, next) => {
   console.log('🚀 PRODUCTION DEPLOYMENT: server/index.ts executing at:', new Date().toISOString());
   console.log('🚀 DEPLOYMENT CONFIRMATION: Routes will be registered and server will start on port:', process.env.PORT || 5000);
   console.log('🚀 NODE_ENV:', process.env.NODE_ENV);
-  console.log('🚀 File path:', import.meta.url);
+  console.log('🚀 File path:', __filename);
   console.log('🚀 Process arguments:', process.argv);
   console.log('🚀 Working directory:', process.cwd());
 
@@ -473,7 +473,7 @@ app.use((req, res, next) => {
       if (err.code === 'EADDRINUSE' && attempt < 3) {
         console.log(`🔄 Port ${attemptPort} in use, trying port ${attemptPort + 1} (attempt ${attempt + 1}/3)...`);
         setTimeout(() => {
-          tryStartServer(attemptPort + 1, attempt + 1);
+         // tryStartServer(attemptPort + 1, attempt + 1);
         }, 1000);
       } else if (err.code === 'EADDRINUSE') {
         console.log('❌ All ports exhausted, forcing cleanup and exit...');
@@ -484,5 +484,12 @@ app.use((req, res, next) => {
     });
   };
 
-  tryStartServer(port);
+ // tryStartServer(port);
+  // --- START SERVER: Express listens directly (Render/Replit) ---
+  const port = Number(process.env.PORT || 5000);
+  const host = process.env.HOST || "0.0.0.0";
+  app.listen(port, host, () => {
+    console.log(`\xF0\x9F\x8C\x90 Server ready at http://${host}:${port}`);
+  });
+  // --- END START SERVER ---
 })();

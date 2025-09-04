@@ -159,7 +159,7 @@ async function testCategorySuggestionEndpoint() {
 }
 
 // Run tests if script is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (__filename === `file://${process.argv[1]}`) {
   testCategorySuggestionEndpoint().catch(console.error);
 }
 

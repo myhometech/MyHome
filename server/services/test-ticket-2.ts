@@ -135,7 +135,7 @@ async function testAiInsightService() {
 }
 
 // Run tests if script is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (__filename === `file://${process.argv[1]}`) {
   testAiInsightService().catch(console.error);
 }
 

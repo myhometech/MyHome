@@ -1,6 +1,6 @@
 /**
- * Minimal feature flag registry stub.
- * Replace with your real flags/remote config when ready.
+ * Shared feature flags visible to the frontend.
+ * Replace defaults with your real remote-config or env-driven values.
  */
 export type FeatureKey =
   | "newInsights"
@@ -8,15 +8,18 @@ export type FeatureKey =
   | "aiSuggestions"
   | "adminPanels";
 
-const flags: Record<FeatureKey, boolean> = {
+/** Feature map. Toggle to enable/disable UI features. */
+export const FEATURES: Record<FeatureKey, boolean> = {
   newInsights: true,
   scanFlowV2: true,
   aiSuggestions: true,
   adminPanels: true,
 };
 
+/** Helper used across the app */
 export function isFeatureEnabled(key: FeatureKey): boolean {
-  return !!flags[key];
+  return !!FEATURES[key];
 }
 
-export const allFeatures = flags;
+/** Optional default export in case some files import default */
+export default FEATURES;

@@ -99,6 +99,12 @@ export class DVLALookupService {
         })
       });
 
+      // Validate response is JSON before parsing to prevent crashes
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Unexpected response content-type: ${contentType || 'none'}`);
+      }
+      
       const responseData = await response.json();
 
       // Handle different response codes
@@ -152,9 +158,9 @@ export class DVLALookupService {
         fuelType: this.normalizeFuelType(dvlaData.fuelType),
         colour: this.normalizeColour(dvlaData.colour),
         taxStatus: this.normalizeTaxStatus(dvlaData.taxStatus),
-        taxDueDate: this.parseDate(dvlaData.taxDueDate || dvlaData.artEndDate),
+        taxDueDate: this.parseDate(dvlaData.taxDueDate || dvlaData.artEndDate)?.toISOString() || null,
         motStatus: this.normalizeMotStatus(dvlaData.motStatus),
-        motExpiryDate: this.parseDate(dvlaData.motExpiryDate),
+        motExpiryDate: this.parseDate(dvlaData.motExpiryDate)?.toISOString() || null,
         co2Emissions: dvlaData.co2Emissions,
         euroStatus: dvlaData.euroStatus,
         engineCapacity: dvlaData.engineCapacity,

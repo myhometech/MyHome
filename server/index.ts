@@ -99,13 +99,11 @@ app.use(cors({
 
 // Increased limits for Mailgun email ingestion (emails can be large with attachments)
 app.use(express.json({ 
-  limit: '30mb', // Below Replit's 32MiB limit
-  parameterLimit: 50000
+  limit: '30mb' // Below Replit's 32MiB limit
 }));
 app.use(express.urlencoded({ 
   extended: true,
-  limit: '30mb', // Below Replit's 32MiB limit
-  parameterLimit: 50000
+  limit: '30mb' // Below Replit's 32MiB limit
 }));
 
 // Add correlation ID middleware first
@@ -187,7 +185,7 @@ app.use((req, res, next) => {
       console.log('📧 Raw body values:', req.body);
       console.log('📧 Files received:', req.files?.length || 0);
       if (req.files && req.files.length > 0) {
-        console.log('📧 File details:', req.files.map(f => ({ fieldname: f.fieldname, originalname: f.originalname, size: f.size })));
+        console.log('📧 File details:', req.files.map((f: any) => ({ fieldname: f.fieldname, originalname: f.originalname, size: f.size })));
       }
 
       const { recipient, sender, subject, 'body-plain': bodyPlain, 'body-html': bodyHtml } = req.body;
@@ -423,8 +421,8 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  const host = process.env.HOST || "0.0.0.0";
+  const serverPort = parseInt(process.env.PORT || "5000", 10);
+  const serverHost = process.env.HOST || "0.0.0.0";
 
   // DEPLOYMENT DEBUG: Log all registered routes before starting server
   console.log('🔧 REGISTERED ROUTES SUMMARY:');
@@ -443,13 +441,13 @@ app.use((req, res, next) => {
       message: 'Mailgun webhook endpoint is accessible' 
     });
   });
-  console.log(`🚀 Starting server on port ${port} with NODE_ENV=${process.env.NODE_ENV}`);
+  console.log(`🚀 Starting server on port ${serverPort} with NODE_ENV=${process.env.NODE_ENV}`);
 
   // DEPLOYMENT FIX: Add deployment environment detection (already declared above)
 
   if (isDeployment) {
     console.log('🚀 DEPLOYMENT MODE: Configuring for Replit deployment');
-    console.log('🚀 PORT configuration:', port);
+    console.log('🚀 PORT configuration:', serverPort);
     console.log('🚀 REPLIT_DEPLOYMENT:', process.env.REPLIT_DEPLOYMENT);
   }
 
@@ -457,10 +455,10 @@ app.use((req, res, next) => {
   const tryStartServer = (attemptPort: number, attempt: number = 1): void => {
     const serverInstance = server.listen({
       port: attemptPort,
-      host,
+      host: serverHost,
     }, () => {
       log(`serving on port ${attemptPort}`);
-      console.log(`🌐 Server ready at http://${host}:${attemptPort}`);
+      console.log(`🌐 Server ready at http://${serverHost}:${attemptPort}`);
       console.log('✅ MyHome application is now accessible in preview');
 
       if (isDeployment) {
@@ -473,7 +471,7 @@ app.use((req, res, next) => {
       if (err.code === 'EADDRINUSE' && attempt < 3) {
         console.log(`🔄 Port ${attemptPort} in use, trying port ${attemptPort + 1} (attempt ${attempt + 1}/3)...`);
         setTimeout(() => {
-         // tryStartServer(attemptPort + 1, attempt + 1);
+          tryStartServer(attemptPort + 1, attempt + 1);
         }, 1000);
       } else if (err.code === 'EADDRINUSE') {
         console.log('❌ All ports exhausted, forcing cleanup and exit...');
@@ -484,12 +482,10 @@ app.use((req, res, next) => {
     });
   };
 
- // tryStartServer(port);
+ // tryStartServer(serverPort);
   // --- START SERVER: Express listens directly (Render/Replit) ---
-  const port = Number(process.env.PORT || 5000);
-  const host = process.env.HOST || "0.0.0.0";
-  app.listen(port, host, () => {
-    console.log(`\xF0\x9F\x8C\x90 Server ready at http://${host}:${port}`);
+  app.listen(serverPort, serverHost, () => {
+    console.log(`\xF0\x9F\x8C\x90 Server ready at http://${serverHost}:${serverPort}`);
   });
   // --- END START SERVER ---
 })();

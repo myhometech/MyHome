@@ -54,7 +54,18 @@ npm run dev
 ```
 
 ### Environment Configuration
+
+**Development:**
+- Set `VITE_API_URL=http://localhost:5000`
+- Run `npm run dev`
+
+**Production (Vercel):**
+- Set `VITE_API_URL=https://api.myhome.com`
+
 ```bash
+# Frontend API Configuration
+VITE_API_URL=http://localhost:5000  # Dev: localhost, Prod: https://api.myhome.com
+
 # Database
 DATABASE_URL=postgresql://username:password@localhost:5432/myhome
 

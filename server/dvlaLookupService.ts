@@ -6,7 +6,7 @@
  * vehicles table format.
  */
 
-import { Vehicle, InsertVehicle } from '@shared/schema';
+import { Vehicle, InsertVehicle } from '../shared/schema';
 
 // DVLA API configuration
 const DVLA_API_BASE_URL = 'https://driver-vehicle-licensing.api.gov.uk';

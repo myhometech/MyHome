@@ -7,7 +7,7 @@ import { Storage } from '@google-cloud/storage';
 import { nanoid } from 'nanoid';
 import { writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import type { InsertDocument } from '@shared/schema';
+import type { InsertDocument } from '../shared/schema';
 import { storage } from './storage';
 
 // TICKET 1: Enhanced validation rules and security limits

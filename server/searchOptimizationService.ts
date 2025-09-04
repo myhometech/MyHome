@@ -4,7 +4,7 @@
  */
 
 import { storage } from './storage';
-import { documents, categories } from '@shared/schema';
+import { documents, categories } from '../shared/schema';
 import { eq, and, or, ilike, desc, sql, inArray } from 'drizzle-orm';
 import { performanceMonitoringService } from './performanceMonitoringService';
 

@@ -1,5 +1,5 @@
 import { LLMClient } from './llmClient';
-import { InsertDocumentFact } from '@shared/schema';
+import { InsertDocumentFact } from '../../shared/schema';
 import { storage } from '../storage';
 
 /**

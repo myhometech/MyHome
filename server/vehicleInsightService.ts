@@ -6,7 +6,7 @@
 
 import { storage } from './storage.js';
 import { llmClient } from './services/llmClient.js';
-import type { Vehicle, InsertDocumentInsight } from '@shared/schema';
+import type { Vehicle, InsertDocumentInsight } from '../shared/schema';
 
 interface VehicleInsightOptions {
   linkedVrn: string;

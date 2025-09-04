@@ -1,6 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import { stripeService } from './stripeService';
+import { storage } from './storage';
+import Stripe from 'stripe';
+// getUserId will be imported from routes.ts
+function getUserId(req: any): string {
+  return req.user?.id || req.session?.userId || '';
+}
 // Auth functions from routes.ts - will be passed as middleware
+
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-06-20'
+});
 
 /**
  * Create Stripe Checkout Session for subscription

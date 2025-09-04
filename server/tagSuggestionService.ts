@@ -24,7 +24,7 @@ export class TagSuggestionService {
   ): Promise<TagSuggestionResponse> {
     try {
       // Use basic keyword analysis instead of AI
-      const suggestions = this.analyzeWithKeywords(fileName, extractedText);
+      const suggestions = this.analyzeWithKeywords(fileName, extractedText, mimeType);
       return {
         suggestedTags: suggestions.tags,
         category: suggestions.category,
@@ -40,7 +40,7 @@ export class TagSuggestionService {
     }
   }
 
-  private analyzeWithKeywords(fileName: string, extractedText?: string): {tags: TagSuggestion[], category: string | null, confidence: number} {
+  private analyzeWithKeywords(fileName: string, extractedText?: string, mimeType?: string): {tags: TagSuggestion[], category: string | null, confidence: number} {
     const text = `${fileName} ${extractedText || ''}`.toLowerCase();
     const tags: TagSuggestion[] = [];
     let category: string | null = null;

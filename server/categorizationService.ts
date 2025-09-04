@@ -5,7 +5,7 @@
 
 import { llmClient } from './services/llmClient.js';
 import { storage } from './storage';
-import type { Category } from '@shared/schema';
+import type { Category } from '../shared/schema';
 
 interface CategorizationResult {
   categoryId: number | null;

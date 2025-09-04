@@ -70,7 +70,7 @@ export function setupSimpleAuth(app: Express) {
     if (req.session && !req.session.user && req.session.userId) {
       req.session.user = {
         id: req.session.userId!,
-        email: req.session.email,
+        email: req.session.email || '',
         firstName: req.session.firstName,
         lastName: req.session.lastName,
         role: req.session.role,

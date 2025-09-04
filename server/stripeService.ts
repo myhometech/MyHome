@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { storage } from './storage';
-import type { InsertStripeWebhook, SubscriptionTier } from '@shared/schema';
+import type { InsertStripeWebhook, SubscriptionTier } from '../shared/schema';
 
 // Dynamic plan mapping - validates environment variables exist
 // No hardcoded fallbacks to prevent incorrect billing

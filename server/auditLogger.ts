@@ -1,5 +1,5 @@
 import { storage } from './storage';
-import type { InsertDocumentEvent } from '@shared/schema';
+import type { InsertDocumentEvent } from '../shared/schema';
 
 /**
  * TICKET 4: Audit logging service for document actions

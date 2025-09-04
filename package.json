@@ -5,8 +5,9 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite dev --host",
-    "build": "vite build && tsc",
-    "start": "node dist/server/index.js"
+    "build": "npm run build:api",
+    "start": "node dist/server/index.js",
+    "build:api": "tsc server/index.ts --outDir dist --module commonjs --target ES2020 --esModuleInterop --resolveJsonModule"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

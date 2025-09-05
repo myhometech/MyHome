@@ -139,7 +139,12 @@ app.use((req, res, next) => {
 });
 
 // Health check for Render (fast: no DB/Redis touches) - with explicit CORS
-app.get("/api/health", cors(), (_req, res) => {
+app.get("/api/health", (req, res) => {
+  const origin = req.headers.origin as string | undefined;
+  if (origin && origins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
   res.status(200).send("ok");
 });
 

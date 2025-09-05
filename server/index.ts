@@ -58,7 +58,9 @@ app.use(session({
 // ---------- Passport (must come AFTER session) ----------
 app.use(passport.initialize());
 app.use(passport.session());
-
+// Passport minimal (de)serializers (store whole user in session)
+(passport as any).serializeUser((user:any, done:any)=>done(null, user));
+(passport as any).deserializeUser((obj:any, done:any)=>done(null, obj));
 // ---------- Health ----------
 app.get('/api/health', (_req, res) => res.send('ok'));
 

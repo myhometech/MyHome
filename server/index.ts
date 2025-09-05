@@ -113,6 +113,31 @@ app.use(
   })
 );
 
+// API-scoped CORS middleware
+app.use("/api", cors({
+  origin(origin, cb) {
+    if (!origin || origins.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS: Origin ${origin} not allowed`));
+  },
+  credentials: true,
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+  allowedHeaders: ["Authorization","Content-Type","x-correlation-id"],
+}));
+
+// Safety-net header setter
+app.use((req, res, next) => {
+  const origin = req.headers.origin as string | undefined;
+  if (origin && origins.includes(origin)) {
+    if (!res.getHeader("Access-Control-Allow-Origin")) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+    if (!res.getHeader("Access-Control-Allow-Credentials")) {
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
+  }
+  next();
+});
+
 // Health check for Render (fast: no DB/Redis touches) - with explicit CORS
 app.get("/api/health", cors(), (_req, res) => {
   res.status(200).send("ok");

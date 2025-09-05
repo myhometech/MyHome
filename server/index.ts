@@ -83,6 +83,18 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 // ---- Health route (CORS-wrapped) ----
 app.get("/api/health", cors(corsOptions), (_req, res) => res.send("ok"));
 
+// TEMP: debug session/user
+app.get("/api/auth/_debug", (req, res) => {
+  res.json({
+    hasSession: !!req.session,
+    sessionId: (req.session && req.session.id) || null,
+    hasUser: !!req.user,
+    user: req.user || null,
+    cookieHeader: req.headers.cookie || null
+  });
+});
+
+
 // Redirect backend /login to frontend login (preserve query string)
 app.get("/login", (req, res) => {
   const FRONTEND = process.env.FRONTEND_ORIGIN || "https://my-home-g2bk.vercel.app";

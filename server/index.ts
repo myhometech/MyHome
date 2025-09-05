@@ -84,56 +84,61 @@ const app = express();
 // AUTH-GOOG-01: Enable trust proxy for correct HTTPS detection behind proxies
 app.set('trust proxy', 1);
 
-// CORS Configuration - Must be at top of middleware stack
-const allowedOrigins =
+// CORS Configuration - Single source of truth with normalization
+const normalize = (s?: string) =>
+  (s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\/+$/,''); // strip trailing slashes
+
+const originsFromEnv =
   (process.env.CORS_ALLOWED_ORIGINS || "")
     .split(",")
-    .map(s => s.trim())
+    .map(s => normalize(s))
     .filter(Boolean);
 
 const defaultOrigins = [
-  "https://app.myhome.com",
-  "https://www.app.myhome.com",
-  // CURRENT Vercel deployment
+  "https://my-home-g2bk.vercel.app",
   "https://my-home-g2bk-git-main-myhomes-projects-fe4f7b58.vercel.app",
 ];
 
-const origins = allowedOrigins.length ? allowedOrigins : defaultOrigins;
+const origins = (originsFromEnv.length ? originsFromEnv : defaultOrigins);
 
-app.use(
-  cors({
-    origin(origin, cb) {
-      // allow same-origin/non-browser requests and allowed origins
-      if (!origin || origins.includes(origin)) return cb(null, true);
-      return cb(new Error(`CORS: Origin ${origin} not allowed`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type", "x-correlation-id"],
-  })
-);
+console.log("[CORS] Allowed origins:", origins);
 
-// API-scoped CORS middleware
-app.use("/api", cors({
-  origin(origin, cb) {
-    if (!origin || origins.includes(origin)) return cb(null, true);
-    return cb(new Error(`CORS: Origin ${origin} not allowed`));
+const corsOptions: cors.CorsOptions = {
+  origin(incoming, cb) {
+    const o = normalize(incoming as string | undefined);
+    if (!o) return cb(null, true);                // non-browser/curl
+    if (origins.includes(o)) return cb(null, true);
+    // Don't throw—Express would convert to 500
+    return cb(null, false); // will NOT set CORS headers
   },
   credentials: true,
   methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
   allowedHeaders: ["Authorization","Content-Type","x-correlation-id"],
-}));
+};
 
-// Safety-net header setter
+// Mount high in the stack:
+app.use(cors(corsOptions));
+app.use("/api", cors(corsOptions));
+app.options("*", cors(corsOptions));
+
+// Safety net: always overwrite wildcard/missing with the concrete allowed origin
 app.use((req, res, next) => {
-  const origin = req.headers.origin as string | undefined;
-  if (origin && origins.includes(origin)) {
-    if (!res.getHeader("Access-Control-Allow-Origin")) {
-      res.setHeader("Access-Control-Allow-Origin", origin);
-    }
-    if (!res.getHeader("Access-Control-Allow-Credentials")) {
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-    }
+  const o = normalize(req.headers.origin as string | undefined);
+  if (o && origins.includes(o)) {
+    res.setHeader("Access-Control-Allow-Origin", o);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  return next();
+});
+
+// Return 403 JSON for disallowed origins on API
+app.use("/api", (req, res, next) => {
+  const o = normalize(req.headers.origin as string | undefined);
+  if (o && !origins.includes(o)) {
+    return res.status(403).json({ error: "CORS_ORIGIN_NOT_ALLOWED", origin: o });
   }
   next();
 });

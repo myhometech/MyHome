@@ -339,7 +339,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CORE-002: Security Headers and Rate Limiting
   app.use(securityHeaders);
   app.use(rateLimiter);
-  app.use(cors(corsOptions));
   app.use(securityLogger);
 
   // Setup simple authentication

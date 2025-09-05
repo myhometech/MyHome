@@ -1,28 +1,29 @@
 {
   "compilerOptions": {
-    "outDir": "dist",
     "module": "commonjs",
-    "target": "ES2022",
-    "moduleResolution": "node",
+    "target": "ES2020",
+    "outDir": "dist/server",
+    "rootDir": ".",
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "sourceMap": true,
     "skipLibCheck": true,
     "strict": false,
     "types": ["node"],
     "baseUrl": ".",
-    "paths": { "@shared/*": ["shared/*"] }
+    "paths": {
+      "@shared/*": ["shared/*"]
+    }
   },
-  "include": ["server/**/*.ts", "shared/**/*.ts"],
+  "include": ["server/**/*", "shared/**/*"],
   "exclude": [
+    "client/**/*",
+    "vite.config.ts",
+    "vite.config.js", 
+    "**/*.test.ts",
+    "**/*.spec.ts",
     "node_modules",
     "dist",
-    "public",
-    "client",
-    "vite.config.ts",
-    "vite.config.js",
-    "server/test-*.ts",
-    "server/tests/**",
-    "**/*.test.ts"
+    "scripts"
   ]
 }

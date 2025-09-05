@@ -37,7 +37,7 @@ const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_E
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { serveStatic } from "./staticFiles";
+import path from "path";
 const log = console.log;
 import { withCorrelationId } from "./middleware/correlationId.js";
 import { setupSimpleAuth } from "./simpleAuth.js";
@@ -378,29 +378,24 @@ app.use((req, res, next) => {
     }
   }
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  // DEPLOYMENT FIX: Use consistent environment detection
+  // Setup static file serving after API routes
   const nodeEnv = process.env.NODE_ENV;
-  const appEnv = app.get("env");
-  // const isDeployment = process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production'; // Redundant declaration, using the one declared at the top
-  console.log('🚨 EXPRESS SERVER STARTUP: This confirms the server is executing');
-  console.log('🚨 REPLIT_DEPLOYMENT env:', process.env.REPLIT_DEPLOYMENT);
-  console.log('🚨 Production detection:', { NODE_ENV: process.env.NODE_ENV, isDeployment });
-  console.log(`🔧 Environment check: NODE_ENV=${nodeEnv}, app.env=${appEnv}, isDeployment=${isDeployment}`);
+  const isDev = nodeEnv === "development" && !isDeployment;
 
-  if (false) { console.log("Dev Vite disabled in server build"); } else {
-    console.log('🔧 PRODUCTION MODE: Setting up static file serving for deployment');
-    console.log('🔧 Static files will be served from dist/public directory');
-    console.log('⚠️ IMPORTANT: Static file serving configured AFTER API routes to prevent route interception');
-    try {
-      serveStatic(app);
-      console.log('✅ Static file serving configured successfully for production');
-    } catch (error) {
-      console.error('❌ Static file serving failed:', (error as Error).message);
-      // Continue without static files to prevent total failure
-    }
+  if (isDev) {
+    // Lazy-load Vite only in dev
+    const { setupVite } = await import("./vite");
+    await setupVite(app, server);
+  } else {
+    // ✅ Production: serve prebuilt static files only
+    const publicDir = path.join(__dirname, "../public");
+    console.log("🔧 PRODUCTION MODE: Serving static files from:", publicDir);
+
+    app.use(express.static(publicDir));
+
+    app.get("/", (_req, res) => {
+      res.sendFile(path.join(publicDir, "index.html"));
+    });
   }
 
   // Add error handling AFTER static file setup to avoid interfering with routes

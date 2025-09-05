@@ -1116,7 +1116,7 @@ function AssetsTabContent() {
               {error?.type === 'auth' ? (
                 <div>
                   <p className="text-blue-600 mb-4">You need to sign in to view your vehicles.</p>
-                  <Button onClick={() => window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`
+                  <Button onClick={() => window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`}
                     Sign In
                   </Button>
                 </div>

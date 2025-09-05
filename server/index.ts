@@ -83,6 +83,18 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 // ---- Health route (CORS-wrapped) ----
 app.get("/api/health", cors(corsOptions), (_req, res) => res.send("ok"));
 
+// --- Direct Google OAuth routes (ensure session attaches user) ---
+app.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"], session: true }));
+app.get("/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "/login?error=oauth_failed", session: true }),
+  (req, res) => {
+    const FRONTEND = process.env.FRONTEND_ORIGIN || "https://my-home-g2bk.vercel.app";
+    res.redirect(302, FRONTEND);
+  }
+);
+// --- end Google OAuth routes ---
+
+
 // TEMP: debug session/user
 app.get("/api/auth/_debug", (req, res) => {
   res.json({

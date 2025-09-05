@@ -64,6 +64,22 @@ app.use(passport.session());
 // ---------- Health ----------
 app.get('/api/health', (_req, res) => res.send('ok'));
 
+// Override Google callback with custom passport handler (ensures user -> session)
+app.get("/auth/google/callback", (req: any, res: any, next: any) => {
+  passport.authenticate("google", (err: any, user: any) => {
+    if (err) return next(err);
+    if (!user) return res.redirect("/login?error=oauth_failed");
+    req.logIn(user, (err2: any) => {
+      if (err2) return next(err2);
+      try { req.session.user = user; } catch {}
+      const FRONTEND = process.env.FRONTEND_ORIGIN || "https://my-home-g2bk.vercel.app";
+      if (req.session?.save) req.session.save(() => res.redirect(302, FRONTEND));
+      else res.redirect(302, FRONTEND);
+    });
+  })(req, res, next);
+});
+
+
 // ---------- Google OAuth (direct) ----------
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'], session: true })

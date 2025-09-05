@@ -1,3 +1,9 @@
+/* ensure cookies are sent with all fetches */
+if (typeof window!=="undefined"){
+  const _fetch = window.fetch.bind(window);
+  window.fetch = (input, init={}) => _fetch(input, { credentials: "include", ...(init||{}) });
+}
+
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {

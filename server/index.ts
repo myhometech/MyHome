@@ -81,15 +81,10 @@ import { initializeWorkerHealthChecker } from './workerHealthCheck';
 
 const app = express();
 
-// Health check for Render (fast: no DB/Redis touches)
-app.get("/api/health", (_req, res) => {
-  res.status(200).send("ok");
-});
-
 // AUTH-GOOG-01: Enable trust proxy for correct HTTPS detection behind proxies
 app.set('trust proxy', 1);
 
-// Configure Express with increased limits for email processing
+// CORS Configuration - Must be at top of middleware stack
 const allowedOrigins =
   (process.env.CORS_ALLOWED_ORIGINS || "")
     .split(",")
@@ -117,6 +112,11 @@ app.use(
     allowedHeaders: ["Authorization", "Content-Type", "x-correlation-id"],
   })
 );
+
+// Health check for Render (fast: no DB/Redis touches) - with explicit CORS
+app.get("/api/health", cors(), (_req, res) => {
+  res.status(200).send("ok");
+});
 
 // Increased limits for Mailgun email ingestion (emails can be large with attachments)
 app.use(express.json({ 

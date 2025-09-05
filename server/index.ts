@@ -74,6 +74,8 @@ app.use(passport.session());
     sameSite: "none",   // Required for cross-site cookies
   },
 }));
+app.use(passport.initialize());
+app.use(passport.session());
 
 // ---- Basic body parsing (keep light) ----
 app.use(express.json({ limit: "1mb" }));

@@ -76,6 +76,8 @@ app.use(passport.session());
 }));
 app.use(passport.initialize());
 app.use(passport.session());
+app.use(passport.initialize());
+app.use(passport.session());
 
 // ---- Basic body parsing (keep light) ----
 app.use(express.json({ limit: "1mb" }));

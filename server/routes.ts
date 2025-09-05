@@ -607,18 +607,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/auth/user', requireAuth as any, async (req: any, res: any) => {
+  app.get("/api/auth/user", async (req: any, res: any) => {
     try {
-      const user = req.user || req.session?.user;
-
+      const user = (req as any).session?.user || (req as any).user;
       if (!user) {
-        console.log("No user found in req.user or req.session.user");
-        console.log("Session debug:", {
-          hasSession: !!req.session,
-          sessionKeys: req.session ? Object.keys(req.session) : [],
-          sessionUserId: req.session?.userId
-        });
-        return res.status(401).json({ message: "User not authenticated" });
+        console.log("[AUTH] /api/auth/user unauthenticated");
+        return res.status(401).json({ error: "AUTH_REQUIRED" });
       }
 
       // Always fetch the latest user data from database to ensure subscription tier is up to date
@@ -627,14 +621,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const fullUser = await AuthService.findUserById(user.id);
         if (fullUser) {
           console.log("Returning fresh user data with subscription tier:", fullUser.subscriptionTier);
-          return res.json({
-            id: fullUser.id,
-            email: fullUser.email,
-            firstName: fullUser.firstName,
-            lastName: fullUser.lastName,
-            role: fullUser.role,
-            authProvider: fullUser.authProvider || req.session?.authProvider,
-            subscriptionTier: fullUser.subscriptionTier || 'free'
+          return res.status(200).json({
+            user: {
+              id: fullUser.id,
+              email: fullUser.email,
+              firstName: fullUser.firstName,
+              lastName: fullUser.lastName,
+              role: fullUser.role,
+              authProvider: fullUser.authProvider || req.session?.authProvider,
+              subscriptionTier: fullUser.subscriptionTier || 'free'
+            }
           });
         }
       } catch (dbError) {
@@ -644,34 +640,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fallback to session data if database fetch fails
       if (user.id && user.email) {
         console.log("Returning user from session/req:", user.id);
-        return res.json({
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          authProvider: user.authProvider || req.session?.authProvider,
-          subscriptionTier: user.subscriptionTier || user.subscription_tier || 'free'
+        return res.status(200).json({
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            authProvider: user.authProvider || req.session?.authProvider,
+            subscriptionTier: user.subscriptionTier || user.subscription_tier || 'free'
+          }
         });
       }
 
       // Fallback: return partial user data if we have basic info
       if (user.id) {
         console.log("Returning partial user data:", user.id);
-        return res.json({
-          id: user.id,
-          email: user.email || 'unknown@email.com',
-          firstName: user.firstName || null,
-          lastName: user.lastName || null,
-          role: user.role || 'user',
-          authProvider: user.authProvider || req.session?.authProvider || 'session'
+        return res.status(200).json({
+          user: {
+            id: user.id,
+            email: user.email || 'unknown@email.com',
+            firstName: user.firstName || null,
+            lastName: user.lastName || null,
+            role: user.role || 'user',
+            authProvider: user.authProvider || req.session?.authProvider || 'session'
+          }
         });
       }
 
-      return res.status(404).json({ message: "User not found" });
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      console.log("[AUTH] /api/auth/user unauthenticated");
+      return res.status(401).json({ error: "AUTH_REQUIRED" });
+    } catch (err: any) {
+      console.error("[AUTH] /api/auth/user error:", err?.message || err);
+      return res.status(500).json({ error: "INTERNAL_ERROR" });
     }
   });
 

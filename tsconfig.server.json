@@ -8,22 +8,24 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "strict": false,
+    "noEmitOnError": false,
     "types": ["node"],
+    "moduleResolution": "node",
+    "declaration": false,
+    "sourceMap": true,
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["server/**/*", "shared/**/*"],
+  "include": ["server/**/*.ts", "shared/**/*.ts"],
   "exclude": [
     "client/**/*",
     "vite.config.ts",
-    "vite.config.js", 
+    "server/vite.ts",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "node_modules",
-    "dist",
-    "scripts"
+    "node_modules/**/*",
+    "dist/**/*"
   ]
 }

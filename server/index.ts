@@ -1,3 +1,4 @@
+import passport from "passport";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -61,6 +62,8 @@ app.use((req, res, next) => {
 
 // ---- Sessions (cross-site) ----
 app.use(session({
+app.use(passport.initialize());
+app.use(passport.session());
   name: "connect.sid",
   secret: process.env.SESSION_SECRET || "dev_secret_change_me_please",
   resave: false,

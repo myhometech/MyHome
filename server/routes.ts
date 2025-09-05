@@ -1248,7 +1248,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Cache-Control', 'public, max-age=3600');
           res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-          res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
           res.setHeader('Access-Control-Allow-Credentials', 'true');
           res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
           res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
@@ -1281,7 +1280,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           res.setHeader('Content-Type', document.mimeType);
           res.setHeader('Cache-Control', 'public, max-age=3600');
           res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-          res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
           res.setHeader('Access-Control-Allow-Credentials', 'true');
           res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
           res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
@@ -1315,7 +1313,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               res.setHeader('Content-Type', document.mimeType);
               res.setHeader('Cache-Control', 'public, max-age=3600');
               res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
-              res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
               res.setHeader('Access-Control-Allow-Credentials', 'true');
               res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
               res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
@@ -1359,7 +1356,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
 
             // CORS headers for react-pdf compatibility
-            res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
             res.setHeader('Access-Control-Allow-Credentials', 'true');
             res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
             res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
@@ -1401,7 +1397,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Disposition', 'inline; filename="' + document.fileName + '"');
 
         // CORS headers for react-pdf compatibility
-        res.setHeader('Access-Control-Allow-Origin', req.get('Origin') || '*');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
         res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
         res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');

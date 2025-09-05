@@ -85,12 +85,7 @@ app.get("/api/health", cors(corsOptions), (_req, res) => res.send("ok"));
 
 // --- Direct Google OAuth routes (ensure session attaches user) ---
 app.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"], session: true }));
-app.get("/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login?error=oauth_failed", session: true }),
-  (req, res) => {
-    const FRONTEND = process.env.FRONTEND_ORIGIN || "https://my-home-g2bk.vercel.app";
-    res.redirect(302, FRONTEND);
-  }
+app.get("/auth/google/callback", passport.authenticate("google", { failureRedirect: "/login?error=oauth_failed", session: true }), (req, res) => { const FRONTEND = process.env.FRONTEND_ORIGIN || "https://my-home-g2bk.vercel.app"; try { (req as any).session.user = (req as any).user || null; } catch {} if ((req as any).session?.save) { (req as any).session.save(() => res.redirect(302, FRONTEND)); } else { res.redirect(302, FRONTEND); } })
 );
 // --- end Google OAuth routes ---
 

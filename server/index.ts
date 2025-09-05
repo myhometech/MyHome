@@ -62,8 +62,6 @@ app.use((req, res, next) => {
 
 // ---- Sessions (cross-site) ----
 app.use(session({
-app.use(passport.initialize());
-app.use(passport.session());
   name: "connect.sid",
   secret: process.env.SESSION_SECRET || "dev_secret_change_me_please",
   resave: false,
@@ -74,11 +72,10 @@ app.use(passport.session());
     sameSite: "none",   // Required for cross-site cookies
   },
 }));
-app.use(passport.initialize());
-app.use(passport.session());
-app.use(passport.initialize());
-app.use(passport.session());
 
+
+app.use(passport.initialize());
+app.use(passport.session());
 // ---- Basic body parsing (keep light) ----
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));

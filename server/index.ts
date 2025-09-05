@@ -90,13 +90,33 @@ app.get("/api/health", (_req, res) => {
 app.set('trust proxy', 1);
 
 // Configure Express with increased limits for email processing
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://myhome-docs.com', 'https://www.myhome-docs.com']
-    : true,
-  credentials: true,
-  allowedHeaders: ['Authorization', 'Content-Type', 'x-correlation-id']
-}));
+const allowedOrigins =
+  (process.env.CORS_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+const defaultOrigins = [
+  "https://app.myhome.com",
+  "https://www.app.myhome.com",
+  // CURRENT Vercel deployment
+  "https://my-home-g2bk-git-main-myhomes-projects-fe4f7b58.vercel.app",
+];
+
+const origins = allowedOrigins.length ? allowedOrigins : defaultOrigins;
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      // allow same-origin/non-browser requests and allowed origins
+      if (!origin || origins.includes(origin)) return cb(null, true);
+      return cb(new Error(`CORS: Origin ${origin} not allowed`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Authorization", "Content-Type", "x-correlation-id"],
+  })
+);
 
 // Increased limits for Mailgun email ingestion (emails can be large with attachments)
 app.use(express.json({ 
@@ -106,6 +126,9 @@ app.use(express.urlencoded({
   extended: true,
   limit: '30mb' // Below Replit's 32MiB limit
 }));
+
+// Fast preflight for all routes
+app.options("*", cors());
 
 // Add correlation ID middleware first
 app.use(withCorrelationId as any);
